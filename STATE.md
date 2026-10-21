@@ -44,3 +44,8 @@
 - Not tested against a real Postgres yet (PGlite only). Needs a DATABASE_URL to run scripts/migrate-tenants.mts.
 - Not built: login/session wiring (Supabase Auth), in-schema RLS policies, invitation accept flow.
 - Next: Phase 2 master data (vehicles, employees, vendors, custody, CSV import) once Supabase vs Neon is chosen for the first live database.
+
+## 2026-10-22: Phase 1 verified on real Postgres 16
+- Supabase free limit reached (2 projects: MerQuant ERP, textile-manager-pro; neither touched). User chose Neon free for now; no connection string yet.
+- Ran the 38 tenancy tests against a local real Postgres 16 (TEST_DATABASE_URL=postgres://...). All pass, including search_path not leaking across transactions and failed provisioning rolling back DDL.
+- Run: `TEST_DATABASE_URL=... npx vitest run`. migrate-tenants.mts --check correctly reported drift left by the test's fake 0005/0006 migrations.
