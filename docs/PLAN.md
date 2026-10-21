@@ -94,3 +94,6 @@ Currency/tax handling (PKR, sales tax fields), mobile-first/PWA for drivers, Wha
 - When built, it adds its own migration (tracker integrations, vehicle-to-device links with `odometer_offset_km`, sync status), a sync worker per provider, and a `tracker.manage` permission. Credentials stay in server secrets.
 - Already in place so nothing needs reworking: `odometer_readings.source` accepts `'tracker'`, and validation and flagging apply to any source.
 - Prerequisite when the time comes: the customer's tracker provider and how it exposes data.
+
+## Clarification 2026-10-21: tracker integration is a v2 feature
+- Scheduled for **v2**, not any v1 phase. Still opt-in per organization (plan feature flag `tracker_sync`). Everything else in the 2026-10-21 tracker decision stands.

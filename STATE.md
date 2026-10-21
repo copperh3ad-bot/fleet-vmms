@@ -27,3 +27,6 @@
 - Decision: monthly entry only in v1; tracker is a later opt-in module. See PLAN.md decision section.
 - 0003 rewritten before any deployment: removed vehicle_trackers, tracker_integrations, tracker.manage; monthly cycle now covers every active vehicle; v_odometer_status drops tracker columns. 'tracker' stays a valid reading source.
 - check-sql.mts green (tracker assertions replaced). 
+
+## 2026-10-21: Clarification
+- Tracker integration is v2 (not a v1 phase). No code change.
