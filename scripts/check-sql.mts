@@ -93,7 +93,7 @@ for (const [reg, want] of Object.entries(expected)) {
   else { console.log(`FAIL pm ${reg}: expected ${want}, got ${got}`); process.exitCode = 1; }
 }
 
-// ---- Odometer: tracker, validation, monthly cycle ----
+// ---- Odometer: validation and monthly cycle ('tracker' source value is reserved for the later module) ----
 const T = (n: number) => `00000000-0000-0000-0000-0000000003${String(n).padStart(2, "0")}`;
 const km = async (id: string) => Number((await db.query<{ odometer_km: string }>("select odometer_km from vehicles where id=$1", [id])).rows[0].odometer_km);
 const check = (label: string, ok: boolean, detail = "") => {
@@ -101,9 +101,7 @@ const check = (label: string, ok: boolean, detail = "") => {
 };
 await db.exec(`
   insert into vehicles(id, registration_no) values
-    ('${T(1)}','OD-1'), ('${T(2)}','OD-2'), ('${T(3)}','OD-3-TRACKED'), ('${T(4)}','OD-4');
-  insert into tracker_integrations(provider, enabled, secret_ref) values ('demo', true, 'TRACKER_DEMO_KEY');
-  insert into vehicle_trackers(vehicle_id, provider, device_ref, last_sync_at) values ('${T(3)}','demo','DEV-1', now());
+    ('${T(1)}','OD-1'), ('${T(2)}','OD-2'), ('${T(3)}','OD-3'), ('${T(4)}','OD-4');
 `);
 const ins = (v: string, k: number, daysAgo: number, src: string) => db.query(
   `insert into odometer_readings(vehicle_id, reading_km, read_at, source) values ($1,$2, now() - ($3 || ' days')::interval, $4) returning id, status, flag_reason`,
@@ -126,7 +124,7 @@ const mgrId = "00000000-0000-0000-0000-00000000aaaa";
 const cycle = (await db.query<{ open_odometer_cycle: string }>("select open_odometer_cycle(current_date, current_date + 7, $1)", [mgrId])).rows[0].open_odometer_cycle;
 const subs = (await db.query<{ id: string; vehicle_id: string }>("select id, vehicle_id from odometer_submissions where cycle_id=$1", [cycle])).rows;
 const sub = (v: string) => subs.find((s) => s.vehicle_id === v)?.id as string;
-check("cycle skips vehicle with a fresh tracker", !sub(T(3)) && !!sub(T(2)) && !!sub(T(4)));
+check("cycle covers every active vehicle", !!sub(T(2)) && !!sub(T(3)) && !!sub(T(4)));
 await expectFail("second cycle for the same month", `select open_odometer_cycle(current_date, current_date + 7)`);
 await db.query("select submit_odometer($1, 2500, $2, 'dashboard photo attached')", [sub(T(2)), mgrId]);
 await db.query("select approve_odometer_submission($1, $2)", [sub(T(2)), mgrId]);

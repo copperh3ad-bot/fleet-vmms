@@ -87,3 +87,10 @@ Currency/tax handling (PKR, sales tax fields), mobile-first/PWA for drivers, Wha
 - Both can run together. Job cards that record an odometer also create a reading.
 - `v_odometer_status` shows freshness (fresh / stale after 45 days / never), source, tracker link, flagged count. `v_pm_status.km_data_stale` warns when the oil-change distance rule is running on an old odometer.
 - Permissions: `odometer.submit`, `odometer.review`, `tracker.manage`.
+
+## Decision 2026-10-21: tracker integration deferred (supersedes the tracker parts of the odometer addendum above)
+- v1 ships monthly odometer collection only. No tracker tables, no tracker worker, no tracker permission in the tenant schema.
+- Tracker sync becomes a post-v1 module, built when a customer asks for it, and available only to organizations that opt in (plan feature flag `tracker_sync` in `public.plans.features`, plus a per-tenant switch).
+- When built, it adds its own migration (tracker integrations, vehicle-to-device links with `odometer_offset_km`, sync status), a sync worker per provider, and a `tracker.manage` permission. Credentials stay in server secrets.
+- Already in place so nothing needs reworking: `odometer_readings.source` accepts `'tracker'`, and validation and flagging apply to any source.
+- Prerequisite when the time comes: the customer's tracker provider and how it exposes data.

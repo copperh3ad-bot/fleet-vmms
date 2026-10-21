@@ -1,8 +1,8 @@
 -- Tenant migration 0003: odometer readings. Idempotent.
--- Two ways in, both optional and combinable per vehicle:
---   A) 3rd-party tracker, synced automatically by a server-side worker.
---   B) Monthly collection: admin opens a cycle, gets each driver's reading, reviews and approves.
--- Every reading lands in one append-style table, is validated, and only accepted readings move vehicles.odometer_km.
+-- v1 input: monthly collection. Admin opens a cycle, gets each driver's reading, reviews and approves.
+-- Tracker sync is deliberately NOT here. It is a later, opt-in module (see docs/PLAN.md). The 'tracker' source
+-- value is reserved in odometer_readings so adding it later needs no change to this table.
+-- Every reading lands in one table, is validated, and only accepted readings move vehicles.odometer_km.
 -- vehicles.odometer_km must be written only through this path.
 
 alter table vehicles add column if not exists odometer_updated_at timestamptz;
@@ -88,32 +88,7 @@ drop trigger if exists job_cards_odometer on job_cards;
 create trigger job_cards_odometer after insert or update of odometer_km on job_cards
   for each row execute function job_card_odometer_reading();
 
--- ---------- Option A: 3rd-party tracker ----------
--- Provider-agnostic. A server-side worker per provider does the fetching and inserts readings with source = 'tracker'.
--- secret_ref names a server-side secret (env or vault). Credentials are never stored in this table.
-create table if not exists tracker_integrations (
-  provider            text primary key,
-  enabled             boolean not null default false,
-  sync_interval_hours int not null default 24 check (sync_interval_hours > 0),
-  secret_ref          text,
-  last_run_at         timestamptz,
-  last_run_status     text
-);
-
-create table if not exists vehicle_trackers (
-  vehicle_id         uuid primary key references vehicles(id) on delete cascade,
-  provider           text not null references tracker_integrations(provider),
-  device_ref         text not null,
-  odometer_offset_km numeric(12,1) not null default 0,  -- tracker total distance usually differs from the dashboard odometer; worker adds this
-  active             boolean not null default true,
-  linked_at          timestamptz not null default now(),
-  last_sync_at       timestamptz,
-  last_sync_status   text,
-  last_error         text,
-  unique (provider, device_ref)
-);
-
--- ---------- Option B: monthly collection ----------
+-- ---------- Monthly collection ----------
 create table if not exists odometer_cycles (
   id        uuid primary key default gen_random_uuid(),
   period    date not null unique check (period = date_trunc('month', period)::date),
@@ -150,7 +125,7 @@ begin
     ('job_card','quotation','invoice','accident','challan','compliance_doc','insurance_policy','odometer_submission'));
 end $$;
 
--- Opens a cycle with one pending row per vehicle. Vehicles with a tracker that synced in the last 7 days are skipped.
+-- Opens a cycle with one pending row per active vehicle.
 create or replace function open_odometer_cycle(p_period date, p_due date, p_user uuid default null) returns uuid
 language plpgsql as $$
 declare cid uuid;
@@ -161,9 +136,7 @@ begin
   select cid, v.id, cu.employee_id
     from vehicles v
     left join vehicle_custody cu on cu.vehicle_id = v.id and cu.to_date is null
-   where v.status in ('active','in_workshop')
-     and not exists (select 1 from vehicle_trackers t
-                      where t.vehicle_id = v.id and t.active and t.last_sync_at > now() - interval '7 days');
+   where v.status in ('active','in_workshop');
   return cid;
 end $$;
 
@@ -213,19 +186,17 @@ end $$;
 -- ---------- Seed, permissions, audit ----------
 insert into permissions(key, description) values
   ('odometer.submit', 'Enter an odometer reading'),
-  ('odometer.review', 'Open monthly cycles, approve or reject readings'),
-  ('tracker.manage',  'Link vehicles to a 3rd-party tracker')
+  ('odometer.review', 'Open monthly cycles, approve or reject readings')
 on conflict (key) do nothing;
 insert into role_permissions(role_key, permission_key) values
   ('requester','odometer.submit'), ('fleet_manager','odometer.submit'),
-  ('fleet_manager','odometer.review'), ('tenant_admin','odometer.review'),
-  ('tenant_admin','tracker.manage')
+  ('fleet_manager','odometer.review'), ('tenant_admin','odometer.review')
 on conflict do nothing;
 
 do $$
 declare t text;
 begin
-  foreach t in array array['odometer_readings','odometer_cycles','odometer_submissions','vehicle_trackers','tracker_integrations'] loop
+  foreach t in array array['odometer_readings','odometer_cycles','odometer_submissions'] loop
     execute format('drop trigger if exists %I on %I', t || '_audit', t);
     execute format('create trigger %I after insert or update or delete on %I for each row execute function audit_trigger()', t || '_audit', t);
   end loop;
@@ -238,14 +209,11 @@ select v.id as vehicle_id, v.registration_no, v.odometer_km, v.odometer_updated_
        (select r.source from odometer_readings r
          where r.vehicle_id = v.id and r.status = 'accepted'
          order by r.read_at desc, r.created_at desc limit 1) as last_source,
-       (t.vehicle_id is not null and t.active) as tracker_linked,
-       t.last_sync_at,
        (select count(*)::int from odometer_readings r where r.vehicle_id = v.id and r.status = 'flagged') as flagged_readings,
        case when v.odometer_updated_at is null then 'never'
             when current_date - v.odometer_updated_at::date > c.stale_days then 'stale'
             else 'fresh' end as freshness
   from vehicles v
-  left join vehicle_trackers t on t.vehicle_id = v.id
   cross join (select coalesce((select value::int from settings where key = 'odometer_stale_days'), 45) as stale_days) c
  where v.status in ('active','in_workshop');
 

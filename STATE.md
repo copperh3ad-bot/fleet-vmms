@@ -22,3 +22,8 @@
 - check-sql.mts: each migration now applied twice in order; 13 new assertions (flagging, override with note, tracker-skip in cycles, job card reading, stale flag). All pass.
 - Not built: tracker sync worker (needs provider name), UI, reminders for open cycles.
 - Open decisions: tracker provider; max plausible km/day (800 assumed); stale threshold (45 days assumed); whether admin may enter on a driver's behalf (allowed, recorded in submitted_by).
+
+## 2026-10-21: Tracker integration deferred
+- Decision: monthly entry only in v1; tracker is a later opt-in module. See PLAN.md decision section.
+- 0003 rewritten before any deployment: removed vehicle_trackers, tracker_integrations, tracker.manage; monthly cycle now covers every active vehicle; v_odometer_status drops tracker columns. 'tracker' stays a valid reading source.
+- check-sql.mts green (tracker assertions replaced). 
