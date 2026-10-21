@@ -37,3 +37,10 @@
 - Fixed: re-tagging the reason at approval overwrote the driver's reason; original now kept.
 - check-sql: 53 passing assertions. Map in docs/FORM-DB-MAP.md.
 - Open: no-sign-in driver link vs "no unauthenticated endpoints"; flag-rule views not written.
+
+## 2026-10-22: Phase 1 done (tenancy, db door, migrations, can())
+- Added src/lib/db/{types,pg-driver,tenant,migrate,provision}.ts, src/lib/auth/can.ts, scripts/migrate-tenants.mts, ADR-003.
+- tests/tenancy.test.ts: 38 passing. Covers provisioning rollback, cross-tenant isolation, search_path not leaking, disabled/suspended resolution, role x permission matrix, migrations across tenants, drift, edited-migration refusal, one failing tenant not blocking others.
+- Not tested against a real Postgres yet (PGlite only). Needs a DATABASE_URL to run scripts/migrate-tenants.mts.
+- Not built: login/session wiring (Supabase Auth), in-schema RLS policies, invitation accept flow.
+- Next: Phase 2 master data (vehicles, employees, vendors, custody, CSV import) once Supabase vs Neon is chosen for the first live database.
