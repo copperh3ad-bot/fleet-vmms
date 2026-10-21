@@ -70,3 +70,11 @@ KPI tiles (open job cards, awaiting approval, spend MTD/YTD vs budget, vehicles 
 
 ## Open items (not blocking the plan)
 Currency/tax handling (PKR, sales tax fields), mobile-first/PWA for drivers, WhatsApp notifications (later), Urdu UI, approval thresholds by amount, billing integration (deferred with pricing).
+
+## Addendum 2026-10-21: Preventive maintenance due tracking
+- Rule: oil change due 3 months after the last one. Interval is a per-tenant setting on `service_types`, not hardcoded; more preventive services (tyres, brakes) are rows, not code.
+- "Last oil change" = latest completed job card with a line tagged `service_type_key = oil_change`, or an onboarding baseline, whichever is later. Free-text matching is not used.
+- Status per vehicle: `no_history`, `scheduled` (job already in flight), `overdue`, `due_soon` (default 14 days before), `ok`. View: `v_pm_status`.
+- Optional distance rule (`interval_km`, warn `pm_warning_km`), off until a km interval is set. Only trustworthy if odometer is logged regularly.
+- Surfaces: dashboard "PM due" tile and list (Phase 8); daily pg_cron notification to fleet managers and the custodian (Phase 7, shares the expiry-alert job); job card form gets a service-type picker on lines (Phase 3); onboarding CSV import carries last oil change date per vehicle (Phase 2).
+- SQL: `db/tenant-template/0002_preventive_maintenance.sql`, tested in `scripts/check-sql.mts`.
