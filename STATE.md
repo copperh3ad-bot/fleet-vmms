@@ -30,3 +30,10 @@
 
 ## 2026-10-21: Clarification
 - Tracker integration is v2 (not a v1 phase). No code change.
+
+## 2026-10-21: screens aligned with the database
+- Added db/public/0002_invitations.sql and db/tenant-template/0004_forms_alignment.sql so every field on the designed screens has a column and every multi-table save has one SQL function (`onboard_vehicle`, `verify_invoice`).
+- Fixed: invoice verification had no payable amount, so vehicle cost would have counted what the workshop asked for. Verifier-not-approver rule was documented but not enforced in SQL; now enforced in `verify_invoice`.
+- Fixed: re-tagging the reason at approval overwrote the driver's reason; original now kept.
+- check-sql: 53 passing assertions. Map in docs/FORM-DB-MAP.md.
+- Open: no-sign-in driver link vs "no unauthenticated endpoints"; flag-rule views not written.
