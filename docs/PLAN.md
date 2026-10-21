@@ -78,3 +78,12 @@ Currency/tax handling (PKR, sales tax fields), mobile-first/PWA for drivers, Wha
 - Optional distance rule (`interval_km`, warn `pm_warning_km`), off until a km interval is set. Only trustworthy if odometer is logged regularly.
 - Surfaces: dashboard "PM due" tile and list (Phase 8); daily pg_cron notification to fleet managers and the custodian (Phase 7, shares the expiry-alert job); job card form gets a service-type picker on lines (Phase 3); onboarding CSV import carries last oil change date per vehicle (Phase 2).
 - SQL: `db/tenant-template/0002_preventive_maintenance.sql`, tested in `scripts/check-sql.mts`.
+
+## Addendum 2026-10-21: Odometer from a 3rd-party tracker (optional) or monthly entry
+- One table, `odometer_readings`, is the only way `vehicles.odometer_km` changes. Sources: `tracker`, `monthly_entry`, `job_card`, `manual`, `baseline`.
+- Validation on insert: lower than previous, or more than `odometer_max_km_per_day` (default 800), is **flagged** and does not move the odometer until accepted. Nothing is silently overwritten.
+- Option A, tracker: provider-agnostic `tracker_integrations` + `vehicle_trackers` (device ref, `odometer_offset_km` because tracker distance rarely equals the dashboard odometer). A server-side sync worker per provider writes readings. Credentials live in server secrets, referenced by `secret_ref`, never in the database. The worker itself is not built; it needs the provider named first.
+- Option B, monthly: admin opens a cycle (`open_odometer_cycle`), each vehicle gets a pending row for its custodian, the driver (or admin on their behalf) submits a reading with a dashboard photo, admin approves (`approve_odometer_submission`). Approving a flagged reading needs a written note. Vehicles with a tracker that synced in the last 7 days are skipped.
+- Both can run together. Job cards that record an odometer also create a reading.
+- `v_odometer_status` shows freshness (fresh / stale after 45 days / never), source, tracker link, flagged count. `v_pm_status.km_data_stale` warns when the oil-change distance rule is running on an old odometer.
+- Permissions: `odometer.submit`, `odometer.review`, `tracker.manage`.
