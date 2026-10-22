@@ -37,6 +37,12 @@ export async function authorized<T>(driver: Driver, m: Membership, permission: s
   });
 }
 
+/** Everything this role may do, for showing or hiding navigation. Hiding is cosmetic; every action still calls can(). */
+export async function permissionsOf(driver: Driver, m: Membership): Promise<Set<string>> {
+  return withTenant(driver, m, async (q) =>
+    new Set((await q.query<{ permission_key: string }>("select permission_key from role_permissions where role_key = $1", [m.role])).rows.map((r) => r.permission_key)));
+}
+
 export type WorkspaceLink = { slug: string; name: string; role: string };
 
 /** Workspaces a user can enter, for the post-login redirect and a workspace switcher. */

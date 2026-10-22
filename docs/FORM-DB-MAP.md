@@ -7,7 +7,11 @@ Every screen in the design canvas, what it reads, and the one call that saves it
 | Sign in | `public.tenants` (slug), Supabase Auth, `tenant_memberships` | Auth only | none |
 | Dashboard | `v_vehicle_maintenance_summary`, `v_budget_utilisation`, `v_pm_status`, `v_documents_status`, `job_cards` | read only | `report.view` |
 | Vehicles list / record | `vehicles`, `v_pm_status`, `v_odometer_status`, `v_budget_utilisation`, `vehicle_custody` | read only | `vehicle.read` |
-| Add a vehicle | `employees`, `service_types` | `onboard_vehicle(jsonb)`: vehicle, first odometer reading, custody, service baselines, insurance, documents, budget in one transaction | `vehicle.write` |
+| Add a vehicle | `employees` (names only), `service_types` | `onboard_vehicle(jsonb)`: vehicle, first odometer reading, custody, service baselines, insurance, documents, budget in one transaction | `vehicle.write` |
+| Vehicle record: custody | `vehicle_custody`, `v_pm_status` | `change_custody()`, `end_custody()` | `vehicle.write` |
+| Vehicles: import CSV | `vehicles`, `employees`, `service_types` | `onboard_vehicle` per row, all rows in one transaction, refused if any row has an error | `vehicle.write` |
+| Employees | `employees` | insert/update `employees` | `employee.manage` |
+| Vendors | `vendors` | insert/update `vendors`, block/unblock | `vendor.manage` |
 | New job card (desktop, phone) | `vehicles`, `reason_codes`, `service_types` | insert `job_cards` + `job_card_lines` + `attachments`; `requested_reason_code_id` is set by trigger | `jobcard.create` |
 | Review job card | `job_cards`, `job_card_events`, `v_budget_utilisation` | `transitionJobCard()` (re-tag writes `reason_code_id`, requester's original is kept); vendor via `vendor_id` | `jobcard.approve`, `jobcard.assign_vendor` |
 | Vendor portal | `v_vendor_work_orders` (filters itself on the signed-in user, no requester or budget) | `quotations` + `quotation_lines` (total follows lines); after approval `invoices` + `invoice_lines` | `quotation.submit`, `invoice.submit` |

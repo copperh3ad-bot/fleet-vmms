@@ -70,3 +70,12 @@
 - Fixed Next 16 dev error "unstable value Date.now() while prerendering" on `/w/[slug]`: `requireUser` now calls `connection()` first so token check and DB work run per request.
 - Note: `tenant_admin` has 10 of 20 permissions. It has no `jobcard.*`, `quotation.*`, `invoice.*`, `odometer.submit`, `workorder.update`. Intended by separation of duties; to test workflow screens the owner also needs a `fleet_manager` membership or a second user.
 - Not tested: sign-in failure path in a browser; the `connection()` fix was not re-verified in the browser.
+
+## 2026-10-22: Phase 2 done (master data)
+- Migration `0005_master_data.sql` (applied to the live demo tenant via the runner, no drift): permissions `employee.manage`/`vendor.manage`, unique employee number and vendor name, `change_custody()`, `end_custody()`. ADR-004.
+- `src/lib/master/{schemas,csv,service}.ts`: every function calls `authorized()` first. Screens under `/w/[slug]/`: vehicles (list, search, status filter), add a vehicle (via `onboard_vehicle`), vehicle record (details, PM status, custody history, change/return custody, status), CSV import (preview with row errors, all-or-nothing import), employees, vendors. Nav hides links the role cannot use.
+- Tests: 40 new in `tests/master.test.ts` (permission matrix 6 roles x all actions, duplicate plates in any spelling, custody history and `custodian_on`, own-scope visibility, tenant isolation, CSV parser and import). 84 total, all pass on PGlite and on a local real Postgres 17 (`TEST_DATABASE_URL=... npx vitest run --no-file-parallelism`; files must run one at a time on a shared DB).
+- Live smoke test of the real code against the Supabase demo tenant in one rolled-back transaction: add vehicle, custody change, duplicate plate, import preview, list. Nothing persisted.
+- Not tested: the screens in a browser (no automated UI tests; Playwright is planned for the end-to-end flow), CSV upload through a real browser file picker, mobile layout.
+- Screens built from `docs/FORM-DB-MAP.md` field lists. The Claude Design canvas was not readable from this session, so layout and labels are my reading, not a match to the boards.
+- Known: the existing pages use a light palette and do not yet handle dark mode.

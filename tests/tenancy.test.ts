@@ -28,7 +28,7 @@ describe("provisioning", () => {
   });
   it("records the schema version", async () => {
     const v = await withPlatform(d, async (q) => (await q.query<{ schema_version: number }>("select schema_version from tenants where id=$1", [a.tenantId])).rows[0].schema_version);
-    expect(v).toBe(4);
+    expect(v).toBe(5);
   });
   it("leaves nothing behind when provisioning fails", async () => {
     await expect(provisionTenant(d, { name: "Dup", slug: "delta", ownerUserId: U(9), ownerName: "x" }, tenantMigrations(), opts)).rejects.toThrow();
@@ -109,9 +109,9 @@ describe("roles and permissions", () => {
 
 describe("migration runner", () => {
   it("applies a new migration to every tenant and updates versions", async () => {
-    const next: Migration[] = [...tenantMigrations(), { name: "0005_test_column.sql", sql: "alter table vehicles add column if not exists test_col text;", checksum: "c5" }];
+    const next: Migration[] = [...tenantMigrations(), { name: "9001_test_column.sql", sql: "alter table vehicles add column if not exists test_col text;", checksum: "c9001" }];
     const res = await migrateAllTenants(d, next, opts);
-    expect(res.map((r) => r.applied)).toEqual([["0005_test_column.sql"], ["0005_test_column.sql"]]);
+    expect(res.map((r) => r.applied)).toEqual([["9001_test_column.sql"], ["9001_test_column.sql"]]);
     expect(res.every((r) => !r.error)).toBe(true);
     for (const t of [a, b]) {
       const cols = await withTenant(d, ctx(t, U(1)), async (q) => (await q.query("select column_name from information_schema.columns where table_schema=current_schema() and table_name='vehicles' and column_name='test_col'")).rows.length);
@@ -120,11 +120,11 @@ describe("migration runner", () => {
     expect(await findDrift(d, next)).toEqual([]);
   });
   it("is a no-op the second time", async () => {
-    const next = [...tenantMigrations(), { name: "0005_test_column.sql", sql: "alter table vehicles add column if not exists test_col text;", checksum: "c5" }];
+    const next = [...tenantMigrations(), { name: "9001_test_column.sql", sql: "alter table vehicles add column if not exists test_col text;", checksum: "c9001" }];
     expect((await migrateAllTenants(d, next, opts)).every((r) => r.applied.length === 0)).toBe(true);
   });
   it("reports drift and refuses edited migrations", async () => {
-    expect((await findDrift(d, tenantMigrations())).length).toBe(2); // template lacks 0005 that tenants have
+    expect((await findDrift(d, tenantMigrations())).length).toBe(2); // template lacks 9001 that tenants have
     const edited = tenantMigrations().map((m, i) => (i === 0 ? { ...m, checksum: "changed" } : m));
     const res = await migrateAllTenants(d, edited, opts);
     expect(res.every((r) => r.error?.includes("edited after it was applied"))).toBe(true);
@@ -133,10 +133,10 @@ describe("migration runner", () => {
     const c = await provisionTenant(d, { name: "Third", slug: "third", ownerUserId: U(3), ownerName: "Owner C" }, tenantMigrations(), opts);
     await withTenant(d, ctx(c, U(3)), (q) => q.query("drop table challans cascade"));
     const sql = "alter table challans add column if not exists x text;";
-    const res = await migrateAllTenants(d, [...tenantMigrations(), { name: "0006_x.sql", sql, checksum: "c6" }], opts);
+    const res = await migrateAllTenants(d, [...tenantMigrations(), { name: "9002_x.sql", sql, checksum: "c9002" }], opts);
     const by = Object.fromEntries(res.map((r) => [r.schema, r]));
     expect(by[c.schema].error).toBeTruthy();
-    expect(by[a.schema].applied).toEqual(["0005_test_column.sql", "0006_x.sql"].filter((n) => n === "0006_x.sql"));
+    expect(by[a.schema].applied).toEqual(["9001_test_column.sql", "9002_x.sql"].filter((n) => n === "9002_x.sql"));
   });
 });
 

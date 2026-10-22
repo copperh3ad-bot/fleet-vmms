@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import { requireMembership } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
 import { withTenant } from "@/lib/db/tenant";
-import { signOut } from "@/app/login/actions";
 
 export default function WorkspaceHome({ params }: PageProps<"/w/[slug]">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Workspace params={params} /></Suspense>;
@@ -20,7 +19,7 @@ async function Workspace({ params }: { params: Promise<{ slug: string }> }) {
     <main className="mx-auto w-full max-w-2xl flex-1 space-y-4 p-6">
       <h1 className="text-xl font-semibold">{slug}</h1>
       <p className="text-sm text-zinc-600">Role: {m.role}. Permissions: {info.perms}. Vehicles: {info.vehicles}.</p>
-      <form action={signOut}><button className="text-sm text-sky-800 underline" type="submit">Sign out</button></form>
+      <p className="text-sm"><a className="text-sky-800 underline" href={`/w/${slug}/vehicles`}>Vehicles</a></p>
     </main>
   );
 }
