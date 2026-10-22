@@ -38,6 +38,10 @@ export function InvoiceForm({ slug, woId, prefill }: { slug: string; woId: strin
         <Input name="invoice_date" label="Invoice date" type="date" state={state} />
         <Input name="tax_amount" label="Tax amount" state={state} inputMode="decimal" />
       </div>
+      <div>
+        <label htmlFor="files" className="mb-1 block text-xs font-medium text-zinc-600">Upload the invoice and completion photos (PDF or photos)</label>
+        <input id="files" name="files" type="file" multiple accept="image/*,application/pdf" className="block w-full rounded-md border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm" />
+      </div>
       <div className="flex flex-wrap items-center gap-3"><Submit>Send invoice</Submit><Notice state={state} /></div>
     </form>
   );

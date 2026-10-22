@@ -3,12 +3,13 @@
 // functions in migration 0007 check again that the job or order belongs to that vendor's login.
 import { z } from "zod";
 import type { Driver, Queryable } from "@/lib/db/types";
-import { authorized, type Membership } from "@/lib/auth/can";
+import { authorized, authorizedAny, type Membership } from "@/lib/auth/can";
 import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
 import { lineSchema } from "@/lib/jobcards/schemas";
 import { friendly, notifyAfter } from "@/lib/jobcards/service";
 import { notify } from "@/lib/notify";
+import { listAttachments, saveAttachment, type AttachmentRow, type BlobStore } from "@/lib/jobcards/attachments";
 
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
 const intOpt = (max: number) => z.preprocess(blank, z.coerce.number().int().min(0).max(max).optional());
@@ -121,6 +122,72 @@ export function getInvoiceCheck(driver: Driver, m: Membership, id: string): Prom
   });
 }
 
+export type CompareRow = {
+  key: string; item: string; kind: string; quoted: number | null; approved: number | null; invoiced: number | null;
+  check: "ok" | "not_approved" | "qty" | "price" | "not_billed";
+};
+export type InvoiceReview = InvoiceCheck & {
+  vehicle_id: string; vehicle_label: string; driver: string | null; reason: string; requester_name: string; approver_name: string | null; approved_on: string | null; wo_no: string;
+  comparison: CompareRow[];
+  totals: { approved: number; invoiced: number; over: number; overPct: number | null };
+  /** the person checking may not be the one who approved or raised the job card */
+  blocked: { by: "approver" | "requester"; name: string } | null;
+  next: string | null; waiting: number;
+};
+
+/** Everything the invoice check screen shows: lines side by side, the job, who is barred from checking, the next invoice. */
+export function getInvoiceReview(driver: Driver, m: Membership, id: string): Promise<InvoiceReview | null> {
+  return authorized(driver, m, "invoice.verify", async (q) => {
+    const base = (await q.query<InvoiceCheck>(
+      `select i.id, i.invoice_no, i.invoice_date::text, i.amount::text, i.tax_amount::text, i.status, jc.job_no, jc.id as job_card_id, jc.status as job_status,
+              vn.name as vendor_name, v.registration_no, c.approved_amount::text, c.variance::text, c.variance_pct::text, c.unapproved_lines::int,
+              i.decision, i.decision_note, i.payable_amount::text
+         from invoices i join v_invoice_check c on c.invoice_id = i.id join work_orders wo on wo.id = i.work_order_id
+         join job_cards jc on jc.id = wo.job_card_id join vendors vn on vn.id = wo.vendor_id join vehicles v on v.id = jc.vehicle_id
+        where i.id = $1`, [id])).rows[0];
+    if (!base) return null;
+    const j = (await q.query<{ vehicle_id: string; label: string; driver: string | null; reason: string; requester_name: string; requested_by: string; approved_by: string | null;
+                               approver_name: string | null; approved_on: string | null; wo_no: string; quotation_id: string | null }>(
+      `select jc.vehicle_id, concat_ws(' ', v.make, v.model) as label, cu.full_name as driver, rc.label as reason, re.full_name as requester_name, jc.requested_by, jc.approved_by,
+              ap.full_name as approver_name,
+              (select e.created_at::date::text from job_card_events e where e.job_card_id = jc.id and e.to_status = 'approved' order by e.seq desc limit 1) as approved_on,
+              wo.wo_no, wo.quotation_id
+         from invoices i join work_orders wo on wo.id = i.work_order_id join job_cards jc on jc.id = wo.job_card_id join vehicles v on v.id = jc.vehicle_id
+         join reason_codes rc on rc.id = jc.reason_code_id join employees re on re.id = jc.requested_by left join employees ap on ap.id = jc.approved_by left join employees cu on cu.id = jc.custodian_id
+        where i.id = $1`, [id])).rows[0];
+
+    const quoted = j.quotation_id ? (await q.query<{ id: string; kind: string; description: string; qty: string; unit_cost: string }>(
+      "select id, kind, description, qty::text, unit_cost::text from quotation_lines where quotation_id = $1 order by id", [j.quotation_id])).rows : [];
+    const billed = (await q.query<{ id: string; kind: string; description: string; qty: string; unit_cost: string; quotation_line_id: string | null }>(
+      "select id, kind, description, qty::text, unit_cost::text, quotation_line_id from invoice_lines where invoice_id = $1 order by id", [id])).rows;
+    const comparison: CompareRow[] = quoted.map((ql) => {
+      const mine = billed.filter((b) => b.quotation_line_id === ql.id);
+      const amount = Number(ql.qty) * Number(ql.unit_cost);
+      const invoiced = mine.reduce((sum, b) => sum + Number(b.qty) * Number(b.unit_cost), 0);
+      const first = mine[0];
+      const check: CompareRow["check"] = !first ? "not_billed" : Number(first.qty) !== Number(ql.qty) ? "qty" : Number(first.unit_cost) !== Number(ql.unit_cost) ? "price" : "ok";
+      return { key: ql.id, item: ql.description, kind: ql.kind, quoted: amount, approved: amount, invoiced: first ? invoiced : 0, check };
+    });
+    for (const b of billed.filter((x) => !x.quotation_line_id)) {
+      comparison.push({ key: b.id, item: b.description, kind: b.kind, quoted: null, approved: null, invoiced: Number(b.qty) * Number(b.unit_cost), check: "not_approved" });
+    }
+    const approved = Number(base.approved_amount), invoiced = Number(base.amount);
+    const over = invoiced - approved;
+
+    const me = (await q.query<{ id: string | null }>("select actor_employee($1) as id", [m.userId])).rows[0].id;
+    const blocked = me && me === j.approved_by ? { by: "approver" as const, name: j.approver_name ?? "The approver" }
+      : me && me === j.requested_by ? { by: "requester" as const, name: j.requester_name } : null;
+
+    const waitingRows = (await q.query<{ id: string }>("select i.id from invoices i where i.status = 'submitted' and i.id <> $1 order by i.invoice_date, i.id", [id])).rows;
+    return {
+      ...base, lines: [], vehicle_id: j.vehicle_id, vehicle_label: j.label, driver: j.driver, reason: j.reason, requester_name: j.requester_name,
+      approver_name: j.approver_name, approved_on: j.approved_on, wo_no: j.wo_no, comparison,
+      totals: { approved, invoiced, over, overPct: approved > 0 ? Math.round((over / approved) * 1000) / 10 : null },
+      blocked, next: waitingRows[0]?.id ?? null, waiting: waitingRows.length,
+    };
+  });
+}
+
 export function verifyInvoice(driver: Driver, m: Membership, id: string, decision: string, note?: string): Promise<void> {
   return authorized(driver, m, "invoice.verify", async (q) => {
     const jobId = (await q.query<{ job_card_id: string }>("select wo.job_card_id from invoices i join work_orders wo on wo.id = i.work_order_id where i.id = $1", [id])).rows[0]?.job_card_id;
@@ -135,28 +202,30 @@ export function verifyInvoice(driver: Driver, m: Membership, id: string, decisio
 // ============================ Vendor side ============================
 
 export type VendorRequest = { job_card_id: string; job_no: string; job_status: string; priority: string; needed_by: string | null; description: string | null; cause_text: string;
-  odometer_km: string | null; registration_no: string; make: string | null; model: string | null; year: number | null; last_quotation_status: string | null };
+  odometer_km: string | null; registration_no: string; make: string | null; model: string | null; year: number | null; last_quotation_status: string | null; assigned_at: string | null };
 export type VendorOrder = { work_order_id: string; wo_no: string; wo_status: string; issued_at: string; approved_amount: string; job_no: string; priority: string; needed_by: string | null;
   description: string | null; cause_text: string; registration_no: string; make: string | null; model: string | null; year: number | null; job_card_id: string; job_status: string;
   quotation_id: string | null; completed_at: string | null };
 
 export function vendorOverview(driver: Driver, m: Membership): Promise<{ requests: VendorRequest[]; orders: VendorOrder[] }> {
   return authorized(driver, m, "quotation.submit", async (q) => ({
-    requests: (await q.query<VendorRequest>("select job_card_id, job_no, job_status, priority, needed_by::text, description, cause_text, odometer_km::text, registration_no, make, model, year, last_quotation_status from v_vendor_job_requests order by needed_by nulls last, job_no")).rows,
+    requests: (await q.query<VendorRequest>("select job_card_id, job_no, job_status, priority, needed_by::text, description, cause_text, odometer_km::text, registration_no, make, model, year, last_quotation_status, assigned_at::text from v_vendor_job_requests order by needed_by nulls last, job_no")).rows,
     orders: (await q.query<VendorOrder>("select work_order_id, wo_no, wo_status, issued_at::text, approved_amount::text, job_no, priority, needed_by::text, description, cause_text, registration_no, make, model, year, job_card_id, job_status, quotation_id, completed_at::text from v_vendor_work_orders order by issued_at desc")).rows,
   }));
 }
 
 export function vendorGetRequest(driver: Driver, m: Membership, jobId: string): Promise<VendorRequest | null> {
   return authorized(driver, m, "quotation.submit", async (q) =>
-    (await q.query<VendorRequest>("select job_card_id, job_no, job_status, priority, needed_by::text, description, cause_text, odometer_km::text, registration_no, make, model, year, last_quotation_status from v_vendor_job_requests where job_card_id = $1", [jobId])).rows[0] ?? null);
+    (await q.query<VendorRequest>("select job_card_id, job_no, job_status, priority, needed_by::text, description, cause_text, odometer_km::text, registration_no, make, model, year, last_quotation_status, assigned_at::text from v_vendor_job_requests where job_card_id = $1", [jobId])).rows[0] ?? null);
 }
 
-export async function submitQuotation(driver: Driver, m: Membership, jobId: string, input: unknown): Promise<void> {
+export async function submitQuotation(driver: Driver, m: Membership, jobId: string, input: unknown): Promise<string> {
   const data = parse(quotationSchema, input);
   return authorized(driver, m, "quotation.submit", async (q) => {
-    try { await q.query("select submit_quotation($1, $2, $3::jsonb)", [jobId, m.userId, JSON.stringify(data)]); } catch (e) { friendly(e); }
+    let id = "";
+    try { id = (await q.query<{ id: string }>("select submit_quotation($1, $2, $3::jsonb) as id", [jobId, m.userId, JSON.stringify(data)])).rows[0].id; } catch (e) { friendly(e); }
     await notifyAfter(q, m, jobId, "quotation_received");
+    return id;
   });
 }
 
@@ -186,12 +255,43 @@ async function vendorStep(driver: Driver, m: Membership, woId: string, fn: strin
 export const startWork = (driver: Driver, m: Membership, woId: string) => vendorStep(driver, m, woId, "vendor_start_work", [], "in_progress");
 export const completeWork = (driver: Driver, m: Membership, woId: string, note?: string) => vendorStep(driver, m, woId, "vendor_complete_work", [note?.trim() || null], "completed");
 
-export async function submitInvoice(driver: Driver, m: Membership, woId: string, input: unknown): Promise<void> {
+export async function submitInvoice(driver: Driver, m: Membership, woId: string, input: unknown): Promise<string> {
   const data = parse(invoiceSchema, input);
   return authorized(driver, m, "invoice.submit", async (q) => {
     const jobId = (await q.query<{ job_card_id: string }>("select job_card_id from v_vendor_work_orders where work_order_id = $1", [woId])).rows[0]?.job_card_id;
     if (!jobId) throw new UserError("Work order not found.");
-    try { await q.query("select submit_invoice($1, $2, $3::jsonb)", [woId, m.userId, JSON.stringify(data)]); } catch (e) { friendly(e); }
+    let id = "";
+    try { id = (await q.query<{ id: string }>("select submit_invoice($1, $2, $3::jsonb) as id", [woId, m.userId, JSON.stringify(data)])).rows[0].id; } catch (e) { friendly(e); }
     await notifyAfter(q, m, jobId, "invoiced");
+    return id;
+  });
+}
+
+// ============================ Files on quotations and invoices ============================
+
+/**
+ * A workshop attaches its printed quotation, or the invoice and completion photos. Only to its own record, and only
+ * while that record is still open (a quotation waiting for a decision, an invoice not yet checked).
+ */
+export async function vendorAttach(driver: Driver, store: BlobStore, m: Membership, kind: "quotation" | "invoice", entityId: string, file: { name: string; bytes: Uint8Array }): Promise<void> {
+  return authorized(driver, m, kind === "quotation" ? "quotation.submit" : "invoice.submit", async (q) => {
+    const open = kind === "quotation"
+      ? await q.query("select 1 from v_vendor_quotation_lines where quotation_id = $1 and quotation_status = 'submitted' limit 1", [entityId])
+      : await q.query("select 1 from v_vendor_invoices where invoice_id = $1 and status = 'submitted'", [entityId]);
+    if (open.rows.length === 0) throw new UserError("That record is not open for new files.");
+    await saveAttachment(q, store, m, kind, entityId, file);
+  });
+}
+
+/** Files on one quotation or invoice, for the fleet side (people who can read the job card or check invoices). */
+export function listCommercialFiles(driver: Driver, store: BlobStore, m: Membership, kind: "quotation" | "invoice", entityId: string): Promise<AttachmentRow[]> {
+  return authorizedAny(driver, m, ["jobcard.read_all", "invoice.verify"], (q) => listAttachments(q, store, m, kind, entityId));
+}
+
+/** Files the workshop itself attached to one of its invoices. */
+export function vendorListInvoiceFiles(driver: Driver, store: BlobStore, m: Membership, invoiceId: string): Promise<AttachmentRow[]> {
+  return authorized(driver, m, "invoice.submit", async (q) => {
+    if ((await q.query("select 1 from v_vendor_invoices where invoice_id = $1", [invoiceId])).rows.length === 0) return [];
+    return listAttachments(q, store, m, "invoice", invoiceId);
   });
 }

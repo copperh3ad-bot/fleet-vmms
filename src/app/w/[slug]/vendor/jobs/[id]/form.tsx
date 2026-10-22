@@ -1,31 +1,39 @@
 "use client";
 import { useActionState } from "react";
-import { Card, Field, Input, Notice, Submit, inputCls } from "@/components/form";
+import { useFormStatus } from "react-dom";
+import { Field, Input, Notice, inputCls } from "@/components/form";
+import { Panel } from "@/components/ui";
 import { LinesEditor } from "@/components/lines-editor";
 import type { FormState } from "../../../actions-util";
 import { submitQuotationAction } from "../../actions";
 
+function Send() {
+  const { pending } = useFormStatus();
+  return <button type="submit" disabled={pending} className="inline-flex h-11 items-center rounded-md bg-brand px-6 text-sm font-medium text-white disabled:opacity-60">{pending ? "Sending" : "Send quotation"}</button>;
+}
+
 export function QuotationForm({ slug, jobId }: { slug: string; jobId: string }) {
   const [state, action] = useActionState<FormState, FormData>(submitQuotationAction.bind(null, slug, jobId), {});
   return (
-    <form action={action} className="space-y-4" noValidate>
-      <Card title="Your price">
+    <form action={action} noValidate>
+      <Panel title="Your quotation" sub="Draft, not sent">
         <LinesEditor title="Quotation" errors={state.fields} />
-      </Card>
-      <Card title="Terms">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="mt-5 grid gap-4 border-t border-zinc-100 pt-5 sm:grid-cols-3">
           <Input name="days_needed" label="Days needed" state={state} inputMode="numeric" />
-          <Input name="valid_until" label="Price valid until" type="date" state={state} />
-          <Input name="warranty_months" label="Warranty (months)" state={state} inputMode="numeric" />
+          <Input name="valid_until" label="Quote valid until" type="date" state={state} />
+          <Input name="warranty_months" label="Warranty on work (months)" state={state} inputMode="numeric" />
         </div>
-        <div className="mt-3">
+        <div className="mt-4">
           <Field label="Notes" name="details" state={state}>
             <textarea id="details" name="details" rows={2} defaultValue={state.values?.details ?? ""} className={`${inputCls} h-auto py-2`} />
           </Field>
         </div>
-      </Card>
-      <Notice state={state} />
-      <Submit>Send quotation</Submit>
+        <div className="mt-4">
+          <label htmlFor="files" className="mb-1 block text-xs font-medium text-zinc-600">Attach your printed quotation (PDF or photo)</label>
+          <input id="files" name="files" type="file" multiple accept="image/*,application/pdf" className="block w-full rounded-md border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm" />
+        </div>
+        <div className="mt-5 flex flex-wrap items-center gap-3"><Send /><Notice state={state} /></div>
+      </Panel>
     </form>
   );
 }
