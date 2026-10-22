@@ -1,0 +1,100 @@
+// Photos and documents on a job card. The bytes go to Supabase Storage under <tenant schema>/job_card/<id>/..., the
+// record goes in the tenant's attachments table. Storage is reached through BlobStore so tests need no network.
+import { randomUUID } from "node:crypto";
+import type { Driver } from "@/lib/db/types";
+import { authorized, authorizedAny, ForbiddenError, type Membership } from "@/lib/auth/can";
+import { UserError } from "@/lib/master/service";
+
+export interface BlobStore {
+  put(path: string, bytes: Uint8Array, contentType: string): Promise<void>;
+  remove(path: string): Promise<void>;
+  signedUrl(path: string, seconds: number): Promise<string | null>;
+}
+
+export const MAX_FILE_BYTES = 10 * 1024 * 1024;
+export const MAX_FILES_PER_CARD = 12;
+
+/** Kinds we accept, decided by what the bytes are, not by what the browser claims. */
+const SIGNATURES: { mime: string; ext: string[]; match: (b: Uint8Array) => boolean }[] = [
+  { mime: "image/jpeg", ext: ["jpg", "jpeg"], match: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
+  { mime: "image/png", ext: ["png"], match: (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 },
+  { mime: "image/webp", ext: ["webp"], match: (b) => b[0] === 0x52 && b[1] === 0x49 && b[8] === 0x57 && b[9] === 0x45 },
+  { mime: "image/heic", ext: ["heic", "heif"], match: (b) => b[4] === 0x66 && b[5] === 0x74 && b[6] === 0x79 && b[7] === 0x70 },
+  { mime: "application/pdf", ext: ["pdf"], match: (b) => b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46 },
+];
+
+export function sniff(name: string, bytes: Uint8Array): string | null {
+  const ext = name.toLowerCase().split(".").pop() ?? "";
+  return SIGNATURES.find((s) => s.ext.includes(ext) && s.match(bytes))?.mime ?? null;
+}
+
+/** Keeps letters, digits, dot, dash and underscore. The path never contains anything a person typed unfiltered. */
+export function safeName(name: string): string {
+  const base = name.split(/[\\/]/).pop() ?? "file";
+  const clean = base.normalize("NFKD").replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^[._]+/, "").slice(-80);
+  return clean || "file";
+}
+
+export type AttachmentRow = { id: string; file_name: string; mime_type: string | null; created_at: string; uploaded_by: string | null; url: string | null };
+
+/** Only the requester (or whoever opened it) may add files, and only while the card can still be edited. */
+export function addJobCardAttachment(driver: Driver, store: BlobStore, m: Membership, jobCardId: string, file: { name: string; bytes: Uint8Array }): Promise<void> {
+  return authorized(driver, m, "jobcard.create", async (q) => {
+    const jc = (await q.query<{ status: string; mine: boolean }>(
+      "select status, job_card_is_mine(id, $2) as mine from job_cards where id = $1", [jobCardId, m.userId])).rows[0];
+    if (!jc) throw new UserError("Job card not found.");
+    if (!jc.mine) throw new ForbiddenError("jobcard.create for this job card");
+    if (!["draft", "returned_for_edit"].includes(jc.status)) throw new UserError("Files can only be added while the job card is a draft or sent back.");
+    if (file.bytes.length === 0) throw new UserError("That file is empty.");
+    if (file.bytes.length > MAX_FILE_BYTES) throw new UserError("That file is larger than 10 MB.");
+    const mime = sniff(file.name, file.bytes);
+    if (!mime) throw new UserError("Only photos (JPG, PNG, WebP, HEIC) and PDF files are accepted.");
+    const count = (await q.query<{ c: number }>("select count(*)::int c from attachments where entity_type = 'job_card' and entity_id = $1", [jobCardId])).rows[0].c;
+    if (count >= MAX_FILES_PER_CARD) throw new UserError(`A job card can hold ${MAX_FILES_PER_CARD} files.`);
+
+    const name = safeName(file.name);
+    const path = `${m.schema}/job_card/${jobCardId}/${randomUUID()}-${name}`;
+    try { await store.put(path, file.bytes, mime); }
+    catch { throw new UserError("The file could not be uploaded. Try again."); }
+    try {
+      await q.query(
+        "insert into attachments(entity_type, entity_id, storage_path, file_name, mime_type, uploaded_by) values ('job_card', $1, $2, $3, $4, $5)",
+        [jobCardId, path, name, mime, m.userId]);
+    } catch (e) {
+      await store.remove(path).catch(() => undefined);   // no orphan file if the record could not be saved
+      throw e;
+    }
+  });
+}
+
+export function listJobCardAttachments(driver: Driver, store: BlobStore, m: Membership, jobCardId: string): Promise<AttachmentRow[]> {
+  return authorizedAny(driver, m, ["jobcard.read_all", "jobcard.read_own"], async (q, held) => {
+    // the same visibility rule as the card itself
+    const visible = (await q.query(
+      `select 1 from job_cards jc join employees re on re.id = jc.requested_by left join employees cu on cu.id = jc.custodian_id
+        where jc.id = $1 ${held.has("jobcard.read_all") ? "" : "and (re.user_id = $2 or cu.user_id = $2)"}`,
+      held.has("jobcard.read_all") ? [jobCardId] : [jobCardId, m.userId])).rows.length > 0;
+    if (!visible) return [];
+    const rows = (await q.query<Omit<AttachmentRow, "url"> & { storage_path: string }>(
+      `select id, file_name, mime_type, created_at::text, uploaded_by::text, storage_path
+         from attachments where entity_type = 'job_card' and entity_id = $1 order by created_at, id`, [jobCardId])).rows;
+    return Promise.all(rows.map(async ({ storage_path, ...r }) => ({
+      ...r,
+      // never sign a path outside this workspace's folder, whatever the row says
+      url: storage_path.startsWith(`${m.schema}/`) ? await store.signedUrl(storage_path, 300) : null,
+    })));
+  });
+}
+
+export function removeJobCardAttachment(driver: Driver, store: BlobStore, m: Membership, attachmentId: string): Promise<void> {
+  return authorized(driver, m, "jobcard.create", async (q) => {
+    const a = (await q.query<{ storage_path: string; entity_id: string; status: string; mine: boolean }>(
+      `select a.storage_path, a.entity_id, jc.status, job_card_is_mine(jc.id, $2) as mine
+         from attachments a join job_cards jc on jc.id = a.entity_id where a.id = $1 and a.entity_type = 'job_card'`, [attachmentId, m.userId])).rows[0];
+    if (!a) throw new UserError("File not found.");
+    if (!a.mine) throw new ForbiddenError("jobcard.create for this job card");
+    if (!["draft", "returned_for_edit"].includes(a.status)) throw new UserError("Files can only be removed while the job card is a draft or sent back.");
+    await q.query("delete from attachments where id = $1", [attachmentId]);
+    if (a.storage_path.startsWith(`${m.schema}/`)) await store.remove(a.storage_path).catch(() => undefined);
+  });
+}

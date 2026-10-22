@@ -22,9 +22,15 @@ await db.exec(`
   insert into employees(id, full_name) values
     ('00000000-0000-0000-0000-000000000001','Requester'),
     ('00000000-0000-0000-0000-000000000002','Manager');
+  update employees set user_id = '00000000-0000-0000-0000-0000000000f2' where id = '00000000-0000-0000-0000-000000000002';
   insert into vehicles(id, registration_no) values ('00000000-0000-0000-0000-0000000000a1','KAA-123');
 `);
 const rc = (await db.query<{ id: string }>("select id from reason_codes where code='WEAR_BRAKES'")).rows[0].id;
+// This script builds fixtures with raw SQL. Act as the manager, and leave the "every status has an event" check to
+// tests/jobcards.test.ts, which exercises it through the real functions.
+await db.exec(`select set_config('app.user_id','00000000-0000-0000-0000-0000000000f2',false), set_config('app.role','fleet_manager',false);
+  alter table job_cards disable trigger job_cards_event_required_ins;
+  alter table job_cards disable trigger job_cards_event_required_upd;`);
 await db.exec(`insert into job_cards(id, vehicle_id, requested_by, reason_code_id, cause_text)
   values ('00000000-0000-0000-0000-0000000000b1','00000000-0000-0000-0000-0000000000a1',
           '00000000-0000-0000-0000-000000000001','${rc}','Brakes squealing for two weeks');`);
@@ -193,6 +199,7 @@ await db.exec(`insert into quotations(id, job_card_id, vendor_id, amount) values
 await db.exec(`insert into quotation_lines(id, quotation_id, kind, description, qty, unit_cost) values
   ('${F(30)}','${qId}','part','Pads',1,14500), ('${F(31)}','${qId}','labour','Discs',2,2200)`);
 check("quotation total follows its lines", Number((await db.query("select amount from quotations where id=$1", [qId])).rows[0].amount) === 18900);
+await db.exec(`select set_config('app.user_id','${finUser}',false)`);   // the approver is the signed-in user
 for (const [st, extra] of [["submitted", ""], ["approved", `, approved_by='${F(2)}'`], ["vendor_assigned", `, vendor_id='${F(20)}'`], ["quotation_received", ""], ["quotation_approved", ""], ["in_progress", ""], ["completed", ""]] as const)
   await db.exec(`update job_cards set status='${st}'${extra} where id='${jcId}'`);
 await db.exec(`insert into work_orders(id, wo_no, job_card_id, vendor_id, quotation_id, approved_amount) values ('${woId}','WO-T1','${jcId}','${F(20)}','${qId}',18900)`);

@@ -13,6 +13,9 @@ Every screen in the design canvas, what it reads, and the one call that saves it
 | Employees | `employees` | insert/update `employees` | `employee.manage` |
 | Vendors | `vendors` | insert/update `vendors`, block/unblock | `vendor.manage` |
 | New job card (desktop, phone) | `vehicles`, `reason_codes`, `service_types` | insert `job_cards` + `job_card_lines` + `attachments`; `requested_reason_code_id` is set by trigger | `jobcard.create` |
+| *(built Phase 3)* New job card / edit | `create_job_card()`, `edit_job_card()` (card, lines, custodian snapshot, events in one call); files via `attachments` + Storage | `/w/[slug]/job-cards/new`, `/[id]/edit` | `jobcard.create` |
+| *(built Phase 3)* Job card record and decision | `getJobCard`, `transition_job_card()`; approve re-tag, reject/return need a comment, vendor assign | `/w/[slug]/job-cards/[id]` | `jobcard.approve`, `jobcard.assign_vendor` |
+| *(built Phase 3)* Notifications | `notifications` (own rows) | `/w/[slug]/notifications` | any job card permission |
 | Review job card | `job_cards`, `job_card_events`, `v_budget_utilisation` | `transitionJobCard()` (re-tag writes `reason_code_id`, requester's original is kept); vendor via `vendor_id` | `jobcard.approve`, `jobcard.assign_vendor` |
 | Vendor portal | `v_vendor_work_orders` (filters itself on the signed-in user, no requester or budget) | `quotations` + `quotation_lines` (total follows lines); after approval `invoices` + `invoice_lines` | `quotation.submit`, `invoice.submit` |
 | Invoice verification | `v_invoice_check`, `invoice_lines`, `attachments` | `verify_invoice(id, user, decision, note)`: sets payable amount, moves job card, writes event. Blocks approver and requester | `invoice.verify` |

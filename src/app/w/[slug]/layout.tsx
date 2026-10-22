@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
+import { unreadCount } from "@/lib/jobcards/service";
 import { signOut } from "@/app/login/actions";
 
 export default function WorkspaceLayout({ children, params }: LayoutProps<"/w/[slug]">) {
@@ -18,8 +19,12 @@ async function Nav({ params }: { params: Promise<{ slug: string }> }) {
   const m = await requireMembership(slug);
   const perms = await permissionsOf(getDriver(), m);
   // Links are hidden when the role could not use them. The pages and actions check again; this is only tidiness.
+  const unread = await unreadCount(getDriver(), m);
+  const sees = ["jobcard.create", "jobcard.read_own", "jobcard.read_all"].some((p) => perms.has(p));
   const links = [
     { href: `/w/${slug}`, label: "Home", show: true },
+    { href: `/w/${slug}/job-cards`, label: "Job cards", show: sees },
+    { href: `/w/${slug}/notifications`, label: unread ? `Notifications (${unread})` : "Notifications", show: sees || perms.has("jobcard.approve") },
     { href: `/w/${slug}/vehicles`, label: "Vehicles", show: perms.has("vehicle.read") },
     { href: `/w/${slug}/employees`, label: "Employees", show: perms.has("employee.manage") },
     { href: `/w/${slug}/vendors`, label: "Vendors", show: perms.has("vendor.manage") },

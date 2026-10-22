@@ -79,3 +79,15 @@
 - Not tested: the screens in a browser (no automated UI tests; Playwright is planned for the end-to-end flow), CSV upload through a real browser file picker, mobile layout.
 - Screens built from `docs/FORM-DB-MAP.md` field lists. The Claude Design canvas was not readable from this session, so layout and labels are my reading, not a match to the boards.
 - Known: the existing pages use a light palette and do not yet handle dark mode.
+
+## 2026-10-22: Phase 3 done (job cards)
+- Migration `0006_job_cards.sql` (tenant) and platform `0003_storage.sql`, both applied to the live demo project through the runner; drift check says no drift. ADR-005.
+- Database rules: approval needs an approver who is the signed-in user, not the requester, with `jobcard.approve`; approver and (after submission) requester cannot change; cards start as drafts; every status change needs an event row (checked at commit); `job_card_events` is append-only and ordered by `seq`. Attachment path must start with the tenant folder.
+- SQL functions `create_job_card`, `edit_job_card`, `transition_job_card`. App: `src/lib/jobcards/{schemas,service,attachments}.ts`; `transitionJobCard` is the only status entry point. Notifications are written in the same transaction.
+- Screens: job card list, new (desktop and phone, repeating cost lines), edit, record with decision panel (approve with re-tag, send back, reject, assign vendor), history, photos/PDF upload, notifications page and nav count.
+- Storage: private bucket `attachments`; policies limit users to their tenants' folders; file type checked by signature, 10 MB, 12 files per card.
+- Tests: 43 new (jobcards 32, attachments 11), 127 total, pass on PGlite and local Postgres 17. `check:sql` updated for the new rules. tsc, eslint, build clean. Rolled-back live smoke: create, self-approval blocked, second user approves, 3 events, 0 cards left (the job number sequence advanced, so the first real card is JC-000002).
+- Security advisor after the change: nothing new (same INFO and function search_path WARNs as before, intended). Open WARN: Auth leaked-password protection is off; it is a dashboard setting.
+- Not tested: real Storage upload and download (only a fake store; policies were checked to exist, not exercised), all screens in a browser, phone camera upload, HEIC preview (shows as a file tile).
+- To try it as one person: the owner needs a `fleet_manager` membership and an employee record linked to their login; raise a card "on behalf of" an employee, then approve it.
+- Not built: budget display on the review screen (Phase 5), vendor quotation steps (Phase 4).

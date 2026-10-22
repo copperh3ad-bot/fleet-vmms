@@ -37,6 +37,16 @@ export async function authorized<T>(driver: Driver, m: Membership, permission: s
   });
 }
 
+/** Like authorized(), but any one of several permissions is enough. fn learns which ones the role holds. */
+export async function authorizedAny<T>(driver: Driver, m: Membership, permissions: string[], fn: (q: Queryable, held: Set<string>) => Promise<T>): Promise<T> {
+  return withTenant(driver, m, async (q) => {
+    const rows = await q.query<{ permission_key: string }>(
+      "select permission_key from role_permissions where role_key = $1 and permission_key = any($2::text[])", [m.role, permissions]);
+    if (rows.rows.length === 0) throw new ForbiddenError(permissions.join(" or "));
+    return fn(q, new Set(rows.rows.map((r) => r.permission_key)));
+  });
+}
+
 /** Everything this role may do, for showing or hiding navigation. Hiding is cosmetic; every action still calls can(). */
 export async function permissionsOf(driver: Driver, m: Membership): Promise<Set<string>> {
   return withTenant(driver, m, async (q) =>

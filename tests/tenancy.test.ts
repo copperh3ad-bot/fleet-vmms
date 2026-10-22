@@ -28,7 +28,7 @@ describe("provisioning", () => {
   });
   it("records the schema version", async () => {
     const v = await withPlatform(d, async (q) => (await q.query<{ schema_version: number }>("select schema_version from tenants where id=$1", [a.tenantId])).rows[0].schema_version);
-    expect(v).toBe(5);
+    expect(v).toBe(6);
   });
   it("leaves nothing behind when provisioning fails", async () => {
     await expect(provisionTenant(d, { name: "Dup", slug: "delta", ownerUserId: U(9), ownerName: "x" }, tenantMigrations(), opts)).rejects.toThrow();
