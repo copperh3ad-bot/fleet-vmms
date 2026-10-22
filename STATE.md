@@ -182,3 +182,7 @@
 - Vehicle users (requester) are always limited to the vehicle they hold: forced on invitation and on role change, shown as one fixed choice on the invite form. Enforced when a card is raised and when vehicles are listed.
 - Administrators can now raise job cards for any vehicle (tenant migration 0015, one permission row). Approval stays with fleet managers; the database still refuses an approver who is the requester.
 - Tests: 316 pass on PGlite and local Postgres. Not applied to the live project yet (run scripts/migrate-tenants.ts). Existing live requesters invited before this keep their old scope until changed on the Users screen.
+
+## 2026-10-22: Standalone build for beta
+- `output: "standalone"`, a Dockerfile (non-root, health check) and docs/DEPLOY.md (environment, build, run, checklist before the first tester). Built and run locally from a copy outside the repo: /api/health 200, login 200, everything else redirects to login, odometer link headers intact.
+- Not tested: the Docker image (the Docker daemon was not running here), the app on a public address, real sign-up through the identity provider.

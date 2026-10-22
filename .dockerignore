@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+.env
+.env.*
+*.zip
+*.textClipping
+tests
+docs/design
+tsconfig.tsbuildinfo
+** [0-9].*
