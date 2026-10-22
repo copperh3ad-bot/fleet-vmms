@@ -91,3 +91,15 @@
 - Not tested: real Storage upload and download (only a fake store; policies were checked to exist, not exercised), all screens in a browser, phone camera upload, HEIC preview (shows as a file tile).
 - To try it as one person: the owner needs a `fleet_manager` membership and an employee record linked to their login; raise a card "on behalf of" an employee, then approve it.
 - Not built: budget display on the review screen (Phase 5), vendor quotation steps (Phase 4).
+
+## 2026-10-22: decisions after Phase 3
+- Owner's membership in `demo-fleet` changed from `tenant_admin` to `fleet_manager` (by the owner, in the Supabase SQL editor) so the workflow screens can be tried alone. One role per workspace, so `admin.users`/`admin.settings` are not held for now.
+- ADR-006: drivers send odometer readings through a single-use signed link (owner approved). Exception to rule 5, with limits written down. Not built yet.
+
+## 2026-10-22: Phase 4 done (vendor flow)
+- Migration `0007_vendor_flow.sql` (applied to the live demo tenant through the runner, no drift): `submit_quotation`, `approve_quotation` (issues the work order), `reject_quotation`, `vendor_start_work`, `vendor_complete_work`, `submit_invoice`; vendor views `v_vendor_job_requests`, `v_vendor_quotation_lines`, `v_vendor_invoices`, `v_vendor_work_orders` extended; `transition_job_card` redefined so a rejected quotation returns to the same vendor. ADR-007.
+- App: `src/lib/vendorflow/service.ts`, `src/lib/notify.ts`. Screens: vendor portal (`/vendor`: waiting for quotation, work orders; quotation form; work order with start, done, invoice form pre-filled from the quotation), quotation approve/reject and work order/invoice summary on the job card page, close button, finance invoice list and invoice check (approved vs invoiced, lines not in the quotation flagged, three decisions).
+- Tests: 13 new (`tests/vendorflow.test.ts`), 140 total, pass on PGlite and local Postgres 17. Covers the full flow with every notification, vendor isolation (views, functions, column names), step order, one open invoice, returned invoice replaced, quotation reject and re-quote, segregation, a permission check for each step, and tenant isolation. Two real bugs found by the tests and fixed before applying: rejecting a quotation lost the vendor, and the "invoice already open" message was shadowed by the status check.
+- Live smoke (rolled back): assign, quote, approve, work, invoice with an extra line, finance check (3400 vs 3000, 1 unapproved line), verify, close, 11 events, another vendor sees nothing. Nothing left behind.
+- Not tested: all screens in a browser; the vendor login end to end (needs a vendor Auth user, created by hand for now).
+- Known: a page opened by a role without the permission shows an error page instead of a friendly "not allowed" (Phase 9). No quotation or invoice attachments yet. Cannot switch to a different vendor once a quotation exists.

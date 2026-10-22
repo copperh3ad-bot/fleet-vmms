@@ -55,6 +55,10 @@ export function DraftPanel({ slug, id }: { slug: string; id: string }) {
   );
 }
 
+export function ClosePanel({ slug, id }: { slug: string; id: string }) {
+  return <Step slug={slug} id={id} to="closed" label="Close this job card" comment="optional" commentLabel="Note (optional)" />;
+}
+
 export function VendorPanel({ slug, id, vendors }: { slug: string; id: string; vendors: { id: string; name: string }[] }) {
   return (
     <Step slug={slug} id={id} to="vendor_assigned" label="Assign vendor">

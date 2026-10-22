@@ -6,6 +6,7 @@ import { createJobCard, editJobCard, transitionJobCard, markNotificationsRead } 
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { addJobCardAttachment, removeJobCardAttachment } from "@/lib/jobcards/attachments";
 import { UserError } from "@/lib/master/service";
+import { decideQuotation } from "@/lib/vendorflow/service";
 import { runAction, str, typed, type FormState } from "../actions-util";
 
 /** The form posts line fields as parallel lists (line_kind, line_description, ...). Fully blank rows are dropped. */
@@ -38,7 +39,7 @@ export async function transitionAction(slug: string, id: string, to: string, _pr
     await transitionJobCard(getDriver(), m, id, to, {
       comment: str(form, "comment") || undefined, reasonCodeId: str(form, "reason_code_id") || undefined, vendorId: str(form, "vendor_id") || undefined,
     });
-    return { approved: "Approved.", rejected: "Rejected.", returned_for_edit: "Sent back for edit.", submitted: "Submitted for approval.", cancelled: "Cancelled.", vendor_assigned: "Vendor assigned." }[to] ?? "Done.";
+    return { approved: "Approved.", rejected: "Rejected.", returned_for_edit: "Sent back for edit.", submitted: "Submitted for approval.", cancelled: "Cancelled.", vendor_assigned: "Vendor assigned.", closed: "Closed." }[to] ?? "Done.";
   });
   if (state.ok) refresh();
   return state.error || state.fields ? { ...state, values: typed(form) } : state;
@@ -64,6 +65,15 @@ export async function removeAttachmentAction(slug: string, attachmentId: string)
   });
   if (state.ok) refresh();
   return state;
+}
+
+export async function decideQuotationAction(slug: string, quotationId: string, decision: "approve" | "reject", _prev: FormState, form: FormData): Promise<FormState> {
+  const state = await runAction(slug, async (m) => {
+    await decideQuotation(getDriver(), m, quotationId, decision, str(form, "comment") || undefined);
+    return decision === "approve" ? "Quotation approved. Work order issued." : "Quotation rejected. The vendor can send a new one.";
+  });
+  if (state.ok) refresh();
+  return state.error || state.fields ? { ...state, values: typed(form) } : state;
 }
 
 export async function markReadAction(slug: string): Promise<FormState> {

@@ -8,7 +8,9 @@ import { getJobCard, listActiveVendors, listReasonCodes } from "@/lib/jobcards/s
 import { STATUS_LABEL, StatusBadge } from "../status";
 import { listJobCardAttachments } from "@/lib/jobcards/attachments";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
-import { ApprovalPanel, DraftPanel, VendorPanel } from "./panel";
+import { getJobFlow } from "@/lib/vendorflow/service";
+import { ApprovalPanel, ClosePanel, DraftPanel, VendorPanel } from "./panel";
+import { QuoteDecision } from "./quote-decision";
 import { RemoveFile, UploadForm } from "./files";
 
 export default function JobCardPage({ params }: PageProps<"/w/[slug]/job-cards/[id]">) {
@@ -28,6 +30,10 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
   const canDecide = c.status === "submitted" && perms.has("jobcard.approve");
   const canAssign = c.status === "approved" && perms.has("jobcard.assign_vendor");
   const canEdit = c.mine && perms.has("jobcard.create") && ["draft", "returned_for_edit"].includes(c.status);
+  const commercial = perms.has("jobcard.read_all") && !["draft", "submitted", "returned_for_edit", "rejected", "cancelled", "approved"].includes(c.status);
+  const flow = commercial ? await getJobFlow(driver, m, id) : null;
+  const canDecideQuote = c.status === "quotation_received" && perms.has("quotation.approve") && !c.requester_is_me;
+  const canClose = c.status === "invoice_verified" && perms.has("invoice.verify");
   const files = await listJobCardAttachments(driver, await supabaseBlobStore(), m, id);
   const [reasons, vendors] = await Promise.all([
     canDecide ? listReasonCodes(driver, m) : Promise.resolve([]),
@@ -86,6 +92,32 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
           </div>
         )}
       </Card>
+
+      {flow && (
+        <Card title="Quotation, work order and invoice">
+          {c.status === "vendor_assigned" && <p className="mb-3 text-sm text-zinc-600">Waiting for {c.vendor_name} to send a quotation.</p>}
+          {flow.quotations.map((qt) => (
+            <div key={qt.id} className="mb-4 rounded-md border border-zinc-100 p-3 text-sm">
+              <p className="font-medium">{qt.vendor_name} <span className="font-normal text-zinc-500">· {qt.status} · {money(Number(qt.amount))}{qt.days_needed ? ` · ${qt.days_needed} days` : ""}{qt.warranty_months ? ` · ${qt.warranty_months} months warranty` : ""}{qt.valid_until ? ` · valid until ${qt.valid_until}` : ""}</span></p>
+              {qt.details && <p className="whitespace-pre-wrap text-zinc-700">{qt.details}</p>}
+              <ul className="mt-1 text-zinc-700">{qt.lines.map((l) => <li key={l.id}>{l.description} · {Number(l.qty)} × {money(Number(l.unit_cost))}</li>)}</ul>
+              {canDecideQuote && qt.status === "submitted" && <QuoteDecision slug={slug} quotationId={qt.id} />}
+            </div>
+          ))}
+          {c.status === "quotation_received" && !canDecideQuote && c.requester_is_me && perms.has("quotation.approve") && (
+            <p role="status" className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">You raised this card, so someone else has to approve the quotation.</p>
+          )}
+          {flow.workOrder && <p className="text-sm"><span className="font-medium">{flow.workOrder.wo_no}</span> · {flow.workOrder.status.replace("_", " ")} · approved {money(Number(flow.workOrder.approved_amount))}</p>}
+          {flow.invoices.map((i) => (
+            <p key={i.id} className="mt-1 text-sm">
+              Invoice {i.invoice_no} · {money(Number(i.amount))} · {i.status}
+              {i.payable_amount && <> · payable {money(Number(i.payable_amount))}</>}
+              {perms.has("invoice.verify") && <> · <a className="text-sky-800 underline" href={`/w/${slug}/invoices/${i.id}`}>{i.status === "submitted" ? "Check it" : "Open"}</a></>}
+            </p>
+          ))}
+        </Card>
+      )}
+      {canClose && <Card title="Finish"><ClosePanel slug={slug} id={id} /></Card>}
 
       {(files.length > 0 || canEdit) && (
         <Card title="Photos and files">

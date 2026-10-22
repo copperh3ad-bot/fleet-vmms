@@ -3,6 +3,7 @@
 import type { Driver, Queryable } from "@/lib/db/types";
 import { authorized, authorizedAny, ForbiddenError, type Membership } from "@/lib/auth/can";
 import { UserError } from "@/lib/master/service";
+import { notify, usersWithPermission } from "@/lib/notify";
 import { fieldErrors } from "@/lib/master/schemas";
 import { jobCardSchema, TRANSITION_PERMISSION, type JobCardData, type JobCardInput } from "./schemas";
 
@@ -13,8 +14,16 @@ const KNOWN = [
   /a comment of at least 5 characters is required/, /choose an active vendor/, /reason code not available/,
   /segregation of duties: [^"]*/, /this role may not approve job cards/, /job card is already [a-z_]+/,
   /illegal job card transition [a-z_]+ -> [a-z_]+/, /job card not found/,
+  // vendor flow (migration 0007) and invoice check (verify_invoice)
+  /this login is not linked to an active vendor/, /this job is not waiting for a quotation/, /add at least one line/,
+  /this quotation is not awaiting a decision/, /quotation not found/, /work order not found/, /this work order has already been started/,
+  /start the work before completing it/, /the work must be completed before invoicing/, /an invoice is already open for this work order/,
+  /enter the invoice number/, /an invoice line points at a line that is not in the approved quotation/,
+  /invoice [0-9a-f-]+ is not awaiting verification/, /job card [A-Za-z0-9-]+ is [a-z_]+ and cannot be verified/,
+  /a note is required for decision [a-z_]+/, /unknown decision [a-z_]*/,
 ];
-function friendly(e: unknown): never {
+/** Turns a known database message into something a person can read; anything else is rethrown as a real error. */
+export function friendly(e: unknown): never {
   const msg = e instanceof Error ? e.message : String(e);
   for (const re of KNOWN) { const hit = msg.match(re); if (hit) throw new UserError(hit[0].replace(/^./, (c) => c.toUpperCase()) + (hit[0].endsWith(".") ? "" : ".")); }
   throw e;
@@ -28,23 +37,19 @@ function parse(input: JobCardInput): JobCardData {
 
 // ---------- Notifications (same transaction as the change, so a notice never exists without its cause) ----------
 
-async function notify(q: Queryable, userIds: (string | null)[], kind: string, payload: Record<string, unknown>, except: string) {
-  const ids = [...new Set(userIds.filter((u): u is string => !!u && u !== except))];
-  for (const id of ids) await q.query("insert into notifications(user_id, kind, payload) values ($1, $2, $3::jsonb)", [id, kind, JSON.stringify(payload)]);
-}
-
-const approversOf = async (q: Queryable, tenantId: string) =>
-  (await q.query<{ user_id: string }>(
-    `select m.user_id from public.tenant_memberships m
-      where m.tenant_id = $1 and m.status = 'active'
-        and m.role in (select role_key from role_permissions where permission_key = 'jobcard.approve')`, [tenantId])).rows.map((r) => r.user_id);
-
-async function notifyAfter(q: Queryable, m: Membership, jobId: string, to: string) {
-  const jc = (await q.query<{ job_no: string; requester_user: string | null }>(
-    `select jc.job_no, e.user_id as requester_user from job_cards jc join employees e on e.id = jc.requested_by where jc.id = $1`, [jobId])).rows[0];
+/** Who hears about a status change: approvers on submit, the requester on a decision, the vendor when assigned. */
+export async function notifyAfter(q: Queryable, m: Membership, jobId: string, to: string) {
+  const jc = (await q.query<{ job_no: string; requester_user: string | null; vendor_user: string | null }>(
+    `select jc.job_no, e.user_id as requester_user, vn.user_id as vendor_user
+       from job_cards jc join employees e on e.id = jc.requested_by left join vendors vn on vn.id = jc.vendor_id where jc.id = $1`, [jobId])).rows[0];
   const payload = { job_card_id: jobId, job_no: jc.job_no, to };
-  if (to === "submitted") await notify(q, await approversOf(q, m.tenantId), "jobcard.submitted", payload, m.userId);
+  if (to === "submitted") await notify(q, await usersWithPermission(q, m.tenantId, "jobcard.approve"), "jobcard.submitted", payload, m.userId);
   else if (["approved", "rejected", "returned_for_edit"].includes(to)) await notify(q, [jc.requester_user], `jobcard.${to}`, payload, m.userId);
+  else if (to === "vendor_assigned") await notify(q, [jc.vendor_user], "jobcard.vendor_assigned", payload, m.userId);
+  else if (to === "quotation_received") await notify(q, await usersWithPermission(q, m.tenantId, "quotation.approve"), "quotation.received", payload, m.userId);
+  else if (to === "completed") await notify(q, await usersWithPermission(q, m.tenantId, "jobcard.approve"), "work.completed", payload, m.userId);
+  else if (to === "invoiced") await notify(q, await usersWithPermission(q, m.tenantId, "invoice.verify"), "invoice.submitted", payload, m.userId);
+  else if (["quotation_approved", "invoice_verified"].includes(to)) await notify(q, [jc.vendor_user], to === "quotation_approved" ? "quotation.approved" : "invoice.verified", payload, m.userId);
 }
 
 // ---------- Reference lists ----------
@@ -165,8 +170,8 @@ export function getJobCard(driver: Driver, m: Membership, id: string): Promise<J
     jc.lines = (await q.query<JobCardDetail["lines"][number]>(
       "select id, kind, description, qty::text, unit_cost::text, service_type_key from job_card_lines where job_card_id = $1 order by id", [id])).rows;
     jc.events = (await q.query<JobCardDetail["events"][number]>(
-      `select ev.id, ev.from_status, ev.to_status, e.full_name as actor_name, ev.comment, ev.created_at::text
-         from job_card_events ev left join employees e on e.user_id = ev.actor_id
+      `select ev.id, ev.from_status, ev.to_status, coalesce(e.full_name, vn.name) as actor_name, ev.comment, ev.created_at::text
+         from job_card_events ev left join employees e on e.user_id = ev.actor_id left join vendors vn on vn.user_id = ev.actor_id
         where ev.job_card_id = $1 order by ev.seq`, [id])).rows;
     return jc;
   });
@@ -181,7 +186,7 @@ export function listActiveVendors(driver: Driver, m: Membership): Promise<{ id: 
 
 export type NotificationRow = { id: string; kind: string; payload: { job_card_id?: string; job_no?: string; to?: string }; read_at: string | null; created_at: string };
 
-const NOTICE_PERMISSIONS = ["jobcard.create", "jobcard.read_own", "jobcard.read_all", "jobcard.approve"];
+const NOTICE_PERMISSIONS = ["jobcard.create", "jobcard.read_own", "jobcard.read_all", "jobcard.approve", "quotation.submit", "invoice.verify"];
 
 export function listNotifications(driver: Driver, m: Membership): Promise<NotificationRow[]> {
   return authorizedAny(driver, m, NOTICE_PERMISSIONS, async (q) =>

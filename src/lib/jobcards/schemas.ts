@@ -39,4 +39,7 @@ export const TRANSITION_PERMISSION: Record<string, string> = {
   rejected: "jobcard.approve",
   returned_for_edit: "jobcard.approve",
   vendor_assigned: "jobcard.assign_vendor",
+  closed: "invoice.verify",   // after the invoice is verified
+  // quotation_received, quotation_approved, in_progress, completed, invoiced and invoice_verified are not asked for
+  // directly: they happen inside submit_quotation, approve_quotation, vendor_*_work, submit_invoice and verify_invoice.
 };

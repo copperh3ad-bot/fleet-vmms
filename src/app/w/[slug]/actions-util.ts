@@ -20,7 +20,16 @@ export async function runAction(slug: string, fn: (m: Membership) => Promise<str
   }
 }
 
-export const str = (form: FormData, k: string) => String(form.get(k) ?? "");
+/** Reads the lists posted by LinesEditor. Rows with no description and no cost are dropped. */
+export function linesFromForm(form: FormData) {
+  const get = (k: string) => form.getAll(k).map(String);
+  const [kind, description, qty, unit, ref] = [get("line_kind"), get("line_description"), get("line_qty"), get("line_unit_cost"), get("line_ref")];
+  return description
+    .map((d, i) => ({ kind: kind[i], description: d, qty: qty[i], unit_cost: unit[i], quotation_line_id: ref[i] || undefined }))
+    .filter((l) => l.description.trim() !== "" || (l.unit_cost ?? "").trim() !== "");
+}
+
+export const str =(form: FormData, k: string) => String(form.get(k) ?? "");
 
 /** The text fields as typed, sent back on an error because React clears the form after every submit. */
 export const typed = (form: FormData): Record<string, string> =>
