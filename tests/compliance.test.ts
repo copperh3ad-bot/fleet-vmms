@@ -205,6 +205,33 @@ describe("accidents", () => {
     expect((await cs.listAccidents(d, mgr())).map((a) => a.id)).toEqual(expect.arrayContaining([before, after]));
   });
 
+  it("shows who held the vehicle on a date before saving, and nobody before it was assigned", async () => {
+    expect(await cs.driverOnDate(d, mgr(), vehA, "2026-03-10T09:30:00Z")).toBe("Driver One");
+    expect(await cs.driverOnDate(d, mgr(), vehA, "2026-08-10T09:30:00Z")).toBe("Driver Two");
+    expect(await cs.driverOnDate(d, mgr(), vehA, "2025-01-01T00:00:00Z")).toBeNull();
+    expect(await cs.driverOnDate(d, mgr(), "not-an-id", "2026-03-10T09:30:00Z")).toBeNull();
+    await expect(cs.driverOnDate(d, mem("vendor", 40), vehA, "2026-03-10T09:30:00Z")).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("a repair job card started from an accident is linked once, only for the same vehicle", async () => {
+    const acc = await cs.addAccident(d, mgr(), { vehicle_id: vehA, occurred_at: "2026-09-01T10:00", description: "Mirror broken by a passing truck", severity: "minor" });
+    const reason = (await jc.listReasonCodes(d, mgr())).find((r) => r.code === "ACC_COLLISION")!;
+    const card = await jc.createJobCard(d, mgr(), { vehicle_id: vehA, category: "accident", reason_code_id: reason.id, cause_text: "Mirror broken by a passing truck", lines: [] }, false);
+    const other = await jc.createJobCard(d, mgr(), { vehicle_id: vehB, category: "accident", reason_code_id: reason.id, cause_text: "Another vehicle's damage report", lines: [] }, false);
+    await expect(cs.linkAccidentJobCard(d, mgr(), acc, other.id)).rejects.toThrow(/Could not link/);
+    await cs.linkAccidentJobCard(d, mgr(), acc, card.id);
+    expect((await cs.getAccident(d, mgr(), acc))!.job_no).toBe(card.job_no);
+    await expect(cs.linkAccidentJobCard(d, mgr(), acc, card.id)).rejects.toThrow(/Could not link/);   // already linked
+    await expect(cs.linkAccidentJobCard(d, mem("requester", 11), acc, card.id)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("flags accidents from the last 12 months and this year in the database", async () => {
+    const rows = await cs.listAccidents(d, mgr());
+    const old = rows.find((a) => a.occurred_at.startsWith("2026-03-10"))!;
+    expect(typeof old.last_12_months).toBe("boolean");
+    expect(typeof old.this_year).toBe("boolean");
+  });
+
   it("refuses the future, a vague description, a claim reference without a claim, and a job card of another vehicle", async () => {
     const base = { vehicle_id: vehA, description: "Hit a pole in the car park", severity: "minor" };
     const f = await cs.addAccident(d, mgr(), { ...base, occurred_at: "2999-01-01T10:00" }).catch((x) => x);

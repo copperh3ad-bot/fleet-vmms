@@ -38,7 +38,7 @@ export function safeName(name: string): string {
 }
 
 export type AttachmentRow = { id: string; file_name: string; mime_type: string | null; created_at: string; uploaded_by: string | null; url: string | null };
-export type EntityType = "job_card" | "accident" | "challan" | "compliance_doc" | "insurance_policy" | "quotation" | "invoice";
+export type EntityType = "vehicle" | "job_card" | "accident" | "challan" | "compliance_doc" | "insurance_policy" | "quotation" | "invoice";
 
 /** The caller has already checked the permission and that the person may touch this entity. */
 export async function saveAttachment(q: Queryable, store: BlobStore, m: Membership, entityType: EntityType, entityId: string, file: { name: string; bytes: Uint8Array }): Promise<void> {

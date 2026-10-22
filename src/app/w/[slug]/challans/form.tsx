@@ -4,12 +4,12 @@ import { Input, Notice, Select, Submit } from "@/components/form";
 import type { FormState } from "../actions-util";
 import { addChallanAction, challanStatusAction } from "../compliance/actions";
 
-export function ChallanForm({ slug, vehicles, people }: { slug: string; vehicles: [string, string][]; people: [string, string][] }) {
+export function ChallanForm({ slug, vehicles, people, stack }: { stack?: boolean; slug: string; vehicles: [string, string][]; people: [string, string][] }) {
   const [state, action] = useActionState<FormState, FormData>(addChallanAction.bind(null, slug), {});
   // after a successful save the boxes are cleared; after an error they keep what was typed
   const s: FormState = state.ok ? { ...state, values: {} } : state;
   return (
-    <form action={action} className="grid grid-cols-1 gap-3 sm:grid-cols-3" noValidate>
+    <form action={action} className={`grid grid-cols-1 gap-3 ${stack ? "" : "sm:grid-cols-3"}`} noValidate>
       <Select name="vehicle_id" label="Vehicle" state={s} blank="Choose a vehicle" required options={vehicles} />
       <Input name="issued_on" label="Date on the challan" type="date" state={s} required />
       <Input name="amount" label="Amount" state={s} inputMode="decimal" required />

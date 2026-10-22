@@ -102,13 +102,16 @@ export function getDocument(driver: Driver, m: Membership, entityType: string, i
 export type AccidentRow = {
   id: string; vehicle_id: string; registration_no: string; occurred_at: string; location: string | null; severity: string; fault: string | null;
   insurance_claim: boolean; claim_ref: string | null; driver_name: string | null; job_card_id: string | null; job_no: string | null; description: string;
+  /** worked out in the database so pages need no clock */
+  last_12_months: boolean; this_year: boolean;
 };
 
 export function listAccidents(driver: Driver, m: Membership): Promise<AccidentRow[]> {
   return authorizedAny(driver, m, READ, async (q) =>
     (await q.query<AccidentRow>(
       `select a.id, a.vehicle_id, v.registration_no, a.occurred_at::text, a.location, a.severity, a.fault, a.insurance_claim, a.claim_ref, e.full_name as driver_name,
-              a.job_card_id, jc.job_no, a.description
+              a.job_card_id, jc.job_no, a.description,
+              (a.occurred_at >= now() - interval '1 year') as last_12_months, (extract(year from a.occurred_at) = extract(year from now())) as this_year
          from accidents a join vehicles v on v.id = a.vehicle_id left join employees e on e.id = a.employee_id left join job_cards jc on jc.id = a.job_card_id
         order by a.occurred_at desc limit 300`)).rows);
 }
@@ -117,7 +120,8 @@ export function getAccident(driver: Driver, m: Membership, id: string): Promise<
   return authorizedAny(driver, m, READ, async (q) =>
     (await q.query<AccidentRow>(
       `select a.id, a.vehicle_id, v.registration_no, a.occurred_at::text, a.location, a.severity, a.fault, a.insurance_claim, a.claim_ref, e.full_name as driver_name,
-              a.job_card_id, jc.job_no, a.description
+              a.job_card_id, jc.job_no, a.description,
+              (a.occurred_at >= now() - interval '1 year') as last_12_months, (extract(year from a.occurred_at) = extract(year from now())) as this_year
          from accidents a join vehicles v on v.id = a.vehicle_id left join employees e on e.id = a.employee_id left join job_cards jc on jc.id = a.job_card_id
         where a.id = $1`, [id])).rows[0] ?? null);
 }
@@ -138,6 +142,24 @@ export async function addAccident(driver: Driver, m: Membership, input: Accident
       if (e instanceof Error && /violates foreign key/.test(e.message)) throw new UserError("Choose a valid vehicle and driver.");
       throw e;
     }
+  });
+}
+
+/** Who held the vehicle at that moment, from the custody record. Used to show the driver before an accident is saved. */
+export function driverOnDate(driver: Driver, m: Membership, vehicleId: string, at: string): Promise<string | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(vehicleId) || Number.isNaN(Date.parse(at))) return Promise.resolve(null);
+  return authorizedAny(driver, m, READ, async (q) =>
+    (await q.query<{ full_name: string }>(
+      `select e.full_name from vehicle_custody c join employees e on e.id = c.employee_id
+        where c.vehicle_id = $1 and c.from_date <= $2::timestamptz::date and (c.to_date is null or c.to_date >= $2::timestamptz::date)
+        order by c.from_date desc limit 1`, [vehicleId, at])).rows[0]?.full_name ?? null);
+}
+
+/** Attaches a repair job card that was raised from the accident screen. */
+export function linkAccidentJobCard(driver: Driver, m: Membership, accidentId: string, jobCardId: string): Promise<void> {
+  return authorized(driver, m, MANAGE, async (q) => {
+    const r = await q.query("update accidents set job_card_id = $2 where id = $1 and job_card_id is null and exists (select 1 from job_cards j where j.id = $2 and j.vehicle_id = accidents.vehicle_id) returning id", [accidentId, jobCardId]);
+    if (r.rows.length === 0) throw new UserError("Could not link that job card to the accident.");
   });
 }
 

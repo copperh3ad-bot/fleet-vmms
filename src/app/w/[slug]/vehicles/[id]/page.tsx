@@ -8,7 +8,11 @@ import { getVehicleRecord, type RecordService } from "@/lib/master/record";
 import { Kpi, Panel, Pill, Plate, btn, btnPrimary, money, type Tone } from "@/components/ui";
 import { DOC_LABEL } from "@/lib/compliance/schemas";
 import { REASON_CATEGORY, dayMonth, plural } from "@/lib/labels";
+import { listVehicleFiles } from "@/lib/master/files";
+import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { StatusBadge } from "../../job-cards/status";
+import { removeVehicleFileAction, uploadVehicleFileAction } from "../actions";
+import { VehicleFileRemove, VehicleFileUpload } from "./files";
 import { CustodyForms, StatusForm } from "./forms";
 
 export default function VehiclePage({ params, searchParams }: PageProps<"/w/[slug]/vehicles/[id]">) {
@@ -37,6 +41,8 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
   const perms = await permissionsOf(driver, m);
   const v = await getVehicleRecord(driver, m, id);
   if (!v) notFound();
+  const files = await listVehicleFiles(driver, await supabaseBlobStore(), m, id).catch(() => []);
+  const canFiles = perms.has("vehicle.write");
   const tab = TABS.some(([k]) => k === sp.tab) ? String(sp.tab) : "history";
   const canWrite = perms.has("vehicle.write");
   const employees = canWrite ? await listEmployeeOptions(driver, m) : [];
@@ -194,6 +200,28 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
                 <li key={d.entity_id} className="flex items-center justify-between gap-3 py-2.5"><span>{DOC_LABEL[d.doc_type] ?? d.doc_type}</span>
                   <Pill tone={d.doc_status === "expired" ? "bad" : d.doc_status === "ok" ? "ok" : "warn"}>{d.days_left < 0 ? "Expired" : `Valid to ${long(d.expires_on)}`}</Pill></li>))}</ul>
             )}
+          </Panel>
+
+          <Panel title="Photo and papers">
+            {files.length > 0 && (
+              <ul className="mb-3 grid grid-cols-2 gap-3 text-xs">
+                {files.map((f) => (
+                  <li key={f.id} className="space-y-1">
+                    {f.url && f.mime_type?.startsWith("image/") && f.mime_type !== "image/heic"
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <a href={f.url} target="_blank" rel="noreferrer"><img src={f.url} alt={f.kind === "photo" ? "Vehicle photo" : f.file_name} loading="lazy" className="h-24 w-full rounded-md border border-zinc-200 object-cover" /></a>
+                      : <a href={f.url ?? undefined} target="_blank" rel="noreferrer" className="flex h-24 items-center justify-center rounded-md border border-zinc-200 bg-zinc-50 p-2 text-center text-sky-800">{f.mime_type === "application/pdf" ? "PDF" : "File"}</a>}
+                    <p className="text-zinc-600">{f.kind === "photo" ? "Photo" : f.kind === "registration" ? "Registration book" : "File"}</p>
+                    {canFiles && <VehicleFileRemove action={removeVehicleFileAction.bind(null, slug, f.id)} />}
+                  </li>))}
+              </ul>
+            )}
+            {canFiles ? (
+              <div className="space-y-4">
+                <VehicleFileUpload action={uploadVehicleFileAction.bind(null, slug, v.id, "photo")} label="Photo of the vehicle" accept="image/*" />
+                <VehicleFileUpload action={uploadVehicleFileAction.bind(null, slug, v.id, "registration")} label="Registration book scan" accept="image/*,application/pdf" />
+              </div>
+            ) : files.length === 0 && <p className="text-sm text-zinc-500">None added.</p>}
           </Panel>
         </div>
       </div>

@@ -147,9 +147,9 @@ export function listEmployees(driver: Driver, m: Membership): Promise<EmployeeRo
 }
 
 /** Names only, for the custodian picker on vehicle forms. Contact details stay behind employee.manage. */
-export function listEmployeeOptions(driver: Driver, m: Membership): Promise<{ id: string; full_name: string; employee_no: string | null }[]> {
-  return authorized(driver, m, "vehicle.write", async (q) => (await q.query<{ id: string; full_name: string; employee_no: string | null }>(
-    "select id, full_name, employee_no from employees where active order by full_name")).rows);
+export function listEmployeeOptions(driver: Driver, m: Membership): Promise<{ id: string; full_name: string; employee_no: string | null; department: string | null }[]> {
+  return authorized(driver, m, "vehicle.write", async (q) => (await q.query<{ id: string; full_name: string; employee_no: string | null; department: string | null }>(
+    "select id, full_name, employee_no, department from employees where active order by full_name")).rows);
 }
 
 export function saveEmployee(driver: Driver, m: Membership, raw: unknown, id?: string): Promise<{ id: string }> {

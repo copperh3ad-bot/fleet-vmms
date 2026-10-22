@@ -2,7 +2,9 @@
 import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
 import { getDriver } from "@/lib/db";
-import { addVehicle, changeCustody, endCustody, updateVehicleStatus, previewVehicleImport, commitVehicleImport, type ImportPreview } from "@/lib/master/service";
+import { supabaseBlobStore } from "@/lib/supabase/blob-store";
+import { addVehicleFile, removeVehicleFile, type VehicleFileKind } from "@/lib/master/files";
+import { UserError, addVehicle, changeCustody, endCustody, updateVehicleStatus, previewVehicleImport, commitVehicleImport, type ImportPreview } from "@/lib/master/service";
 import { runAction, str, typed, type FormState } from "../actions-util";
 
 const DOC_TYPES = ["registration", "fitness", "token_tax", "route_permit"] as const;
@@ -15,8 +17,20 @@ function vehicleFromForm(f: FormData) {
   for (const k of ["registration_no", "make", "model", "year", "vehicle_class", "fuel_type", "vin", "engine_no", "colour", "base_location", "odometer_km", "employee_id", "holding_since", "budget_amount", "budget_from", "budget_to"]) raw[k] = str(f, k);
   raw.baselines = baselineKeys.map((k) => ({ service_type_key: k, last_done_on: str(f, `baseline_${k}_date`), last_odometer_km: str(f, `baseline_${k}_km`) }));
   raw.documents = docTypes.map((t) => ({ doc_type: t, reference: str(f, `doc_${t}_ref`), expires_on: str(f, `doc_${t}_expires`) }));
-  if (str(f, "insurance_insurer") !== "") {
-    raw.insurance = { insurer: str(f, "insurance_insurer"), policy_no: str(f, "insurance_policy_no"), valid_from: str(f, "insurance_valid_from"), valid_to: str(f, "insurance_valid_to"), premium: str(f, "insurance_premium") };
+  // The board asks only for the insurance expiry. A policy needs an insurer and a start, so when they are not given the
+  // insurer is recorded as "Not recorded yet" and the start as one year before the expiry; both can be corrected later.
+  const to = str(f, "insurance_valid_to");
+  if (to !== "" || str(f, "insurance_insurer") !== "") {
+    const yearBefore = /^\d{4}-\d{2}-\d{2}$/.test(to) ? `${Number(to.slice(0, 4)) - 1}${to.slice(4)}` : "";
+    raw.insurance = {
+      insurer: str(f, "insurance_insurer") || "Not recorded yet", policy_no: str(f, "insurance_policy_no"),
+      valid_from: str(f, "insurance_valid_from") || yearBefore, valid_to: to, premium: str(f, "insurance_premium"),
+    };
+  }
+  // A budget amount without dates covers the current calendar year.
+  if (str(f, "budget_amount") !== "" && (str(f, "budget_from") === "" || str(f, "budget_to") === "")) {
+    const y = new Date().getFullYear();
+    raw.budget_from = str(f, "budget_from") || `${y}-01-01`; raw.budget_to = str(f, "budget_to") || `${y}-12-31`;
   }
   return { raw, baselineKeys, docTypes };
 }
@@ -36,11 +50,31 @@ function renameFields(fields: Record<string, string> | undefined, baselineKeys: 
   return out;
 }
 
+/** What the "Add a vehicle" board marks as needed. The service itself only needs the plate, so imports stay light. */
+const NEEDED: [string, string][] = [["make", "Enter the make"], ["model", "Enter the model"], ["year", "Enter the year"], ["fuel_type", "Choose the fuel"], ["odometer_km", "Enter the odometer reading"]];
+
 export async function createVehicleAction(slug: string, _prev: FormState, form: FormData): Promise<FormState> {
   const { raw, baselineKeys, docTypes } = vehicleFromForm(form);
+  const missing = Object.fromEntries(NEEDED.filter(([k]) => str(form, k).trim() === "").map(([k, msg]) => [k, msg]));
+  if (Object.keys(missing).length) return { error: "Fill in the fields marked with a star.", fields: missing, values: typed(form) };
   let id: string | undefined;
-  const state = await runAction(slug, async (m) => { id = (await addVehicle(getDriver(), m, raw)).id; });
-  if (id) redirect(`/w/${encodeURIComponent(slug)}/vehicles/${id}`);
+  const notes: string[] = [];
+  const state = await runAction(slug, async (m) => {
+    const driver = getDriver();
+    id = (await addVehicle(driver, m, raw)).id;
+    // The vehicle is saved first; a file that cannot be stored never undoes it.
+    for (const [field, kind, label] of [["photo", "photo", "Photo"], ["registration_scan", "registration", "Registration scan"]] as const) {
+      const file = form.get(field);
+      if (!(file instanceof File) || file.size === 0) continue;
+      try { await addVehicleFile(driver, await supabaseBlobStore(), m, id, kind, { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) }); }
+      catch (e) { if (e instanceof UserError) notes.push(`${label} not attached: ${e.message}`); else throw e; }
+    }
+  });
+  if (id) {
+    const another = str(form, "intent") === "another";
+    const note = notes.length ? `&note=${encodeURIComponent(notes.join(" "))}` : "";
+    redirect(another ? `/w/${encodeURIComponent(slug)}/vehicles/new?added=${encodeURIComponent(str(form, "registration_no").trim().toUpperCase())}${note}` : `/w/${encodeURIComponent(slug)}/vehicles/${id}`);
+  }
   return { ...state, fields: renameFields(state.fields, baselineKeys, docTypes), values: typed(form) };
 }
 
@@ -92,4 +126,21 @@ export async function importVehiclesAction(slug: string, _prev: ImportState, for
     return "";
   });
   return { ...state, ok: commit ? state.ok : undefined, preview, text: imported ? undefined : text, imported };
+}
+
+export async function uploadVehicleFileAction(slug: string, vehicleId: string, kind: VehicleFileKind, _prev: FormState, form: FormData): Promise<FormState> {
+  const file = form.get("file");
+  const state = await runAction(slug, async (m) => {
+    if (!(file instanceof File) || file.size === 0) throw new UserError("Choose a file first.");
+    await addVehicleFile(getDriver(), await supabaseBlobStore(), m, vehicleId, kind, { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) });
+    return "File added.";
+  });
+  if (state.ok) refresh();
+  return state;
+}
+
+export async function removeVehicleFileAction(slug: string, attachmentId: string): Promise<FormState> {
+  const state = await runAction(slug, async (m) => { await removeVehicleFile(getDriver(), await supabaseBlobStore(), m, attachmentId); return "File removed."; });
+  if (state.ok) refresh();
+  return state;
 }
