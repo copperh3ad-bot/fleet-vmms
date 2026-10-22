@@ -65,6 +65,74 @@ export async function saveBudget(driver: Driver, m: Membership, input: Record<st
   });
 }
 
+// ---------- The designed Budgets screen ----------
+
+export type BudgetStatus = "over" | "near" | "ok";
+export type BudgetVehicleRow = { budget_id: string; vehicle_id: string; registration_no: string; make: string | null; model: string | null; amount: number; spent: number; pct: number; status: BudgetStatus };
+export type BudgetBoard = {
+  year: number;
+  fleet: { budget_id: string; amount: number; spent: number; left: number; pct: number; period_start: string; period_end: string; yearGonePct: number; projected: number; projectedPct: number } | null;
+  rows: BudgetVehicleRow[]; total: number;
+  warnPct: number; flagPct: number;
+};
+
+/** Fleet position, projection at today's pace, and each vehicle's budget with over / near / on-track status. */
+export function getBudgetBoard(driver: Driver, m: Membership, opts: { filter?: "attention" | "all"; year?: number } = {}): Promise<BudgetBoard> {
+  return authorizedAny(driver, m, ["budget.manage", "report.view"], async (q) => {
+    const year = opts.year ?? new Date().getUTCFullYear();
+    const warn = Number((await q.query<{ v: string }>("select setting_num('budget_warn_pct', 80)::text v")).rows[0].v);
+    const flag = Number((await q.query<{ v: string }>("select setting_num('budget_flag_pct', 100)::text v")).rows[0].v);
+    const f = (await q.query<{ budget_id: string; budget: string; spent: string; period_start: string; period_end: string; gone: string }>(
+      `select u.budget_id, u.budget::text, u.spent::text, u.period_start::text, u.period_end::text,
+              least(1, greatest(0, (current_date - u.period_start + 1)::numeric / nullif(u.period_end - u.period_start + 1, 0)))::text as gone
+         from v_budget_utilisation u
+        where u.vehicle_id is null and extract(year from u.period_start) <= $1 and extract(year from u.period_end) >= $1
+        order by u.period_start desc limit 1`, [year])).rows[0];
+    let fleet: BudgetBoard["fleet"] = null;
+    if (f) {
+      const amount = Number(f.budget), spent = Number(f.spent), gone = Number(f.gone);
+      const projected = gone > 0 ? spent / gone : spent;
+      fleet = { budget_id: f.budget_id, amount, spent, left: amount - spent, pct: amount ? Math.round((spent / amount) * 100) : 0, period_start: f.period_start, period_end: f.period_end,
+        yearGonePct: Math.round(gone * 100), projected: Math.round(projected), projectedPct: amount ? Math.round((projected / amount) * 100) : 0 };
+    }
+    const all = (await q.query<{ budget_id: string; vehicle_id: string; registration_no: string; make: string | null; model: string | null; budget: string; spent: string }>(
+      `select u.budget_id, u.vehicle_id, v.registration_no, v.make, v.model, u.budget::text, u.spent::text
+         from v_budget_utilisation u join vehicles v on v.id = u.vehicle_id
+        where extract(year from u.period_start) <= $1 and extract(year from u.period_end) >= $1`, [year])).rows
+      .map((r) => {
+        const amount = Number(r.budget), spent = Number(r.spent), pct = amount ? Math.round((spent / amount) * 100) : 0;
+        const status: BudgetStatus = pct >= flag ? "over" : pct >= warn ? "near" : "ok";
+        return { budget_id: r.budget_id, vehicle_id: r.vehicle_id, registration_no: r.registration_no, make: r.make, model: r.model, amount, spent, pct, status };
+      })
+      .sort((a, b) => b.pct - a.pct || a.registration_no.localeCompare(b.registration_no));
+    const rows = (opts.filter === "all" ? all : all.filter((r) => r.status !== "ok")).slice(0, 100);
+    return { year, fleet, rows, total: all.length, warnPct: warn, flagPct: flag };
+  });
+}
+
+/**
+ * Copies last year's budgets to this year with the same amounts. A budget is skipped if the same vehicle (or the
+ * fleet) already has one overlapping the new period. Returns how many were created and how many were skipped.
+ */
+export function copyBudgetsForward(driver: Driver, m: Membership, fromYear: number): Promise<{ created: number; skipped: number }> {
+  if (!Number.isInteger(fromYear) || fromYear < 2000 || fromYear > 2200) return Promise.reject(new UserError("Choose a valid year."));
+  return authorized(driver, m, "budget.manage", async (q) => {
+    const src = (await q.query<{ vehicle_id: string | null; period_start: string; period_end: string; amount: string }>(
+      "select vehicle_id, period_start::text, period_end::text, amount::text from budgets where extract(year from period_start) = $1 and extract(year from period_end) = $1 order by period_start", [fromYear])).rows;
+    let created = 0, skipped = 0;
+    for (const b of src) {
+      const start = `${fromYear + 1}${b.period_start.slice(4)}`, end = `${fromYear + 1}${b.period_end.slice(4)}`;
+      const clash = await q.query(
+        `select 1 from budgets where vehicle_id is not distinct from $1::uuid and daterange(period_start, period_end, '[]') && daterange($2::date, $3::date, '[]')`, [b.vehicle_id, start, end]);
+      if (clash.rows.length) { skipped++; continue; }
+      await q.query("insert into budgets(vehicle_id, period_start, period_end, amount, reason, created_by) values ($1, $2, $3, $4, $5, $6)",
+        [b.vehicle_id, start, end, b.amount, `Copied from ${fromYear}`, m.userId]);
+      created++;
+    }
+    return { created, skipped };
+  });
+}
+
 // ============================ Settings ============================
 
 export type SettingView = SettingDef & { value: string; editable: boolean };

@@ -55,25 +55,76 @@ export function closeCycle(driver: Driver, m: Membership, cycleId: string): Prom
   });
 }
 
+export type Verdict = "normal" | "lower" | "too_fast";
 export type SubmissionRow = {
-  id: string; vehicle_id: string; registration_no: string; holder_name: string | null; holder_phone: string | null;
-  status: string; reading_km: string | null; note: string | null; submitted_at: string | null; review_note: string | null;
-  last_km: string; link_expires_at: string | null;
+  id: string; vehicle_id: string; registration_no: string; make: string | null; model: string | null; year: number | null;
+  holder_name: string | null; holder_phone: string | null;
+  status: string; reading_km: string | null; note: string | null; submitted_at: string | null; review_note: string | null; reviewed_at: string | null;
+  last_km: string; last_read_at: string | null; stale_days: number | null; link_expires_at: string | null; last_link_at: string | null;
+  /** only for readings waiting for review: how the reading compares with what is on file */
+  change_km: number | null; km_per_day: number | null; days_between: number | null; verdict: Verdict | null;
 };
-export type CycleDetail = { cycle: Pick<CycleRow, "id" | "period" | "due_on" | "status">; rows: SubmissionRow[] };
+export type CycleDetail = {
+  cycle: Pick<CycleRow, "id" | "period" | "due_on" | "status"> & { opened_at: string; days_left: number };
+  rows: SubmissionRow[];
+  counts: { approved: number; review: number; held: number; pending: number; total: number };
+  rules: { maxKmPerDay: number; staleDays: number };
+};
 
+/**
+ * One cycle with every vehicle's state. A reading is "held" when it is below the last one or implies more km a day
+ * than the limit: the same two rules the database applies when it is approved, shown here before the reviewer decides.
+ */
 export function getCycle(driver: Driver, m: Membership, cycleId: string): Promise<CycleDetail | null> {
   return authorized(driver, m, PERM, async (q) => {
-    const cycle = (await q.query<CycleDetail["cycle"]>("select id, period::text, due_on::text, status from odometer_cycles where id = $1", [cycleId])).rows[0];
+    const cycle = (await q.query<CycleDetail["cycle"]>(
+      "select id, period::text, due_on::text, status, opened_at::text, (due_on - current_date)::int as days_left from odometer_cycles where id = $1", [cycleId])).rows[0];
     if (!cycle) return null;
-    const rows = (await q.query<SubmissionRow>(
-      `select s.id, s.vehicle_id, v.registration_no, e.full_name as holder_name, e.phone as holder_phone, s.status, s.reading_km::text, s.note,
-              s.submitted_at::text, s.review_note, v.odometer_km::text as last_km,
+    const maxKmPerDay = Number((await q.query<{ v: string }>("select setting_num('odometer_max_km_per_day', 800)::text v")).rows[0].v);
+    const staleDays = Number((await q.query<{ v: string }>("select setting_num('odometer_stale_days', 45)::text v")).rows[0].v);
+    const raw = (await q.query<Omit<SubmissionRow, "change_km" | "km_per_day" | "days_between" | "verdict">>(
+      `select s.id, s.vehicle_id, v.registration_no, v.make, v.model, v.year, e.full_name as holder_name, e.phone as holder_phone, s.status, s.reading_km::text, s.note,
+              s.submitted_at::text, s.review_note, s.reviewed_at::text, v.odometer_km::text as last_km, v.odometer_updated_at::text as last_read_at,
+              (current_date - v.odometer_updated_at::date)::int as stale_days,
               (select max(l.expires_at)::text from public.odometer_links l
-                where l.tenant_id = $2 and l.submission_id = s.id and l.used_at is null and l.revoked_at is null and l.expires_at > now()) as link_expires_at
+                where l.tenant_id = $2 and l.submission_id = s.id and l.used_at is null and l.revoked_at is null and l.expires_at > now()) as link_expires_at,
+              (select max(l.created_at)::text from public.odometer_links l where l.tenant_id = $2 and l.submission_id = s.id) as last_link_at
          from odometer_submissions s join vehicles v on v.id = s.vehicle_id left join employees e on e.id = s.assigned_to
         where s.cycle_id = $1 order by v.registration_no`, [cycleId, m.tenantId])).rows;
-    return { cycle, rows };
+    const rows: SubmissionRow[] = raw.map((r) => {
+      if (r.status !== "submitted" || r.reading_km === null) return { ...r, change_km: null, km_per_day: null, days_between: null, verdict: null };
+      const change = Number(r.reading_km) - Number(r.last_km);
+      const days = r.last_read_at ? Math.max(1, Math.ceil((Date.now() - new Date(r.last_read_at).getTime()) / 864e5)) : 1;
+      const perDay = change > 0 ? Math.round((change / days) * 10) / 10 : 0;
+      const verdict: Verdict = change < 0 ? "lower" : perDay > maxKmPerDay ? "too_fast" : "normal";
+      return { ...r, change_km: change, km_per_day: perDay, days_between: days, verdict };
+    });
+    const counts = {
+      approved: rows.filter((r) => r.status === "approved").length,
+      review: rows.filter((r) => r.status === "submitted").length,
+      held: rows.filter((r) => r.verdict && r.verdict !== "normal").length,
+      pending: rows.filter((r) => ["pending", "rejected"].includes(r.status)).length,
+      total: rows.length,
+    };
+    return { cycle, rows, counts, rules: { maxKmPerDay, staleDays } };
+  });
+}
+
+/** Approves every waiting reading that is not held. Held readings need a person to look and write a note. */
+export function approveNormalReadings(driver: Driver, m: Membership, cycleId: string): Promise<number> {
+  return authorized(driver, m, PERM, async (q) => {
+    const open = (await q.query("select 1 from odometer_cycles where id = $1 and status = 'open'", [cycleId])).rows.length > 0;
+    if (!open) throw new UserError("This cycle is closed.");
+    const maxKmPerDay = Number((await q.query<{ v: string }>("select setting_num('odometer_max_km_per_day', 800)::text v")).rows[0].v);
+    const ok = (await q.query<{ id: string }>(
+      `select s.id from odometer_submissions s join vehicles v on v.id = s.vehicle_id
+        where s.cycle_id = $1 and s.status = 'submitted' and s.reading_km >= v.odometer_km
+          and (s.reading_km - v.odometer_km) / greatest(1, ceil(extract(epoch from (now() - coalesce(v.odometer_updated_at, now() - interval '1 day'))) / 86400.0)) <= $2
+        order by s.id`, [cycleId, maxKmPerDay])).rows;
+    for (const r of ok) {
+      try { await q.query("select approve_odometer_submission($1, $2, null)", [r.id, m.userId]); } catch (e) { friendly(e); }
+    }
+    return ok.length;
   });
 }
 

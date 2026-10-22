@@ -134,6 +134,27 @@ describe("budgets", () => {
     await setSetting("budget_warn_pct", "80");
   });
 
+  it("the board shows fleet position, a pace projection, and vehicle status; copy-forward skips what exists", async () => {
+    const b = await ct.getBudgetBoard(d, mgr(), { filter: "all", year });
+    expect(b.fleet).toMatchObject({ amount: 10000, spent: 8000, left: 2000, pct: 80 });
+    expect(b.fleet!.projected).toBeGreaterThanOrEqual(8000);
+    expect(b.fleet!.yearGonePct).toBeGreaterThan(0);
+    expect(b.rows.find((r) => r.registration_no === "H-1")).toMatchObject({ status: "over", pct: 120 });
+    expect(b.rows[0].pct).toBeGreaterThanOrEqual(b.rows.at(-1)!.pct);                        // worst first
+    expect((await ct.getBudgetBoard(d, mgr(), { year })).rows.every((r) => r.status !== "ok")).toBe(true);
+    await expect(ct.getBudgetBoard(d, mem("requester", 40))).rejects.toBeInstanceOf(ForbiddenError);
+
+    const first = await ct.copyBudgetsForward(d, mgr(), year);
+    expect(first.created).toBeGreaterThanOrEqual(2);
+    const again = await ct.copyBudgetsForward(d, mgr(), year);
+    expect(again).toMatchObject({ created: 0 });
+    expect(again.skipped).toBe(first.created);
+    const next = (await ct.listBudgets(d, mgr())).filter((r) => r.period_start.startsWith(String(year + 1)));
+    expect(next.length).toBe(first.created);
+    await expect(ct.copyBudgetsForward(d, mem("auditor", 41), year)).rejects.toBeInstanceOf(ForbiddenError);
+    await raw((q) => q.query(`delete from budgets where period_start >= '${year + 1}-01-01'`));
+  });
+
   it("refuses overlaps, bad dates and negative amounts", async () => {
     await expect(ct.saveBudget(d, mgr(), B({ amount: "1", period_start: `${year}-06-01`, period_end: `${year + 1}-01-31` }))).rejects.toThrow(/overlaps/);
     expect((await ct.saveBudget(d, mgr(), B({ period_start: `${year}-05-01`, period_end: `${year}-04-01` })).catch((x) => x)).fields.period_end).toBeTruthy();

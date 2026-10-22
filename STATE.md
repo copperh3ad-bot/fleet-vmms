@@ -163,3 +163,11 @@
 - Tests: 26 new (admin 17, demo seed 8, routing 1), 253 total, pass on PGlite and local Postgres 17. Live (rolled back): invitation, preview, accept, link dead afterwards, plan limit refusing a vehicle and an invitation with plain messages. The scripts were run against the local test database. Public invite page on a running server: unknown token gives the generic page, bad-shaped path redirects to login.
 - Not tested: creating a real account through the identity provider (needs a real test email; depends on its sign-up and email-confirmation settings), the Users screen in a browser, the home-page accept button.
 - Phase 9 is complete apart from what the ADRs list as not built. The scheduler for `npm run reminders` still needs a hosting decision.
+
+## 2026-10-22: Design alignment, part 1 (shell, daily screens, odometer, vendor, breaking, budgets)
+- Done to match the 18 boards: tokens and IBM Plex, sidebar shell, login, dashboard, vehicles list and record, new job card and one-step review (approve and assign together), invoice check, workshop pages and scorecard, odometer cycle review, "Why it keeps breaking", Budgets (fleet position with pace projection, over/near/on-track per vehicle, set a budget, copy to next year, alert levels).
+- New migrations: tenant `0013_design_views.sql`, `0014_vendor_assigned_at.sql`. Applied live, no drift.
+- Kept: ADR-006 (no photo on the odometer link; link page shows plate and month only), post-login workspace chooser. Skipped: manager and weekly-summary alerts (no sending channel).
+- Tests: 312 total, pass on PGlite and local Postgres. Typecheck, lint and production build clean.
+- Not tested: any screen in a browser (no browser available to me), phone layouts.
+- Still to restyle: compliance, accidents and challans, add vehicle, service rules, users, list pages (job cards, vendors, employees, invoices, notifications, reports costs), mobile job card wizard and mobile odometer.
