@@ -2,7 +2,9 @@
 import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
 import { getDriver } from "@/lib/db";
-import { createJobCard, editJobCard, transitionJobCard, markNotificationsRead } from "@/lib/jobcards/service";
+import { createJobCard, editJobCard, transitionJobCard, markNotificationsRead, getJobContext, approveAndAssign, type JobContext } from "@/lib/jobcards/service";
+import { requireMembership } from "@/lib/auth/session";
+import { ForbiddenError } from "@/lib/auth/can";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { addJobCardAttachment, removeJobCardAttachment } from "@/lib/jobcards/attachments";
 import { UserError } from "@/lib/master/service";
@@ -12,9 +14,9 @@ import { runAction, str, typed, type FormState } from "../actions-util";
 /** The form posts line fields as parallel lists (line_kind, line_description, ...). Fully blank rows are dropped. */
 function cardFromForm(f: FormData) {
   const get = (k: string) => f.getAll(k).map(String);
-  const [kind, description, qty, unit] = [get("line_kind"), get("line_description"), get("line_qty"), get("line_unit_cost")];
+  const [kind, description, qty, unit, tag] = [get("line_kind"), get("line_description"), get("line_qty"), get("line_unit_cost"), get("line_service")];
   const lines = description
-    .map((d, i) => ({ kind: kind[i], description: d, qty: qty[i], unit_cost: unit[i] }))
+    .map((d, i) => ({ kind: kind[i], description: d, qty: qty[i], unit_cost: unit[i], service_type_key: tag[i] }))
     .filter((l) => l.description.trim() !== "" || (l.unit_cost ?? "").trim() !== "");
   const raw: Record<string, unknown> = { lines };
   for (const k of ["vehicle_id", "requested_by", "category", "reason_code_id", "cause_text", "description", "priority", "needed_by", "odometer_km"]) raw[k] = str(f, k);
@@ -80,4 +82,34 @@ export async function markReadAction(slug: string): Promise<FormState> {
   const state = await runAction(slug, async (m) => { await markNotificationsRead(getDriver(), m); return "All read."; });
   if (state.ok) refresh();
   return state;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Called by the form when the vehicle changes. Read-only; checks the same visibility as raising the card. */
+export async function jobContextAction(slug: string, vehicleId: string): Promise<JobContext | null> {
+  if (!UUID.test(vehicleId)) return null;
+  const m = await requireMembership(slug);
+  try { return await getJobContext(getDriver(), m, vehicleId); }
+  catch (e) { if (e instanceof ForbiddenError) return null; throw e; }
+}
+
+/**
+ * The review screen's single decision form. intent is "approve" (approves and assigns the chosen workshop in one step),
+ * "return" or "reject". Returning and rejecting need a note; the service and the database enforce that.
+ */
+export async function reviewDecisionAction(slug: string, id: string, _prev: FormState, form: FormData): Promise<FormState> {
+  const intent = str(form, "intent");
+  const note = str(form, "comment");
+  const state = await runAction(slug, async (m) => {
+    if (intent === "approve") {
+      await approveAndAssign(getDriver(), m, id, { vendorId: str(form, "vendor_id"), reasonCodeId: str(form, "reason_code_id") || undefined, comment: note || undefined });
+      return "Approved. The workshop has been asked for a quotation.";
+    }
+    if (intent === "return") { await transitionJobCard(getDriver(), m, id, "returned_for_edit", { comment: note }); return "Sent back for edit."; }
+    if (intent === "reject") { await transitionJobCard(getDriver(), m, id, "rejected", { comment: note }); return "Rejected."; }
+    throw new UserError("Choose what to do.");
+  });
+  if (state.ok) refresh();
+  return state.error || state.fields ? { ...state, values: typed(form) } : state;
 }

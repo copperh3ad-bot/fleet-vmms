@@ -3,7 +3,8 @@ import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { listEmployeeOptions, listVehicles } from "@/lib/master/service";
-import { listReasonCodes } from "@/lib/jobcards/service";
+import { listReasonCodes, listServiceTags } from "@/lib/jobcards/service";
+import { PageHeader } from "@/components/ui";
 import { JobCardForm } from "../form";
 
 export default function NewJobCardPage({ params, searchParams }: PageProps<"/w/[slug]/job-cards/new">) {
@@ -16,14 +17,14 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const m = await requireMembership(slug);
   const driver = getDriver();
   const perms = await permissionsOf(driver, m);
-  const [vehicles, reasons, people] = await Promise.all([
-    listVehicles(driver, m), listReasonCodes(driver, m), perms.has("vehicle.write") ? listEmployeeOptions(driver, m) : Promise.resolve(undefined),
+  const [vehicles, reasons, people, serviceTags] = await Promise.all([
+    listVehicles(driver, m), listReasonCodes(driver, m), perms.has("vehicle.write") ? listEmployeeOptions(driver, m) : Promise.resolve(undefined), listServiceTags(driver, m),
   ]);
   const vehicle = typeof sp.vehicle === "string" ? sp.vehicle : "";
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-4 p-4 text-zinc-900">
-      <h1 className="text-xl font-semibold">New job card</h1>
-      <JobCardForm slug={slug} reasons={reasons} people={people}
+    <main className="space-y-5 p-6 text-zinc-900">
+      <PageHeader crumb={<><a className="underline" href={`/w/${slug}/job-cards`}>Job cards</a> / New</>} title="New job card" />
+      <JobCardForm slug={slug} reasons={reasons} people={people} serviceTags={serviceTags}
         vehicles={vehicles.filter((v) => v.status !== "disposed").map((v) => ({ id: v.id, registration_no: v.registration_no, label: `${v.registration_no}${v.make ? ` · ${[v.make, v.model].filter(Boolean).join(" ")}` : ""}` }))}
         initial={vehicle ? { vehicle_id: vehicle } : undefined} />
     </main>

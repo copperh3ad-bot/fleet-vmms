@@ -71,10 +71,21 @@ async function assertVehicleAllowed(q: Queryable, m: Membership, vehicleId: stri
   if (ok.rows.length === 0) throw new ForbiddenError("jobcard.create for this vehicle");
 }
 
+/** The odometer on a job card cannot be lower than the reading on file; a lower number is almost always a typo. */
+async function assertOdometerNotLower(q: Queryable, vehicleId: string, km: number | undefined) {
+  if (km === undefined) return;
+  const on = (await q.query<{ km: string }>("select odometer_km::text as km from vehicles where id = $1", [vehicleId])).rows[0];
+  if (on && km < Number(on.km)) {
+    const shown = Number(on.km).toLocaleString("en-US", { maximumFractionDigits: 0 });
+    throw new UserError(`The odometer must be at least ${shown} km, the reading on file.`, { odometer_km: `Must be at least ${shown}` });
+  }
+}
+
 export async function createJobCard(driver: Driver, m: Membership, input: JobCardInput, submit: boolean): Promise<{ id: string; job_no: string }> {
   const data = parse(input);
   return authorized(driver, m, "jobcard.create", async (q) => {
     await assertVehicleAllowed(q, m, data.vehicle_id);
+    await assertOdometerNotLower(q, data.vehicle_id, data.odometer_km);
     try {
       const id = (await q.query<{ id: string }>("select create_job_card($1::jsonb, $2, $3) as id", [JSON.stringify(data), m.userId, submit])).rows[0].id;
       if (submit) await notifyAfter(q, m, id, "submitted");
@@ -88,9 +99,132 @@ export async function editJobCard(driver: Driver, m: Membership, id: string, inp
   const data = parse(input);
   return authorized(driver, m, "jobcard.create", async (q) => {
     await assertVehicleAllowed(q, m, data.vehicle_id);
+    await assertOdometerNotLower(q, data.vehicle_id, data.odometer_km);
     try {
       await q.query("select edit_job_card($1, $2::jsonb, $3, $4)", [id, JSON.stringify(data), m.userId, submit]);
       if (submit) await notifyAfter(q, m, id, "submitted");
+    } catch (e) { friendly(e); }
+  });
+}
+
+/** Active routine services a line on the form can be tagged with, so "last oil change" is found without guessing text. */
+export function listServiceTags(driver: Driver, m: Membership): Promise<{ key: string; label: string }[]> {
+  return authorizedAny(driver, m, ["jobcard.create", "jobcard.approve"], async (q) =>
+    (await q.query<{ key: string; label: string }>("select key, label from service_types where active order by label")).rows);
+}
+
+// ---------- What the form knows about the chosen vehicle ----------
+
+export type JobContext = {
+  vehicle: { id: string; registration_no: string; label: string; odometer_km: number; odometer_updated_at: string | null; holder: string | null; department: string | null };
+  due: { label: string; service_type_key: string; status: string; due_on: string | null; days: number | null }[];
+  budget: { budget: number; spent: number; pct: number } | null;
+  lastJobs: { job_no: string; created_at: string; reason: string; cost: number }[];
+  recent: { reason_code_id: string; reason: string; job_no: string; created_at: string; days_ago: number }[];
+  repeatWindowDays: number;
+};
+
+/** Read-only help for the new job card form. Same visibility rule as raising the card. */
+export function getJobContext(driver: Driver, m: Membership, vehicleId: string): Promise<JobContext | null> {
+  return authorizedAny(driver, m, ["jobcard.create", "jobcard.approve"], async (q, held) => {
+    if (held.has("jobcard.create") && !held.has("jobcard.approve")) await assertVehicleAllowed(q, m, vehicleId);
+    const v = (await q.query<{ id: string; registration_no: string; label: string; km: string; updated: string | null; holder: string | null; department: string | null }>(
+      `select v.id, v.registration_no, concat_ws(' ', v.make, v.model, v.year) as label, v.odometer_km::text as km, v.odometer_updated_at::text as updated, h.full_name as holder, h.department
+         from vehicles v left join vehicle_custody c on c.vehicle_id = v.id and c.to_date is null left join employees h on h.id = c.employee_id where v.id = $1`, [vehicleId])).rows[0];
+    if (!v) return null;
+    const due = (await q.query<{ label: string; service_type_key: string; status: string; due_on: string | null; days: number | null }>(
+      `select label, service_type_key, pm_status as status, due_on::text, days_remaining::int as days from v_pm_status
+        where vehicle_id = $1 and pm_status in ('overdue','due_soon') order by coalesce(days_remaining, 99999)`, [vehicleId])).rows;
+    const b = (await q.query<{ budget: string; spent: string; pct: string | null }>("select budget::text, spent::text, pct_used::text as pct from v_vehicle_budget_now where vehicle_id = $1", [vehicleId])).rows[0];
+    const lastJobs = (await q.query<{ job_no: string; created_at: string; reason: string; cost: string }>(
+      `select jc.job_no, jc.created_at::text, rc.label as reason, coalesce(c.cost, 0)::text as cost
+         from job_cards jc join reason_codes rc on rc.id = jc.reason_code_id left join v_vehicle_job_cost c on c.job_card_id = jc.id
+        where jc.vehicle_id = $1 and jc.status not in ('draft','cancelled','rejected') order by jc.created_at desc limit 3`, [vehicleId])).rows;
+    const window = (await q.query<{ d: string }>("select setting_num('flag_repeat_days', 60)::text d")).rows[0].d;
+    const recent = (await q.query<{ reason_code_id: string; reason: string; job_no: string; created_at: string; days_ago: number }>(
+      `select distinct on (jc.reason_code_id) jc.reason_code_id, rc.label as reason, jc.job_no, jc.created_at::text, (current_date - jc.created_at::date)::int as days_ago
+         from job_cards jc join reason_codes rc on rc.id = jc.reason_code_id
+        where jc.vehicle_id = $1 and jc.status not in ('draft','cancelled','rejected') and rc.category <> 'scheduled_service'
+          and jc.created_at >= now() - ($2 || ' days')::interval order by jc.reason_code_id, jc.created_at desc`, [vehicleId, window])).rows;
+    return {
+      vehicle: { id: v.id, registration_no: v.registration_no, label: v.label, odometer_km: Number(v.km), odometer_updated_at: v.updated, holder: v.holder, department: v.department },
+      due, budget: b ? { budget: Number(b.budget), spent: Number(b.spent), pct: Number(b.pct ?? 0) } : null,
+      lastJobs: lastJobs.map((j) => ({ ...j, cost: Number(j.cost) })), recent, repeatWindowDays: Number(window),
+    };
+  });
+}
+
+// ---------- The review screen: what the decider needs to know ----------
+
+export type ReviewContext = {
+  vehicle: { id: string; label: string; holder: string | null; department: string | null; odometer_km: number };
+  previousReading: { km: number; read_at: string } | null;
+  budget: { budget: number; spent: number; pct: number; after: number; afterPct: number } | null;
+  repeat: { job_id: string; job_no: string; created_at: string; days_ago: number; cost: number; reason: string; vendor_id: string | null; vendor: string | null; cause_text: string } | null;
+  due: { label: string; status: string; due_on: string | null; days: number | null }[];
+  vendors: { id: string; name: string; jobs: number; avg_days: number | null; quote_vs_bill_pct: number | null; rework_pct: number | null; warning: string | null }[];
+  queue: { position: number; total: number; prev: string | null; next: string | null } | null;
+};
+
+/** Read-only help for the approver. The approval queue is the cards this person could decide, oldest first. */
+export function getReviewContext(driver: Driver, m: Membership, jobId: string): Promise<ReviewContext | null> {
+  return authorizedAny(driver, m, ["jobcard.read_all", "jobcard.read_own"], async (q, held) => {
+    const jc = (await q.query<{ vehicle_id: string; reason_code_id: string; created_at: string; estimated_cost: string | null; status: string }>(
+      "select vehicle_id, reason_code_id, created_at::text, estimated_cost::text, status from job_cards where id = $1", [jobId])).rows[0];
+    if (!jc) return null;
+    const v = (await q.query<{ id: string; label: string; km: string; holder: string | null; department: string | null }>(
+      `select v.id, concat_ws(' ', v.make, v.model, v.year) as label, v.odometer_km::text as km, h.full_name as holder, h.department
+         from vehicles v left join vehicle_custody c on c.vehicle_id = v.id and c.to_date is null left join employees h on h.id = c.employee_id where v.id = $1`, [jc.vehicle_id])).rows[0];
+    const prev = (await q.query<{ km: string; read_at: string }>(
+      `select reading_km::text as km, read_at::text from odometer_readings where vehicle_id = $1 and status = 'accepted' and read_at < $2::timestamptz
+        order by read_at desc, created_at desc limit 1`, [jc.vehicle_id, jc.created_at])).rows[0];
+    const b = (await q.query<{ budget: string; spent: string; pct: string | null }>("select budget::text, spent::text, pct_used::text as pct from v_vehicle_budget_now where vehicle_id = $1", [jc.vehicle_id])).rows[0];
+    const est = Number(jc.estimated_cost ?? 0);
+    const budget = b ? { budget: Number(b.budget), spent: Number(b.spent), pct: Number(b.pct ?? 0), after: Number(b.spent) + est, afterPct: Math.round(((Number(b.spent) + est) / Number(b.budget)) * 100) } : null;
+
+    const window = Number((await q.query<{ d: string }>("select setting_num('flag_repeat_days', 60)::text d")).rows[0].d);
+    const rp = (await q.query<{ id: string; job_no: string; created_at: string; days_ago: number; cost: string; reason: string; vendor_id: string | null; vendor: string | null; cause_text: string }>(
+      `select p.id, p.job_no, p.created_at::text, (current_date - p.created_at::date)::int as days_ago, coalesce(c.cost, 0)::text as cost, rc.label as reason,
+              p.vendor_id, vn.name as vendor, p.cause_text
+         from job_cards p join reason_codes rc on rc.id = p.reason_code_id left join vendors vn on vn.id = p.vendor_id left join v_vehicle_job_cost c on c.job_card_id = p.id
+        where p.vehicle_id = $1 and p.reason_code_id = $2 and p.id <> $3 and rc.category <> 'scheduled_service' and p.status not in ('draft','cancelled','rejected')
+          and p.created_at < $4::timestamptz and p.created_at >= $4::timestamptz - ($5 || ' days')::interval order by p.created_at desc limit 1`,
+      [jc.vehicle_id, jc.reason_code_id, jobId, jc.created_at, String(window)])).rows[0];
+    const repeat = rp ? { job_id: rp.id, job_no: rp.job_no, created_at: rp.created_at, days_ago: rp.days_ago, cost: Number(rp.cost), reason: rp.reason, vendor_id: rp.vendor_id, vendor: rp.vendor, cause_text: rp.cause_text } : null;
+
+    const due = (await q.query<{ label: string; status: string; due_on: string | null; days: number | null }>(
+      "select label, pm_status as status, due_on::text, days_remaining::int as days from v_pm_status where vehicle_id = $1 and pm_status in ('overdue','due_soon') order by coalesce(days_remaining, 99999)", [jc.vehicle_id])).rows;
+
+    // workshops to choose from, with their record: only for people who may assign one
+    const canAssign = (await q.query("select 1 from role_permissions where role_key = $1 and permission_key = 'jobcard.assign_vendor'", [m.role])).rows.length > 0;
+    const vendors = canAssign ? (await q.query<{ id: string; name: string; jobs: number | null; avg_days: string | null; qb: string | null; rw: string | null }>(
+      `select vn.id, vn.name, s.jobs, s.avg_days::text, s.quote_vs_bill_pct::text as qb, s.rework_pct::text as rw
+         from vendors vn left join workshop_scorecard(90) s on s.vendor_id = vn.id where vn.status = 'active' order by coalesce(s.jobs, 0) desc, vn.name`)).rows.map((r) => ({
+      id: r.id, name: r.name, jobs: r.jobs ?? 0, avg_days: r.avg_days === null ? null : Number(r.avg_days), quote_vs_bill_pct: r.qb === null ? null : Number(r.qb), rework_pct: r.rw === null ? null : Number(r.rw),
+      warning: repeat && repeat.vendor_id === r.id ? `Did the ${new Date(`${repeat.created_at.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })} ${repeat.reason.toLowerCase()} job. Ask about guarantee.` : null,
+    })) : [];
+
+    // the queue this person works through
+    let queue: ReviewContext["queue"] = null;
+    if (jc.status === "submitted" && held.has("jobcard.read_all")) {
+      const ids = (await q.query<{ id: string }>("select id from job_cards where status = 'submitted' and requested_by is distinct from actor_employee($1) order by created_at, id", [m.userId])).rows.map((r) => r.id);
+      const i = ids.indexOf(jobId);
+      if (i >= 0) queue = { position: i + 1, total: ids.length, prev: ids[i - 1] ?? null, next: ids[i + 1] ?? null };
+    }
+    return { vehicle: { id: v.id, label: v.label, holder: v.holder, department: v.department, odometer_km: Number(v.km) },
+      previousReading: prev ? { km: Number(prev.km), read_at: prev.read_at } : null, budget, repeat, due, vendors, queue };
+  });
+}
+
+/** Approve and assign the workshop in one step, as the review screen does. Needs both permissions; one transaction. */
+export async function approveAndAssign(driver: Driver, m: Membership, id: string, opts: { vendorId: string; reasonCodeId?: string; comment?: string }): Promise<void> {
+  if (!opts.vendorId) throw new UserError("Choose a workshop.", { vendor_id: "Choose a workshop" });
+  return authorized(driver, m, "jobcard.approve", async (q) => {
+    const ok = await q.query("select 1 from role_permissions where role_key = $1 and permission_key = 'jobcard.assign_vendor'", [m.role]);
+    if (ok.rows.length === 0) throw new ForbiddenError("jobcard.assign_vendor");
+    try {
+      await transitionInTx(q, m, id, "approved", { comment: opts.comment, reasonCodeId: opts.reasonCodeId });
+      await transitionInTx(q, m, id, "vendor_assigned", { vendorId: opts.vendorId });
     } catch (e) { friendly(e); }
   });
 }
@@ -99,15 +233,18 @@ export async function editJobCard(driver: Driver, m: Membership, id: string, inp
 
 export type TransitionOptions = { comment?: string; reasonCodeId?: string; vendorId?: string };
 
+/** The one place a status is changed inside a transaction: the SQL function (guard + event row) and the notices. */
+async function transitionInTx(q: Queryable, m: Membership, id: string, to: string, opts: TransitionOptions = {}) {
+  await q.query("select transition_job_card($1, $2, $3, $4, $5::jsonb)", [
+    id, to, m.userId, opts.comment ?? null, JSON.stringify({ reason_code_id: opts.reasonCodeId ?? null, vendor_id: opts.vendorId ?? null })]);
+  await notifyAfter(q, m, id, to);
+}
+
 export async function transitionJobCard(driver: Driver, m: Membership, id: string, to: string, opts: TransitionOptions = {}): Promise<void> {
   const permission = TRANSITION_PERMISSION[to];
   if (!permission) throw new UserError("That step is not available yet.");
   return authorized(driver, m, permission, async (q) => {
-    try {
-      await q.query("select transition_job_card($1, $2, $3, $4, $5::jsonb)", [
-        id, to, m.userId, opts.comment ?? null, JSON.stringify({ reason_code_id: opts.reasonCodeId ?? null, vendor_id: opts.vendorId ?? null })]);
-      await notifyAfter(q, m, id, to);
-    } catch (e) { friendly(e); }
+    try { await transitionInTx(q, m, id, to, opts); } catch (e) { friendly(e); }
   });
 }
 
@@ -144,7 +281,7 @@ export function listJobCards(driver: Driver, m: Membership, opts: { status?: str
 export type JobCardDetail = JobCardRow & {
   cause_text: string; description: string | null; odometer_km: string | null; custodian_name: string | null;
   requested_reason_label: string; reason_code_id: string; requested_by: string; approver_name: string | null; approved_by: string | null;
-  vendor_id: string | null; vendor_name: string | null; mine: boolean; requester_is_me: boolean;
+  vendor_id: string | null; vendor_name: string | null; mine: boolean; requester_is_me: boolean; age_days: number;
   lines: { id: string; kind: string; description: string; qty: string; unit_cost: string; service_type_key: string | null }[];
   events: { id: string; from_status: string | null; to_status: string; actor_name: string | null; comment: string | null; created_at: string }[];
 };
@@ -156,7 +293,7 @@ export function getJobCard(driver: Driver, m: Membership, id: string): Promise<J
               jc.cause_text, jc.description, jc.odometer_km::text, jc.estimated_cost::text, jc.reason_code_id, jc.requested_by, jc.approved_by,
               jc.vendor_id, v.registration_no, re.full_name as requester_name, rc.label as reason_label, rq.label as requested_reason_label,
               cu.full_name as custodian_name, ap.full_name as approver_name, vn.name as vendor_name,
-              job_card_is_mine(jc.id, $2) as mine, (jc.requested_by = actor_employee($2)) as requester_is_me
+              job_card_is_mine(jc.id, $2) as mine, (jc.requested_by = actor_employee($2)) as requester_is_me, greatest(0, current_date - jc.created_at::date)::int as age_days
          from job_cards jc
          join vehicles v on v.id = jc.vehicle_id
          join employees re on re.id = jc.requested_by
