@@ -1,21 +1,13 @@
 "use server";
 import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
-import { headers } from "next/headers";
+import { origin } from "@/lib/origin";
 import { getDriver } from "@/lib/db";
 import { closeCycle, createLinks, enterReading, openCycle, reviewReading, revokeLinks } from "@/lib/odometer/service";
 import { runAction, str, typed, type FormState } from "../actions-util";
 
 export type SentLink = { submission_id: string; plate: string; holder_name: string | null; whatsapp: string | null; url: string; expires_at: string };
 export type LinksState = FormState & { links?: SentLink[] };
-
-/** The address the admin is using right now, so a link opens on the same site. */
-async function origin() {
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") || host.startsWith("127.") ? "http" : "https");
-  return `${proto}://${host}`;
-}
 
 export async function openCycleAction(slug: string, _prev: FormState, form: FormData): Promise<FormState> {
   let id = "";

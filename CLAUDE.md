@@ -10,7 +10,7 @@ Next.js (App Router, TS), Tailwind, Supabase (Auth, Postgres 16, Storage), serve
 2. **Never use supabase-js for tenant tables.** It is for Auth and Storage only.
 3. **Every server action checks `can()`** (`src/lib/auth/can.ts`) before touching data.
 4. **Job card state changes go through one function** (`transitionJobCard`) and always write `job_card_events`.
-5. **No unauthenticated endpoints** except login/health, and the single-use driver odometer link under the limits in ADR-006. No generic SQL-exec RPCs, ever.
+5. **No unauthenticated endpoints** except login/health, the single-use driver odometer link under the limits in ADR-006, and the single-use invitation page under ADR-012. No generic SQL-exec RPCs, ever.
 6. **No secrets or infrastructure IDs in the repo.**
 7. **Pricing is undecided.** Only plan limits and feature flags exist. Do not add prices.
 8. Tenant migrations live in `db/tenant-template/NNNN_name.sql`, are idempotent, and run across all tenant schemas via `scripts/migrate-tenants.ts`.

@@ -33,6 +33,7 @@ async function Nav({ params }: { params: Promise<{ slug: string }> }) {
     { href: `/w/${slug}/notifications`, label: unread ? `Notifications (${unread})` : "Notifications", show: sees || perms.has("quotation.submit") || perms.has("invoice.verify") || perms.has("compliance.manage") },
     { href: `/w/${slug}/vehicles`, label: "Vehicles", show: perms.has("vehicle.read") },
     { href: `/w/${slug}/settings`, label: "Settings", show: perms.has("service.manage") || perms.has("budget.manage") || perms.has("admin.settings") },
+    { href: `/w/${slug}/users`, label: "Users", show: perms.has("admin.users") },
     { href: `/w/${slug}/employees`, label: "Employees", show: perms.has("employee.manage") },
     { href: `/w/${slug}/vendors`, label: "Vendors", show: perms.has("vendor.manage") },
   ].filter((l) => l.show);

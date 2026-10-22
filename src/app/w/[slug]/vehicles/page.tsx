@@ -4,6 +4,7 @@ import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { listVehicles } from "@/lib/master/service";
+import { planUsage } from "@/lib/admin/service";
 
 const PM_LABEL: Record<string, { text: string; cls: string }> = {
   overdue: { text: "Service overdue", cls: "bg-red-100 text-red-800" },
@@ -24,12 +25,13 @@ async function Vehicles({ params, searchParams }: { params: Promise<{ slug: stri
   const status = typeof sp.status === "string" ? sp.status : "";
   const m = await requireMembership(slug);
   const driver = getDriver();
-  const [rows, perms] = await Promise.all([listVehicles(driver, m, { search: q || undefined, status: status || undefined }), permissionsOf(driver, m)]);
+  const [rows, perms, plan] = await Promise.all([listVehicles(driver, m, { search: q || undefined, status: status || undefined }), permissionsOf(driver, m), planUsage(driver, m)]);
   const canWrite = perms.has("vehicle.write");
   return (
     <main className="mx-auto w-full max-w-6xl space-y-4 p-4 text-zinc-900">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-semibold text-inherit">Vehicles <span className="text-sm font-normal text-zinc-500">{rows.length}</span></h1>
+        {plan.vehicles.limit !== null && <span className={`text-sm ${plan.vehicles.used >= plan.vehicles.limit ? "font-medium text-red-800" : "text-zinc-600"}`}>{plan.vehicles.used} of {plan.vehicles.limit} allowed by your plan</span>}
         {canWrite && (
           <div className="ml-auto flex gap-2 text-sm">
             <a href={`/w/${slug}/vehicles/import`} className="rounded-md border border-zinc-300 bg-white px-3 py-2">Import CSV</a>

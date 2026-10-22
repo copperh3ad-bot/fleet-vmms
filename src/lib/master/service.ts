@@ -28,6 +28,8 @@ function friendly(e: unknown): never {
     const m = msg.match(/(employee already holds[^"]*|new custody must start[^"]*|employee is not active|vehicle has no current holder|end date is before[^"]*)/);
     throw new UserError(m ? m[0] : "One of the values is not allowed.");
   }
+  const plan = msg.match(/plan limit: (users|vehicles) \((\d+)\)/);
+  if (plan) throw new UserError(`Your plan allows ${plan[2]} ${plan[1]}. Dispose of vehicles you no longer use, or ask for a bigger plan.`);
   throw e;
 }
 

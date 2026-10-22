@@ -154,3 +154,12 @@
 - Fixed on the way: rate limit validated the window after dividing by it (error message was "division by zero").
 - Not tested: the "not allowed" page in a browser (mechanism relies on Next's digest convention), sign-in limit through the real login form.
 - Still open in Phase 9: plan-limit enforcement, demo seed data, onboarding.
+
+## 2026-10-22: Phase 9b done (invite-only onboarding, plan limits, demo data)
+- Migrations: platform `0006_plan_limits_invites.sql` (max_users trigger, vendor on invitations), tenant `0012_plan_limits.sql` (`plan_limit()`, max_vehicles trigger). Applied to the live project, no drift. ADR-012, `docs/OPERATIONS.md` (the commands you run).
+- Owner decision: invite only. Workspaces are created by `scripts/create-workspace.mts` (prints one owner invitation link); plans by `scripts/set-plan.mts`; demo data by `scripts/seed-demo.mts` (refuses a workspace with vehicles). `provisionTenant` can now create an empty workspace with no owner.
+- Users screen (`admin.users`): invite (link shown once, copy/email/WhatsApp), resend, cancel, change role/scope, disable. Rules: not yourself, never the last administrator, workshops only by invitation. Public page `/invite/<token>` (second exception to rule 5, written into CLAUDE.md): create an account with the invited email. Home page lists invitations waiting for a signed-in person's confirmed email.
+- Plan limits enforced by database triggers (vehicles, users; sold vehicles and workshop logins do not count), shown as "N of M" on Vehicles and Users.
+- Tests: 26 new (admin 17, demo seed 8, routing 1), 253 total, pass on PGlite and local Postgres 17. Live (rolled back): invitation, preview, accept, link dead afterwards, plan limit refusing a vehicle and an invitation with plain messages. The scripts were run against the local test database. Public invite page on a running server: unknown token gives the generic page, bad-shaped path redirects to login.
+- Not tested: creating a real account through the identity provider (needs a real test email; depends on its sign-up and email-confirmation settings), the Users screen in a browser, the home-page accept button.
+- Phase 9 is complete apart from what the ADRs list as not built. The scheduler for `npm run reminders` still needs a hosting decision.

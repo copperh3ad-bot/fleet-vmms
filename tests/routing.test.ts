@@ -15,6 +15,12 @@ describe("guard", () => {
     for (const p of ["/o", "/o/", "/o/short", `/o/${tok}/x`, `/o/${tok}A`, `/o/${"A".repeat(42)}.`, `/x/o/${tok}`, `/w/demo/o/${tok}`])
       expect(guardDecision(p, false)).toEqual({ action: "redirect", to: "/login" });
   });
+  it("opens the invitation page path, and only that exact shape (ADR-012)", () => {
+    const tok = "B".repeat(43);
+    expect(guardDecision(`/invite/${tok}`, false)).toEqual({ action: "next" });
+    for (const p of ["/invite", "/invite/", "/invite/short", `/invite/${tok}/x`, `/invite/${tok}B`, `/x/invite/${tok}`, `/w/demo/invite/${tok}`, `/Invite/${tok}`])
+      expect(guardDecision(p, false)).toEqual({ action: "redirect", to: "/login" });
+  });
   it("lets signed-in users through", () => expect(guardDecision("/w/demo-fleet", true)).toEqual({ action: "next" }));
 });
 

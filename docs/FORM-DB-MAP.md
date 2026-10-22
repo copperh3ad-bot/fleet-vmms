@@ -31,6 +31,7 @@ Every screen in the design canvas, what it reads, and the one call that saves it
 | Accidents and challans | `accidents`, `challans`, `vehicle_custody` | insert rows; driver filled from custody by trigger; paid date set by trigger | `compliance.manage` |
 | *(built Phases 5-6)* Reports, Why it keeps breaking, Budgets, Settings | `v_vehicle_job_cost`, `v_vehicle_flags`, `flag_*`, `v_repeat_repairs`, `v_budget_utilisation`, `budgets`, `settings`, `service_types` | `/w/[slug]/reports`, `/reports/breaking`, `/budgets`, `/settings` | `report.view`; `budget.manage`; `service.manage`, `budget.manage`, `admin.settings` per setting |
 | Service rules | `service_types`, `settings` | update `service_types` (incl. `applies_to_classes`), `settings` (known keys only, numeric) | `service.manage`, `admin.settings` |
+| *(built Phase 9b)* Users and roles, invitation page, home chooser | `public.tenant_memberships`, `public.invitations`, `roles`; plan limits in `public.plans` | `/w/[slug]/users`, `/invite/[token]`, `/` | `admin.users` (the invited person needs only a matching confirmed email) |
 | Users and roles | `public.tenant_memberships`, `public.invitations`, `role_permissions` | invitation insert (token hash only), accept creates membership + employee | `admin.users` |
 | Why it keeps breaking | `v_vehicle_job_cost`, `v_repeat_repairs`, `job_cards.requested_reason_code_id` vs `reason_code_id` | read only | `report.view` |
 
