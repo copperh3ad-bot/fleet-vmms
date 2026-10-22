@@ -4,7 +4,8 @@ const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   // A self-contained server (server.js plus only the files it needs) for the container image and beta hosting.
-  output: "standalone",
+  // Netlify's own Next.js runtime builds the server itself and must not get this output, so it is skipped there.
+  output: process.env.NETLIFY ? undefined : "standalone",
   poweredByHeader: false,
   // Photo uploads go through server actions; the largest allowed file is 10 MB.
   experimental: { serverActions: { bodySizeLimit: "12mb" }, authInterrupts: true },
