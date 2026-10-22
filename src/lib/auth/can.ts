@@ -8,16 +8,16 @@ export class ForbiddenError extends Error {
   constructor(public permission: string) { super(`forbidden: ${permission}`); }
 }
 
-export type Membership = TenantContext & { tenantId: string; vehicleScope: "all" | "own" };
+export type Membership = TenantContext & { tenantId: string; vehicleScope: "all" | "own"; /** for display only */ tenantName?: string };
 
 /** Who is this user in this workspace? Null if not a member, disabled, or the tenant is not active. */
 export async function resolveMembership(driver: Driver, userId: string, slug: string): Promise<Membership | null> {
   return withPlatform(driver, async (q) => {
-    const r = (await q.query<{ tenant_id: string; schema_name: string; role: string; vehicle_scope: "all" | "own" }>(
-      `select t.id as tenant_id, t.schema_name, m.role, m.vehicle_scope
+    const r = (await q.query<{ tenant_id: string; schema_name: string; role: string; vehicle_scope: "all" | "own"; name: string }>(
+      `select t.id as tenant_id, t.schema_name, t.name, m.role, m.vehicle_scope
          from public.tenants t join public.tenant_memberships m on m.tenant_id = t.id
         where t.slug = $1 and m.user_id = $2 and m.status = 'active' and t.status = 'active'`, [slug, userId])).rows[0];
-    return r ? { tenantId: r.tenant_id, schema: r.schema_name, userId, role: r.role, vehicleScope: r.vehicle_scope } : null;
+    return r ? { tenantId: r.tenant_id, schema: r.schema_name, userId, role: r.role, vehicleScope: r.vehicle_scope, tenantName: r.name } : null;
   });
 }
 
@@ -63,4 +63,14 @@ export async function listWorkspaces(driver: Driver, userId: string): Promise<Wo
     (await q.query<WorkspaceLink>(
       `select t.slug, t.name, m.role from public.tenants t join public.tenant_memberships m on m.tenant_id = t.id
         where m.user_id = $1 and m.status = 'active' and t.status = 'active' order by t.name`, [userId])).rows);
+}
+
+/** The signed-in person's own name and role, for the corner of the screen. Reads only their own row. */
+export async function whoAmI(driver: Driver, m: Membership): Promise<{ name: string; roleName: string }> {
+  return withTenant(driver, m, async (q) => {
+    const r = (await q.query<{ name: string | null; role_name: string | null }>(
+      `select coalesce((select e.full_name from employees e where e.user_id = $1), (select v.name from vendors v where v.user_id = $1)) as name,
+              (select r.name from roles r where r.key = $2) as role_name`, [m.userId, m.role])).rows[0];
+    return { name: r?.name ?? "Signed in", roleName: r?.role_name ?? m.role };
+  });
 }

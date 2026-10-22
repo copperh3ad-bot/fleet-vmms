@@ -1,26 +1,68 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Design tokens from the Claude Design export (docs/design/README.md). Rather than renaming hundreds of classes, the
+ * shades the screens already use are remapped to the design's values, so one edit here restyles every page.
+ * Light only: the design has no dark mode.
+ */
+@theme {
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* ink and lines */
+  --color-zinc-50: #f8fafb;
+  --color-zinc-100: #e7ecef;
+  --color-zinc-200: #d9e0e5;
+  --color-zinc-300: #c3cdd4;
+  --color-zinc-400: #8a98a4;
+  --color-zinc-500: #5b6b78;
+  --color-zinc-600: #5b6b78;
+  --color-zinc-700: #3d4a55;
+  --color-zinc-900: #14202b;
+
+  /* primary and "info" */
+  --color-sky-100: #dcedf2;
+  --color-sky-700: #0b6e8a;
+  --color-sky-800: #0b6e8a;
+  --color-brand: #0b6e8a;
+
+  /* status pills: ok / warn / bad */
+  --color-green-50: #f1f9f4;
+  --color-green-100: #e1f3e8;
+  --color-green-200: #bfe3cc;
+  --color-green-700: #14633a;
+  --color-green-800: #14633a;
+  --color-green-900: #0e4a2b;
+  --color-amber-50: #fdf6e7;
+  --color-amber-100: #fbebcf;
+  --color-amber-200: #f2d8a4;
+  --color-amber-500: #d9922b;
+  --color-amber-800: #7a4800;
+  --color-amber-900: #5e3800;
+  --color-red-50: #fdf3f2;
+  --color-red-100: #fbe4e1;
+  --color-red-200: #f3c7c2;
+  --color-red-300: #e7a39b;
+  --color-red-600: #b9301f;
+  --color-red-700: #a3231b;
+  --color-red-800: #a3231b;
+
+  /* app shell */
+  --color-page: #f3f5f6;
+  --color-side: #0f1e28;
+  --color-side-active: #1d3a4c;
+  --color-badge: #f2b84b;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+html { color-scheme: light; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-page);
+  color: var(--color-zinc-900);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
 }
+
+/* every control gets the same visible focus ring */
+:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }

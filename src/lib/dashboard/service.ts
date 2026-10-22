@@ -1,7 +1,7 @@
 // The workspace home. One transaction, and each block is read only if the member's role holds the permission that
 // block needs (CLAUDE.md rule 3); a role sees exactly the blocks it could open on their own screens.
 import type { Driver } from "@/lib/db/types";
-import { authorizedAny, type Membership } from "@/lib/auth/can";
+import { authorizedAny, ForbiddenError, type Membership } from "@/lib/auth/can";
 
 export type Sample = { text: string; href: string };
 export type ActionItem = { key: string; label: string; count: number; href: string; samples: Sample[] };
@@ -100,4 +100,21 @@ export function getDashboard(driver: Driver, m: Membership): Promise<Dashboard> 
     }
     return { actions, health, myVehicles };
   });
+}
+
+/** The two numbers shown as badges in the sidebar. Zero for roles that cannot act on them. */
+export async function getNavCounts(driver: Driver, m: Membership): Promise<{ approvals: number; odometer: number }> {
+  try {
+    return await authorizedAny(driver, m, ["jobcard.approve", "odometer.review"], async (q, held) => {
+      const approvals = held.has("jobcard.approve")
+        ? (await q.query<{ c: number }>("select count(*)::int c from job_cards jc where jc.status = 'submitted' and jc.requested_by is distinct from actor_employee($1)", [m.userId])).rows[0].c : 0;
+      const odometer = held.has("odometer.review")
+        ? (await q.query<{ c: number }>(
+            `select count(*)::int c from odometer_submissions s join odometer_cycles c on c.id = s.cycle_id where c.status = 'open' and s.status = 'submitted'`)).rows[0].c : 0;
+      return { approvals, odometer };
+    });
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { approvals: 0, odometer: 0 };
+    throw e;
+  }
 }
