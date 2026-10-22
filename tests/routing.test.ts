@@ -1,0 +1,21 @@
+import { describe, expect, it } from "vitest";
+import { guardDecision, postLoginDestination } from "@/lib/auth/routing";
+
+describe("guard", () => {
+  it("sends signed-out visitors to /login", () => {
+    for (const p of ["/", "/w/demo-fleet", "/api/anything", "/login/x"]) expect(guardDecision(p, false)).toEqual({ action: "redirect", to: "/login" });
+  });
+  it("leaves only /login and /api/health open when signed out", () => {
+    expect(guardDecision("/login", false)).toEqual({ action: "next" });
+    expect(guardDecision("/api/health", false)).toEqual({ action: "next" });
+  });
+  it("lets signed-in users through", () => expect(guardDecision("/w/demo-fleet", true)).toEqual({ action: "next" }));
+});
+
+describe("post-login destination", () => {
+  it("one workspace goes straight in", () => expect(postLoginDestination([{ slug: "demo-fleet" }])).toBe("/w/demo-fleet"));
+  it("none or several stay on the chooser", () => {
+    expect(postLoginDestination([])).toBeNull();
+    expect(postLoginDestination([{ slug: "a" }, { slug: "b" }])).toBeNull();
+  });
+});

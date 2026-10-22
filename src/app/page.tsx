@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
 import { listWorkspaces } from "@/lib/auth/can";
+import { postLoginDestination } from "@/lib/auth/routing";
 import { signOut } from "./login/actions";
 
 export default function Home() {
@@ -12,7 +13,8 @@ export default function Home() {
 async function HomeInner() {
   const user = await requireUser();
   const spaces = await listWorkspaces(getDriver(), user.id);
-  if (spaces.length === 1) redirect(`/w/${spaces[0].slug}`);
+  const dest = postLoginDestination(spaces);
+  if (dest) redirect(dest);
   return (
     <main className="mx-auto w-full max-w-md flex-1 space-y-4 p-6">
       <h1 className="text-xl font-semibold">{spaces.length ? "Choose a workspace" : "No workspace yet"}</h1>

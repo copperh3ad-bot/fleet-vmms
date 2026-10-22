@@ -1,7 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-
-const PUBLIC_PATHS = ["/login", "/api/health"];
+import { guardDecision } from "@/lib/auth/routing";
 
 /** Refreshes the session cookie and sends signed-out visitors to /login. Only the two public paths are open. */
 export async function updateSession(request: NextRequest) {
@@ -17,10 +16,10 @@ export async function updateSession(request: NextRequest) {
     },
   });
   const { data } = await supabase.auth.getUser(); // verifies the token with Supabase, not just the cookie
-  const open = PUBLIC_PATHS.some((p) => request.nextUrl.pathname === p);
-  if (!data.user && !open) {
+  const decision = guardDecision(request.nextUrl.pathname, !!data.user);
+  if (decision.action === "redirect") {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = decision.to;
     url.search = "";
     return NextResponse.redirect(url);
   }
