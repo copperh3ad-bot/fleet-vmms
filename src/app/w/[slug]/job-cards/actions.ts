@@ -23,16 +23,27 @@ function cardFromForm(f: FormData) {
   return raw;
 }
 
-/** id is "" for a new card. intent is "draft" or "submit". */
+/** id is "" for a new card. intent is "draft" or "submit". Photos chosen on the form are attached to a new card. */
 export async function saveJobCardAction(slug: string, id: string, _prev: FormState, form: FormData): Promise<FormState> {
   const submit = str(form, "intent") === "submit";
+  const files = id ? [] : form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
+  const notes: string[] = [];
   let target = id;
   const state = await runAction(slug, async (m) => {
-    if (id) await editJobCard(getDriver(), m, id, cardFromForm(form), submit);
-    else target = (await createJobCard(getDriver(), m, cardFromForm(form), submit)).id;
-    return submit ? "Submitted for approval." : "Draft saved.";
+    const driver = getDriver();
+    if (id) { await editJobCard(driver, m, id, cardFromForm(form), submit); return submit ? "Submitted for approval." : "Draft saved."; }
+    if (files.length === 0) { target = (await createJobCard(driver, m, cardFromForm(form), submit)).id; return submit ? "Submitted for approval." : "Draft saved."; }
+    // With photos the card is saved as a draft first (files can only be added to a draft), then submitted.
+    target = (await createJobCard(driver, m, cardFromForm(form), false)).id;
+    try {
+      const store = await supabaseBlobStore();
+      for (const f of files) await addJobCardAttachment(driver, store, m, target, { name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) });
+    } catch (e) { if (e instanceof UserError) notes.push(`A photo was not attached: ${e.message}`); else throw e; }
+    if (!submit) return "Draft saved.";
+    try { await transitionJobCard(driver, m, target, "submitted"); return "Submitted for approval."; }
+    catch (e) { if (e instanceof UserError) { notes.push(`Saved as a draft, not submitted: ${e.message}`); return "Draft saved."; } throw e; }
   });
-  if (state.ok && target) { refresh(); redirect(`/w/${slug}/job-cards/${target}`); }
+  if (state.ok && target) { refresh(); redirect(`/w/${slug}/job-cards/${target}${notes.length ? `?note=${encodeURIComponent(notes.join(" "))}` : ""}`); }
   return { ...state, values: typed(form) };
 }
 

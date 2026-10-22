@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { requireMembership } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
 import { listEmployees } from "@/lib/master/service";
-import { Card } from "@/components/form";
+import { PageHeader, Panel, Pill } from "@/components/ui";
 import { EmployeeForm } from "./form";
 
 export default function EmployeesPage({ params }: PageProps<"/w/[slug]/employees">) {
@@ -14,24 +14,26 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const m = await requireMembership(slug);
   const rows = await listEmployees(getDriver(), m);
   return (
-    <main className="mx-auto w-full max-w-4xl space-y-4 p-4 text-zinc-900">
-      <h1 className="text-xl font-semibold text-inherit">Employees <span className="text-sm font-normal text-zinc-500">{rows.length}</span></h1>
-      <Card title="Add an employee"><EmployeeForm slug={slug} /></Card>
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-zinc-200 text-xs text-zinc-500"><tr><th className="p-3">Name</th><th className="p-3">No.</th><th className="p-3">Department</th><th className="p-3">Vehicles</th><th className="p-3">Login</th><th className="p-3" /></tr></thead>
-          <tbody>
-            {rows.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-zinc-500">No employees yet.</td></tr>}
-            {rows.map((e) => (
-              <tr key={e.id} className="border-b border-zinc-100 align-top last:border-0">
-                <td className="p-3 font-medium">{e.full_name}{!e.active && <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-normal">inactive</span>}</td>
-                <td className="p-3">{e.employee_no ?? "—"}</td><td className="p-3">{e.department ?? "—"}</td>
-                <td className="p-3 tabular-nums">{e.vehicles}</td><td className="p-3">{e.has_login ? "Yes" : "No"}</td>
-                <td className="p-3"><details><summary className="cursor-pointer text-sky-800">Edit</summary><div className="mt-2 w-72 max-w-[80vw]"><EmployeeForm slug={slug} employee={e} /></div></details></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <main className="space-y-5 p-6 text-zinc-900">
+      <PageHeader title="Employees" sub={`${rows.length} people who can hold a vehicle`} />
+      <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
+        <Panel title="People" flush>
+          <div className="overflow-x-auto"><table className="w-full text-left text-sm">
+            <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Name</th><th>No.</th><th>Department</th><th className="text-right">Vehicles</th><th>Login</th><th /></tr></thead>
+            <tbody>
+              {rows.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-zinc-500">No employees yet.</td></tr>}
+              {rows.map((e) => (
+                <tr key={e.id} className="border-t border-zinc-100 align-top">
+                  <td className="px-5 py-3 font-medium">{e.full_name}{!e.active && <span className="ml-2"><Pill>Inactive</Pill></span>}</td>
+                  <td className="py-3">{e.employee_no ?? "—"}</td><td className="py-3">{e.department ?? "—"}</td>
+                  <td className="py-3 text-right font-mono">{e.vehicles}</td><td className="py-3">{e.has_login ? <Pill tone="ok">Yes</Pill> : "No"}</td>
+                  <td className="py-3 pr-5"><details><summary className="cursor-pointer text-sky-800">Edit</summary><div className="mt-2 w-72 max-w-[80vw]"><EmployeeForm slug={slug} employee={e} /></div></details></td>
+                </tr>
+              ))}
+            </tbody>
+          </table></div>
+        </Panel>
+        <Panel title="Add an employee"><EmployeeForm slug={slug} /></Panel>
       </div>
     </main>
   );

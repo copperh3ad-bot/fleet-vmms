@@ -66,8 +66,8 @@ though the app allows 10 MB; and each request may open its own database connecti
 1. **Supabase Auth settings** (dashboard, Authentication): set Site URL to the public address; allow the same address as
    a redirect; keep email confirmation on (invitations need a confirmed email); turn on leaked-password protection.
 2. **Migrations** are already applied to the live project. After pulling new code, run
-   `npx tsx --env-file=.env.local scripts/migrate-tenants.ts`. Migration 0015 (administrators can raise job cards) is
-   still to be applied this way.
+   `npx tsx --env-file=.env.local scripts/migrate-tenants.ts` (it applies platform and workspace migrations, and
+   `--check` reports drift).
 3. **Create the beta workspace**, with you as owner (see `docs/OPERATIONS.md`):
    `npx tsx --env-file=.env.local scripts/create-workspace.mts --name "Beta" --slug beta --owner-name ... --owner-email ... --plan small --base-url https://YOUR-SITE`
    Send the printed link to yourself first and go through sign-up.
@@ -75,8 +75,8 @@ though the app allows 10 MB; and each request may open its own database connecti
    on their own fleet should start with an empty workspace and add or import their vehicles.
 5. **Invite testers** on Users and roles. Vehicle users: role Requester (limited to the vehicle they hold). Managers:
    Fleet manager. Give each tester the address and tell them the invite link works once, for 7 days.
-6. **Reminders**: `npm run reminders` has to run once a day from a scheduler on the host (cron, or the host's scheduled
-   job feature). Without it no document-expiry notices are created.
+6. **Reminders**: on Netlify a scheduled function (`netlify/functions/reminders.mts`, 03:00 UTC) runs the job daily and
+   has no web address. On any other host, schedule `npm run reminders` once a day.
 7. **Backups**: switch on the database's daily backups and note how to restore before real data goes in.
 
 ## Known limits for a beta

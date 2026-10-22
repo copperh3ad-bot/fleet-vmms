@@ -84,6 +84,17 @@ describe("adding files", () => {
     expect(files.size).toBe(before);
   });
 
+  it("photos chosen on the new job card form: saved as a draft, files attached, then submitted", async () => {
+    const { store, files } = fakeStore();
+    const id = (await jc.createJobCard(d, driver(), { vehicle_id: veh, reason_code_id: reason, cause_text: "Brakes grind when stopping and pull left", lines: [] }, false)).id;
+    await att.addJobCardAttachment(d, store, driver(), id, { name: "brake.jpg", bytes: jpeg() });
+    await jc.transitionJobCard(d, driver(), id, "submitted");
+    expect((await jc.getJobCard(d, driver(), id))!.status).toBe("submitted");
+    expect((await att.listJobCardAttachments(d, store, driver(), id)).map((f) => f.file_name)).toEqual(["brake.jpg"]);
+    expect([...files.keys()].some((p) => p.includes(`/job_card/${id}/`))).toBe(true);
+    await expect(att.addJobCardAttachment(d, store, driver(), id, { name: "late.jpg", bytes: jpeg() })).rejects.toThrow(/draft or sent back/);   // closed once submitted
+  });
+
   it("limits the number of files per card", async () => {
     const id = await newCard();
     const { store } = fakeStore();

@@ -2,6 +2,7 @@
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { Notice, inputCls } from "@/components/form";
+import { FileInput } from "@/components/file-input";
 import { Panel, Pill, Plate, btn } from "@/components/ui";
 import type { JobContext } from "@/lib/jobcards/service";
 import type { FormState } from "../actions-util";
@@ -187,7 +188,7 @@ export function JobCardForm({ slug, id, currency = "PKR", vehicles, reasons, ser
           </Panel>
 
           <Panel title="Photos" sub="Up to 10. A dashboard photo proves the odometer.">
-            <p className="text-sm text-zinc-600">{id ? "Add or remove photos on the job card page." : "Save the draft first, then add photos on the next page."}</p>
+            {id ? <p className="text-sm text-zinc-600">Add or remove photos on the job card page.</p> : <FileInput className="block w-full rounded-md border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm" />}
           </Panel>
 
           <Notice state={state} />

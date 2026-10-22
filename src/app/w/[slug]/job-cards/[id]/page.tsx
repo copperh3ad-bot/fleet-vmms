@@ -15,14 +15,16 @@ import { QuoteDecision } from "./quote-decision";
 import { RemoveFile, UploadForm } from "./files";
 import { dayMonth, plural } from "@/lib/labels";
 
-export default function JobCardPage({ params }: PageProps<"/w/[slug]/job-cards/[id]">) {
-  return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} /></Suspense>;
+export default function JobCardPage({ params, searchParams }: PageProps<"/w/[slug]/job-cards/[id]">) {
+  return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} searchParams={searchParams} /></Suspense>;
 }
 
 const stamp = (s: string) => new Date(s).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC", hour12: false }).replace(",", "");
 
-async function Inner({ params }: { params: Promise<{ slug: string; id: string }> }) {
+async function Inner({ params, searchParams }: { params: Promise<{ slug: string; id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug, id } = await params;
+  const sp = await searchParams;
+  const note = typeof sp.note === "string" ? sp.note.slice(0, 300) : "";
   const m = await requireMembership(slug);
   const driver = getDriver();
   const [c, perms] = await Promise.all([getJobCard(driver, m, id), permissionsOf(driver, m)]);
@@ -53,6 +55,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
 
   return (
     <main className="space-y-5 p-6 text-zinc-900">
+      {note && <p role="status" className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{note}</p>}
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-sm text-zinc-500"><a className="underline" href={to(showCrumbQueue ? "job-cards?status=submitted" : "job-cards")}>{showCrumbQueue ? "Approval queue" : "Job cards"}</a> / {c.job_no}</p>

@@ -192,3 +192,11 @@
 - Checked on the live address: /api/health 200; /login 200; everything else redirects to login; a well-formed but dead odometer link and invitation link give the generic page with no-store headers on the odometer link.
 - Not tested: sign-in and sign-up through the identity provider (its Site URL must be set to the Netlify address first), a real workspace page with data, uploads above about 6 MB (Netlify function limit), whether DATABASE_URL is the pooled connection.
 - Still to do before testers: Supabase Site URL and redirect, apply tenant migration 0015, create the beta workspace, schedule `npm run reminders`.
+
+## 2026-10-22: Design alignment complete, deploy gaps closed (ADR-013)
+- Every screen now follows the boards or, where no board exists, the shared components: accidents and challans (one screen, driver from custody, optional repair job card, files), add a vehicle (sections, ready-to-save checklist, save and add another, photo and registration scan), service rules (switches, timing, flags, what the manager sees), users and roles (people and invitations together, role table, invite panel), list pages (job cards, vendors, employees, invoices, notifications, reports, odometer months), the phone job card (four steps, photos at creation) and the phone odometer page (within ADR-006).
+- New migrations: tenant 0015 (administrators raise job cards), 0016 (files on a vehicle); platform 0007 (append-only log of access changes).
+- Deploy gaps: DATABASE_URL confirmed pooled (port 6543); photos shrink in the browser and the file limit is 4 MB so requests stay under Netlify's 6 MB; daily reminders run as a Netlify scheduled function; tenant migration 0015 applied to the live workspaces; vehicle users are always limited to their own vehicle.
+- Tests: 326 pass on PGlite and local Postgres 17. Typecheck, lint and production build clean.
+- Not tested: any screen in a browser, phone layouts, the file picker's photo shrinking, uploads to real storage, sign-up through the identity provider, the scheduled function actually firing.
+- Not built (decisions with the owner): photo and last reading on the odometer link (ADR-006), manager and weekly-summary alerts, "last seen" on people.

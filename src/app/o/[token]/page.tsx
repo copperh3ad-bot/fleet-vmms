@@ -15,24 +15,31 @@ export default function LinkPage({ params }: PageProps<"/o/[token]">) {
 
 const monthName = (iso: string) => new Date(iso + "T00:00:00Z").toLocaleString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
 
+// Open page: it shows only the plate and the month (ADR-006), so the layout is the board's phone screen without
+// the details the board adds (owner, last reading, photo), which would reveal more than a link in a message should.
 async function Inner({ params }: { params: Promise<{ token: string }> }) {
   await connection();
   const { token } = await params;
   const view = (await allowShared(getDriver(), `link-view-ip:${await clientIp()}`, 60, 600)) ? await lookupLink(getDriver(), token) : null;
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-4 p-6 text-zinc-900">
-      {view ? (
-        <>
-          <div>
-            <p className="text-sm text-zinc-600">Odometer reading for {monthName(view.period)}</p>
-            <h1 className="text-2xl font-semibold">{view.plate}</h1>
-          </div>
-          <ReadingForm token={token} />
-          <p className="text-xs text-zinc-500">Look at the dashboard and type the number you see. This link works once.</p>
-        </>
-      ) : (
-        <p role="status" className="rounded-lg border border-zinc-200 bg-white p-4 text-sm">{DEAD_LINK}</p>
-      )}
-    </main>
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-page text-zinc-900">
+      <header className="bg-side px-5 py-5 text-white"><p className="text-lg font-semibold">Fleet VMMS</p></header>
+      <main className="flex flex-1 flex-col gap-5 p-5">
+        {view ? (
+          <>
+            <div>
+              <h1 className="text-2xl font-semibold">Send this month&apos;s reading</h1>
+              <p className="mt-1 text-zinc-600">{monthName(view.period)}</p>
+            </div>
+            <div className="rounded-xl border border-zinc-200 bg-white p-5">
+              <span className="inline-block rounded-md border-[1.5px] border-zinc-900 px-3 py-1 font-mono text-lg tracking-wider">{view.plate}</span>
+            </div>
+            <ReadingForm token={token} />
+          </>
+        ) : (
+          <p role="status" className="rounded-xl border border-zinc-200 bg-white p-5 text-base">{DEAD_LINK}</p>
+        )}
+      </main>
+    </div>
   );
 }
