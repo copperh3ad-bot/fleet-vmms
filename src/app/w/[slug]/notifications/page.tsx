@@ -21,6 +21,8 @@ const TEXT: Record<string, string> = {
   "invoice.submitted": "has an invoice to check",
   "invoice.verified": "invoice was checked",
   "invoice.returned": "invoice was returned to you",
+  "document.expiring": "expires soon",
+  "document.expired": "has expired",
 };
 
 /** Vendors have no job card page; their notices open their own list. */

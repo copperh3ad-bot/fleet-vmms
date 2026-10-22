@@ -116,7 +116,7 @@ describe("the database guard", () => {
     await expect(insert("a.jpg", cardId)).rejects.toThrow(/tenant folder/);
   });
   it("refuses a file for a card that does not exist", async () => {
-    await expect(insert(`${t.schema}/job_card/x/a.jpg`, "00000000-0000-0000-0000-0000000000aa")).rejects.toThrow(/job card not found/);
+    await expect(insert(`${t.schema}/job_card/x/a.jpg`, "00000000-0000-0000-0000-0000000000aa")).rejects.toThrow(/target not found/);
   });
 });
 

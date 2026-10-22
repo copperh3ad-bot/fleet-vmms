@@ -26,6 +26,7 @@ Every screen in the design canvas, what it reads, and the one call that saves it
 | Phone odometer | `odometer_submissions` | `submit_odometer` | `odometer.submit` |
 | Budgets | `budgets`, `v_budget_utilisation`, `settings` | insert/update `budgets` (overlap blocked, amount change needs a new reason), `settings` for 80/100 % | `budget.manage` |
 | Compliance | `v_documents_status` (insurance + other documents, newest renewal only) | `insurance_policies` or `compliance_docs` + `attachments`; reminders tracked in `document_reminders` | `compliance.manage` |
+| *(built Phase 7)* Compliance, accidents, challans screens | `v_documents_status`, `v_documents_expiring`, `accidents`, `challans`, `claim_document_reminders()`; files via `attachments` | `/w/[slug]/compliance`, `/accidents`, `/challans` | `compliance.manage` (write), `report.view` (read) |
 | Accidents and challans | `accidents`, `challans`, `vehicle_custody` | insert rows; driver filled from custody by trigger; paid date set by trigger | `compliance.manage` |
 | Service rules | `service_types`, `settings` | update `service_types` (incl. `applies_to_classes`), `settings` (known keys only, numeric) | `service.manage`, `admin.settings` |
 | Users and roles | `public.tenant_memberships`, `public.invitations`, `role_permissions` | invitation insert (token hash only), accept creates membership + employee | `admin.users` |

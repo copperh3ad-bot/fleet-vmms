@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "check:sql": "tsx scripts/check-sql.mts"
+    "check:sql": "tsx scripts/check-sql.mts",
+    "reminders": "tsx scripts/send-reminders.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

@@ -112,3 +112,12 @@
 - Deviation, written in ADR-006: no separate Postgres role (see "As built"); in-memory rate limit. Both for Phase 9.
 - Not tested: the admin screens and the driver page in a browser or phone, WhatsApp hand-off, clipboard copy. The pooled production environment's `x-forwarded-for` handling is unverified.
 - My `pkill` to stop the test server also stopped the dev server on port 3000; I restarted it.
+
+## 2026-10-22: Phase 7 done (compliance)
+- Migration `0009_compliance.sql` (applied to the live demo tenant through the runner, no drift): `claim_document_reminders()`, and `attachment_guard` now checks the target exists for every entity type. ADR-008.
+- App: `src/lib/compliance/{schemas,service,reminders}.ts`; the attachment code in `src/lib/jobcards/attachments.ts` now has a shared core (`saveAttachment`, `listAttachments`, `deleteAttachment`) used by job cards and compliance. Screens: Compliance (status cards, filters, list, "no document on file" list, add or renew, record page with history and scans), Accidents (list, record, detail with photos, link to raise a repair job card), Challans (list, add, mark paid/disputed/reopen).
+- Reminders: `npm run reminders` (`scripts/send-reminders.mts`), every active workspace, one notice per step (60, 30, 14, expired), tightest only when entered late, never twice, safe to run concurrently. Not a web endpoint.
+- Tests: 20 new (`tests/compliance.test.ts`), 177 total, pass on PGlite and local Postgres 17. Reminder cases: each step once as the date moves, late entry gives one notice, far-away gives none, renewal starts fresh and the replaced document gets no "expired", recipients, custom thresholds, inactive vehicles, three simultaneous runs, a failing or suspended workspace. Rolled-back live run: 1 reminder, 0 on the second run, nothing left behind.
+- Not tested: the screens in a browser, file upload against real Storage, a real scheduler.
+- Needs your decision when hosting is chosen: where the daily reminder job runs.
+- Housekeeping: a stray `src/.next` and `src/tsconfig.json` (made by a mis-placed `next typegen`) were deleted; they were never committed.
