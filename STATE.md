@@ -200,3 +200,8 @@
 - Tests: 326 pass on PGlite and local Postgres 17. Typecheck, lint and production build clean.
 - Not tested: any screen in a browser, phone layouts, the file picker's photo shrinking, uploads to real storage, sign-up through the identity provider, the scheduled function actually firing.
 - Not built (decisions with the owner): photo and last reading on the odometer link (ADR-006), manager and weekly-summary alerts, "last seen" on people.
+
+## 2026-10-22: Paused (resume here)
+- Live: https://fleet-vmms-beta.netlify.app, workspace `beta`, owner signed in. All migrations applied (tenant to 0016, platform to 0008, no drift). Last deploy matches the last commit.
+- Next, in order: (1) collect what the owner sees while testing and fix it; (2) owner decides whether to load demo data into `beta` (`scripts/seed-demo.mts --slug beta`); (3) owner decides on the odometer-link photo and last reading (ADR-006) and the alerts channel; (4) turn on Supabase leaked-password protection (dashboard); (5) SaaS path: owner picks invitation-first or public signup, then git remote and CI, browser tests (Playwright), email delivery, custom domain, backups and monitoring, pricing and billing (CLAUDE.md rule 7: no prices until decided), legal pages. The gap table is in the chat history and summarised in the assistant's memory (beta-deployment).
+- Housekeeping still open: move the project out of iCloud; `fleet-vmms-design.zip` and the `.textClipping` file are untracked and must not be committed.
