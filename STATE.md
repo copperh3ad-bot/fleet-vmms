@@ -121,3 +121,11 @@
 - Not tested: the screens in a browser, file upload against real Storage, a real scheduler.
 - Needs your decision when hosting is chosen: where the daily reminder job runs.
 - Housekeeping: a stray `src/.next` and `src/tsconfig.json` (made by a mis-placed `next typegen`) were deleted; they were never committed.
+
+## 2026-10-22: Phases 5-6 done (budgets, analytics, settings, why it keeps breaking)
+- Migration `0010_analytics.sql` (applied to the live demo tenant through the runner, no drift): `setting_num()`, `v_repeat_repairs` with the repeat window and `is_repeat`, `flag_jobs_90d`, `flag_repeat_days`, `flag_cost_multiple`, `v_vehicle_flags` (adds budget near/over and document expired/due). ADR-009.
+- App: `src/lib/analytics/service.ts` (flags, cost overview, why it keeps breaking), `src/lib/control/{service,settings}.ts` (budgets, settings per key with its own permission, service rules). Screens: Reports (flags, totals, spending by month, reason, vehicle, workshop, driver; 3/6/12/24 months), Why it keeps breaking (repeat repairs, workshops whose work came back, reasons, busiest vehicles, requester vs manager reason), Budgets (add, change with reason, usage bars), Settings (service rules add/edit, due-soon warnings, alerts and flags, reminders and odometer).
+- Tests: 19 new (`tests/analytics.test.ts`), 196 total, pass on PGlite and local Postgres 17. Covers repeat window and exclusions, each flag against its setting, peer comparison needing 3 vehicles, budget usage and flags, overlaps, reason-on-change, cost by month with empty months, payable amount over estimate, retag counts, every report permission, per-key settings permissions (mixed form refused whole), service rule limits by vehicle class.
+- Live: views queried read-only on the Supabase demo tenant (empty data, no errors).
+- Not tested: the screens in a browser; the reports with realistic volumes; the Settings screen as a tenant admin (the owner is now `fleet_manager`, who cannot change reminder days or odometer limits by design).
+- Note: stray ` 2` duplicate files keep appearing under `.next` (and once under `src`); the project folder is inside iCloud-synced Documents, which is the likely cause. I delete them; moving the project outside iCloud would stop it.

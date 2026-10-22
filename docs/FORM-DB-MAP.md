@@ -28,6 +28,7 @@ Every screen in the design canvas, what it reads, and the one call that saves it
 | Compliance | `v_documents_status` (insurance + other documents, newest renewal only) | `insurance_policies` or `compliance_docs` + `attachments`; reminders tracked in `document_reminders` | `compliance.manage` |
 | *(built Phase 7)* Compliance, accidents, challans screens | `v_documents_status`, `v_documents_expiring`, `accidents`, `challans`, `claim_document_reminders()`; files via `attachments` | `/w/[slug]/compliance`, `/accidents`, `/challans` | `compliance.manage` (write), `report.view` (read) |
 | Accidents and challans | `accidents`, `challans`, `vehicle_custody` | insert rows; driver filled from custody by trigger; paid date set by trigger | `compliance.manage` |
+| *(built Phases 5-6)* Reports, Why it keeps breaking, Budgets, Settings | `v_vehicle_job_cost`, `v_vehicle_flags`, `flag_*`, `v_repeat_repairs`, `v_budget_utilisation`, `budgets`, `settings`, `service_types` | `/w/[slug]/reports`, `/reports/breaking`, `/budgets`, `/settings` | `report.view`; `budget.manage`; `service.manage`, `budget.manage`, `admin.settings` per setting |
 | Service rules | `service_types`, `settings` | update `service_types` (incl. `applies_to_classes`), `settings` (known keys only, numeric) | `service.manage`, `admin.settings` |
 | Users and roles | `public.tenant_memberships`, `public.invitations`, `role_permissions` | invitation insert (token hash only), accept creates membership + employee | `admin.users` |
 | Why it keeps breaking | `v_vehicle_job_cost`, `v_repeat_repairs`, `job_cards.requested_reason_code_id` vs `reason_code_id` | read only | `report.view` |
@@ -40,4 +41,4 @@ The phone odometer page says drivers need no sign-in. CLAUDE.md forbids unauthen
 
 - "Last seen" on Users comes from Supabase Auth, not a tenant table.
 - Reports screen and export formats are not designed.
-- Flag rules (`flag_jobs_90d`, `flag_repeat_days`, `flag_cost_multiple`) are stored and validated, but the views that use them are not written yet. `v_repeat_repairs` still has no time window.
+- Flag rules are now written (migration 0010: `flag_jobs_90d`, `flag_repeat_days`, `flag_cost_multiple`, `v_vehicle_flags`) and `v_repeat_repairs` uses `flag_repeat_days`.

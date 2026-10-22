@@ -24,12 +24,15 @@ async function Nav({ params }: { params: Promise<{ slug: string }> }) {
   const links = [
     { href: `/w/${slug}`, label: "Home", show: true },
     { href: `/w/${slug}/job-cards`, label: "Job cards", show: sees },
+    { href: `/w/${slug}/reports`, label: "Reports", show: perms.has("report.view") },
+    { href: `/w/${slug}/budgets`, label: "Budgets", show: perms.has("budget.manage") || perms.has("report.view") },
     { href: `/w/${slug}/compliance`, label: "Compliance", show: perms.has("compliance.manage") || perms.has("report.view") },
     { href: `/w/${slug}/odometer`, label: "Odometer", show: perms.has("odometer.review") },
     { href: `/w/${slug}/vendor`, label: "My work", show: perms.has("quotation.submit") },
     { href: `/w/${slug}/invoices`, label: "Invoices", show: perms.has("invoice.verify") },
     { href: `/w/${slug}/notifications`, label: unread ? `Notifications (${unread})` : "Notifications", show: sees || perms.has("quotation.submit") || perms.has("invoice.verify") || perms.has("compliance.manage") },
     { href: `/w/${slug}/vehicles`, label: "Vehicles", show: perms.has("vehicle.read") },
+    { href: `/w/${slug}/settings`, label: "Settings", show: perms.has("service.manage") || perms.has("budget.manage") || perms.has("admin.settings") },
     { href: `/w/${slug}/employees`, label: "Employees", show: perms.has("employee.manage") },
     { href: `/w/${slug}/vendors`, label: "Vendors", show: perms.has("vendor.manage") },
   ].filter((l) => l.show);
