@@ -292,6 +292,21 @@ describe("service rules", () => {
     expect(await plates()).toEqual([]);                                                          // inactive rules drop out of due lists
     expect(trucks).toBeTruthy();
   });
+  it("switches a rule on and off, and says what the manager would see", async () => {
+    const key = "oil_change";                                                                     // one of the rules every workspace starts with
+    await ct.setServiceRuleActive(d, mgr(), key, true);
+    const on = await ct.rulesImpact(d, mgr());
+    expect(on!.label.toLowerCase()).toContain("oil");
+    expect(on!.due + on!.noHistory).toBeLessThanOrEqual(on!.vehicles);
+    await ct.setServiceRuleActive(d, mgr(), key, false);
+    expect((await ct.listServiceRules(d, mgr())).find((r) => r.key === key)!.active).toBe(false);
+    expect((await ct.rulesImpact(d, mgr()))?.label ?? "").not.toBe(on!.label);                       // falls back to another routine rule, or nothing
+    await ct.setServiceRuleActive(d, mgr(), key, true);
+    expect((await ct.rulesImpact(d, mgr()))!.label).toBe(on!.label);
+    await expect(ct.setServiceRuleActive(d, mgr(), "nope_nope", true)).rejects.toThrow(/not found/);
+    await expect(ct.setServiceRuleActive(d, mem("finance", 14), key, false)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(ct.rulesImpact(d, mem("requester", 40))).rejects.toBeInstanceOf(ForbiddenError);
+  });
   it("needs an interval, a unique name and the right permission", async () => {
     expect((await ct.saveServiceRule(d, mgr(), { label: "No interval", is_preventive: true, active: true }).catch((x) => x)).fields.interval_months).toBeTruthy();
     await ct.saveServiceRule(d, mgr(), { label: "Tyre rotation", is_preventive: true, interval_km: "10000", active: true });

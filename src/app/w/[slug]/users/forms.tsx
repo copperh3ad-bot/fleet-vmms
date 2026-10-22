@@ -21,12 +21,12 @@ function LinkBox({ invite }: { invite: InviteResult }) {
   );
 }
 
-export function InviteForm({ slug, roles, vendors }: { slug: string; roles: [string, string][]; vendors: [string, string][] }) {
+export function InviteForm({ slug, roles, vendors, stack }: { stack?: boolean; slug: string; roles: [string, string][]; vendors: [string, string][] }) {
   const [state, action] = useActionState<InviteState, FormData>(inviteAction.bind(null, slug), {});
   const [role, setRole] = useState("");
   return (
     <div className="space-y-3">
-      <form action={action} className="grid grid-cols-1 gap-3 sm:grid-cols-2" noValidate>
+      <form action={action} className={`grid grid-cols-1 gap-3 ${stack ? "" : "sm:grid-cols-2"}`} noValidate>
         <Input name="full_name" label="Full name" state={state} required />
         <Input name="email" label="Email" type="email" state={state} required hint="They must use this email to join." />
         <div>

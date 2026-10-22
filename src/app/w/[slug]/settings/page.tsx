@@ -2,48 +2,85 @@ import { Suspense } from "react";
 import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
-import { Card } from "@/components/form";
-import { getSettings, listServiceRules } from "@/lib/control/service";
-import { ServiceRuleForm, SettingsForm } from "./forms";
+import { PageHeader, Panel, btn } from "@/components/ui";
+import { getSettings, listServiceRules, rulesImpact } from "@/lib/control/service";
+import { plural } from "@/lib/labels";
+import { ServiceRuleForm } from "./forms";
+import { RuleToggle, RulesFormProvider, SaveRulesButton, SettingFields, type SettingItem } from "./rules-forms";
 
-export default function SettingsPage({ params, searchParams }: PageProps<"/w/[slug]/settings">) {
+export default function ServiceRulesPage({ params, searchParams }: PageProps<"/w/[slug]/settings">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} searchParams={searchParams} /></Suspense>;
 }
+
+const CLASS_LABEL: Record<string, string> = { car: "cars", pickup: "pickups", van: "vans", truck: "trucks", bus: "buses", motorcycle: "motorcycles", forklift: "forklifts", other: "other vehicles" };
+const appliesTo = (c: string[] | null) => {
+  if (!c?.length) return "All vehicles";
+  const names = c.map((x) => CLASS_LABEL[x] ?? x);
+  const text = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+  return text[0].toUpperCase() + text.slice(1);
+};
+
+// The wording on the board for each number, and which panel it sits in.
+const TIMING = [["pm_warning_days", "Warn this many days before due"], ["pm_warning_km", "Warn this many km before due"], ["odometer_stale_days", "Odometer counts as stale after (days)"], ["odometer_max_km_per_day", "Reject readings above (km a day)"], ["odometer_due_day", "Odometer reading due on day of month"]] as const;
+const FLAGS = [["flag_jobs_90d", "Many jobs: more than this many in 90 days"], ["flag_repeat_days", "Repeat repair: same reason within (days)"], ["flag_cost_multiple", "Cost: above this times the median for the same model"], ["doc_reminder_days", "Expiring documents warn (days)"]] as const;
 
 async function Inner({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug } = await params;
   const sp = await searchParams;
   const m = await requireMembership(slug);
   const driver = getDriver();
-  const [settings, rules, perms] = await Promise.all([getSettings(driver, m), listServiceRules(driver, m), permissionsOf(driver, m)]);
+  const [settings, rules, perms, impact] = await Promise.all([getSettings(driver, m), listServiceRules(driver, m), permissionsOf(driver, m), rulesImpact(driver, m)]);
   const manageRules = perms.has("service.manage");
+  const adding = sp.add === "1";
   const edit = typeof sp.edit === "string" ? rules.find((r) => r.key === sp.edit) : undefined;
-  const group = (g: string) => settings.filter((s) => s.group === g);
+  const items = (list: readonly (readonly [string, string])[]): SettingItem[] =>
+    list.flatMap(([key, label]) => { const s = settings.find((x) => x.key === key); return s ? [{ key, label, value: s.value, editable: s.editable }] : []; });
+  const canSave = settings.some((s) => s.editable && [...TIMING, ...FLAGS].some(([k]) => k === s.key));
+  const to = (q: string) => `/w/${slug}/settings${q}`;
+
   return (
-    <main className="mx-auto w-full max-w-4xl space-y-4 p-4 text-zinc-900">
-      <h1 className="text-xl font-semibold">Settings</h1>
+    <RulesFormProvider slug={slug}>
+      <main className="space-y-5 p-6 text-zinc-900">
+        <PageHeader title="Service rules" sub="What counts as due, and what gets flagged" actions={canSave ? <SaveRulesButton /> : undefined} />
+        <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
+          <div className="space-y-5">
+            <Panel title="Preventive servicing" sub="Switches save at once. Numbers below save with “Save rules”." flush>
+              <div className="overflow-x-auto"><table className="w-full text-left text-sm">
+                <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Service</th><th>Every</th><th>Or every</th><th>On</th><th>Applies to</th>{manageRules && <th />}</tr></thead>
+                <tbody>{rules.map((r) => (
+                  <tr key={r.key} className={`border-t border-zinc-100 ${r.active ? "" : "text-zinc-500"}`}>
+                    <td className="px-5 py-3">{r.label}{!r.is_preventive && <span className="block text-xs text-zinc-500">Not shown as due</span>}</td>
+                    <td className="py-3">{r.interval_months ? `${r.interval_months} months` : "—"}</td>
+                    <td className="py-3 font-mono">{r.interval_km ? `${Number(r.interval_km).toLocaleString("en-US")} km` : "—"}</td>
+                    <td className="py-3"><RuleToggle slug={slug} ruleKey={r.key} active={r.active} disabled={!manageRules} label={r.label} /></td>
+                    <td className="py-3">{r.active ? appliesTo(r.applies_to_classes) : "Not used yet"}</td>
+                    {manageRules && <td className="py-3 pr-5 text-right"><a className="text-sky-800 underline" href={to(`?edit=${r.key}`)}>Change</a></td>}
+                  </tr>))}</tbody>
+              </table></div>
+              {manageRules && <div className="border-t border-zinc-100 p-4"><a href={to("?add=1")} className={btn}>Add a service</a></div>}
+            </Panel>
 
-      <Card title="Service rules">
-        <p className="mb-3 text-sm text-zinc-600">What counts as routine service and how often it is due. A rule can apply to some vehicle types only.</p>
-        <div className="mb-4 overflow-x-auto rounded-md border border-zinc-200">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-zinc-200 text-xs text-zinc-500"><tr><th className="p-2">Rule</th><th className="p-2">Every</th><th className="p-2">Applies to</th><th className="p-2">Status</th>{manageRules && <th className="p-2" />}</tr></thead>
-            <tbody>{rules.map((r) => (
-              <tr key={r.key} className={`border-b border-zinc-100 last:border-0 ${r.active ? "" : "text-zinc-500"}`}>
-                <td className="p-2 font-medium">{r.label}</td>
-                <td className="p-2">{[r.interval_months ? `${r.interval_months} months` : null, r.interval_km ? `${Number(r.interval_km).toLocaleString("en-US")} km` : null].filter(Boolean).join(" or ")}</td>
-                <td className="p-2 capitalize">{r.applies_to_classes?.length ? r.applies_to_classes.join(", ") : "every vehicle"}</td>
-                <td className="p-2">{r.active ? (r.is_preventive ? "In use" : "In use, not shown as due") : "Not in use"}</td>
-                {manageRules && <td className="p-2"><a className="text-sky-800 underline" href={`/w/${slug}/settings?edit=${r.key}`}>Change</a></td>}
-              </tr>))}</tbody>
-          </table>
+            {manageRules && (adding || edit) && (
+              <Panel title={edit ? `Change “${edit.label}”` : "Add a service"}>
+                <ServiceRuleForm key={edit?.key ?? "new"} slug={slug} rule={edit} />
+              </Panel>
+            )}
+
+            <Panel title="Flags on repeat trouble">
+              <SettingFields items={items(FLAGS)} />
+            </Panel>
+          </div>
+
+          <div className="space-y-5">
+            <Panel title="Timing"><SettingFields items={items(TIMING)} /></Panel>
+            <Panel title="What the manager sees">
+              {impact ? (
+                <p className="text-sm text-zinc-600">With these rules, {plural(impact.due, "vehicle")} {impact.due === 1 ? "is" : "are"} due or overdue for {impact.label.toLowerCase()} and {impact.noHistory} {impact.noHistory === 1 ? "has" : "have"} no service history. Change a rule and the lists update at once.</p>
+              ) : <p className="text-sm text-zinc-500">No routine service is switched on, so nothing shows as due.</p>}
+            </Panel>
+          </div>
         </div>
-        {manageRules ? <><h3 className="mb-2 text-sm font-semibold">{edit ? `Change “${edit.label}”` : "Add a rule"}</h3><ServiceRuleForm key={edit?.key ?? "new"} slug={slug} rule={edit} /></> : <p className="text-sm text-zinc-500">You can see the rules but not change them.</p>}
-        <div className="mt-5 border-t border-zinc-100 pt-4"><h3 className="mb-2 text-sm font-semibold">When a service shows as due soon</h3><SettingsForm slug={slug} group="service" items={group("service")} /></div>
-      </Card>
-
-      <Card title="Alerts and flags"><SettingsForm slug={slug} group="alerts" items={group("alerts")} /></Card>
-      <Card title="Reminders and odometer"><SettingsForm slug={slug} group="general" items={group("general")} /></Card>
-    </main>
+      </main>
+    </RulesFormProvider>
   );
 }

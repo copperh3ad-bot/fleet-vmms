@@ -240,4 +240,22 @@ describe("changing people's access", () => {
     await expect(ad.changeMember(d, admin(), U(9999), { role: "requester" })).rejects.toThrow(/not in this workspace/);
     expect((await ad.listRoles(d, admin())).map((r) => r.key)).toContain("tenant_admin");
   });
+
+  it("every invitation and access change is written to the platform audit log, without the link's hash", async () => {
+    const inv = await invite("audit.me@example.com");
+    await ad.acceptInvitation(d, { token: inv.token }, person(80, "audit.me@example.com"));
+    await ad.changeMember(d, admin(), U(80), { role: "finance" });
+    await ad.changeMember(d, admin(), U(80), { status: "disabled" });
+    const log = await plat(async (q) => (await q.query<{ table_name: string; action: string; actor_id: string | null; old_data: Record<string, unknown> | null; new_data: Record<string, unknown> | null }>(
+      "select table_name, action, actor_id, old_data, new_data from public.platform_audit_log where tenant_id = $1 order by id", [t.tenantId])).rows);
+    const mine = log.filter((r) => r.table_name === "tenant_memberships" && (r.new_data?.user_id === U(80) || r.old_data?.user_id === U(80)));
+    expect(mine.map((r) => r.action)).toEqual(["INSERT", "UPDATE", "UPDATE"]);
+    expect(mine[1]).toMatchObject({ actor_id: U(1), old_data: { role: "requester" }, new_data: { role: "finance" } });
+    expect(mine[2].new_data).toMatchObject({ status: "disabled" });
+    const invites = log.filter((r) => r.table_name === "invitations");
+    expect(invites.length).toBeGreaterThan(0);
+    expect(JSON.stringify(log)).not.toContain("token_hash");
+    await expect(plat((q) => q.query("delete from public.platform_audit_log"))).rejects.toThrow(/append-only/);
+    await expect(plat((q) => q.query("update public.platform_audit_log set action = 'X'"))).rejects.toThrow(/append-only/);
+  });
 });

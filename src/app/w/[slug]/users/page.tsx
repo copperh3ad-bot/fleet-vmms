@@ -1,67 +1,116 @@
 import { Suspense } from "react";
 import { requireMembership } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
-import { Card } from "@/components/form";
-import { listInvitations, listMembers, listRoles, planUsage } from "@/lib/admin/service";
+import { PageHeader, Panel, Pill, btnPrimary, type Tone } from "@/components/ui";
+import { getRoleMatrix, listInvitations, listMembers, listRoles, planUsage } from "@/lib/admin/service";
 import { listVendors } from "@/lib/master/service";
+import { plural } from "@/lib/labels";
 import { InviteForm, MemberControls, PendingActions } from "./forms";
 
-export default function UsersPage({ params }: PageProps<"/w/[slug]/users">) {
-  return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} /></Suspense>;
+export default function UsersPage({ params, searchParams }: PageProps<"/w/[slug]/users">) {
+  return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} searchParams={searchParams} /></Suspense>;
 }
 
 const usage = (u: { used: number; limit: number | null }) => (u.limit === null ? `${u.used}` : `${u.used} of ${u.limit}`);
+const dmy = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
-async function Inner({ params }: { params: Promise<{ slug: string }> }) {
+// What the read-only table lists: a plain sentence and the permissions that give it. Anything that holds one of them gets a Yes.
+const CAPABILITIES: [string, string[]][] = [
+  ["Raise a job card", ["jobcard.create"]],
+  ["Approve a job card", ["jobcard.approve"]],
+  ["Choose the workshop", ["jobcard.assign_vendor"]],
+  ["Approve a quotation", ["quotation.approve"]],
+  ["Verify an invoice", ["invoice.verify"]],
+  ["Review odometer readings", ["odometer.review"]],
+  ["Edit budgets", ["budget.manage"]],
+  ["Edit service rules", ["service.manage"]],
+  ["Record documents, accidents and challans", ["compliance.manage"]],
+  ["See every cost and report", ["report.view"]],
+  ["Add and edit vehicles", ["vehicle.write"]],
+  ["Manage people and settings", ["admin.users"]],
+  ["Quote and invoice", ["quotation.submit"]],
+];
+
+async function Inner({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug } = await params;
+  const sp = await searchParams;
   const m = await requireMembership(slug);
   const driver = getDriver();
-  const [members, invites, roles, use, vendors] = await Promise.all([
-    listMembers(driver, m), listInvitations(driver, m), listRoles(driver, m), planUsage(driver, m), listVendors(driver, m).catch(() => []),
+  const [members, invites, roles, use, vendors, matrix] = await Promise.all([
+    listMembers(driver, m), listInvitations(driver, m), listRoles(driver, m), planUsage(driver, m), listVendors(driver, m).catch(() => []), getRoleMatrix(driver, m),
   ]);
   const roleOpts = roles.map((r) => [r.key, r.name] as [string, string]);
+  const editing = typeof sp.edit === "string" ? members.find((p) => p.user_id === sp.edit && !p.is_me) : undefined;
+  const status = (s: string): { tone: Tone; label: string } => (s === "active" ? { tone: "ok", label: "Active" } : s === "invited" ? { tone: "info", label: "Invited" } : { tone: "neutral", label: "Disabled" });
+  const limitHit = use.users.limit !== null && use.users.used >= use.users.limit;
+
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-4 p-4 text-zinc-900">
-      <div className="flex flex-wrap items-baseline gap-3">
-        <h1 className="text-xl font-semibold">Users and roles</h1>
-        <span className="text-sm text-zinc-600">{usage(use.users)} users{use.users.limit !== null && use.users.used >= use.users.limit ? " (limit reached)" : ""} · {usage(use.vehicles)} vehicles</span>
-      </div>
+    <main className="space-y-5 p-6 text-zinc-900">
+      <PageHeader title="Users and roles" sub={`${plural(members.length + invites.length, "person", "people")} · ${plural(matrix.roles.length, "role")} · ${usage(use.users)} users${limitHit ? " (limit reached)" : ""} · ${usage(use.vehicles)} vehicles`}
+        actions={<a href="#invite" className={btnPrimary}>Invite a person</a>} />
 
-      <Card title="Invite someone">
-        <p className="mb-3 text-sm text-zinc-600">Nobody can join without an invitation. The person gets a link, creates their account with the email you enter, and is added with the role you choose. Workshops are invited here too, with the role “Vendor”.</p>
-        <InviteForm slug={slug} roles={roleOpts} vendors={vendors.filter((v) => v.status === "active").map((v) => [v.id, v.name])} />
-      </Card>
+      <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
+        <div className="space-y-5">
+          <Panel title="People" flush>
+            <div className="overflow-x-auto"><table className="w-full text-left text-sm">
+              <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Name</th><th>Login or company</th><th>Role</th><th>Status</th><th>Since</th><th /></tr></thead>
+              <tbody>
+                {members.map((p) => (
+                  <tr key={p.user_id} className={`border-t border-zinc-100 align-top ${p.status === "disabled" ? "text-zinc-500" : ""}`}>
+                    <td className="px-5 py-3 font-medium">{p.full_name ?? p.vendor_name ?? "Unnamed"}{p.is_me && <span className="ml-2 text-xs font-normal text-zinc-500">You</span>}</td>
+                    <td className="py-3">{p.email ?? (p.vendor_name ? p.vendor_name : "—")}</td>
+                    <td className="py-3">{p.role_name}{p.vehicle_scope === "own" && p.role !== "vendor" && <span className="block text-xs text-zinc-500">Own vehicle only</span>}</td>
+                    <td className="py-3"><Pill tone={status(p.status).tone}>{status(p.status).label}</Pill></td>
+                    <td className="py-3 whitespace-nowrap">{dmy(p.since)}</td>
+                    <td className="py-3 pr-5 text-right">{!p.is_me && <a className="text-sky-800 underline" href={`/w/${slug}/users?edit=${p.user_id}#invite`}>Change</a>}</td>
+                  </tr>))}
+                {invites.map((i) => (
+                  <tr key={i.id} className="border-t border-zinc-100 align-top">
+                    <td className="px-5 py-3 font-medium">{i.full_name}</td>
+                    <td className="py-3">{i.email ?? "—"}{i.vendor_name && <span className="block text-xs text-zinc-500">{i.vendor_name}</span>}</td>
+                    <td className="py-3">{i.role_name}</td>
+                    <td className="py-3"><Pill tone={i.expired ? "bad" : "info"}>{i.expired ? "Link expired" : "Invited"}</Pill></td>
+                    <td className="py-3 whitespace-nowrap">{dmy(i.created_at)}</td>
+                    <td className="py-3 pr-5"><PendingActions slug={slug} id={i.id} /></td>
+                  </tr>))}
+              </tbody>
+            </table></div>
+          </Panel>
 
-      {invites.length > 0 && (
-        <Card title={`Waiting to join (${invites.length})`}>
-          <ul className="divide-y divide-zinc-100 text-sm">
-            {invites.map((i) => (
-              <li key={i.id} className="space-y-1 py-2">
-                <p><span className="font-medium">{i.full_name}</span> <span className="text-zinc-600">{i.email} · {i.role_name}{i.vendor_name ? ` · ${i.vendor_name}` : ""}</span></p>
-                <p className={`text-xs ${i.expired ? "text-red-700" : "text-zinc-500"}`}>{i.expired ? "Expired" : `Link valid until ${new Date(i.expires_at).toLocaleDateString("en-GB", { dateStyle: "medium", timeZone: "UTC" })}`}</p>
-                <PendingActions slug={slug} id={i.id} />
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      <Card title={`People (${members.length})`}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="text-xs text-zinc-500"><tr><th className="py-1 pr-3">Name</th><th className="pr-3">Since</th><th>Access</th></tr></thead>
-            <tbody>
-              {members.map((p) => (
-                <tr key={p.user_id} className={`border-t border-zinc-100 align-top ${p.status === "disabled" ? "text-zinc-500" : ""}`}>
-                  <td className="py-2 pr-3"><span className="font-medium">{p.full_name ?? p.vendor_name ?? "Unnamed"}</span><span className="block text-xs text-zinc-500">{p.email ?? (p.vendor_name ? "Workshop login" : "")}</span></td>
-                  <td className="py-2 pr-3 whitespace-nowrap">{p.since}</td>
-                  <td className="py-2"><MemberControls slug={slug} userId={p.user_id} role={p.role} scope={p.vehicle_scope} status={p.status} roles={roleOpts} isMe={p.is_me} isVendor={p.role === "vendor"} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <Panel title="What each role can do" sub="Read-only here" flush>
+            <div className="overflow-x-auto"><table className="w-full text-left text-sm">
+              <thead className="text-[11px] uppercase tracking-wide text-zinc-500">
+                <tr><th className="px-5 py-3" />{matrix.roles.map((r) => <th key={r.key} className="px-2">{r.name}<span className="block font-normal normal-case text-zinc-400">{plural(r.people, "person", "people")}</span></th>)}</tr>
+              </thead>
+              <tbody>{CAPABILITIES.map(([label, perms]) => (
+                <tr key={label} className="border-t border-zinc-100">
+                  <td className="px-5 py-2.5">{label}</td>
+                  {matrix.roles.map((r) => <td key={r.key} className="px-2 py-2.5">{perms.some((p) => matrix.grants[r.key]?.includes(p)) ? <Pill tone="ok">Yes</Pill> : <span className="text-zinc-400">—</span>}</td>)}
+                </tr>))}</tbody>
+            </table></div>
+          </Panel>
         </div>
-      </Card>
+
+        <div className="space-y-5" id="invite">
+          {editing ? (
+            <Panel title="Change access" sub={editing.full_name ?? editing.vendor_name ?? undefined} action={<a className="text-sm text-zinc-600 underline" href={`/w/${slug}/users`}>Close</a>}>
+              <MemberControls key={editing.user_id} slug={slug} userId={editing.user_id} role={editing.role} scope={editing.vehicle_scope} status={editing.status} roles={roleOpts} isMe={editing.is_me} isVendor={editing.role === "vendor"} />
+            </Panel>
+          ) : (
+            <Panel title="Invite a person" sub="Nobody can join without an invitation. The person gets a link and creates their account with the email you enter. Workshops are invited here too, with the role Vendor.">
+              <InviteForm stack slug={slug} roles={roleOpts} vendors={vendors.filter((v) => v.status === "active").map((v) => [v.id, v.name])} />
+            </Panel>
+          )}
+          <Panel title="Built-in rules">
+            <ul className="list-disc space-y-2 pl-5 text-sm">
+              <li>Nobody approves their own job card.</li>
+              <li>The person who approves a job cannot verify its invoice.</li>
+              <li>Vendors see only their own work orders.</li>
+              <li>Every change to a person’s access is written to the audit trail.</li>
+            </ul>
+          </Panel>
+        </div>
+      </div>
     </main>
   );
 }

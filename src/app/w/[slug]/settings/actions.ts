@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
 import { getDriver } from "@/lib/db";
-import { saveServiceRule, saveSettings } from "@/lib/control/service";
+import { saveServiceRule, saveSettings, setServiceRuleActive } from "@/lib/control/service";
 import { SETTINGS } from "@/lib/control/settings";
 import { runAction, str, typed, type FormState } from "../actions-util";
 
@@ -27,4 +27,21 @@ export async function saveServiceRuleAction(slug: string, _prev: FormState, form
   });
   if (state.ok) { refresh(); redirect(`/w/${slug}/settings`); }
   return { ...state, values: typed(form) };
+}
+
+/** The "Save rules" button: every timing and flag number on the screen, whatever group it belongs to. */
+export async function saveRulesSettingsAction(slug: string, _prev: FormState, form: FormData): Promise<FormState> {
+  const keys = SETTINGS.map((s) => s.key).filter((k) => form.has(k));
+  const state = await runAction(slug, async (m) => {
+    const n = await saveSettings(getDriver(), m, Object.fromEntries(keys.map((k) => [k, str(form, k)])));
+    return n === 0 ? "Nothing changed." : "Rules saved.";
+  });
+  if (state.ok) refresh();
+  return state.error || state.fields ? { ...state, values: typed(form) } : state;
+}
+
+export async function toggleServiceRuleAction(slug: string, key: string, active: boolean): Promise<FormState> {
+  const state = await runAction(slug, async (m) => { await setServiceRuleActive(getDriver(), m, key, active); return active ? "Turned on." : "Turned off."; });
+  if (state.ok) refresh();
+  return state;
 }

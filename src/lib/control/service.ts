@@ -212,3 +212,33 @@ export async function saveServiceRule(driver: Driver, m: Membership, input: Reco
     return key;
   });
 }
+
+/** Turns one rule on or off without touching anything else about it. */
+export function setServiceRuleActive(driver: Driver, m: Membership, key: string, active: boolean): Promise<void> {
+  return authorized(driver, m, "service.manage", async (q) => {
+    const r = await q.query("update service_types set active = $2 where key = $1 returning key", [key, active]);
+    if (r.rows.length === 0) throw new UserError("Service rule not found.");
+  });
+}
+
+export type RulesImpact = { label: string; due: number; noHistory: number; vehicles: number } | null;
+
+/**
+ * "What the manager sees": with the rules as they are now, how many vehicles are due or overdue for the main routine
+ * service, and how many have no history for it. The main service is the oil change if there is one in use, otherwise the
+ * first routine rule in use. Computed from the same view the vehicle list uses, so it moves when a rule changes.
+ */
+export function rulesImpact(driver: Driver, m: Membership): Promise<RulesImpact> {
+  return authorizedAny(driver, m, ["service.manage", "report.view"], async (q) => {
+    const rule = (await q.query<{ key: string; label: string }>(
+      `select key, label from service_types where active and is_preventive order by (key = 'oil_change') desc, label limit 1`)).rows[0];
+    if (!rule) return null;
+    const c = (await q.query<{ due: number; no_history: number; vehicles: number }>(
+      `select count(distinct p.vehicle_id) filter (where p.pm_status in ('overdue','due_soon'))::int as due,
+              count(distinct p.vehicle_id) filter (where p.pm_status = 'no_history')::int as no_history,
+              (select count(*)::int from vehicles where status in ('active','in_workshop')) as vehicles
+         from v_pm_status p join vehicles v on v.id = p.vehicle_id and v.status in ('active','in_workshop')
+        where p.service_type_key = $1`, [rule.key])).rows[0];
+    return { label: rule.label, due: c.due, noHistory: c.no_history, vehicles: c.vehicles };
+  });
+}

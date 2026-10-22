@@ -40,6 +40,22 @@ export function planUsage(driver: Driver, m: Membership): Promise<Usage> {
   });
 }
 
+// ============================ What each role can do ============================
+
+export type RoleMatrix = { roles: (RoleOption & { people: number })[]; grants: Record<string, string[]> };
+
+/** Every role with its permissions and how many people hold it, for the read-only table on the Users screen. */
+export function getRoleMatrix(driver: Driver, m: Membership): Promise<RoleMatrix> {
+  return authorized(driver, m, "admin.users", async (q) => {
+    const roles = (await q.query<RoleOption & { people: number }>(
+      `select r.key, r.name, (select count(*)::int from public.tenant_memberships mm where mm.tenant_id = $1 and mm.role = r.key and mm.status = 'active') as people
+         from roles r order by case r.key when 'tenant_admin' then 0 when 'fleet_manager' then 1 when 'finance' then 2 when 'requester' then 3 when 'auditor' then 4 else 5 end, r.name`, [m.tenantId])).rows;
+    const grants: Record<string, string[]> = {};
+    for (const g of (await q.query<{ role_key: string; permission_key: string }>("select role_key, permission_key from role_permissions")).rows) (grants[g.role_key] ??= []).push(g.permission_key);
+    return { roles, grants };
+  });
+}
+
 // ============================ Members ============================
 
 export type Member = {
