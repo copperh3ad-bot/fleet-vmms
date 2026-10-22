@@ -186,3 +186,9 @@
 ## 2026-10-22: Standalone build for beta
 - `output: "standalone"`, a Dockerfile (non-root, health check) and docs/DEPLOY.md (environment, build, run, checklist before the first tester). Built and run locally from a copy outside the repo: /api/health 200, login 200, everything else redirects to login, odometer link headers intact.
 - Not tested: the Docker image (the Docker daemon was not running here), the app on a public address, real sign-up through the identity provider.
+
+## 2026-10-22: Beta deployed on Netlify
+- Project fleet-vmms-beta, production deploy by hand (`netlify deploy --build --prod`), no git remote yet. Public address https://fleet-vmms-beta.netlify.app. Environment variables set in Netlify, values not printed anywhere.
+- Checked on the live address: /api/health 200; /login 200; everything else redirects to login; a well-formed but dead odometer link and invitation link give the generic page with no-store headers on the odometer link.
+- Not tested: sign-in and sign-up through the identity provider (its Site URL must be set to the Netlify address first), a real workspace page with data, uploads above about 6 MB (Netlify function limit), whether DATABASE_URL is the pooled connection.
+- Still to do before testers: Supabase Site URL and redirect, apply tenant migration 0015, create the beta workspace, schedule `npm run reminders`.
