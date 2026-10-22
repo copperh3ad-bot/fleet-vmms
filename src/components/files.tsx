@@ -2,6 +2,7 @@
 import { useActionState } from "react";
 import { Notice, Submit } from "@/components/form";
 import type { FormState } from "@/app/w/[slug]/actions-util";
+import { FileInput } from "@/components/file-input";
 
 type Bound = (prev: FormState, form: FormData) => Promise<FormState>;
 
@@ -10,8 +11,8 @@ export function UploadBox({ action }: { action: Bound }) {
   const [state, run] = useActionState<FormState, FormData>(action, {});
   return (
     <form action={run} className="space-y-2">
-      <label htmlFor="files" className="block text-xs font-medium text-zinc-600">Photos or PDF (up to 10 MB each)</label>
-      <input id="files" name="files" type="file" multiple accept="image/*,application/pdf" className="block w-full text-sm" />
+      <label htmlFor="files" className="block text-xs font-medium text-zinc-600">Photos or PDF (up to 4 MB each; photos are shrunk for you)</label>
+      <FileInput className="block w-full text-sm" />
       <div className="flex flex-wrap items-center gap-3"><Submit pendingText="Uploading">Add files</Submit><Notice state={state} /></div>
     </form>
   );

@@ -1,0 +1,21 @@
+// Daily document-expiry reminders on Netlify. Same job as `npm run reminders` (scripts/send-reminders.mts).
+// A scheduled function has no web address and cannot be called from outside, so this adds no public endpoint
+// (CLAUDE.md rule 5). 03:00 UTC is 08:00 in Pakistan; the job is safe to run more than once a day.
+import type { Config } from "@netlify/functions";
+import { pgDriver } from "../../src/lib/db/pg-driver";
+import { runDocumentReminders } from "../../src/lib/compliance/reminders";
+
+const sendReminders = async () => {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL is not set");
+  const driver = pgDriver(url);
+  try {
+    const runs = await runDocumentReminders(driver);
+    for (const r of runs) console.log(`${r.schema}: ${r.error ? "FAILED " + r.error : `${r.sent} reminder${r.sent === 1 ? "" : "s"}`}`);
+    if (runs.some((r) => r.error)) throw new Error("Some workspaces failed, see the lines above.");
+  } finally { await driver.end(); }
+};
+
+export default sendReminders;
+
+export const config: Config = { schedule: "0 3 * * *" };

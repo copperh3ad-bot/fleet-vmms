@@ -3,7 +3,7 @@ import type { Driver, Queryable } from "./types";
 
 /** Production driver. Works with a pooler in transaction mode because every use is one explicit transaction. */
 export function pgDriver(connectionString: string): Driver & { end(): Promise<void> } {
-  const pool = new Pool({ connectionString, max: 10 });
+  const pool = new Pool({ connectionString, max: process.env.AWS_LAMBDA_FUNCTION_NAME ? 3 : 10 })   // each serverless copy keeps its own few connections;
   return {
     async transaction<T>(fn: (q: Queryable) => Promise<T>): Promise<T> {
       const client = await pool.connect();

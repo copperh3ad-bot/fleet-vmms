@@ -6,6 +6,7 @@ import { Panel } from "@/components/ui";
 import { LinesEditor } from "@/components/lines-editor";
 import type { FormState } from "../../../actions-util";
 import { submitQuotationAction } from "../../actions";
+import { FileInput } from "@/components/file-input";
 
 function Send() {
   const { pending } = useFormStatus();
@@ -30,7 +31,7 @@ export function QuotationForm({ slug, jobId }: { slug: string; jobId: string }) 
         </div>
         <div className="mt-4">
           <label htmlFor="files" className="mb-1 block text-xs font-medium text-zinc-600">Attach your printed quotation (PDF or photo)</label>
-          <input id="files" name="files" type="file" multiple accept="image/*,application/pdf" className="block w-full rounded-md border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm" />
+          <FileInput className="block w-full rounded-md border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm" />
         </div>
         <div className="mt-5 flex flex-wrap items-center gap-3"><Send /><Notice state={state} /></div>
       </Panel>

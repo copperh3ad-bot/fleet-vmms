@@ -7,8 +7,8 @@ const nextConfig: NextConfig = {
   // Netlify's own Next.js runtime builds the server itself and must not get this output, so it is skipped there.
   output: process.env.NETLIFY ? undefined : "standalone",
   poweredByHeader: false,
-  // Photo uploads go through server actions; the largest allowed file is 10 MB.
-  experimental: { serverActions: { bodySizeLimit: "12mb" }, authInterrupts: true },
+  // Photo uploads go through server actions; the largest allowed file is 4 MB and the host refuses a body over about 6 MB.
+  experimental: { serverActions: { bodySizeLimit: "6mb" }, authInterrupts: true },
   partialPrefetching: true,
   // The driver odometer link carries a secret in its path: never cache it, never leak it in a Referer, keep it out of search.
   async headers() {

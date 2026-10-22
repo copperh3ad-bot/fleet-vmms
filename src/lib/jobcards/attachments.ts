@@ -13,7 +13,7 @@ export interface BlobStore {
   signedUrl(path: string, seconds: number): Promise<string | null>;
 }
 
-export const MAX_FILE_BYTES = 10 * 1024 * 1024;
+export const MAX_FILE_BYTES = 4 * 1024 * 1024;   // the host refuses request bodies over about 6 MB; the file picker shrinks photos first
 export const MAX_FILES_PER_CARD = 12;
 
 /** Kinds we accept, decided by what the bytes are, not by what the browser claims. */
@@ -43,7 +43,7 @@ export type EntityType = "job_card" | "accident" | "challan" | "compliance_doc" 
 /** The caller has already checked the permission and that the person may touch this entity. */
 export async function saveAttachment(q: Queryable, store: BlobStore, m: Membership, entityType: EntityType, entityId: string, file: { name: string; bytes: Uint8Array }): Promise<void> {
   if (file.bytes.length === 0) throw new UserError("That file is empty.");
-  if (file.bytes.length > MAX_FILE_BYTES) throw new UserError("That file is larger than 10 MB.");
+  if (file.bytes.length > MAX_FILE_BYTES) throw new UserError("That file is larger than 4 MB. Send a smaller photo or a shorter PDF.");
   const mime = sniff(file.name, file.bytes);
   if (!mime) throw new UserError("Only photos (JPG, PNG, WebP, HEIC) and PDF files are accepted.");
   const count = (await q.query<{ c: number }>("select count(*)::int c from attachments where entity_type = $1 and entity_id = $2", [entityType, entityId])).rows[0].c;

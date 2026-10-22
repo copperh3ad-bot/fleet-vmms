@@ -80,7 +80,7 @@ describe("adding files", () => {
     const before = files.size;
     await expect(att.addJobCardAttachment(d, store, driver(), cardId, { name: "x.exe", bytes: jpeg() })).rejects.toBeInstanceOf(UserError);
     await expect(att.addJobCardAttachment(d, store, driver(), cardId, { name: "x.jpg", bytes: new Uint8Array(0) })).rejects.toThrow(/empty/);
-    await expect(att.addJobCardAttachment(d, store, driver(), cardId, { name: "x.jpg", bytes: jpeg(att.MAX_FILE_BYTES) })).rejects.toThrow(/10 MB/);
+    await expect(att.addJobCardAttachment(d, store, driver(), cardId, { name: "x.jpg", bytes: jpeg(att.MAX_FILE_BYTES) })).rejects.toThrow(/4 MB/);
     expect(files.size).toBe(before);
   });
 
