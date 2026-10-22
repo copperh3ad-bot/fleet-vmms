@@ -36,3 +36,13 @@ export async function authorized<T>(driver: Driver, m: Membership, permission: s
     return fn(q);
   });
 }
+
+export type WorkspaceLink = { slug: string; name: string; role: string };
+
+/** Workspaces a user can enter, for the post-login redirect and a workspace switcher. */
+export async function listWorkspaces(driver: Driver, userId: string): Promise<WorkspaceLink[]> {
+  return withPlatform(driver, async (q) =>
+    (await q.query<WorkspaceLink>(
+      `select t.slug, t.name, m.role from public.tenants t join public.tenant_memberships m on m.tenant_id = t.id
+        where m.user_id = $1 and m.status = 'active' and t.status = 'active' order by t.name`, [userId])).rows);
+}

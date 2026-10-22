@@ -139,3 +139,12 @@ describe("migration runner", () => {
     expect(by[a.schema].applied).toEqual(["0005_test_column.sql", "0006_x.sql"].filter((n) => n === "0006_x.sql"));
   });
 });
+
+import { listWorkspaces } from "@/lib/auth/can";
+describe("workspace list", () => {
+  it("lists only active memberships in active tenants", async () => {
+    const mine = await listWorkspaces(d, U(1));
+    expect(mine.map((w) => w.slug)).toEqual(["delta"]);
+    expect(await listWorkspaces(d, U(777))).toEqual([]);
+  });
+});

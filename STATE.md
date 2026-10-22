@@ -55,3 +55,10 @@
 - Verified on the hosted DB with a rolled-back smoke test: onboard_vehicle sets odometer, PM status shows ok, duplicate plate blocked, audit rows written.
 - Security advisor: 7 INFO (platform tables have RLS and no policies: intended, only the server connection reads them). 20 WARN "function search_path mutable": intended, the tenant functions must resolve names in whichever tenant schema the request set. Tenant schemas are not in the API's exposed schemas.
 - Applied via the Supabase connector, not the runner (no DB password in the sandbox). Next: user puts DATABASE_URL in .env.local; then wire Supabase Auth (login) and create the owner membership.
+
+## 2026-10-22: login wired (not yet exercised with a real user)
+- Added Supabase email+password sign-in (src/lib/supabase/*, src/proxy.ts, /login, /, /w/[slug]), requireUser/requireMembership, listWorkspaces, getDriver. Only /login and /api/health are open; everything else redirects to /login (checked against a running build).
+- Next 16 here uses proxy.ts (not middleware.ts) and Cache Components: pages that read cookies/params sit inside Suspense.
+- Same generic error for every failed sign-in. No sign-up page: users are created by an admin (Supabase dashboard for the first owner, invitations later).
+- 39 tenancy tests pass; next build passes (scripts/ excluded from tsc; check-sql.mts runs via tsx).
+- Blocked on: first owner account + DATABASE_URL in .env.local. After that: link owner to demo-fleet (employee + tenant_admin membership).
