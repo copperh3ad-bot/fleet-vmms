@@ -129,3 +129,11 @@
 - Live: views queried read-only on the Supabase demo tenant (empty data, no errors).
 - Not tested: the screens in a browser; the reports with realistic volumes; the Settings screen as a tenant admin (the owner is now `fleet_manager`, who cannot change reminder days or odometer limits by design).
 - Note: stray ` 2` duplicate files keep appearing under `.next` (and once under `src`); the project folder is inside iCloud-synced Documents, which is the likely cause. I delete them; moving the project outside iCloud would stop it.
+
+## 2026-10-22: Phase 8 done (dashboard and CSV exports)
+- No migration. ADR-010.
+- Dashboard (`src/lib/dashboard/service.ts`, workspace home): blocks by permission: job cards waiting for your approval (not ones you raised), quotations to decide, approved with no workshop, invoices to check, checked and ready to close, odometer readings to review and vehicles still to send one, your drafts and sent-back cards, documents expired or expiring; fleet at a glance for `report.view` (vehicles, service overdue, flags, spend this month vs fleet budget, job cards in progress by stage); "Your vehicle(s)" with service and document status for whoever holds one. Workshops are redirected to their list.
+- CSV exports (`src/lib/exports/*`, route `/w/[slug]/export/[kind]`): vehicles, job cards, invoices, documents, accidents, challans, budgets, costs by vehicle, repeat repairs, flags. Per-export permission, "own" scope and screen filters respected, formula injection neutralised, byte order mark, 50,000 row cap, audit log entry per export. Export buttons on the list pages and reports.
+- Tests: 19 new (`tests/dashboard-exports.test.ts`), 215 total, pass on PGlite and local Postgres 17, including the 50,001-row cap, injection through a workshop name, scope, audit, and each dashboard block per role. Live rolled-back run on the demo tenant: dashboard and all ten exports (invoices refused for a fleet manager, as designed). Signed-out export request redirects to /login.
+- Not tested: the dashboard and downloads in a browser; opening the files in Excel or Sheets; very large real data sets.
+- `tsconfig.json` now excludes duplicate files named like "routes.d 2.ts" (iCloud duplicate files in `.next`), a workaround not a fix.

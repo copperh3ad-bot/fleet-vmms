@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { ExportLink } from "@/components/export-link";
 import { requireMembership } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
 import { Card } from "@/components/form";
@@ -30,6 +31,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
           <button className="h-10 rounded-md border border-zinc-300 bg-white px-4">Show</button></form>
       </div>
       <ReportTabs slug={slug} active="costs" />
+      <div className="flex flex-wrap justify-end gap-2"><ExportLink slug={slug} kind="costs-by-vehicle" label="Export costs by vehicle" /><ExportLink slug={slug} kind="flags" label="Export flags" /></div>
 
       <section className="space-y-2"><h2 className="text-sm font-semibold">Needs a look <span className="font-normal text-zinc-500">{flags.length}</span></h2>
         <FlagList slug={slug} flags={flags} empty="Nothing is flagged." /></section>

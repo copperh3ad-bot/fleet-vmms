@@ -5,6 +5,7 @@ Every screen in the design canvas, what it reads, and the one call that saves it
 | Screen | Reads | Saves with | Permission |
 |---|---|---|---|
 | Sign in | `public.tenants` (slug), Supabase Auth, `tenant_memberships` | Auth only | none |
+| *(built Phase 8)* Dashboard and CSV exports | all `v_*` views above, read in one transaction per request; `audit_log` (one row per export) | `/w/[slug]` (home), `/w/[slug]/export/[kind]` | per block / per export, see ADR-010 |
 | Dashboard | `v_vehicle_maintenance_summary`, `v_budget_utilisation`, `v_pm_status`, `v_documents_status`, `job_cards` | read only | `report.view` |
 | Vehicles list / record | `vehicles`, `v_pm_status`, `v_odometer_status`, `v_budget_utilisation`, `vehicle_custody` | read only | `vehicle.read` |
 | Add a vehicle | `employees` (names only), `service_types` | `onboard_vehicle(jsonb)`: vehicle, first odometer reading, custody, service baselines, insurance, documents, budget in one transaction | `vehicle.write` |

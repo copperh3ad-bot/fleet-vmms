@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { ExportLink } from "@/components/export-link";
 import { requireMembership } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
 import { Card } from "@/components/form";
@@ -17,6 +18,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
     <main className="mx-auto w-full max-w-5xl space-y-4 p-4 text-zinc-900">
       <h1 className="text-xl font-semibold">Why it keeps breaking</h1>
       <ReportTabs slug={slug} active="breaking" />
+      <div className="flex justify-end"><ExportLink slug={slug} kind="repeat-repairs" label="Export repeat repairs" /></div>
       <p className="text-sm text-zinc-600">The last 12 months. The same fault coming back within {w.repeatThresholdDays} days counts as a repeat; routine service never does. Change the limits in Settings.</p>
 
       <section className="space-y-2"><h2 className="text-sm font-semibold">Vehicles to look at <span className="font-normal text-zinc-500">{w.flags.length}</span></h2>

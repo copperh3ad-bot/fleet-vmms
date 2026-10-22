@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { ExportLink } from "@/components/export-link";
 import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
@@ -32,6 +33,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
             initial={edit ? { id: edit.id, vehicle_id: edit.vehicle_id ?? "", period_start: edit.period_start, period_end: edit.period_end, amount: String(Number(edit.amount)) } : { period_start: `${year}-01-01`, period_end: `${year}-12-31` }} />
         </Card>
       )}
+      <div className="flex justify-end"><ExportLink slug={slug} kind="budgets" query={{}} /></div>
       {rows.length === 0 ? <p className="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-600">No budgets yet.</p> : (
         <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
           <table className="w-full text-left text-sm">

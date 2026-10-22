@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { ExportLink } from "@/components/export-link";
 import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
@@ -23,6 +24,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
         {perms.has("compliance.manage") && <a href={`/w/${slug}/accidents/new`} className="ml-auto rounded-md bg-sky-800 px-3 py-2 text-sm text-white">Record an accident</a>}
       </div>
       <Tabs slug={slug} active="accidents" />
+      <div className="flex justify-end"><ExportLink slug={slug} kind="accidents" query={{}} /></div>
       {rows.length === 0 ? <p className="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-600">No accidents recorded.</p> : (
         <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
           <table className="w-full text-left text-sm">

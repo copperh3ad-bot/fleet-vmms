@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { ExportLink } from "@/components/export-link";
 import { requireMembership } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
 import { listInvoices } from "@/lib/vendorflow/service";
@@ -24,6 +25,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
             className={`rounded-md border px-3 py-2 ${k === status ? "border-sky-800 bg-sky-800 text-white" : "border-zinc-300 bg-white"}`}>{l}</a>
         ))}
       </nav>
+      <div className="flex justify-end"><ExportLink slug={slug} kind="invoices" query={{ status }} /></div>
       {rows.length === 0 ? <p className="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-600">Nothing here.</p> : (
         <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
           <table className="w-full text-left text-sm">

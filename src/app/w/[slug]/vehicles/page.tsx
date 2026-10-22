@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { ExportLink } from "@/components/export-link";
 import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
@@ -44,6 +45,7 @@ async function Vehicles({ params, searchParams }: { params: Promise<{ slug: stri
         </select>
         <button className="h-10 rounded-md border border-zinc-300 bg-white px-4">Search</button>
       </form>
+      <div className="flex justify-end"><ExportLink slug={slug} kind="vehicles" query={{ q, status }} /></div>
       {rows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-600">
           {q || status ? "No vehicle matches." : "No vehicles yet."} {canWrite && !q && !status && <>Start with <a className="text-sky-800 underline" href={`/w/${slug}/vehicles/new`}>Add a vehicle</a> or <a className="text-sky-800 underline" href={`/w/${slug}/vehicles/import`}>import a CSV</a>.</>}

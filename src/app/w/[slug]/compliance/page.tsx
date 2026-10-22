@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { ExportLink } from "@/components/export-link";
 import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
@@ -47,6 +48,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
         </select>
         <button className="h-10 rounded-md border border-zinc-300 bg-white px-4">Filter</button>
       </form>
+      <div className="flex justify-end"><ExportLink slug={slug} kind="documents" query={{ q, status, type }} /></div>
       {rows.length === 0 ? <p className="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-600">{q || status || type ? "No document matches." : "No documents yet."}</p> : (
         <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
           <table className="w-full text-left text-sm">

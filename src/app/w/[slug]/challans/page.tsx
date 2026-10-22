@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { ExportLink } from "@/components/export-link";
 import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
@@ -41,6 +42,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
         ))}
         {openTotal > 0 && <span className="ml-auto text-zinc-600">Open in this list: <span className="font-medium tabular-nums text-zinc-900">{openTotal.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span></span>}
       </nav>
+      <div className="flex justify-end"><ExportLink slug={slug} kind="challans" query={{ status }} /></div>
       {rows.length === 0 ? <p className="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-600">No challans.</p> : (
         <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
           <table className="w-full text-left text-sm">
