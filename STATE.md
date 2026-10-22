@@ -49,3 +49,9 @@
 - Supabase free limit reached (2 projects: MerQuant ERP, textile-manager-pro; neither touched). User chose Neon free for now; no connection string yet.
 - Ran the 38 tenancy tests against a local real Postgres 16 (TEST_DATABASE_URL=postgres://...). All pass, including search_path not leaking across transactions and failed provisioning rolling back DDL.
 - Run: `TEST_DATABASE_URL=... npx vitest run`. migrate-tenants.mts --check correctly reported drift left by the test's fake 0005/0006 migrations.
+
+## 2026-10-22: first live database
+- Supabase project created by the user (new account). Platform tables (public) and one demo tenant ("Demo Fleet Co", slug demo-fleet) applied, migrations 0001-0004 recorded with checksums so scripts/migrate-tenants.mts sees no drift. Not Union Fabrics: real data goes in a separate tenant later.
+- Verified on the hosted DB with a rolled-back smoke test: onboard_vehicle sets odometer, PM status shows ok, duplicate plate blocked, audit rows written.
+- Security advisor: 7 INFO (platform tables have RLS and no policies: intended, only the server connection reads them). 20 WARN "function search_path mutable": intended, the tenant functions must resolve names in whichever tenant schema the request set. Tenant schemas are not in the API's exposed schemas.
+- Applied via the Supabase connector, not the runner (no DB password in the sandbox). Next: user puts DATABASE_URL in .env.local; then wire Supabase Auth (login) and create the owner membership.
