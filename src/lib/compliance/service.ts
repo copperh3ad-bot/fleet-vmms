@@ -20,7 +20,7 @@ function parse<S extends z.ZodType>(schema: S, input: unknown): z.output<S> {
 // ============================ Documents ============================
 
 export type DocumentRow = {
-  entity_type: "insurance_policy" | "compliance_doc"; entity_id: string; vehicle_id: string; registration_no: string; doc_type: string;
+  entity_type: "insurance_policy" | "compliance_doc"; entity_id: string; vehicle_id: string; registration_no: string; make: string | null; model: string | null; doc_type: string;
   reference: string | null; issued_by: string | null; expires_on: string; days_left: number; doc_status: "expired" | "due_30" | "due_90" | "ok";
 };
 
@@ -31,7 +31,7 @@ export function listDocuments(driver: Driver, m: Membership, opts: { status?: st
     if (opts.type) { params.push(opts.type); where.push(`d.doc_type = $${params.length}`); }
     if (opts.search) { params.push(`%${opts.search.replace(/[%_\\]/g, "\\$&")}%`); where.push(`(v.registration_no ilike $${params.length} or d.reference ilike $${params.length})`); }
     return (await q.query<DocumentRow>(
-      `select d.entity_type, d.entity_id, d.vehicle_id, v.registration_no, d.doc_type, d.reference, d.issued_by, d.expires_on::text, d.days_left::int, d.doc_status
+      `select d.entity_type, d.entity_id, d.vehicle_id, v.registration_no, v.make, v.model, d.doc_type, d.reference, d.issued_by, d.expires_on::text, d.days_left::int, d.doc_status
          from v_documents_status d join vehicles v on v.id = d.vehicle_id
         where v.status in ('active','in_workshop') ${where.length ? "and " + where.join(" and ") : ""}
         order by d.expires_on, v.registration_no limit 500`, params)).rows;

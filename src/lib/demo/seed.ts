@@ -10,6 +10,7 @@ import * as jc from "@/lib/jobcards/service";
 import * as vf from "@/lib/vendorflow/service";
 import * as cs from "@/lib/compliance/service";
 import * as ct from "@/lib/control/service";
+import * as od from "@/lib/odometer/service";
 
 export type SeedSummary = { employees: number; vendors: number; vehicles: number; jobCards: number; documents: number; budgets: number };
 
@@ -137,6 +138,14 @@ export async function seedDemo(driver: Driver, tenant: { tenantId: string; schem
   await cs.addChallan(driver, manager, { vehicle_id: v300, issued_on: day(-30), reference: "CH-77120", violation: "Over-speeding", amount: "5000" });
   const ch = await cs.addChallan(driver, manager, { vehicle_id: v302, issued_on: day(-75), reference: "CH-66013", violation: "No seat belt", amount: "1500" });
   await cs.setChallanStatus(driver, manager, ch, "paid");
+
+  // ---- this month's odometer cycle: two normal readings, one lower than on file (held), the rest not yet in ----
+  const cycleId = await od.openCycle(driver, admin, day(0).slice(0, 7), day(5));
+  const cycle = (await od.getCycle(driver, admin, cycleId))!;
+  const [r1, r2, r3] = cycle.rows;
+  if (r1) await od.enterReading(driver, admin, r1.id, String(Number(r1.last_km) + 320));
+  if (r2) await od.enterReading(driver, admin, r2.id, String(Number(r2.last_km) + 410));
+  if (r3 && Number(r3.last_km) > 100) await od.enterReading(driver, admin, r3.id, String(Number(r3.last_km) - 40), "Read it quickly at the gate");
 
   const count = async (t: string) => raw(admin, async (q) => (await q.query<{ c: number }>(`select count(*)::int c from ${t}`)).rows[0].c);
   return { employees: await count("employees"), vendors: await count("vendors"), vehicles: await count("vehicles"), jobCards: await count("job_cards"),

@@ -171,3 +171,9 @@
 - Tests: 312 total, pass on PGlite and local Postgres. Typecheck, lint and production build clean.
 - Not tested: any screen in a browser (no browser available to me), phone layouts.
 - Still to restyle: compliance, accidents and challans, add vehicle, service rules, users, list pages (job cards, vendors, employees, invoices, notifications, reports costs), mobile job card wizard and mobile odometer.
+
+## 2026-10-22: Design alignment, part 2 (compliance) and smoke test
+- Compliance restyled to the board: four cards, type chips with counts, documents table with time-left pills, add or renew panel and reminder days beside it.
+- Demo seed now opens this month's odometer cycle (two normal readings, one held as lower than on file, the rest not yet in), so the odometer screens are not empty on demo data.
+- New `tests/smoke-screens.test.ts`: seeds the demo workspace and runs the data behind every screen as six roles. Every loader must answer for at least one role; no role may get anything but an answer or a refusal. 314 tests pass on PGlite and local Postgres; typecheck, lint, build clean.
+- Not run: the same seed against the live project (the seed refuses a workspace that has vehicles, and I will not seed real data without you saying so). Screens still not seen in a browser.
