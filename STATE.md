@@ -62,3 +62,11 @@
 - Same generic error for every failed sign-in. No sign-up page: users are created by an admin (Supabase dashboard for the first owner, invitations later).
 - 39 tenancy tests pass; next build passes (scripts/ excluded from tsc; check-sql.mts runs via tsx).
 - Blocked on: first owner account + DATABASE_URL in .env.local. After that: link owner to demo-fleet (employee + tenant_admin membership).
+
+## 2026-10-22: Phase 1b done (first owner, real sign-in)
+- Owner linked to `demo-fleet` as employee + `tenant_admin` via a single inserts-only statement (Supabase connector). No schema change.
+- `migrate-tenants.mts --check` against the live DB: no drift. Signed in locally: workspace page shows role tenant_admin, 10 permissions, 0 vehicles.
+- Routing rules extracted to `src/lib/auth/routing.ts` (guard + post-login destination); `tests/routing.test.ts` adds 5 tests. 44 tests total.
+- Fixed Next 16 dev error "unstable value Date.now() while prerendering" on `/w/[slug]`: `requireUser` now calls `connection()` first so token check and DB work run per request.
+- Note: `tenant_admin` has 10 of 20 permissions. It has no `jobcard.*`, `quotation.*`, `invoice.*`, `odometer.submit`, `workorder.update`. Intended by separation of duties; to test workflow screens the owner also needs a `fleet_manager` membership or a second user.
+- Not tested: sign-in failure path in a browser; the `connection()` fix was not re-verified in the browser.
