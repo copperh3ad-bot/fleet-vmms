@@ -90,10 +90,11 @@ export function changeMember(driver: Driver, m: Membership, userId: string, chan
       const others = (await q.query<{ c: number }>("select count(*)::int c from public.tenant_memberships where tenant_id = $1 and role = 'tenant_admin' and status = 'active' and user_id <> $2", [m.tenantId, userId])).rows[0].c;
       if (others === 0) throw new UserError("There must be at least one active administrator.");
     }
+    const scope = (c.role ?? cur.role) === "requester" ? "own" : (c.vehicle_scope ?? null);   // a vehicle user is always limited to their own vehicle
     try {
       await q.query(
         "update public.tenant_memberships set role = coalesce($3, role), vehicle_scope = coalesce($4, vehicle_scope), status = coalesce($5, status) where tenant_id = $1 and user_id = $2",
-        [m.tenantId, userId, c.role ?? null, c.vehicle_scope ?? null, c.status ?? null]);
+        [m.tenantId, userId, c.role ?? null, scope, c.status ?? null]);
     } catch (e) { friendly(e); }
   });
 }
@@ -146,12 +147,13 @@ async function createInvite(q: Parameters<Parameters<typeof authorized>[3]>[0], 
   const dup = await q.query("select 1 from employees e join public.tenant_memberships mm on mm.user_id = e.user_id and mm.tenant_id = $2 where lower(e.email) = $1 and mm.status = 'active'", [d.email, m.tenantId]);
   if (dup.rows.length) throw new UserError("Someone with this email is already in the workspace.", { email: "Already a member" });
 
+  const scope = d.role === "requester" ? "own" : d.vehicle_scope;   // vehicle users raise cards for the vehicle they hold; managers and administrators for any
   const token = newInviteToken();
   try {
     const row = (await q.query<{ id: string; expires_at: string }>(
       `insert into public.invitations(tenant_id, full_name, email, phone, role_key, vehicle_scope, invited_by, token_hash, vendor_id, expires_at)
        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, now() + ($10 || ' days')::interval) returning id, expires_at::text`,
-      [m.tenantId, d.full_name, d.email, d.phone ?? null, d.role, d.vehicle_scope, m.userId, hashInviteToken(token), d.vendor_id ?? null, String(INVITE_DAYS)])).rows[0];
+      [m.tenantId, d.full_name, d.email, d.phone ?? null, d.role, scope, m.userId, hashInviteToken(token), d.vendor_id ?? null, String(INVITE_DAYS)])).rows[0];
     return { id: row.id, token, email: d.email, expires_at: row.expires_at };
   } catch (e) {
     if (e instanceof Error && /invitations_live_email_uq/.test(e.message)) throw new UserError("This email already has an open invitation. Cancel it or send a new link from the list.", { email: "Already invited" });

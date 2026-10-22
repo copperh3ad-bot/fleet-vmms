@@ -177,3 +177,8 @@
 - Demo seed now opens this month's odometer cycle (two normal readings, one held as lower than on file, the rest not yet in), so the odometer screens are not empty on demo data.
 - New `tests/smoke-screens.test.ts`: seeds the demo workspace and runs the data behind every screen as six roles. Every loader must answer for at least one role; no role may get anything but an answer or a refusal. 314 tests pass on PGlite and local Postgres; typecheck, lint, build clean.
 - Not run: the same seed against the live project (the seed refuses a workspace that has vehicles, and I will not seed real data without you saying so). Screens still not seen in a browser.
+
+## 2026-10-22: Who can raise job cards
+- Vehicle users (requester) are always limited to the vehicle they hold: forced on invitation and on role change, shown as one fixed choice on the invite form. Enforced when a card is raised and when vehicles are listed.
+- Administrators can now raise job cards for any vehicle (tenant migration 0015, one permission row). Approval stays with fleet managers; the database still refuses an approver who is the requester.
+- Tests: 316 pass on PGlite and local Postgres. Not applied to the live project yet (run scripts/migrate-tenants.ts). Existing live requesters invited before this keep their old scope until changed on the Users screen.

@@ -114,6 +114,11 @@ describe("creating", () => {
     const e = await jc.createJobCard(d, driver(), card({ vehicle_id: veh2 }), false).catch((x) => x);
     expect(e).toBeInstanceOf(ForbiddenError);
   });
+
+  it("scope 'own' can raise for the vehicle they hold; an administrator can raise for any vehicle", async () => {
+    await jc.createJobCard(d, driver(), card({ vehicle_id: veh }), false);
+    for (const v of [veh, veh2]) expect((await jc.createJobCard(d, mem("tenant_admin", 1), card({ vehicle_id: v }), false)).job_no).toBeTruthy();
+  });
 });
 
 describe("approval", () => {
@@ -252,7 +257,7 @@ describe("vendor assignment", () => {
 describe("permissions", () => {
   // create = jobcard.create, decide = jobcard.approve, read = read_all or read_own
   const roles: Record<string, { create: boolean; decide: boolean; read: boolean }> = {
-    tenant_admin: { create: false, decide: false, read: true },
+    tenant_admin: { create: true, decide: false, read: true },
     fleet_manager: { create: true, decide: true, read: true },
     finance: { create: false, decide: false, read: true },
     requester: { create: true, decide: false, read: true },

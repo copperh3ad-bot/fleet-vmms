@@ -38,7 +38,9 @@ export function InviteForm({ slug, roles, vendors }: { slug: string; roles: [str
         </div>
         {role === "vendor"
           ? <Select name="vendor_id" label="Workshop" state={state} blank="Choose the workshop" required options={vendors} />
-          : <Select name="vehicle_scope" label="Vehicles they can see" state={{ ...state, values: { vehicle_scope: state.values?.vehicle_scope ?? "all" } }} blank="All" options={[["all", "All vehicles"], ["own", "Only the vehicle they hold"]]} />}
+          : role === "requester"
+            ? <Select key="own" name="vehicle_scope" label="Vehicles they can raise job cards for" state={{ ...state, values: { vehicle_scope: "own" } }} options={[["own", "Only the vehicle they hold"]]} />
+            : <Select key="any" name="vehicle_scope" label="Vehicles they can see" state={{ ...state, values: { vehicle_scope: state.values?.vehicle_scope ?? "all" } }} blank="All" options={[["all", "All vehicles"], ["own", "Only the vehicle they hold"]]} />}
         <Input name="phone" label="Phone (optional)" state={state} inputMode="tel" />
         <div className="flex flex-wrap items-center gap-3 sm:col-span-2"><Submit>Create invitation</Submit><Notice state={state} /></div>
       </form>

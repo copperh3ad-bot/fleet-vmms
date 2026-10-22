@@ -97,7 +97,7 @@ describe("accepting", () => {
     expect(await resolveMembership(d, U(50), slug)).toBeNull();                              // nothing was created
     const r = await ad.acceptInvitation(d, { token: inv.token }, person(50, "FRANK@example.com"));
     expect(r.slug).toBe(slug);
-    expect(await resolveMembership(d, U(50), slug)).toMatchObject({ role: "requester", vehicleScope: "all" });
+    expect(await resolveMembership(d, U(50), slug)).toMatchObject({ role: "requester", vehicleScope: "own" });
     const emp = await raw(async (q) => (await q.query<{ full_name: string; email: string }>("select full_name, email from employees where user_id = $1", [U(50)])).rows[0]);
     expect(emp).toEqual({ full_name: "New Person", email: "frank@example.com" });
     await expect(ad.acceptInvitation(d, { token: inv.token }, person(50, "frank@example.com"))).rejects.toThrow(/not valid/);   // used
@@ -210,6 +210,16 @@ describe("changing people's access", () => {
     await expect(ad.changeMember(d, demoted, U(70), { role: "requester" })).rejects.toBeInstanceOf(ForbiddenError);   // no longer an admin, so cannot act
     await expect(ad.changeMember(d, second, U(70), { status: "disabled" })).rejects.toThrow(/your own access/);
     await ad.changeMember(d, second, U(1), { role: "tenant_admin" });                             // restore
+  });
+
+  it("a vehicle user (requester) is always limited to their own vehicle, however they were invited or changed", async () => {
+    const inv = await invite("vera@example.com", { role: "requester", vehicle_scope: "all" });
+    await ad.acceptInvitation(d, { token: inv.token }, person(75, "vera@example.com"));
+    expect(await resolveMembership(d, U(75), slug)).toMatchObject({ role: "requester", vehicleScope: "own" });
+    await ad.changeMember(d, admin(), U(75), { role: "fleet_manager", vehicle_scope: "all" });
+    expect(await resolveMembership(d, U(75), slug)).toMatchObject({ role: "fleet_manager", vehicleScope: "all" });
+    await ad.changeMember(d, admin(), U(75), { role: "requester", vehicle_scope: "all" });         // back to a vehicle user: scope is forced
+    expect(await resolveMembership(d, U(75), slug)).toMatchObject({ role: "requester", vehicleScope: "own" });
   });
 
   it("a disabled person loses access at once; role and scope changes apply", async () => {
