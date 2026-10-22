@@ -35,6 +35,32 @@ PORT=3000 HOSTNAME=0.0.0.0 node .next/standalone/server.js
 Health check: `GET /api/health` returns `{"ok":true}`. Put the site behind HTTPS (the host usually does this). The server
 trusts `X-Forwarded-Host` and `X-Forwarded-Proto` to build the links people copy (invites, odometer links).
 
+## Netlify
+
+`netlify.toml` is set up for Netlify's own Next.js runtime (the standalone output is skipped there). One-time, from the
+project folder:
+
+```
+npx netlify-cli login
+npx netlify-cli link --id <the project id shown in Netlify>
+```
+
+Set the three variables from `.env.local` without printing them (`DATABASE_URL` as a secret):
+
+```
+set -a; . ./.env.local; set +a
+npx netlify-cli env:set NEXT_PUBLIC_SUPABASE_URL "$NEXT_PUBLIC_SUPABASE_URL"
+npx netlify-cli env:set NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+npx netlify-cli env:set DATABASE_URL "$DATABASE_URL" --secret
+```
+
+Then build here and upload only the result: `npx netlify-cli deploy --build --prod`. Env changes need a new deploy.
+There is no git remote yet, so deploys are by hand. If the repo goes to GitHub, connect it in Netlify and every push deploys.
+
+Netlify limits to know: a request body over about 6 MB is refused by functions, so photo uploads above that fail even
+though the app allows 10 MB; and each request may open its own database connection, so use the pooled
+(transaction mode) connection string for `DATABASE_URL`.
+
 ## Before the first tester
 
 1. **Supabase Auth settings** (dashboard, Authentication): set Site URL to the public address; allow the same address as
