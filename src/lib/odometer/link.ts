@@ -37,7 +37,7 @@ export async function lookupLink(driver: Driver, token: string): Promise<LinkVie
 
 export type LinkResult = "ok" | "invalid" | "bad_value";
 
-/** Accepts one reading. The link is marked used in the same transaction as the reading, so a failure burns nothing. */
+/** Accepts one reading. The database function marks the link used and saves the reading in one step, so a failure burns nothing. */
 export async function submitViaLink(driver: Driver, token: string, raw: string): Promise<LinkResult> {
   const text = raw.trim().replace(/,/g, "");
   if (!/^\d{1,7}(\.\d)?$/.test(text)) return "bad_value";
@@ -46,15 +46,11 @@ export async function submitViaLink(driver: Driver, token: string, raw: string):
   if (!link) return "invalid";
   try {
     return await withLinkContext(driver, link.schema, async (q) => {
-      const used = await q.query(
-        `update public.odometer_links set used_at = now()
-          where token_hash = $1 and used_at is null and revoked_at is null and expires_at > now() returning id`, [hashToken(token)]);
-      if (used.rows.length === 0) return "invalid" as const;
-      await q.query("select submit_odometer_via_link($1, $2)", [link.submissionId, reading]);
+      await q.query("select submit_odometer_via_link($1, $2, $3)", [link.submissionId, reading, hashToken(token)]);
       return "ok" as const;
     });
   } catch (e) {
-    if (e instanceof Error && /is not open for input|reading out of range/.test(e.message)) return "invalid";
+    if (e instanceof Error && /is not open for input|reading out of range|link is not valid/.test(e.message)) return "invalid";
     throw e;
   }
 }

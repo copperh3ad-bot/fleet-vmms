@@ -3,6 +3,8 @@ import type { Driver, Queryable } from "@/lib/db/types";
 import { withPlatform, withTenant, type TenantContext } from "@/lib/db/tenant";
 
 export class ForbiddenError extends Error {
+  /** Next.js shows app/forbidden.tsx (a plain "not allowed" page) for an error carrying this digest, the same as forbidden(). */
+  readonly digest = "NEXT_HTTP_ERROR_FALLBACK;403";
   constructor(public permission: string) { super(`forbidden: ${permission}`); }
 }
 

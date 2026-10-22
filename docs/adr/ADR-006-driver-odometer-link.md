@@ -25,3 +25,6 @@ Status: accepted (decision by the owner, 2026-10-22). Built in the odometer-link
 - **Deviation from the limit "dedicated narrow database role":** the link runs through `withLinkContext` (`src/lib/db/tenant.ts`), which sets no user and a role name that holds no permission, and the route code calls only the functions above. It is not a separate Postgres login: the pooled Supabase connection cannot switch role without extra grants. A hand-written query in that code path could still read tenant tables, so this relies on code review of two small files (`src/lib/odometer/link.ts`, `src/app/o/[token]/*`). Revisit in Phase 9 (real role with `execute` on two functions).
 - **Rate limiting** is in memory per server process (`src/lib/rate-limit.ts`): 60 page views and 30 sends per address, 10 sends per link, per 10 minutes. It slows guessing, but a token has 256 bits so guessing is not the real risk. It is not shared across servers; Phase 9 moves it to shared storage.
 - Admin side: `/w/<slug>/odometer` (start a month, make links, copy or open WhatsApp, enter by hand, approve or reject, close). The raw link is shown once; only the hash is kept.
+
+## Update, Phase 9a
+The two deviations above are addressed in ADR-011: the link now runs as a restricted database role (with the remaining limit described there), and rate limiting is shared across servers.

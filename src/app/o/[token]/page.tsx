@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import type { Metadata } from "next";
 import { getDriver } from "@/lib/db";
-import { allow } from "@/lib/rate-limit";
+import { allowShared } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
 import { DEAD_LINK, lookupLink } from "@/lib/odometer/link";
 import { ReadingForm } from "./form";
@@ -18,7 +18,7 @@ const monthName = (iso: string) => new Date(iso + "T00:00:00Z").toLocaleString("
 async function Inner({ params }: { params: Promise<{ token: string }> }) {
   await connection();
   const { token } = await params;
-  const view = allow(`ip:${await clientIp()}`, 60, 10 * 60 * 1000) ? await lookupLink(getDriver(), token) : null;
+  const view = (await allowShared(getDriver(), `link-view-ip:${await clientIp()}`, 60, 600)) ? await lookupLink(getDriver(), token) : null;
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-4 p-6 text-zinc-900">
       {view ? (

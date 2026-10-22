@@ -175,12 +175,34 @@ describe("links that do not work all look the same", () => {
 });
 
 describe("what the link context can do", () => {
-  it("has no user and a role that holds no permission", async () => {
+  it("runs as a database role that can do nothing except call the two link functions", async () => {
     await withLinkContext(d, t.schema, async (q) => {
-      expect((await q.query<{ u: string; r: string }>("select current_setting('app.user_id') u, current_setting('app.role') r")).rows[0]).toEqual({ u: "", r: "odometer_link" });
-      expect((await q.query("select 1 from role_permissions where role_key = 'odometer_link'")).rows).toHaveLength(0);
-      expect((await q.query("select 1 from roles where key = 'odometer_link'")).rows).toHaveLength(0);
+      expect((await q.query<{ u: string; r: string; db: string }>("select current_setting('app.user_id') u, current_setting('app.role') r, current_user db")).rows[0]).toEqual({ u: "", r: "odometer_link", db: "odometer_link" });
     });
+    const denied = (sql: string) => withLinkContext(d, t.schema, (q) => q.query(sql)).then(() => "allowed", (e: Error) => (/permission denied/.test(e.message) ? "denied" : `other: ${e.message}`));
+    for (const sql of [
+      "select * from vehicles", "select * from employees", "select * from job_cards", "select * from odometer_submissions", "select * from odometer_readings",
+      "select * from role_permissions", "select * from audit_log", "select * from public.tenants", "select * from public.tenant_memberships",
+      "select * from public.odometer_links", "update odometer_submissions set status = 'approved'", "update vehicles set odometer_km = 1",
+      "insert into odometer_readings(vehicle_id, reading_km, source) values (gen_random_uuid(), 1, 'manual')",
+      "delete from audit_log", "select submit_odometer(gen_random_uuid(), 1, null, null)", "select approve_odometer_submission(gen_random_uuid(), gen_random_uuid(), null)",
+      "select transition_job_card(gen_random_uuid(), 'approved', gen_random_uuid())", "select open_odometer_cycle(current_date, current_date)",
+      "update public.odometer_links set used_at = now()", "select public.rate_limit_hit('x', 1, 1)",
+    ]) expect(await denied(sql), sql).toBe("denied");
+  });
+  it("can still call exactly the two link functions", async () => {
+    await withLinkContext(d, t.schema, async (q) => {
+      expect((await q.query("select * from link_submission_info(gen_random_uuid())")).rows).toEqual([]);
+      await expect(q.query("select submit_odometer_via_link(gen_random_uuid(), 1, 'nope')")).rejects.toThrow(/link is not valid/);
+    });
+  });
+  it("cannot reach other workspaces' schemas", async () => {
+    // Known limit (ADR-006): a role switch is checked against the connection's login user, so code that could run
+    // arbitrary SQL here could switch back. The role protects against mistakes in the two small files that use it;
+    // those only run fixed, parameterised statements. A separate login for the link route would be a real wall.
+    const other = await provisionTenant(d, { name: "Other Link Co", slug: "other-link", ownerUserId: U(9), ownerName: "O" }, tenantMigrations(), { transform: stripExt });
+    const denied = await withLinkContext(d, t.schema, (q) => q.query(`select * from "${other.schema}".vehicles`)).then(() => "allowed", (e: Error) => /permission denied/.test(e.message) ? "denied" : e.message);
+    expect(denied).toBe("denied");
   });
   it("cannot be pointed at a name that is not a tenant schema", async () => {
     await expect(withLinkContext(d, "public", async () => 1)).rejects.toThrow(/invalid tenant schema/);

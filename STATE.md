@@ -143,3 +143,14 @@
 - Other dependencies: nothing outdated that matters for security (`pglite` 0.5.11, `react` 19.3.1 are patch releases, test and UI only; take them with the next dependency update).
 - Secrets: no project ref, connection string, key, tenant schema name or user id in any tracked file or anywhere in git history; `.env.local` is ignored; `.env.example` has empty values only.
 - Supabase advisors: no new kind of finding. INFO "RLS enabled, no policy" now 8 tables (added `public.odometer_links`): intended, only the server connection reads them. WARN "function search_path mutable" 44 functions, all in tenant schemas: intended, tenant functions must resolve names in the schema the request chose, and none is `security definer`. WARN "leaked password protection disabled" is still open: a dashboard setting (Authentication, Passwords) that may need a paid plan; owner to check.
+
+## 2026-10-22: Phase 9a done (hardening part 1)
+- Migrations: platform `0005_rate_limits.sql`, tenant `0011_hardening.sql`, applied to the live project through the runner, no drift. ADR-011 (also updates ADR-006).
+- Shared rate limits (database-backed, hashed keys, atomic, fallback if the database is down) on sign-in and the odometer link; function not callable through Supabase's public API.
+- Odometer link now runs as database role `odometer_link` (no table access, two `SECURITY DEFINER` functions). Remaining limit written down: not a wall against arbitrary SQL in that path, because the app's login can switch role back.
+- Audit review: 4 unaudited tables found and fixed (`attachments`, `reason_codes`, `roles`, `permissions`); a test now fails for any future table that is neither audited nor excused with a reason.
+- Friendly "not allowed" page for pages opened without permission (Next `forbidden` mechanism).
+- Tests: 227 total (9 limiter, 4 role, 1 audit coverage added or reworked), pass on PGlite and local Postgres 17. Live (rolled back): link page, send, second use refused, four forbidden queries denied; limiter allowed exactly 3 of 5 simultaneous tries.
+- Fixed on the way: rate limit validated the window after dividing by it (error message was "division by zero").
+- Not tested: the "not allowed" page in a browser (mechanism relies on Next's digest convention), sign-in limit through the real login form.
+- Still open in Phase 9: plan-limit enforcement, demo seed data, onboarding.
