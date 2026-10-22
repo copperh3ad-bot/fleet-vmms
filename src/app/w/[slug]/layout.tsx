@@ -24,6 +24,7 @@ async function Nav({ params }: { params: Promise<{ slug: string }> }) {
   const links = [
     { href: `/w/${slug}`, label: "Home", show: true },
     { href: `/w/${slug}/job-cards`, label: "Job cards", show: sees },
+    { href: `/w/${slug}/odometer`, label: "Odometer", show: perms.has("odometer.review") },
     { href: `/w/${slug}/vendor`, label: "My work", show: perms.has("quotation.submit") },
     { href: `/w/${slug}/invoices`, label: "Invoices", show: perms.has("invoice.verify") },
     { href: `/w/${slug}/notifications`, label: unread ? `Notifications (${unread})` : "Notifications", show: sees || perms.has("quotation.submit") || perms.has("invoice.verify") },

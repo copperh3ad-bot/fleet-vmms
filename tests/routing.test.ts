@@ -9,6 +9,12 @@ describe("guard", () => {
     expect(guardDecision("/login", false)).toEqual({ action: "next" });
     expect(guardDecision("/api/health", false)).toEqual({ action: "next" });
   });
+  it("opens the odometer link path, and only that exact shape (ADR-006)", () => {
+    const tok = "A".repeat(43);
+    expect(guardDecision(`/o/${tok}`, false)).toEqual({ action: "next" });
+    for (const p of ["/o", "/o/", "/o/short", `/o/${tok}/x`, `/o/${tok}A`, `/o/${"A".repeat(42)}.`, `/x/o/${tok}`, `/w/demo/o/${tok}`])
+      expect(guardDecision(p, false)).toEqual({ action: "redirect", to: "/login" });
+  });
   it("lets signed-in users through", () => expect(guardDecision("/w/demo-fleet", true)).toEqual({ action: "next" }));
 });
 

@@ -103,3 +103,12 @@
 - Live smoke (rolled back): assign, quote, approve, work, invoice with an extra line, finance check (3400 vs 3000, 1 unapproved line), verify, close, 11 events, another vendor sees nothing. Nothing left behind.
 - Not tested: all screens in a browser; the vendor login end to end (needs a vendor Auth user, created by hand for now).
 - Known: a page opened by a role without the permission shows an error page instead of a friendly "not allowed" (Phase 9). No quotation or invoice attachments yet. Cannot switch to a different vendor once a quotation exists.
+
+## 2026-10-22: odometer link done (ADR-006)
+- Platform migration `0004_odometer_links.sql` and tenant `0008_odometer_links.sql` applied to the live project through the runner, no drift.
+- Public route `/o/<token>` (the one exception to rule 5): shows plate and month, accepts one number, saves it as "submitted" for an admin to approve; it never touches `odometer_readings` itself. Single use, 48 hours, revocable, same message for every kind of dead link, hashed at rest, rate limited, headers `no-store`/`no-referrer`/`noindex`.
+- Admin screens: Odometer (start a month, make links for every vehicle still waiting, copy or WhatsApp, enter a phoned-in reading, approve with note when flagged, reject, close month). New permission use: `odometer.review` (fleet manager, tenant admin).
+- Tests: 17 new (`tests/odometer-link.test.ts` 16, routing 1), 157 total, pass on PGlite and local Postgres 17. Checked on a real `next start`: unknown token gives the generic page with the three headers; bad-shaped paths and workspace paths redirect to /login. Rolled-back live run: links made, page shows plate, typo refused, send ok, second use refused, odometer unchanged until approval.
+- Deviation, written in ADR-006: no separate Postgres role (see "As built"); in-memory rate limit. Both for Phase 9.
+- Not tested: the admin screens and the driver page in a browser or phone, WhatsApp hand-off, clipboard copy. The pooled production environment's `x-forwarded-for` handling is unverified.
+- My `pkill` to stop the test server also stopped the dev server on port 3000; I restarted it.

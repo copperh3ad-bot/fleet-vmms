@@ -24,6 +24,20 @@ export async function withTenant<T>(driver: Driver, ctx: TenantContext, fn: (q: 
   });
 }
 
+/**
+ * The unauthenticated odometer link (ADR-006). Same schema rule as withTenant, but the context has no user and a
+ * role that holds no permissions. Callers may use only link_submission_info, submit_odometer_via_link and the
+ * public.odometer_links row of the link being used.
+ */
+export async function withLinkContext<T>(driver: Driver, schema: string, fn: (q: Queryable) => Promise<T>): Promise<T> {
+  const name = assertSchemaName(schema);
+  return driver.transaction(async (q) => {
+    await q.query(`set local search_path = "${name}", public`);
+    await q.query(`select set_config('app.user_id', '', true), set_config('app.role', 'odometer_link', true)`);
+    return fn(q);
+  });
+}
+
 /** Platform tables only (tenants, memberships, plans). No tenant data is visible here. */
 export async function withPlatform<T>(driver: Driver, fn: (q: Queryable) => Promise<T>): Promise<T> {
   return driver.transaction(async (q) => {
