@@ -44,7 +44,23 @@ export function PageHeader({ title, sub, actions, crumb }: { title: ReactNode; s
   );
 }
 
-export const btn = "inline-flex h-10 items-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-50";
+/** A white card with a title row, as used on every designed screen. `action` sits at the right of the title. */
+export function Panel({ title, sub, action, children, flush }: { title?: ReactNode; sub?: ReactNode; action?: ReactNode; children: ReactNode; flush?: boolean }) {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white text-zinc-900">
+      {title && (
+        <header className="flex flex-wrap items-center gap-2 border-b border-zinc-100 px-5 py-3.5">
+          <h2 className="text-sm font-semibold">{title}</h2>
+          {sub && <span className="text-xs text-zinc-500">{sub}</span>}
+          {action && <div className="ml-auto">{action}</div>}
+        </header>
+      )}
+      <div className={flush ? "" : "p-5"}>{children}</div>
+    </section>
+  );
+}
+
+export const btn ="inline-flex h-10 items-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-50";
 export const btnPrimary = "inline-flex h-10 items-center rounded-md bg-brand px-4 text-sm font-medium text-white hover:opacity-90";
 
 /** Money as the design shows it: whole units, thousands separated, in mono. */
