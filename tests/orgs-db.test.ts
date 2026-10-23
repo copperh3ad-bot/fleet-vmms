@@ -220,6 +220,23 @@ describe("routing driver", () => {
   });
 });
 
+describe("what the public API can reach", () => {
+  it("every table in the control database's public schema has row security on, so the API roles see nothing", async () => {
+    const open = (await control.transaction(async (q) => (await q.query<{ tablename: string }>(
+      "select tablename from pg_tables where schemaname = 'public' and not rowsecurity order by 1")).rows)).map((r) => r.tablename);
+    expect(open).toEqual([]);
+  });
+  it("and so does a new organization's own database", async () => {
+    const f = farm(), provider = f.provider();
+    const d = deps(f, provider);
+    const { tenantId } = await startOrganization(d, { name: "Closed Co", slug: "closed-co", ...owner(40) });
+    await advanceProvisioning(d, tenantId);
+    const org = [...f.dbs.values()].at(-1)!;
+    const open = (await org.transaction(async (q) => (await q.query<{ tablename: string }>("select tablename from pg_tables where schemaname = 'public' and not rowsecurity")).rows)).map((r) => r.tablename);
+    expect(open).toEqual([]);
+  });
+});
+
 describe("providers", () => {
   const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 

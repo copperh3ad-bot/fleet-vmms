@@ -20,6 +20,9 @@ const versionOf = (name: string) => parseInt(name.slice(0, 4), 10);
 async function applyPending(q: Queryable, migrations: Migration[], opts: RunOptions, table = "schema_migrations"): Promise<string[]> {
   await q.query(`create table if not exists ${table} (
     name text primary key, checksum text not null, applied_at timestamptz not null default now())`);
+  // The tracking table can sit in "public", which Supabase's public API can reach. Row security with no policy closes it
+  // to that API (the server's own connection is unaffected).
+  await q.query(`alter table ${table} enable row level security`);
   const done = new Map((await q.query<{ name: string; checksum: string }>(`select name, checksum from ${table}`)).rows
     .map((r) => [r.name, r.checksum]));
   const applied: string[] = [];
