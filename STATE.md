@@ -238,3 +238,7 @@
 - Many at once: six sign-ups at the same moment with the same company name each got their own schema and web address.
 - Latency: web app region moved Ohio -> Tokyo (next to Supabase); one lookup per request; token checked on the server. The Singapore Supabase project was created and then paused (not deleted); `.env.sg` and the cutover script are removed.
 - Netlify: ORG_DB_PROVIDER and NEON_REGION removed. ORG_DB_KEY kept (only used in dedicated mode).
+
+## 2026-10-24: company maintenance policy
+- Each company can upload its own vehicle maintenance policy (PDF or photo, up to 4 MB) at /w/<slug>/policy. Dated versions; newest is current, older kept. Tenant migration 0017 (table maintenance_policies, attachment kind, permissions policy.manage for admin and fleet manager, policy.read for all but workshops). Stored in the company own folder; tests/maintenance-policy.test.ts includes a two-company leak check.
+- Fixed a time-zone flake in tests/compliance.test.ts (compared the database date with a UTC date).

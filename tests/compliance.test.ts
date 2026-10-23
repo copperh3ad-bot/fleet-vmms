@@ -254,7 +254,7 @@ describe("challans", () => {
     expect(rows.find((r) => r.id === c1)!.driver_name).toBe("Driver One");
     expect(rows.find((r) => r.id === c2)!.driver_name).toBe("Driver Two");
     await cs.setChallanStatus(d, mgr(), c1, "paid");
-    expect((await cs.listChallans(d, mgr(), { status: "paid" })).find((r) => r.id === c1)!.paid_on).toBe(day(0));
+    expect((await cs.listChallans(d, mgr(), { status: "paid" })).find((r) => r.id === c1)!.paid_on).toBe(await raw(async (q) => (await q.query<{ d: string }>("select current_date::text as d")).rows[0].d));   // the database's own today, whatever its time zone
     await cs.setChallanStatus(d, mgr(), c1, "disputed");
     expect((await cs.listChallans(d, mgr())).find((r) => r.id === c1)).toMatchObject({ status: "disputed", paid_on: null });
     await expect(cs.setChallanStatus(d, mgr(), c1, "bogus" as never)).rejects.toThrow(UserError);

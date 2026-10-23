@@ -51,6 +51,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
     { href: to("/vehicles"), label: "Vehicles", show: has("vehicle.read"), exclude: [to("/vehicles/new"), to("/vehicles/import")] },
     { href: to("/odometer"), label: "Odometer", show: has("odometer.review"), badge: counts.odometer },
     { href: to("/vendors"), label: "Vendors", show: has("vendor.manage") },
+    { href: to("/policy"), label: "Maintenance policy", show: has("policy.read") },
     { href: to("/budgets"), label: "Budgets", show: has("budget.manage", "report.view") },
     { href: to("/compliance"), label: "Compliance", show: has("compliance.manage", "report.view") },
     { href: to("/vendor"), label: "My work", show: has("quotation.submit") },
