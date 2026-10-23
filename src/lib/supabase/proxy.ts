@@ -15,8 +15,11 @@ export async function updateSession(request: NextRequest) {
       },
     },
   });
-  const { data } = await supabase.auth.getUser(); // verifies the token with Supabase, not just the cookie
-  const decision = guardDecision(request.nextUrl.pathname, !!data.user);
+  // Verifies the token's signature and expiry here, and renews it when it is close to running out, without a trip to
+  // Supabase on every request. This only decides who is sent to the sign-in page; every page and action that shows or
+  // changes data still asks Supabase who the person is (requireUser), so a revoked login stops there.
+  const { data } = await supabase.auth.getClaims();
+  const decision = guardDecision(request.nextUrl.pathname, !!data?.claims);
   if (decision.action === "redirect") {
     const url = request.nextUrl.clone();
     url.pathname = decision.to;

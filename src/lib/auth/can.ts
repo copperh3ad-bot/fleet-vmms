@@ -11,19 +11,28 @@ export class ForbiddenError extends Error {
 
 export type Membership = TenantContext & { tenantId: string; vehicleScope: "all" | "own"; /** for display only */ tenantName?: string; /** set by requireMembership: trial, paid, grace or locked */ billing?: Access };
 
-/**
- * Who is this user in this workspace? Null if not a member, disabled, or the tenant is not active. The organization is
- * found in the control plane; the role and status come from the organization's own database (ADR-014).
- */
-export async function resolveMembership(driver: Driver, userId: string, slug: string): Promise<Membership | null> {
+export type ActiveTenant = { id: string; schema: string; name: string };
+
+/** The active, fully set-up organization behind a web address, from the control plane. Null if there is none. */
+export async function findActiveTenant(driver: Driver, slug: string): Promise<ActiveTenant | null> {
   const t = await withPlatform(driver, async (q) =>
     (await q.query<{ id: string; schema_name: string; name: string }>(
       "select id, schema_name, name from public.tenants where slug = $1 and status = 'active' and provision_state = 'ready'", [slug])).rows[0]);
-  if (!t) return null;
-  const r = await withOrgPlatform(driver, t.schema_name, async (q) =>
+  return t ? { id: t.id, schema: t.schema_name, name: t.name } : null;
+}
+
+/** What this person is in that organization, read from the organization's own database (ADR-014). Null if not an active member. */
+export async function membershipIn(driver: Driver, t: ActiveTenant, userId: string): Promise<Membership | null> {
+  const r = await withOrgPlatform(driver, t.schema, async (q) =>
     (await q.query<{ role: string; vehicle_scope: "all" | "own" }>(
       "select role, vehicle_scope from public.tenant_memberships where tenant_id = $1 and user_id = $2 and status = 'active'", [t.id, userId])).rows[0]);
-  return r ? { tenantId: t.id, schema: t.schema_name, userId, role: r.role, vehicleScope: r.vehicle_scope, tenantName: t.name } : null;
+  return r ? { tenantId: t.id, schema: t.schema, userId, role: r.role, vehicleScope: r.vehicle_scope, tenantName: t.name } : null;
+}
+
+/** Who is this user in this workspace? Null if not a member, disabled, or the tenant is not active. */
+export async function resolveMembership(driver: Driver, userId: string, slug: string): Promise<Membership | null> {
+  const t = await findActiveTenant(driver, slug);
+  return t ? membershipIn(driver, t, userId) : null;
 }
 
 /** Permission check inside an open tenant transaction. */

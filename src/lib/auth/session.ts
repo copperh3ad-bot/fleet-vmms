@@ -1,18 +1,35 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getDriver } from "@/lib/db";
 import { loadAccess } from "@/lib/billing/state";
 import { isOperator } from "@/lib/billing/operator";
-import { resolveMembership, type Membership } from "./can";
+import { findActiveTenant, membershipIn, type Membership } from "./can";
+
+// A page, its layout and the actions it runs all ask "who is this" and "which workspace". cache() makes each of those
+// one lookup per request instead of one per caller; every request still checks for itself.
+const currentUser = cache(async () => {
+  await connection(); // per-request work (token check, DB) must not be prerendered
+  const supabase = await supabaseServer();
+  const { data } = await supabase.auth.getUser();       // asks Supabase, so a revoked or disabled login stops at once
+  return data.user;
+});
+const tenantBySlug = cache((slug: string) => findActiveTenant(getDriver(), slug));
+const accessOf = cache((tenantId: string) => loadAccess(getDriver(), tenantId));
+const membershipOf = cache(async (slug: string, userId: string) => {
+  const t = await tenantBySlug(slug);
+  if (!t) return { m: null, billing: null };
+  // The member's role (the organization's own database) and the billing state (control plane) do not depend on each other.
+  const [m, billing] = await Promise.all([membershipIn(getDriver(), t, userId), accessOf(t.id)]);
+  return { m, billing };
+});
 
 /** The signed-in user, verified with Supabase. Redirects to /login if there is none. */
 export async function requireUser() {
-  await connection(); // per-request work (token check, DB) must not be prerendered
-  const supabase = await supabaseServer();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) redirect("/login");
-  return data.user;
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  return user;
 }
 
 /**
@@ -23,10 +40,8 @@ export async function requireUser() {
  */
 export async function requireMembership(slug: string, opts: { allowLocked?: boolean } = {}): Promise<Membership> {
   const user = await requireUser();
-  const driver = getDriver();
-  const m = await resolveMembership(driver, user.id, slug);
-  if (!m) redirect("/");
-  const billing = await loadAccess(driver, m.tenantId);
+  const { m, billing } = await membershipOf(slug, user.id);
+  if (!m || !billing) redirect("/");
   if (!billing.full && !opts.allowLocked) redirect(`/w/${encodeURIComponent(slug)}/billing`);
   return { ...m, billing };
 }
