@@ -10,7 +10,7 @@ import { allowShared } from "@/lib/rate-limit";
 import { UserError } from "@/lib/master/service";
 import { advanceProvisioning, type ProvisionState } from "@/lib/orgs/provision";
 import { claimSignup, parseSignup, recordSignup } from "@/lib/orgs/signup";
-import { provisionDeps } from "@/lib/orgs/runtime";
+import { orgMode, provisionDeps } from "@/lib/orgs/runtime";
 import type { FormState } from "@/app/w/[slug]/actions-util";
 
 export type SetupProgress = { state: ProvisionState | "none"; slug?: string; error?: string };
@@ -22,7 +22,7 @@ export async function advanceSetupAction(): Promise<SetupProgress> {
   if (!user.email || !user.email_confirmed_at) return { state: "none", error: "Confirm your email address first, then come back to this page." };
   if (!(await allowShared(driver, `setup:${user.id}`, 90, 600))) return { state: "none", error: "Too many tries. Wait a few minutes and reload this page." };
   try {
-    const claimed = await claimSignup(driver, { id: user.id, email: user.email, emailConfirmed: true });
+    const claimed = await claimSignup(driver, { id: user.id, email: user.email, emailConfirmed: true }, { kind: orgMode() });
     if (!claimed) {
       const spaces = await listWorkspaces(driver, user.id);
       return spaces[0] ? { state: "ready", slug: spaces[0].slug } : { state: "none" };

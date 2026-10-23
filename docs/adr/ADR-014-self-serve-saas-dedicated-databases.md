@@ -52,3 +52,28 @@ Card payments, automatic invoices by email (no sending channel), per-organizatio
 - **Reminders about billing** go to the organization's administrators as in-app notices, once each (`billing_reminders`), from the same daily job as document reminders. There is no email channel yet.
 - **The operator** is anyone in `platform_admins` (made with `scripts/make-operator.mts`). Every operator action re-checks that inside its own transaction and writes their id into the audit log.
 - **Deleting a database** is possible only for an organization with no access, only with the typed phrase, only for organizations with their own database, and never automatic.
+
+## Amendment (2026-10-23, owner decision): shared by default, dedicated optional
+
+Moving every organization to its own Neon database, and Supabase to Singapore, needed new vendors, a data migration and a
+Supabase paid plan before launch, and made every page cross a region. The owner chose to leave Supabase where it was and
+to make the product work for many organizations at once on the one database.
+
+- **New organizations are a schema each in the control database** (`ORG_DB_MODE` unset or `shared`). Sign-up, the trial, the
+  lock, billing and the operator screen work exactly the same. Nothing beyond `DATABASE_URL` is needed, so sign-up is open
+  as soon as this is deployed.
+- **The dedicated-database mode stays in the code, tested and off** (`ORG_DB_MODE=dedicated` with `ORG_DB_PROVIDER`,
+  `NEON_API_KEY`, `ORG_DB_KEY`). It can be switched on later for a customer or a plan that needs physical separation. The
+  routing driver serves both kinds side by side, so an organization of either kind can coexist.
+- **What "one organization cannot see another's data" means now.** With a schema each, the separation is enforced by the
+  application, not by the database: every request is pinned to its own schema, and the few shared tables (memberships,
+  invitations, odometer links, subscriptions) are always filtered by organization. Two automatic checks guard this:
+  `tests/cross-org.test.ts` seeds two organizations and searches every screen's data for any trace of the other (and was
+  shown to fail when a filter is removed), and `tests/tenant-filters.test.ts` fails on any query on those shared tables
+  that names no organization, login or token. A database mistake or a missing filter could still show one organization's
+  rows to another; with a database each that could not happen. This is the trade for the shared setup.
+- **Latency.** The web app runs in Tokyo (Netlify `ap-northeast-1`), the same region as Supabase, instead of Ohio. Lookups
+  of who the user is and which workspace are done once per request, and the proxy checks the sign-in token's signature on
+  the server instead of calling Supabase every time.
+- **Rule 9 in CLAUDE.md** now says: an organization's data lives in its own schema by default, or its own database in
+  dedicated mode.

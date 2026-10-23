@@ -57,6 +57,8 @@ npx next build          # the site builds
 
 ### What the server needs, in addition to the three in DEPLOY.md
 
+Nothing more is needed for the default (shared) mode: sign-up works with the three variables in DEPLOY.md. The table below is only for the optional dedicated-database mode (`ORG_DB_MODE=dedicated`).
+
 | Name | What it is | Secret? |
 |---|---|---|
 | `ORG_DB_PROVIDER` | `neon` in production (`local` for development) | no |

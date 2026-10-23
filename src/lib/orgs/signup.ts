@@ -7,7 +7,7 @@ import type { Driver } from "@/lib/db/types";
 import { withPlatform } from "@/lib/db/tenant";
 import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
-import { insertOrganization, type NewOrganization } from "./provision";
+import { insertOrganization, type NewOrganization, type OrgKind } from "./provision";
 
 /** Shown with the terms the person accepted. Change it when the terms change. */
 export const TERMS_VERSION = "2026-10-23-draft";
@@ -71,9 +71,18 @@ export type Claimer = { id: string; email?: string | null; emailConfirmed: boole
  * second call returns the same organization. Refuses an unconfirmed address, and an organization that was started for
  * someone else. The organization row and the waiting row change in one transaction.
  */
-export function claimSignup(driver: Driver, user: Claimer): Promise<{ tenantId: string; schema: string } | null> {
+export async function claimSignup(driver: Driver, user: Claimer, opts: { kind?: OrgKind } = {}): Promise<{ tenantId: string; schema: string } | null> {
   if (!user.email || !user.emailConfirmed) throw new UserError("Confirm your email address first.");
-  const email = user.email;
+  // Two companies with the same name can sign up at the very same moment and both see the web address as free. The database
+  // lets only one win; the other is told so by a unique-key error, and simply tries again with a random ending.
+  for (let attempt = 0; ; attempt++) {
+    try { return await claimOnce(driver, user, opts, attempt > 0); }
+    catch (e) { if (attempt >= 4 || !(e instanceof Error && /tenants_slug_key/.test(e.message))) throw e; }
+  }
+}
+
+function claimOnce(driver: Driver, user: Claimer, opts: { kind?: OrgKind }, suffixed: boolean): Promise<{ tenantId: string; schema: string } | null> {
+  const email = user.email!;
   return withPlatform(driver, async (q) => {
     const s = (await q.query<SignupRow & { terms_version: string }>(
       "select id, email, org_name, contact_name, phone, fleet_size, status, tenant_id, terms_version from public.signups where lower(email) = lower($1) for update", [email])).rows[0];
@@ -85,8 +94,8 @@ export function claimSignup(driver: Driver, user: Claimer): Promise<{ tenantId: 
       if (t.provision_owner?.userId && t.provision_owner.userId !== user.id) throw new UserError("This sign-up belongs to a different login.");
       return { tenantId: t.id, schema: t.schema_name };
     }
-    const owner: NewOrganization = { name: s.org_name, slug: "", ownerUserId: user.id, ownerName: s.contact_name, ownerEmail: email, region: process.env.NEON_REGION };
-    let slug = slugFrom(s.org_name);
+    const owner: NewOrganization = { name: s.org_name, slug: "", ownerUserId: user.id, ownerName: s.contact_name, ownerEmail: email, kind: opts.kind ?? "dedicated", region: opts.kind === "shared" ? undefined : process.env.NEON_REGION };
+    let slug = suffixed ? `${slugFrom(s.org_name).slice(0, 34)}-${randomBytes(2).toString("hex")}` : slugFrom(s.org_name);
     for (let i = 0; ; i++) {
       const taken = (await q.query("select 1 from public.tenants where slug = $1", [slug])).rows.length > 0;
       if (!taken) break;

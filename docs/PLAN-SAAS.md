@@ -23,7 +23,7 @@ Each phase ends with passing tests (PGlite and local Postgres), a STATE.md entry
 - Runbook, load and failure tests, cost and quota notes, deployment to Netlify with the new settings.
 
 ## What the owner must supply
-- A Neon account and an API key (`NEON_API_KEY`), and the Neon region to use (`NEON_REGION`, default `aws-ap-southeast-1`).
+- (Only for the optional dedicated-database mode, not needed now) A Neon account and an API key (`NEON_API_KEY`), and the region to use (`NEON_REGION`).
 - Bank account details to show customers, the PKR per USD rate policy, and who confirms payments.
 - Terms of service and privacy policy text (placeholders are provided and must be replaced before launch).
 - A custom domain and a decision on Supabase captcha (Turnstile or hCaptcha) for the sign-up form.

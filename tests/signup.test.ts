@@ -64,7 +64,7 @@ describe("waiting rows", () => {
 describe("claiming after the email is confirmed", () => {
   it("does nothing for an unconfirmed address, or one with no sign-up", async () => {
     await recordSignup(control, parseSignup(form({ email: "unconfirmed@example.com" })));
-    expect(() => claimSignup(control, user(1, "unconfirmed@example.com", false))).toThrow(/Confirm your email/);
+    await expect(claimSignup(control, user(1, "unconfirmed@example.com", false))).rejects.toThrow(/Confirm your email/);
     expect(await claimSignup(control, user(2, "never.signed.up@example.com"))).toBeNull();
   });
 

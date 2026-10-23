@@ -14,7 +14,7 @@ Next.js (App Router, TS), Tailwind, Supabase (Auth, Postgres 16, Storage), serve
 6. **No secrets or infrastructure IDs in the repo.**
 7. **Pricing is decided (ADR-014): USD 149 per month per organization, 3-day trial.** The price lives in the `plans` table, never in code or the repository. No other prices, discounts or per-seat charges without the owner.
 8. Tenant migrations live in `db/tenant-template/NNNN_name.sql`, are idempotent, and run across all tenant schemas via `scripts/migrate-tenants.ts`.
-9. **An organization's data and memberships live in its own database** (ADR-014). The control plane holds only the registry, the login-to-organization index, token routes, sign-ups and billing. Connection strings are encrypted, never logged, never in the repository, never on a screen.
+9. **Each organization's data lives apart from every other's** (ADR-014): its own schema in the shared database by default, or its own database in dedicated mode. The control plane holds the registry, the login-to-organization index, token routes, sign-ups and billing. Every query on a table that holds several organizations' rows must name the organization (`tests/tenant-filters.test.ts` enforces it). Connection strings are encrypted, never logged, never in the repository, never on a screen.
 
 ## Process
 - Append to `STATE.md` at the end of each phase (append-only).

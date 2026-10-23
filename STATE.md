@@ -231,3 +231,10 @@
 - The owner's login is an operator (can open `/admin`).
 - Still needed to open sign-up: NEON_API_KEY on Netlify; Supabase Site URL and redirect list must include `/auth/callback`; bank details, seller details, PKR rate and support email on `/admin/settings`; real terms and privacy text.
 - Not tested end to end: a real sign-up (email confirmation through Supabase), the Neon API, the new screens in a browser, a first real payment.
+
+## 2026-10-23: Back to the shared database, many organizations at once (ADR-014 amended)
+- Owner decision: leave Supabase as it was and make the product work for many organizations at the same time. New sign-ups now get a schema each in the control database (`ORG_DB_MODE` unset = shared); the dedicated-database mode stays in the code, tested, off. Sign-up no longer needs Neon, so it is open.
+- Isolation, because it matters most: `tests/cross-org.test.ts` seeds two organizations (shared and dedicated variants) and searches every screen's data for a trace of the other; it was shown to fail when a filter was removed. `tests/tenant-filters.test.ts` fails on any query on a multi-organization table that names no organization. On a shared database this is enforced by the application, not the database (stated in the ADR).
+- Many at once: six sign-ups at the same moment with the same company name each got their own schema and web address.
+- Latency: web app region moved Ohio -> Tokyo (next to Supabase); one lookup per request; token checked on the server. The Singapore Supabase project was created and then paused (not deleted); `.env.sg` and the cutover script are removed.
+- Netlify: ORG_DB_PROVIDER and NEON_REGION removed. ORG_DB_KEY kept (only used in dedicated mode).
