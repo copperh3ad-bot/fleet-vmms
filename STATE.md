@@ -242,3 +242,7 @@
 ## 2026-10-24: company maintenance policy
 - Each company can upload its own vehicle maintenance policy (PDF or photo, up to 4 MB) at /w/<slug>/policy. Dated versions; newest is current, older kept. Tenant migration 0017 (table maintenance_policies, attachment kind, permissions policy.manage for admin and fleet manager, policy.read for all but workshops). Stored in the company own folder; tests/maintenance-policy.test.ts includes a two-company leak check.
 - Fixed a time-zone flake in tests/compliance.test.ts (compared the database date with a UTC date).
+
+## 2026-10-24: policy rules each company tunes
+- Four settings on the Maintenance policy page, all off at 0 (tenant migration 0018, permission policy.manage): replacement age (new flag replacement_due on vehicles), accidents covered per driver plus months between (cover shown on accident list and detail, src/lib/compliance/cover.ts), driver share percent of repairs (excludes routine service, wear items, accident damage).
+- Not built yet: inspections twice a year with ratings, one-time fit-out cap, entitlement by designation, replacement after promotion. Need new tables or designations; see chat.

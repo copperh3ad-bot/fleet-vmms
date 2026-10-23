@@ -138,7 +138,7 @@ export function copyBudgetsForward(driver: Driver, m: Membership, fromYear: numb
 export type SettingView = SettingDef & { value: string; editable: boolean };
 
 export function getSettings(driver: Driver, m: Membership): Promise<SettingView[]> {
-  return authorizedAny(driver, m, [...SETTING_PERMISSIONS, "report.view"], async (q, held) => {
+  return authorizedAny(driver, m, [...SETTING_PERMISSIONS, "report.view", "policy.read"], async (q, held) => {
     const rows = (await q.query<{ key: string; value: string }>("select key, value from settings")).rows;
     const byKey = new Map(rows.map((r) => [r.key, r.value]));
     return SETTINGS.map((s) => ({ ...s, value: byKey.get(s.key) ?? "", editable: held.has(s.permission) }));

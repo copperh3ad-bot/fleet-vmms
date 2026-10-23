@@ -26,7 +26,7 @@ export type Board = {
 
 const FLAG_TEXT: Record<string, { text: string; tone: "bad" | "warn" }> = {
   over_budget: { text: "Over budget", tone: "bad" }, near_budget: { text: "Near budget limit", tone: "warn" },
-  repeat_repair: { text: "Repeat repair", tone: "warn" }, too_many_jobs: { text: "Many jobs", tone: "warn" }, cost_vs_peers: { text: "Costly vs similar vehicles", tone: "warn" },
+  repeat_repair: { text: "Repeat repair", tone: "warn" }, too_many_jobs: { text: "Many jobs", tone: "warn" }, cost_vs_peers: { text: "Costly vs similar vehicles", tone: "warn" }, replacement_due: { text: "Due for replacement", tone: "warn" },
 };
 
 export function getBoard(driver: Driver, m: Membership, opts: { q?: string; filter?: string; page?: number } = {}): Promise<Board> {
@@ -78,7 +78,7 @@ export function getBoard(driver: Driver, m: Membership, opts: { q?: string; filt
               coalesce(bn.spent, (select coalesce(sum(c.cost), 0) from v_vehicle_job_cost c where c.vehicle_id = b.id and c.created_at >= date_trunc('year', now())), 0)::text as spent,
               bn.budget::text as budget, bn.pct_used::text as pct,
               (select count(*)::int from v_vehicle_job_cost c where c.vehicle_id = b.id and c.created_at > now() - interval '90 days') as jobs_90d,
-              (select array_agg(f.flag order by f.flag) from v_vehicle_flags f where f.vehicle_id = b.id and f.flag in ('over_budget','near_budget','repeat_repair','too_many_jobs','cost_vs_peers')) as flags,
+              (select array_agg(f.flag order by f.flag) from v_vehicle_flags f where f.vehicle_id = b.id and f.flag in ('over_budget','near_budget','repeat_repair','too_many_jobs','cost_vs_peers','replacement_due')) as flags,
               (select json_agg(json_build_object('t', d.doc_type, 'd', d.expires_on::text, 'left', d.days_left) order by d.expires_on)
                  from v_documents_status d where d.vehicle_id = b.id and d.days_left <= 30) as docs
          from (select * from base ${filtered} order by registration_no limit ${PAGE_SIZE} offset ${(cur - 1) * PAGE_SIZE}) b

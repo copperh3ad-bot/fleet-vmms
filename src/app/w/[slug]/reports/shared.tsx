@@ -5,7 +5,7 @@ export const money = (n: number | string) => Number(n).toLocaleString("en-US", {
 
 export const FLAG_LABEL: Record<string, string> = {
   too_many_jobs: "Too many jobs", repeat_repair: "Repeat repair", cost_vs_peers: "Costs more than similar vehicles",
-  over_budget: "Over budget", near_budget: "Near budget limit", document_expired: "Document expired", document_due: "Document due",
+  over_budget: "Over budget", near_budget: "Near budget limit", document_expired: "Document expired", document_due: "Document due", replacement_due: "Due for replacement",
 };
 
 export function FlagList({ slug, flags, empty }: { slug: string; flags: Flag[]; empty: string }) {

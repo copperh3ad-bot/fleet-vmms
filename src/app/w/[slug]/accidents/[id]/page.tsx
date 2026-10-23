@@ -35,6 +35,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
           <div><dt className="text-xs font-medium text-zinc-600">Where</dt><dd>{a.location ?? "—"}</dd></div>
           <div><dt className="text-xs font-medium text-zinc-600">Driver</dt><dd>{a.driver_name ?? "Not known"}</dd></div>
           <div><dt className="text-xs font-medium text-zinc-600">At fault</dt><dd>{a.fault ? FAULT[a.fault] : "Not known yet"}</dd></div>
+          {a.cover && <div><dt className="text-xs font-medium text-zinc-600">Company policy</dt><dd>{a.cover.cover === "covered" ? `Covered by the company: driver's accident ${a.cover.nth} of ${a.cover.free} allowed` : `The driver bears the depreciation (accident ${a.cover.nth} for this driver)`}</dd></div>}
           <div><dt className="text-xs font-medium text-zinc-600">Insurance claim</dt><dd>{a.insurance_claim ? a.claim_ref ?? "Yes, no reference yet" : "No"}</dd></div>
           <div><dt className="text-xs font-medium text-zinc-600">Job card</dt><dd>{a.job_no ? <a className="text-sky-800 hover:underline" href={`/w/${slug}/job-cards/${a.job_card_id}`}>{a.job_no}</a> : "—"}</dd></div>
         </dl>

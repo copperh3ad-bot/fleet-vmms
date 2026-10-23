@@ -4,6 +4,9 @@ import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { PageHeader, Panel, Pill } from "@/components/ui";
 import { listPolicies } from "@/lib/master/policy";
+import { getPolicyImpact } from "@/lib/master/policy-rules";
+import { getSettings } from "@/lib/control/service";
+import { SettingsForm } from "../settings/forms";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { PolicyRemove, PolicyUpload } from "./forms";
 
@@ -17,7 +20,9 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const m = await requireMembership(slug);
   const driver = getDriver();
-  const [perms, versions] = await Promise.all([permissionsOf(driver, m), supabaseBlobStore().then((s) => listPolicies(driver, s, m))]);
+  const [perms, versions, settings, impact] = await Promise.all([
+    permissionsOf(driver, m), supabaseBlobStore().then((s) => listPolicies(driver, s, m)), getSettings(driver, m), getPolicyImpact(driver, m)]);
+  const rules = settings.filter((s) => s.group === "policy");
   const manage = perms.has("policy.manage");
   const [current, ...earlier] = versions;
 
@@ -38,6 +43,27 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
                 </p>
               </div>
             ) : <p className="text-sm text-zinc-500">{manage ? "No policy uploaded yet. Add your company's policy on the right." : "Your company has not uploaded a maintenance policy yet."}</p>}
+          </Panel>
+
+          <Panel title="Rules the system applies" sub="Each rule is off at 0. Set the numbers your own policy uses.">
+            <SettingsForm slug={slug} group="policy" items={rules.map((r) => ({ key: r.key, label: r.label, hint: r.hint, unit: r.unit, value: r.value, editable: r.editable }))} />
+            <p className="mt-3 text-xs text-zinc-500">Service intervals, such as an oil change every 3 months or 5,000 km, are set under Service rules.</p>
+          </Panel>
+
+          <Panel title="What the rules mean right now">
+            <ul className="space-y-2 text-sm">
+              <li>{impact.replaceYears > 0
+                ? (impact.replaceDue.length ? <>Replacement after {impact.replaceYears} years: {impact.replaceDue.length} vehicle{impact.replaceDue.length === 1 ? "" : "s"} due ({impact.replaceDue.map((v, i) => <span key={v.vehicle_id}>{i > 0 && ", "}<a className="text-sky-800 underline" href={`/w/${slug}/vehicles/${v.vehicle_id}`}>{v.registration_no}</a></span>)}).</> : `Replacement after ${impact.replaceYears} years: no vehicle is due.`)
+                : "Replacement age: not set."}</li>
+              <li>{impact.freeAccidents > 0 ? `Accidents: the company covers a driver's first ${impact.freeAccidents}. ${impact.driverPaysLast12Months} in the last 12 months fall on the driver.` : "Accident cover: not set."}</li>
+              <li>{impact.sharePct > 0 ? `Repairs: the driver bears ${impact.sharePct}% of repairs. Routine service, wear items such as brake pads and tyres, and accident repairs are not counted.` : "Driver's share of repairs: not set."}</li>
+            </ul>
+            {impact.shares && impact.shares.length > 0 && (
+              <div className="mt-3 overflow-x-auto"><table className="w-full text-left text-sm">
+                <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="py-2">Driver</th><th>Repairs, 12 months</th><th>Cost</th><th>Driver&apos;s share</th></tr></thead>
+                <tbody>{impact.shares.map((r) => (<tr key={r.driver} className="border-t border-zinc-100"><td className="py-2">{r.driver}</td><td>{r.jobs}</td><td className="font-mono">{r.cost.toLocaleString("en-US")}</td><td className="font-mono">{r.share.toLocaleString("en-US")}</td></tr>))}</tbody>
+              </table></div>
+            )}
           </Panel>
 
           {earlier.length > 0 && (

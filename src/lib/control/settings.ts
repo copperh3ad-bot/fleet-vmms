@@ -1,6 +1,6 @@
 // The settings the screens may change. The database accepts only these keys and valid values (settings_guard);
 // this table says who may change which one and how to describe it.
-export type SettingGroup = "service" | "alerts" | "general";
+export type SettingGroup = "service" | "alerts" | "general" | "policy";
 
 export type SettingDef = { key: string; label: string; hint: string; group: SettingGroup; permission: string; kind: "number" | "list"; unit?: string; min?: number; max?: number };
 
@@ -16,6 +16,10 @@ export const SETTINGS: SettingDef[] = [
   { key: "odometer_due_day", label: "Odometer due day", hint: "Day of the month readings are due.", group: "general", permission: "admin.settings", kind: "number", min: 1, max: 31 },
   { key: "odometer_max_km_per_day", label: "Most km a vehicle can do in a day", hint: "A reading implying more than this is flagged for review.", group: "general", permission: "admin.settings", kind: "number", unit: "km", min: 1, max: 5000 },
   { key: "odometer_stale_days", label: "Odometer is old after", hint: "Distance-based service dates are marked unreliable when the last reading is older than this.", group: "general", permission: "admin.settings", kind: "number", unit: "days", min: 1, max: 365 },
+  { key: "policy_replace_years", label: "Replace a vehicle after", hint: "Flag a vehicle as due for replacement when its model year is this many years back or more. 0 switches the rule off.", group: "policy", permission: "policy.manage", kind: "number", unit: "years", min: 0, max: 40 },
+  { key: "policy_free_accidents", label: "Accidents the company absorbs per driver", hint: "A driver's first accidents up to this number are covered by the company. After that the driver bears the depreciation. 0 switches the rule off.", group: "policy", permission: "policy.manage", kind: "number", unit: "accidents", min: 0, max: 20 },
+  { key: "policy_accident_gap_months", label: "Months between covered accidents", hint: "An accident is covered only if at least this many months passed since the driver's previous accident.", group: "policy", permission: "policy.manage", kind: "number", unit: "months", min: 0, max: 120 },
+  { key: "policy_driver_share_pct", label: "Driver's share of repairs", hint: "Percent of a repair the driver bears. Routine service, wear items (brake pads, tyres) and accident repairs are not counted. 0 switches the rule off.", group: "policy", permission: "policy.manage", kind: "number", unit: "%", min: 0, max: 100 },
 ];
 
 export const SETTING_PERMISSIONS = [...new Set(SETTINGS.map((s) => s.permission))];

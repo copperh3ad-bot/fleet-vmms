@@ -58,7 +58,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
                     <td className="py-3">{a.driver_name ?? "—"}</td>
                     <td className="max-w-xs py-3">{a.description.length > 90 ? `${a.description.slice(0, 90)}…` : a.description}{a.job_no && <a className="ml-2 text-xs text-sky-800 underline" href={`/w/${slug}/job-cards/${a.job_card_id}`}>{a.job_no}</a>}</td>
                     <td className="py-3">{SEVERITY[a.severity] ?? a.severity}</td>
-                    <td className="px-5 py-3"><Pill tone={outcome(a).tone}>{outcome(a).label}</Pill></td>
+                    <td className="px-5 py-3"><Pill tone={outcome(a).tone}>{outcome(a).label}</Pill>{a.cover && <span className="mt-1 block"><Pill tone={a.cover.cover === "covered" ? "ok" : "bad"}>{a.cover.cover === "covered" ? `Company covers (${a.cover.nth} of ${a.cover.free})` : "Driver bears depreciation"}</Pill></span>}</td>
                   </tr>))}</tbody>
               </table></div>
             )}

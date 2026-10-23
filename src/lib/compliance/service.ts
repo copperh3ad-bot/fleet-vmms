@@ -1,6 +1,7 @@
 // Compliance: documents (with renewals), accidents, challans, and their files. Every function checks the permission
 // first (CLAUDE.md rule 3). Reminders are in reminders.ts and run from a script, not from the web.
-import type { Driver } from "@/lib/db/types";
+import type { Driver, Queryable } from "@/lib/db/types";
+import { accidentCover, type Cover } from "./cover";
 import { authorized, authorizedAny, type Membership } from "@/lib/auth/can";
 import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
@@ -104,26 +105,40 @@ export type AccidentRow = {
   insurance_claim: boolean; claim_ref: string | null; driver_name: string | null; job_card_id: string | null; job_no: string | null; description: string;
   /** worked out in the database so pages need no clock */
   last_12_months: boolean; this_year: boolean;
+  /** the company's accident rule (policy settings); null when the rule is off or the accident has no driver */
+  cover: (Cover & { free: number }) | null;
 };
+
+/** Adds the company's accident rule to rows already read. Reads the driver's whole accident history, not just these rows. */
+async function withCover(q: Queryable, rows: Omit<AccidentRow, "cover">[]): Promise<AccidentRow[]> {
+  const set = new Map((await q.query<{ key: string; value: string }>("select key, value from settings where key in ('policy_free_accidents','policy_accident_gap_months')")).rows.map((r) => [r.key, Number(r.value)]));
+  const free = set.get("policy_free_accidents") ?? 0;
+  if (!(free > 0) || rows.length === 0) return rows.map((r) => ({ ...r, cover: null }));
+  const history = (await q.query<{ id: string; employee_id: string | null; occurred_at: string }>("select id, employee_id, occurred_at::text from accidents where employee_id is not null")).rows;
+  const cover = accidentCover(history, free, set.get("policy_accident_gap_months") ?? 12);
+  return rows.map((r) => ({ ...r, cover: cover.has(r.id) ? { ...cover.get(r.id)!, free } : null }));
+}
 
 export function listAccidents(driver: Driver, m: Membership): Promise<AccidentRow[]> {
   return authorizedAny(driver, m, READ, async (q) =>
-    (await q.query<AccidentRow>(
+    withCover(q, (await q.query<Omit<AccidentRow, "cover">>(
       `select a.id, a.vehicle_id, v.registration_no, a.occurred_at::text, a.location, a.severity, a.fault, a.insurance_claim, a.claim_ref, e.full_name as driver_name,
               a.job_card_id, jc.job_no, a.description,
               (a.occurred_at >= now() - interval '1 year') as last_12_months, (extract(year from a.occurred_at) = extract(year from now())) as this_year
          from accidents a join vehicles v on v.id = a.vehicle_id left join employees e on e.id = a.employee_id left join job_cards jc on jc.id = a.job_card_id
-        order by a.occurred_at desc limit 300`)).rows);
+        order by a.occurred_at desc limit 300`)).rows));
 }
 
 export function getAccident(driver: Driver, m: Membership, id: string): Promise<AccidentRow | null> {
-  return authorizedAny(driver, m, READ, async (q) =>
-    (await q.query<AccidentRow>(
+  return authorizedAny(driver, m, READ, async (q) => {
+    const row = (await q.query<Omit<AccidentRow, "cover">>(
       `select a.id, a.vehicle_id, v.registration_no, a.occurred_at::text, a.location, a.severity, a.fault, a.insurance_claim, a.claim_ref, e.full_name as driver_name,
               a.job_card_id, jc.job_no, a.description,
               (a.occurred_at >= now() - interval '1 year') as last_12_months, (extract(year from a.occurred_at) = extract(year from now())) as this_year
          from accidents a join vehicles v on v.id = a.vehicle_id left join employees e on e.id = a.employee_id left join job_cards jc on jc.id = a.job_card_id
-        where a.id = $1`, [id])).rows[0] ?? null);
+        where a.id = $1`, [id])).rows[0];
+    return row ? (await withCover(q, [row]))[0] : null;
+  });
 }
 
 /** The driver defaults to whoever held the vehicle at that time (database trigger). */
