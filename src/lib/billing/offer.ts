@@ -1,0 +1,43 @@
+// What is on sale, read from the plan in the database (CLAUDE.md rule 7: a price lives in `plans`, never in code).
+import type { Driver } from "@/lib/db/types";
+import { withPlatform } from "@/lib/db/tenant";
+
+export type Offer = {
+  planKey: string; priceCents: number; currency: string; trialDays: number;
+  /** "$149" */ amount: string;
+  /** "per month" */ per: string;
+  /** Plain statements for the price box. */ points: string[];
+};
+
+const SYMBOL: Record<string, string> = { USD: "$", PKR: "Rs ", EUR: "€", GBP: "£" };
+
+export function formatPrice(cents: number, currency: string): string {
+  const whole = cents % 100 === 0;
+  const n = (cents / 100).toLocaleString("en-US", { minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 });
+  return SYMBOL[currency] ? `${SYMBOL[currency]}${n}` : `${n} ${currency}`;
+}
+
+export function offerFrom(plan: { key: string; limits: Record<string, number | undefined>; price_cents: number; currency: string; trial_days: number }): Offer {
+  const l = plan.limits ?? {};
+  return {
+    planKey: plan.key, priceCents: plan.price_cents, currency: plan.currency, trialDays: plan.trial_days,
+    amount: formatPrice(plan.price_cents, plan.currency), per: "per month, per company",
+    points: [
+      "Every feature included",
+      l.max_vehicles ? `Up to ${l.max_vehicles} vehicles` : "Any number of vehicles",
+      l.max_users ? `Up to ${l.max_users} users` : "Any number of users",
+      "Your own private database",
+      plan.trial_days > 0 ? `${plan.trial_days}-day free trial, no card needed` : "No trial",
+      "Pay by bank transfer, cancel any time",
+    ],
+  };
+}
+
+/** The standard plan, or null if it has no price (then sign-up is closed, not free). */
+export function loadOffer(driver: Driver): Promise<Offer | null> {
+  return withPlatform(driver, async (q) => {
+    const p = (await q.query<{ key: string; limits: Record<string, number>; price_cents: number | null; currency: string; trial_days: number }>(
+      "select key, limits, price_cents, currency, trial_days from public.plans where key = 'standard'")).rows[0];
+    return p && p.price_cents !== null ? offerFrom({ ...p, price_cents: p.price_cents }) : null;
+  });
+}

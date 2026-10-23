@@ -9,8 +9,8 @@ export type FormState = { error?: string; fields?: Record<string, string>; ok?: 
  * not trusted), then the work runs, and known problems come back as a message instead of a crash.
  * redirect() must be called by the caller after this returns, because it works by throwing.
  */
-export async function runAction(slug: string, fn: (m: Membership) => Promise<string | void>): Promise<FormState> {
-  const m = await requireMembership(slug);
+export async function runAction(slug: string, fn: (m: Membership) => Promise<string | void>, opts: { allowLocked?: boolean } = {}): Promise<FormState> {
+  const m = await requireMembership(slug, opts);
   try {
     return { ok: (await fn(m)) || "Saved" };
   } catch (e) {

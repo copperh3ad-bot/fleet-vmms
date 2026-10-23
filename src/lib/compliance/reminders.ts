@@ -3,6 +3,7 @@
 // notifications, so a reminder is never sent twice and never lost.
 import type { Driver } from "@/lib/db/types";
 import { withPlatform, withTenant } from "@/lib/db/tenant";
+import { loadAccess } from "@/lib/billing/state";
 import { notify, usersWithPermission } from "@/lib/notify";
 import { DOC_LABEL } from "./schemas";
 
@@ -17,6 +18,7 @@ export async function runDocumentReminders(driver: Driver, today?: string): Prom
   const out: ReminderRun[] = [];
   for (const t of tenants) {
     try {
+      if (!(await loadAccess(driver, t.id)).full) continue;      // a locked organization gets no reminders until it is paid up
       const sent = await withTenant(driver, { schema: t.schema_name, userId: SYSTEM_USER, role: "system" }, async (q) => {
         const due = (await q.query<{ entity_type: string; entity_id: string; vehicle_id: string; doc_type: string; reference: string | null; expires_on: string; days_left: number; days_before: number; plate: string; holder_user: string | null }>(
           `select r.entity_type, r.entity_id, r.vehicle_id, r.doc_type, r.reference, r.expires_on::text, r.days_left, r.days_before,

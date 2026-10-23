@@ -6,7 +6,7 @@
 //
 // The organization's database gets a complete copy of the system for one customer: the platform tables from db/public
 // (with its own one-row `tenants`, memberships, invitations, odometer links, plan) and its tenant_<id> schema.
-import type { Driver } from "@/lib/db/types";
+import type { Driver, Queryable } from "@/lib/db/types";
 import { migratePlatform, migrateTenantSchema, type Migration } from "@/lib/db/migrate";
 import type { SecretBox } from "@/lib/crypto/secretbox";
 import type { DbProvider } from "./db-provider";
@@ -38,17 +38,20 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 type Row = { id: string; name: string; slug: string; schema_name: string; db_ref: string | null; db_url_enc: string | null; db_region: string | null; provision_state: ProvisionState; provision_owner: { userId: string; name: string; email: string } | null };
 
+/** Registers the organization inside a transaction the caller already has open. Nothing is created at the provider yet. */
+export async function insertOrganization(q: Queryable, input: NewOrganization): Promise<{ tenantId: string; schema: string }> {
+  await q.query("set local search_path = public");
+  const t = (await q.query<{ id: string; schema_name: string }>(
+    `insert into public.tenants(name, slug, schema_name, db_kind, provision_state, db_region, provision_owner)
+     values ($1, $2, 'tenant_' || replace(gen_random_uuid()::text, '-', ''), 'dedicated', 'creating_database', $3, $4::jsonb)
+     returning id, schema_name`,
+    [input.name, input.slug, input.region ?? null, JSON.stringify({ userId: input.ownerUserId, name: input.ownerName, email: input.ownerEmail })])).rows[0];
+  return { tenantId: t.id, schema: t.schema_name };
+}
+
 /** Registers the organization. Nothing is created at the provider yet; advanceProvisioning does that. */
-export async function startOrganization(d: ProvisionDeps, input: NewOrganization): Promise<{ tenantId: string; schema: string }> {
-  return d.control.transaction(async (q) => {
-    await q.query("set local search_path = public");
-    const t = (await q.query<{ id: string; schema_name: string }>(
-      `insert into public.tenants(name, slug, schema_name, db_kind, provision_state, db_region, provision_owner)
-       values ($1, $2, 'tenant_' || replace(gen_random_uuid()::text, '-', ''), 'dedicated', 'creating_database', $3, $4::jsonb)
-       returning id, schema_name`,
-      [input.name, input.slug, input.region ?? null, JSON.stringify({ userId: input.ownerUserId, name: input.ownerName, email: input.ownerEmail })])).rows[0];
-    return { tenantId: t.id, schema: t.schema_name };
-  });
+export async function startOrganization(d: Pick<ProvisionDeps, "control">, input: NewOrganization): Promise<{ tenantId: string; schema: string }> {
+  return d.control.transaction((q) => insertOrganization(q, input));
 }
 
 async function load(d: ProvisionDeps, tenantId: string): Promise<Row> {
@@ -128,7 +131,16 @@ async function step(d: ProvisionDeps, row: Row): Promise<void> {
       await d.control.transaction(async (q) => {
         await q.query("set local search_path = public");
         await q.query("insert into public.user_orgs(user_id, tenant_id) values ($1, $2) on conflict do nothing", [owner.userId, row.id]);
+        // The trial starts when the organization is ready, not when the form was filled in. The price is the plan's, copied.
+        const plan = await q.query(
+          `insert into public.org_billing(tenant_id, plan_key, status, trial_ends_at, price_cents, currency)
+           select $1, p.key, 'trialing', now() + (p.trial_days || ' days')::interval, p.price_cents, p.currency from public.plans p
+            where p.key = 'standard' and p.price_cents is not null
+           on conflict (tenant_id) do nothing returning tenant_id`, [row.id]);
+        if (plan.rows.length === 0 && (await q.query("select 1 from public.org_billing where tenant_id = $1", [row.id])).rows.length === 0)
+          throw new Error("The standard plan has no price set, so a trial cannot start.");
         await q.query("update public.tenants set provision_state = 'ready', provision_error = null, provision_owner = null, provisioned_at = now() where id = $1", [row.id]);
+        await q.query("update public.signups set status = 'done', updated_at = now() where tenant_id = $1", [row.id]);   // that address has had its trial
       });
       return;
     }

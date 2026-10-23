@@ -6,7 +6,7 @@ import { z } from "zod";
 import type { Driver } from "@/lib/db/types";
 import { authorized, authorizedAny, type Membership } from "@/lib/auth/can";
 import { withOrgPlatform, withTenant } from "@/lib/db/tenant";
-import { findTenantByInvitation, findTenantByToken, indexInvitation, rememberMember, routeToken, tenantsInvitingEmail, unindexInvitation, unrouteToken } from "@/lib/orgs";
+import { findTenantByInvitation, findTenantByToken, forgetMember, indexInvitation, rememberMember, routeToken, tenantsInvitingEmail, unindexInvitation, unrouteToken } from "@/lib/orgs";
 import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
 
@@ -113,6 +113,10 @@ export function changeMember(driver: Driver, m: Membership, userId: string, chan
         "update public.tenant_memberships set role = coalesce($3, role), vehicle_scope = coalesce($4, vehicle_scope), status = coalesce($5, status) where tenant_id = $1 and user_id = $2",
         [m.tenantId, userId, c.role ?? null, scope, c.status ?? null]);
     } catch (e) { friendly(e); }
+  }).then(async () => {
+    // A disabled person also loses the organization's files (the file bucket asks the control plane's index); an enabled one gets them back.
+    if (c.status === "disabled") await forgetMember(driver, userId, m.tenantId);
+    else if (c.status === "active") await rememberMember(driver, userId, m.tenantId);
   });
 }
 

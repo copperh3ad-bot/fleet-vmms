@@ -6,6 +6,7 @@ import { unreadCount } from "@/lib/jobcards/service";
 import { getNavCounts } from "@/lib/dashboard/service";
 import { signOut } from "@/app/login/actions";
 import { NavLink } from "@/components/shell/nav-link";
+import { AccessBanner } from "@/components/shell/access-banner";
 
 export default function WorkspaceLayout({ children, params }: LayoutProps<"/w/[slug]">) {
   return (
@@ -19,8 +20,24 @@ type Item = { href: string; label: string; show: boolean; badge?: number; exact?
 
 async function Shell({ params, children }: { params: Promise<{ slug: string }>; children: ReactNode }) {
   const { slug } = await params;
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { allowLocked: true });   // the billing page lives inside this layout; every other page stops a locked organization itself
   const driver = getDriver();
+  if (m.billing && !m.billing.full) {
+    const who = await whoAmI(driver, m);
+    return (
+      <div className="flex flex-1 flex-col">
+        <header className="bg-side text-white">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-1 px-4 py-3 text-sm">
+            <span className="font-semibold">Fleet VMMS <span className="font-normal text-[#9FB2BE]">· {m.tenantName ?? slug}</span></span>
+            <nav className="flex gap-1" aria-label="Locked workspace"><NavLink href={`/w/${slug}/billing`} label="Billing" /></nav>
+            <span className="ml-auto text-[#9FB2BE]">{who.name}</span>
+            <form action={signOut}><button type="submit" className="underline">Sign out</button></form>
+          </div>
+        </header>
+        <div className="flex-1">{children}</div>
+      </div>
+    );
+  }
   const [perms, me, unread, counts] = await Promise.all([permissionsOf(driver, m), whoAmI(driver, m), unreadCount(driver, m), getNavCounts(driver, m)]);
   const to = (p: string) => `/w/${slug}${p}`;
   const has = (...p: string[]) => p.some((x) => perms.has(x));
@@ -72,7 +89,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
             <form action={signOut}><button type="submit" className="underline">Sign out</button></form>
           </div>
         </header>
-        <div className="flex-1">{children}</div>
+        <div className="flex-1"><AccessBanner slug={slug} access={m.billing} />{children}</div>
       </div>
     );
   }
@@ -116,7 +133,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
           {foot}
         </div>
       </aside>
-      <div className="min-w-0 flex-1">{children}</div>
+      <div className="min-w-0 flex-1"><AccessBanner slug={slug} access={m.billing} />{children}</div>
     </div>
   );
 }

@@ -9,7 +9,9 @@
     "lint": "eslint",
     "test": "vitest run",
     "check:sql": "tsx scripts/check-sql.mts",
-    "reminders": "tsx scripts/send-reminders.mts"
+    "reminders": "tsx scripts/send-reminders.mts",
+    "prebuild": "tsx scripts/embed-migrations.mts",
+    "embed:migrations": "tsx scripts/embed-migrations.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

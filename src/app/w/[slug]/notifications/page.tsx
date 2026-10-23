@@ -44,9 +44,15 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
               <li key={n.id} className={`flex flex-wrap items-baseline gap-x-2 px-5 py-3 ${n.read_at ? "text-zinc-600" : "font-medium"}`}>
                 {!n.read_at && <span aria-label="Unread" className="mr-1 inline-block h-2 w-2 rounded-full bg-brand" />}
                 <span>
-                  {n.payload.job_card_id
-                    ? <a className="text-sky-800 hover:underline" href={vendorKinds.has(n.kind) ? `/w/${slug}/vendor` : `/w/${slug}/job-cards/${n.payload.job_card_id}`}>{n.payload.job_no}</a>
-                    : "Job card"} {TEXT[n.kind] ?? n.kind}
+                  {n.kind.startsWith("billing.") ? (
+                    <>{n.payload.text ?? "A billing notice."} <a className="text-sky-800 hover:underline" href={`/w/${slug}/billing`}>Billing</a></>
+                  ) : (
+                    <>
+                      {n.payload.job_card_id
+                        ? <a className="text-sky-800 hover:underline" href={vendorKinds.has(n.kind) ? `/w/${slug}/vendor` : `/w/${slug}/job-cards/${n.payload.job_card_id}`}>{n.payload.job_no}</a>
+                        : "Job card"} {TEXT[n.kind] ?? n.kind}
+                    </>
+                  )}
                 </span>
                 <span className="ml-auto text-xs font-normal text-zinc-500">{new Date(n.created_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })} UTC</span>
               </li>

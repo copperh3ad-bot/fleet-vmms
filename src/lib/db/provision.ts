@@ -22,6 +22,8 @@ export async function provisionTenant(driver: Driver, input: ProvisionInput, mig
       `insert into public.tenants(name, slug, schema_name) values ($1, $2, 'tenant_' || replace(gen_random_uuid()::text, '-', '')) returning id, schema_name`,
       [input.name, input.slug])).rows[0] as unknown as { id: string; schema_name: string };
     await migrateTenantSchema(q, t.schema_name, migrations, opts);
+    // An organization made by the operator's script is not on a trial: it is not billed until the operator says so.
+    await q.query("insert into public.org_billing(tenant_id, plan_key, status, price_cents, currency, comped) values ($1, 'legacy', 'active', 0, 'USD', true) on conflict do nothing", [t.id]);
     if (input.planKey) {
       await q.query(`insert into public.tenant_subscriptions(tenant_id, plan_id, status)
                      select $1, id, 'active' from public.plans where key = $2`, [t.id, input.planKey]);

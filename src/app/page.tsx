@@ -1,24 +1,36 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { requireUser } from "@/lib/auth/session";
+import { connection } from "next/server";
+import { supabaseServer } from "@/lib/supabase/server";
 import { getDriver } from "@/lib/db";
 import { listWorkspaces } from "@/lib/auth/can";
 import { postLoginDestination } from "@/lib/auth/routing";
 import { pendingInvitationsFor } from "@/lib/admin/service";
+import { pendingSignupFor } from "@/lib/orgs/signup";
+import { loadOffer } from "@/lib/billing/offer";
 import { signOut } from "./login/actions";
 import { AcceptButton } from "./accept-button";
+import { Landing } from "./landing";
 
 export default function Home() {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><HomeInner /></Suspense>;
 }
 
+/** Signed out: the landing page. Signed in: straight into your workspace, or a short list to choose from. */
 async function HomeInner() {
-  const user = await requireUser();
+  await connection();
+  const supabase = await supabaseServer();
+  const { data } = await supabase.auth.getUser();
   const driver = getDriver();
-  const [spaces, invites] = await Promise.all([
+  const user = data.user;
+  if (!user) return <Landing offer={await loadOffer(driver).catch(() => null)} />;
+
+  const [spaces, invites, waiting] = await Promise.all([
     listWorkspaces(driver, user.id),
     pendingInvitationsFor(driver, { email: user.email, emailConfirmed: !!user.email_confirmed_at }),
+    user.email && user.email_confirmed_at ? pendingSignupFor(driver, user.email) : Promise.resolve(null),
   ]);
+  if (waiting && spaces.length === 0) redirect("/setup");                 // they signed up and confirmed: build the workspace
   const dest = invites.length === 0 ? postLoginDestination(spaces) : null;   // a waiting invitation is shown before going straight in
   if (dest) redirect(dest);
   return (
@@ -37,12 +49,18 @@ async function HomeInner() {
         </section>
       )}
       <h1 className="text-xl font-semibold">{spaces.length ? "Choose a workspace" : "No workspace yet"}</h1>
-      {spaces.length === 0 && invites.length === 0 && <p className="text-sm text-zinc-600">You are signed in as {user.email}, but you have not been added to a workspace. Ask your administrator for an invitation.</p>}
+      {spaces.length === 0 && invites.length === 0 && (
+        <div className="space-y-3 text-sm text-zinc-600">
+          <p>You are signed in as {user.email}, but you have not been added to a workspace.</p>
+          <p>If your company already uses Fleet VMMS, ask your administrator for an invitation. To use it for your own company, <a className="font-medium text-brand underline" href="/setup">start a free trial</a>.</p>
+        </div>
+      )}
       <ul className="space-y-2">
         {spaces.map((s) => (
           <li key={s.slug}><a className="block rounded-md border border-zinc-200 p-3 hover:bg-zinc-50" href={`/w/${s.slug}`}>{s.name} <span className="text-xs text-zinc-500">{s.role}</span></a></li>
         ))}
       </ul>
+      {spaces.length > 0 && <p className="text-sm text-zinc-500">Need another workspace for a different company? <a className="underline" href="/setup">Start a free trial</a>.</p>}
       <form action={signOut}><button className="text-sm text-sky-800 underline" type="submit">Sign out</button></form>
     </main>
   );

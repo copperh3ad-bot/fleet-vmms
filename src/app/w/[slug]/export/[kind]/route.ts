@@ -9,7 +9,7 @@ import { exportCsv } from "@/lib/exports/service";
 
 export async function GET(req: NextRequest, ctx: RouteContext<"/w/[slug]/export/[kind]">) {
   const { slug, kind } = await ctx.params;
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { allowLocked: true });   // your data stays yours when the workspace is locked
   const sp = req.nextUrl.searchParams;
   try {
     const r = await exportCsv(getDriver(), m, kind, { q: sp.get("q") ?? undefined, status: sp.get("status") ?? undefined, type: sp.get("type") ?? undefined });

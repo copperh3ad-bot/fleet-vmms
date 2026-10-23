@@ -6,6 +6,7 @@ import { pgDriver } from "../../src/lib/db/pg-driver";
 import { routingDriver } from "../../src/lib/db/router";
 import { envSecretBox } from "../../src/lib/crypto/secretbox";
 import { runDocumentReminders } from "../../src/lib/compliance/reminders";
+import { runBillingReminders } from "../../src/lib/billing/reminders";
 
 const sendReminders = async () => {
   const url = process.env.DATABASE_URL;
@@ -15,7 +16,9 @@ const sendReminders = async () => {
   try {
     const runs = await runDocumentReminders(driver);
     for (const r of runs) console.log(`${r.schema}: ${r.error ? "FAILED " + r.error : `${r.sent} reminder${r.sent === 1 ? "" : "s"}`}`);
-    if (runs.some((r) => r.error)) throw new Error("Some workspaces failed, see the lines above.");
+    const billing = await runBillingReminders(driver);
+    for (const r of billing) console.log(`${r.schema}: billing ${r.error ? "FAILED " + r.error : r.sent}`);
+    if (runs.some((r) => r.error) || billing.some((r) => r.error)) throw new Error("Some workspaces failed, see the lines above.");
   } finally { await driver.end(); }
 };
 

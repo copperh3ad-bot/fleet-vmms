@@ -1,6 +1,7 @@
 // Every server action calls this before touching data (CLAUDE.md rule 3).
 import type { Driver, Queryable } from "@/lib/db/types";
 import { withOrgPlatform, withPlatform, withTenant, type TenantContext } from "@/lib/db/tenant";
+import type { Access } from "@/lib/billing/state";
 
 export class ForbiddenError extends Error {
   /** Next.js shows app/forbidden.tsx (a plain "not allowed" page) for an error carrying this digest, the same as forbidden(). */
@@ -8,7 +9,7 @@ export class ForbiddenError extends Error {
   constructor(public permission: string) { super(`forbidden: ${permission}`); }
 }
 
-export type Membership = TenantContext & { tenantId: string; vehicleScope: "all" | "own"; /** for display only */ tenantName?: string };
+export type Membership = TenantContext & { tenantId: string; vehicleScope: "all" | "own"; /** for display only */ tenantName?: string; /** set by requireMembership: trial, paid, grace or locked */ billing?: Access };
 
 /**
  * Who is this user in this workspace? Null if not a member, disabled, or the tenant is not active. The organization is

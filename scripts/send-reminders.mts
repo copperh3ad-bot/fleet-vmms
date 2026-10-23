@@ -6,6 +6,7 @@ import { pgDriver } from "../src/lib/db/pg-driver";
 import { routingDriver } from "../src/lib/db/router";
 import { envSecretBox } from "../src/lib/crypto/secretbox";
 import { runDocumentReminders } from "../src/lib/compliance/reminders";
+import { runBillingReminders } from "../src/lib/billing/reminders";
 
 const url = process.env.DATABASE_URL;
 if (!url) { console.error("DATABASE_URL is not set"); process.exit(2); }
@@ -14,5 +15,7 @@ const driver = routingDriver({ control: pgDriver(url), makeDriver: (u) => pgDriv
 try {
   const runs = await runDocumentReminders(driver);
   for (const r of runs) console.log(`${r.schema}: ${r.error ? "FAILED " + r.error : `${r.sent} reminder${r.sent === 1 ? "" : "s"}`}`);
-  if (runs.some((r) => r.error)) process.exitCode = 1;
+  const billing = await runBillingReminders(driver);
+  for (const r of billing) console.log(`${r.schema}: billing ${r.error ? "FAILED " + r.error : r.sent}`);
+  if (runs.some((r) => r.error) || billing.some((r) => r.error)) process.exitCode = 1;
 } finally { await driver.end(); }

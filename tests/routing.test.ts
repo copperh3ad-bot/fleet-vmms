@@ -3,11 +3,12 @@ import { guardDecision, postLoginDestination } from "@/lib/auth/routing";
 
 describe("guard", () => {
   it("sends signed-out visitors to /login", () => {
-    for (const p of ["/", "/w/demo-fleet", "/api/anything", "/login/x"]) expect(guardDecision(p, false)).toEqual({ action: "redirect", to: "/login" });
+    for (const p of ["/w/demo-fleet", "/w/new-org/billing", "/api/anything", "/login/x", "/setup", "/admin", "/admin/payments", "/signup/anything", "/auth", "/auth/callback/x", "/terms/x", "/Signup"])
+      expect(guardDecision(p, false)).toEqual({ action: "redirect", to: "/login" });
   });
-  it("leaves only /login and /api/health open when signed out", () => {
-    expect(guardDecision("/login", false)).toEqual({ action: "next" });
-    expect(guardDecision("/api/health", false)).toEqual({ action: "next" });
+  it("leaves only the named public pages open when signed out (ADR-014)", () => {
+    for (const p of ["/", "/login", "/api/health", "/signup", "/signup/check-email", "/terms", "/privacy", "/auth/callback"])
+      expect(guardDecision(p, false)).toEqual({ action: "next" });
   });
   it("opens the odometer link path, and only that exact shape (ADR-006)", () => {
     const tok = "A".repeat(43);
