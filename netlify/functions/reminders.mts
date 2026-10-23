@@ -3,12 +3,15 @@
 // (CLAUDE.md rule 5). 03:00 UTC is 08:00 in Pakistan; the job is safe to run more than once a day.
 import type { Config } from "@netlify/functions";
 import { pgDriver } from "../../src/lib/db/pg-driver";
+import { routingDriver } from "../../src/lib/db/router";
+import { envSecretBox } from "../../src/lib/crypto/secretbox";
 import { runDocumentReminders } from "../../src/lib/compliance/reminders";
 
 const sendReminders = async () => {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set");
-  const driver = pgDriver(url);
+  // Through the router, so organizations with their own database (ADR-014) get their reminders too.
+  const driver = routingDriver({ control: pgDriver(url), makeDriver: (u) => pgDriver(u, { max: 1 }), decrypt: (b) => envSecretBox().decrypt(b) });
   try {
     const runs = await runDocumentReminders(driver);
     for (const r of runs) console.log(`${r.schema}: ${r.error ? "FAILED " + r.error : `${r.sent} reminder${r.sent === 1 ? "" : "s"}`}`);
