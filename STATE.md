@@ -224,3 +224,10 @@
 - Control migrations 0002 to 0004 are NOT applied to the live control database yet.
 - Not tested: the Neon API itself, a real sign-up through Supabase (email confirmation and the callback), storage policies on live, every new screen in a browser, bank details and invoices with real values.
 - Needs from the owner: Neon account and API key, bank details, seller details, terms and privacy text, an operator login (`make-operator.mts`), the Supabase Site URL and redirect list (add /auth/callback), Supabase captcha decision.
+
+## 2026-10-23: SaaS code deployed (sign-up closed until a Neon key exists)
+- Live control database: control migrations 0001 to 0004 applied, row security on every table in `public` (found and fixed one tracking table the Supabase advisor flagged), storage policies now use the login index. `check-routing` read-only check passes for `beta` and `demo-fleet`. Existing organizations are comped (never locked).
+- Netlify: new code deployed; landing page shows USD 149 per month from the plan, terms and privacy are marked drafts, `/signup` says sign-up is not open yet, `/setup`, `/admin`, `/w/*/billing` and `/auth/callback` send signed-out visitors to sign-in. Variables set: ORG_DB_PROVIDER=neon, NEON_REGION, ORG_DB_KEY (secret; a copy is in the owner's home folder, `~/.fleet-vmms-org-db-key`, mode 600). NOT set: NEON_API_KEY.
+- The owner's login is an operator (can open `/admin`).
+- Still needed to open sign-up: NEON_API_KEY on Netlify; Supabase Site URL and redirect list must include `/auth/callback`; bank details, seller details, PKR rate and support email on `/admin/settings`; real terms and privacy text.
+- Not tested end to end: a real sign-up (email confirmation through Supabase), the Neon API, the new screens in a browser, a first real payment.
