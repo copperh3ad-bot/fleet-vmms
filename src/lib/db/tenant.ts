@@ -14,14 +14,17 @@ export function assertSchemaName(schema: string): string {
   return schema;
 }
 
-/** One request = one transaction scoped to one tenant. SET LOCAL means nothing leaks to the next user of the connection. */
+/**
+ * One request = one transaction scoped to one tenant. SET LOCAL means nothing leaks to the next user of the connection.
+ * The schema also tells the routing driver which database the organization lives in (ADR-014).
+ */
 export async function withTenant<T>(driver: Driver, ctx: TenantContext, fn: (q: Queryable) => Promise<T>): Promise<T> {
   const schema = assertSchemaName(ctx.schema);
   return driver.transaction(async (q) => {
     await q.query(`set local search_path = "${schema}", public`);
     await q.query(`select set_config('app.user_id', $1, true), set_config('app.role', $2, true)`, [ctx.userId, ctx.role]);
     return fn(q);
-  });
+  }, { schema });
 }
 
 /**
@@ -37,13 +40,25 @@ export async function withLinkContext<T>(driver: Driver, schema: string, fn: (q:
     // A real database role (migration 0011): no table access, EXECUTE on two functions only. Lasts until the transaction ends.
     await q.query(`set local role odometer_link`);
     return fn(q);
-  });
+  }, { schema: name });
 }
 
-/** Platform tables only (tenants, memberships, plans). No tenant data is visible here. */
+/** Control tables only (organization registry, billing, sign-ups, routes). No organization data is visible here. */
 export async function withPlatform<T>(driver: Driver, fn: (q: Queryable) => Promise<T>): Promise<T> {
   return driver.transaction(async (q) => {
     await q.query(`set local search_path = public`);
     return fn(q);
   });
+}
+
+/**
+ * One organization's own copy of the platform tables (its memberships, invitations, odometer links, plan), with none of
+ * its business data in the search path. For a shared organization this is the same database as the control plane.
+ */
+export async function withOrgPlatform<T>(driver: Driver, schema: string, fn: (q: Queryable) => Promise<T>): Promise<T> {
+  const name = assertSchemaName(schema);
+  return driver.transaction(async (q) => {
+    await q.query(`set local search_path = public`);
+    return fn(q);
+  }, { schema: name });
 }

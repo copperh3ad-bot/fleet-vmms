@@ -2,7 +2,8 @@
 // look a link up, show the plate, accept one number. Unknown, used, expired and revoked links are indistinguishable.
 import { createHash, randomBytes } from "node:crypto";
 import type { Driver } from "@/lib/db/types";
-import { withLinkContext, withPlatform } from "@/lib/db/tenant";
+import { withLinkContext, withOrgPlatform } from "@/lib/db/tenant";
+import { findTenantByToken } from "@/lib/orgs";
 
 export const LINK_HOURS = 48;
 /** The one message for unknown, used, expired and revoked links, so nobody can tell them apart. */
@@ -16,12 +17,14 @@ export type LinkView = { plate: string; period: string; due_on: string };
 
 async function schemaOf(driver: Driver, token: string): Promise<{ schema: string; submissionId: string } | null> {
   if (!TOKEN_RE.test(token)) return null;
-  const row = (await withPlatform(driver, (q) => q.query<{ schema_name: string; submission_id: string }>(
-    `select t.schema_name, l.submission_id
+  const hash = hashToken(token);
+  const t = await findTenantByToken(driver, "odometer", hash);       // the control plane says which organization's database to ask
+  if (!t) return null;
+  const row = (await withOrgPlatform(driver, t.schema, (q) => q.query<{ submission_id: string }>(
+    `select l.submission_id
        from public.odometer_links l join public.tenants t on t.id = l.tenant_id
-      where l.token_hash = $1 and l.used_at is null and l.revoked_at is null and l.expires_at > now() and t.status = 'active'`,
-    [hashToken(token)]))).rows[0];
-  return row ? { schema: row.schema_name, submissionId: row.submission_id } : null;
+      where l.token_hash = $1 and l.used_at is null and l.revoked_at is null and l.expires_at > now() and t.status = 'active'`, [hash]))).rows[0];
+  return row ? { schema: t.schema, submissionId: row.submission_id } : null;
 }
 
 /** What the page shows, or null if the link does not work for any reason. */

@@ -3,6 +3,7 @@
 import type { Driver } from "@/lib/db/types";
 import { authorized, type Membership } from "@/lib/auth/can";
 import { UserError } from "@/lib/master/service";
+import { routeToken } from "@/lib/orgs";
 import { LINK_HOURS, hashToken, newToken } from "./link";
 
 const PERM = "odometer.review";
@@ -134,7 +135,15 @@ export type NewLink = { submission_id: string; plate: string; holder_name: strin
  * One link per vehicle that still needs a reading. Earlier live links for the same vehicle stop working. The raw
  * token is returned once and never stored.
  */
-export function createLinks(driver: Driver, m: Membership, cycleId: string, only?: string[]): Promise<NewLink[]> {
+export async function createLinks(driver: Driver, m: Membership, cycleId: string, only?: string[]): Promise<NewLink[]> {
+  const links = await createLinksInOrg(driver, m, cycleId, only);
+  // The control plane learns which organization each new link belongs to; without that a link would not open.
+  try { await Promise.all(links.map((l) => routeToken(driver, "odometer", m.tenantId, hashToken(l.token), l.expires_at))); }
+  catch { await Promise.all(links.map((l) => revokeLinks(driver, m, l.submission_id).catch(() => undefined))); throw new UserError("The links could not be created. Try again."); }
+  return links;
+}
+
+function createLinksInOrg(driver: Driver, m: Membership, cycleId: string, only?: string[]): Promise<NewLink[]> {
   return authorized(driver, m, PERM, async (q) => {
     const open = (await q.query("select 1 from odometer_cycles where id = $1 and status = 'open'", [cycleId])).rows.length > 0;
     if (!open) throw new UserError("This cycle is closed.");

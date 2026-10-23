@@ -1,6 +1,6 @@
 // Every server action calls this before touching data (CLAUDE.md rule 3).
 import type { Driver, Queryable } from "@/lib/db/types";
-import { withPlatform, withTenant, type TenantContext } from "@/lib/db/tenant";
+import { withOrgPlatform, withPlatform, withTenant, type TenantContext } from "@/lib/db/tenant";
 
 export class ForbiddenError extends Error {
   /** Next.js shows app/forbidden.tsx (a plain "not allowed" page) for an error carrying this digest, the same as forbidden(). */
@@ -10,15 +10,19 @@ export class ForbiddenError extends Error {
 
 export type Membership = TenantContext & { tenantId: string; vehicleScope: "all" | "own"; /** for display only */ tenantName?: string };
 
-/** Who is this user in this workspace? Null if not a member, disabled, or the tenant is not active. */
+/**
+ * Who is this user in this workspace? Null if not a member, disabled, or the tenant is not active. The organization is
+ * found in the control plane; the role and status come from the organization's own database (ADR-014).
+ */
 export async function resolveMembership(driver: Driver, userId: string, slug: string): Promise<Membership | null> {
-  return withPlatform(driver, async (q) => {
-    const r = (await q.query<{ tenant_id: string; schema_name: string; role: string; vehicle_scope: "all" | "own"; name: string }>(
-      `select t.id as tenant_id, t.schema_name, t.name, m.role, m.vehicle_scope
-         from public.tenants t join public.tenant_memberships m on m.tenant_id = t.id
-        where t.slug = $1 and m.user_id = $2 and m.status = 'active' and t.status = 'active'`, [slug, userId])).rows[0];
-    return r ? { tenantId: r.tenant_id, schema: r.schema_name, userId, role: r.role, vehicleScope: r.vehicle_scope, tenantName: r.name } : null;
-  });
+  const t = await withPlatform(driver, async (q) =>
+    (await q.query<{ id: string; schema_name: string; name: string }>(
+      "select id, schema_name, name from public.tenants where slug = $1 and status = 'active' and provision_state = 'ready'", [slug])).rows[0]);
+  if (!t) return null;
+  const r = await withOrgPlatform(driver, t.schema_name, async (q) =>
+    (await q.query<{ role: string; vehicle_scope: "all" | "own" }>(
+      "select role, vehicle_scope from public.tenant_memberships where tenant_id = $1 and user_id = $2 and status = 'active'", [t.id, userId])).rows[0]);
+  return r ? { tenantId: t.id, schema: t.schema_name, userId, role: r.role, vehicleScope: r.vehicle_scope, tenantName: t.name } : null;
 }
 
 /** Permission check inside an open tenant transaction. */
@@ -59,10 +63,17 @@ export type WorkspaceLink = { slug: string; name: string; role: string };
 
 /** Workspaces a user can enter, for the post-login redirect and a workspace switcher. */
 export async function listWorkspaces(driver: Driver, userId: string): Promise<WorkspaceLink[]> {
-  return withPlatform(driver, async (q) =>
-    (await q.query<WorkspaceLink>(
-      `select t.slug, t.name, m.role from public.tenants t join public.tenant_memberships m on m.tenant_id = t.id
-        where m.user_id = $1 and m.status = 'active' and t.status = 'active' order by t.name`, [userId])).rows);
+  const rows = await withPlatform(driver, async (q) =>
+    (await q.query<{ id: string; slug: string; name: string; schema_name: string }>(
+      `select t.id, t.slug, t.name, t.schema_name from public.tenants t join public.user_orgs u on u.tenant_id = t.id
+        where u.user_id = $1 and t.status = 'active' and t.provision_state = 'ready' order by t.name`, [userId])).rows);
+  // The role is read from each organization's own database; one with no active membership is not offered.
+  const found = await Promise.all(rows.map(async (t) => {
+    const r = await withOrgPlatform(driver, t.schema_name, async (q) =>
+      (await q.query<{ role: string }>("select role from public.tenant_memberships where tenant_id = $1 and user_id = $2 and status = 'active'", [t.id, userId])).rows[0]);
+    return r ? { slug: t.slug, name: t.name, role: r.role } : null;
+  }));
+  return found.filter((x): x is WorkspaceLink => x !== null);
 }
 
 /** The signed-in person's own name and role, for the corner of the screen. Reads only their own row. */

@@ -30,6 +30,7 @@ export async function provisionTenant(driver: Driver, input: ProvisionInput, mig
       await q.query(`set local search_path = "${t.schema_name}", public`);
       await q.query("insert into employees(user_id, full_name, email) values ($1,$2,$3)", [input.ownerUserId, input.ownerName ?? "Owner", input.ownerEmail ?? null]);
       await q.query("insert into public.tenant_memberships(user_id, tenant_id, role) values ($1,$2,'tenant_admin')", [input.ownerUserId, t.id]);
+      await q.query("insert into public.user_orgs(user_id, tenant_id) values ($1,$2) on conflict do nothing", [input.ownerUserId, t.id]);
     }
     return { tenantId: t.id, schema: t.schema_name };
   });

@@ -5,7 +5,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import type { Driver } from "@/lib/db/types";
 import { authorized, authorizedAny, type Membership } from "@/lib/auth/can";
-import { withPlatform, withTenant } from "@/lib/db/tenant";
+import { withOrgPlatform, withTenant } from "@/lib/db/tenant";
+import { findTenantByInvitation, findTenantByToken, indexInvitation, rememberMember, routeToken, tenantsInvitingEmail, unindexInvitation, unrouteToken } from "@/lib/orgs";
 import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
 
@@ -139,7 +140,7 @@ export const inviteSchema = z.object({
 
 export type NewInvite = { id: string; token: string; email: string; expires_at: string };
 
-async function createInvite(q: Parameters<Parameters<typeof authorized>[3]>[0], m: Membership, d: z.output<typeof inviteSchema>): Promise<NewInvite> {
+async function createInvite(q: Parameters<Parameters<typeof authorized>[3]>[0], m: Membership, d: z.output<typeof inviteSchema>): Promise<NewInvite & { hash: string }> {
   await q.query("select 1 from public.tenants where id = $1 for update", [m.tenantId]);
   if ((await q.query("select 1 from roles where key = $1", [d.role])).rows.length === 0) throw new UserError("Unknown role.", { role: "Choose a role" });
   if (d.role === "vendor") {
@@ -170,36 +171,61 @@ async function createInvite(q: Parameters<Parameters<typeof authorized>[3]>[0], 
       `insert into public.invitations(tenant_id, full_name, email, phone, role_key, vehicle_scope, invited_by, token_hash, vendor_id, expires_at)
        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, now() + ($10 || ' days')::interval) returning id, expires_at::text`,
       [m.tenantId, d.full_name, d.email, d.phone ?? null, d.role, scope, m.userId, hashInviteToken(token), d.vendor_id ?? null, String(INVITE_DAYS)])).rows[0];
-    return { id: row.id, token, email: d.email, expires_at: row.expires_at };
+    return { id: row.id, token, email: d.email, expires_at: row.expires_at, hash: hashInviteToken(token) };
   } catch (e) {
     if (e instanceof Error && /invitations_live_email_uq/.test(e.message)) throw new UserError("This email already has an open invitation. Cancel it or send a new link from the list.", { email: "Already invited" });
     throw e;
   }
 }
 
+type CreatedInvite = NewInvite & { hash: string };
+
+/** The control plane learns where the link and the address belong. If that fails the invitation is withdrawn, so no dead link is handed out. */
+async function track(driver: Driver, m: Membership, inv: CreatedInvite): Promise<void> {
+  try {
+    await routeToken(driver, "invite", m.tenantId, inv.hash, inv.expires_at);
+    await indexInvitation(driver, m.tenantId, inv.id, inv.email, inv.expires_at);
+  } catch {
+    await withTenant(driver, m, (q) => q.query("update public.invitations set revoked_at = now() where id = $1", [inv.id])).catch(() => undefined);
+    throw new UserError("The invitation could not be created. Try again.");
+  }
+}
+
+/** Index rows that are left behind are harmless (the organization's database decides); removing them is housekeeping. */
+async function untrack(driver: Driver, tenantId: string, invitationId: string, hash: string | null): Promise<void> {
+  await Promise.all([hash ? unrouteToken(driver, hash) : Promise.resolve(), unindexInvitation(driver, tenantId, invitationId)]).catch(() => undefined);
+}
+
 /** The link is shown once; only its hash is stored. */
 export async function inviteUser(driver: Driver, m: Membership, input: Record<string, unknown>): Promise<NewInvite> {
   const r = inviteSchema.safeParse(input);
   if (!r.success) throw new UserError("Fix the highlighted fields.", fieldErrors(r.error));
-  return authorized(driver, m, "admin.users", (q) => createInvite(q, m, r.data));
+  const inv = await authorized(driver, m, "admin.users", (q) => createInvite(q, m, r.data));
+  await track(driver, m, inv);
+  return { id: inv.id, token: inv.token, email: inv.email, expires_at: inv.expires_at };
 }
 
 export function revokeInvitation(driver: Driver, m: Membership, id: string): Promise<void> {
   return authorized(driver, m, "admin.users", async (q) => {
-    const r = await q.query("update public.invitations set revoked_at = now() where id = $1 and tenant_id = $2 and accepted_at is null and revoked_at is null returning id", [id, m.tenantId]);
+    const r = await q.query<{ token_hash: string }>("update public.invitations set revoked_at = now() where id = $1 and tenant_id = $2 and accepted_at is null and revoked_at is null returning token_hash", [id, m.tenantId]);
     if (r.rows.length === 0) throw new UserError("That invitation is no longer open.");
-  });
+    return r.rows[0].token_hash;
+  }).then((hash) => untrack(driver, m.tenantId, id, hash));
 }
 
 /** Cancels the old link and makes a new one with the same details. */
-export function resendInvitation(driver: Driver, m: Membership, id: string): Promise<NewInvite> {
-  return authorized(driver, m, "admin.users", async (q) => {
-    const old = (await q.query<{ full_name: string; email: string; phone: string | null; role_key: string; vehicle_scope: string; vendor_id: string | null }>(
-      "select full_name, email, phone, role_key, vehicle_scope, vendor_id from public.invitations where id = $1 and tenant_id = $2 and accepted_at is null and revoked_at is null", [id, m.tenantId])).rows[0];
+export async function resendInvitation(driver: Driver, m: Membership, id: string): Promise<NewInvite> {
+  const { fresh, oldHash } = await authorized(driver, m, "admin.users", async (q) => {
+    const old = (await q.query<{ full_name: string; email: string; phone: string | null; role_key: string; vehicle_scope: string; vendor_id: string | null; token_hash: string }>(
+      "select full_name, email, phone, role_key, vehicle_scope, vendor_id, token_hash from public.invitations where id = $1 and tenant_id = $2 and accepted_at is null and revoked_at is null", [id, m.tenantId])).rows[0];
     if (!old) throw new UserError("That invitation is no longer open.");
     await q.query("update public.invitations set revoked_at = now() where id = $1", [id]);
-    return createInvite(q, m, { full_name: old.full_name, email: old.email, phone: old.phone ?? undefined, role: old.role_key, vehicle_scope: old.vehicle_scope as "all" | "own", vendor_id: old.vendor_id ?? undefined });
+    const fresh = await createInvite(q, m, { full_name: old.full_name, email: old.email, phone: old.phone ?? undefined, role: old.role_key, vehicle_scope: old.vehicle_scope as "all" | "own", vendor_id: old.vendor_id ?? undefined });
+    return { fresh, oldHash: old.token_hash };
   });
+  await track(driver, m, fresh);
+  await untrack(driver, m.tenantId, id, oldHash);
+  return { id: fresh.id, token: fresh.token, email: fresh.email, expires_at: fresh.expires_at };
 }
 
 // ============================ The invited person ============================
@@ -209,9 +235,12 @@ export type InvitePreview = { workspace: string; full_name: string; email: strin
 /** What the invitation page may show: nothing for an unknown, used, revoked or expired link. */
 export async function previewInvitation(driver: Driver, token: string): Promise<InvitePreview | null> {
   if (!TOKEN_RE.test(token)) return null;
-  const r = (await withPlatform(driver, (q) => q.query<{ workspace: string; full_name: string; email: string }>(
+  const hash = hashInviteToken(token);
+  const t = await findTenantByToken(driver, "invite", hash);
+  if (!t) return null;
+  const r = (await withOrgPlatform(driver, t.schema, (q) => q.query<{ workspace: string; full_name: string; email: string }>(
     `select t.name as workspace, i.full_name, i.email from public.invitations i join public.tenants t on t.id = i.tenant_id
-      where i.token_hash = $1 and i.accepted_at is null and i.revoked_at is null and i.expires_at > now() and t.status = 'active' and i.email is not null`, [hashInviteToken(token)]))).rows[0];
+      where i.token_hash = $1 and i.accepted_at is null and i.revoked_at is null and i.expires_at > now() and t.status = 'active' and i.email is not null`, [hash]))).rows[0];
   return r ?? null;
 }
 
@@ -220,9 +249,13 @@ export type PendingInvite = { id: string; workspace: string; role_name: string }
 /** Invitations waiting for a signed-in person whose email is confirmed. */
 export async function pendingInvitationsFor(driver: Driver, user: { email?: string | null; emailConfirmed: boolean }): Promise<PendingInvite[]> {
   if (!user.email || !user.emailConfirmed) return [];
-  return (await withPlatform(driver, (q) => q.query<PendingInvite>(
-    `select i.id, t.name as workspace, i.role_key as role_name from public.invitations i join public.tenants t on t.id = i.tenant_id
-      where lower(i.email) = lower($1) and i.accepted_at is null and i.revoked_at is null and i.expires_at > now() and t.status = 'active' order by i.created_at`, [user.email]))).rows;
+  const email = user.email;
+  const listed = await tenantsInvitingEmail(driver, email);
+  const found = await Promise.all(listed.map((t) => withOrgPlatform(driver, t.schema, async (q) =>
+    (await q.query<PendingInvite & { created_at: string }>(
+      `select i.id, t.name as workspace, i.role_key as role_name, i.created_at::text from public.invitations i join public.tenants t on t.id = i.tenant_id
+        where i.id = $1 and lower(i.email) = lower($2) and i.accepted_at is null and i.revoked_at is null and i.expires_at > now() and t.status = 'active'`, [t.invitation_id, email])).rows[0])));
+  return found.filter((x): x is PendingInvite & { created_at: string } => !!x).sort((a, b) => a.created_at.localeCompare(b.created_at)).map(({ id, workspace, role_name }) => ({ id, workspace, role_name }));
 }
 
 export type Acceptor = { id: string; email?: string | null; emailConfirmed: boolean };
@@ -231,23 +264,28 @@ export type Acceptor = { id: string; email?: string | null; emailConfirmed: bool
  * Joins the workspace. The invitation must be live and addressed to the signed-in person's confirmed email: holding
  * the link alone is not enough. Creates the membership and the employee record (linking an existing record with the
  * same email, if there is exactly one), links a workshop to its login, and marks the invitation used, all in one
- * transaction. Returns the workspace slug.
+ * transaction in the organization's own database. Then the control plane is told. Repeating a finished acceptance for
+ * the same person is safe and only repeats that last step. Returns the workspace slug.
  */
 export async function acceptInvitation(driver: Driver, by: { id: string } | { token: string }, user: Acceptor): Promise<{ slug: string }> {
   const refused = () => new UserError("This invitation is not valid for your account.");
   if (!user.email || !user.emailConfirmed) throw new UserError("Confirm your email address first, then accept the invitation.");
-  const where = "id" in by ? "i.id = $1" : "i.token_hash = $1";
-  const key = "id" in by ? by.id : hashInviteToken(by.token);
   if ("token" in by && !TOKEN_RE.test(by.token)) throw refused();
-  const found = (await withPlatform(driver, (q) => q.query<{ id: string; schema_name: string; slug: string }>(
-    `select i.id, t.schema_name, t.slug from public.invitations i join public.tenants t on t.id = i.tenant_id where ${where} and t.status = 'active'`, [key]))).rows[0];
+  const hash = "token" in by ? hashInviteToken(by.token) : null;
+  const found = hash ? await findTenantByToken(driver, "invite", hash) : await findTenantByInvitation(driver, (by as { id: string }).id);
   if (!found) throw refused();
-  return withTenant(driver, { schema: found.schema_name, userId: user.id, role: "invitee" }, async (q) => {
-    const inv = (await q.query<{ tenant_id: string; full_name: string; email: string; phone: string | null; role_key: string; vehicle_scope: string; vendor_id: string | null; ok: boolean }>(
-      `select tenant_id, full_name, email, phone, role_key, vehicle_scope, vendor_id,
-              (accepted_at is null and revoked_at is null and expires_at > now()) as ok
-         from public.invitations where id = $1 for update`, [found.id])).rows[0];
-    if (!inv.ok || !inv.email || inv.email.toLowerCase() !== user.email!.toLowerCase()) throw refused();
+  const done = await withTenant(driver, { schema: found.schema, userId: user.id, role: "invitee" }, async (q) => {
+    const inv = (await q.query<{ id: string; tenant_id: string; full_name: string; email: string; phone: string | null; role_key: string; vehicle_scope: string; vendor_id: string | null; token_hash: string; ok: boolean; accepted: boolean }>(
+      `select id, tenant_id, full_name, email, phone, role_key, vehicle_scope, vendor_id, token_hash,
+              (accepted_at is null and revoked_at is null and expires_at > now()) as ok, (accepted_at is not null) as accepted
+         from public.invitations where ${hash ? "token_hash = $1" : "id = $1"} for update`, [hash ?? (by as { id: string }).id])).rows[0];
+    if (!inv || !inv.email || inv.email.toLowerCase() !== user.email!.toLowerCase()) throw refused();
+    if (!inv.ok) {
+      // Already accepted by this same person: nothing to do here, the control plane step below may still be missing.
+      const member = inv.accepted && (await q.query("select 1 from public.tenant_memberships where user_id = $1 and tenant_id = $2", [user.id, inv.tenant_id])).rows.length > 0;
+      if (!member) throw refused();
+      return { invitationId: inv.id, hash: inv.token_hash, tenantId: inv.tenant_id };
+    }
     try {
       await q.query(
         `insert into public.tenant_memberships(user_id, tenant_id, role, vehicle_scope) values ($1, $2, $3, $4)
@@ -262,8 +300,14 @@ export async function acceptInvitation(driver: Driver, by: { id: string } | { to
       if (same.rows.length === 1) await q.query("update employees set user_id = $1 where id = $2", [user.id, same.rows[0].id]);
       else await q.query("insert into employees(user_id, full_name, email, phone) values ($1, $2, $3, $4)", [user.id, inv.full_name, inv.email, inv.phone]);
     }
-    await q.query("update public.invitations set accepted_at = now() where id = $1", [found.id]);
-    return { slug: found.slug };
+    await q.query("update public.invitations set accepted_at = now() where id = $1", [inv.id]);
+    return { invitationId: inv.id, hash: inv.token_hash, tenantId: inv.tenant_id };
   });
+  // The person is a member now. Tell the control plane (retry once: a failure here would hide the workspace until repeated).
+  for (let i = 0; ; i++) {
+    try { await rememberMember(driver, user.id, done.tenantId); break; }
+    catch { if (i >= 1) throw new UserError("You have joined, but the workspace could not be listed yet. Open the invitation link again to finish."); }
+  }
+  await untrack(driver, done.tenantId, done.invitationId, done.hash);
+  return { slug: found.slug };
 }
-

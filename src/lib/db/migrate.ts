@@ -17,10 +17,10 @@ export function loadMigrations(dir: string): Migration[] {
 
 const versionOf = (name: string) => parseInt(name.slice(0, 4), 10);
 
-async function applyPending(q: Queryable, migrations: Migration[], opts: RunOptions): Promise<string[]> {
-  await q.query(`create table if not exists schema_migrations (
+async function applyPending(q: Queryable, migrations: Migration[], opts: RunOptions, table = "schema_migrations"): Promise<string[]> {
+  await q.query(`create table if not exists ${table} (
     name text primary key, checksum text not null, applied_at timestamptz not null default now())`);
-  const done = new Map((await q.query<{ name: string; checksum: string }>("select name, checksum from schema_migrations")).rows
+  const done = new Map((await q.query<{ name: string; checksum: string }>(`select name, checksum from ${table}`)).rows
     .map((r) => [r.name, r.checksum]));
   const applied: string[] = [];
   for (const m of migrations) {
@@ -30,7 +30,7 @@ async function applyPending(q: Queryable, migrations: Migration[], opts: RunOpti
       continue;
     }
     await q.query(opts.transform ? opts.transform(m.sql) : m.sql);
-    await q.query("insert into schema_migrations(name, checksum) values ($1,$2)", [m.name, m.checksum]);
+    await q.query(`insert into ${table}(name, checksum) values ($1,$2)`, [m.name, m.checksum]);
     applied.push(m.name);
   }
   return applied;
@@ -40,6 +40,12 @@ async function applyPending(q: Queryable, migrations: Migration[], opts: RunOpti
 export async function migratePlatform(q: Queryable, migrations: Migration[], opts: RunOptions = {}) {
   await q.query("set local search_path = public");
   return applyPending(q, migrations, opts);
+}
+
+/** Control-plane tables (db/control). Only the control database runs these; they are tracked apart from the platform migrations. */
+export async function migrateControl(q: Queryable, migrations: Migration[], opts: RunOptions = {}) {
+  await q.query("set local search_path = public");
+  return applyPending(q, migrations, opts, "control_schema_migrations");
 }
 
 /** One tenant schema. Safe to call repeatedly. Updates tenants.schema_version. */
@@ -58,7 +64,7 @@ export type TenantMigrationResult = { schema: string; applied: string[]; error?:
 /** Every tenant in its own transaction, so one broken tenant does not block or half-apply the others. */
 export async function migrateAllTenants(driver: Driver, migrations: Migration[], opts: RunOptions = {}): Promise<TenantMigrationResult[]> {
   const schemas = await driver.transaction(async (q) =>
-    (await q.query<{ schema_name: string }>("select schema_name from public.tenants where status <> 'closed' order by created_at")).rows.map((r) => r.schema_name));
+    (await q.query<{ schema_name: string }>("select schema_name from public.tenants where status <> 'closed' and db_kind = 'shared' order by created_at")).rows.map((r) => r.schema_name));
   const out: TenantMigrationResult[] = [];
   for (const schema of schemas) {
     try {
@@ -74,7 +80,7 @@ export async function migrateAllTenants(driver: Driver, migrations: Migration[],
 export async function findDrift(driver: Driver, migrations: Migration[]): Promise<string[]> {
   const want = new Map(migrations.map((m) => [m.name, m.checksum]));
   return driver.transaction(async (q) => {
-    const schemas = (await q.query<{ schema_name: string }>("select schema_name from public.tenants where status <> 'closed'")).rows;
+    const schemas = (await q.query<{ schema_name: string }>("select schema_name from public.tenants where status <> 'closed' and db_kind = 'shared'")).rows;
     const drift: string[] = [];
     for (const { schema_name } of schemas) {
       assertSchemaName(schema_name);
