@@ -10,10 +10,11 @@ Next.js (App Router, TS), Tailwind, Supabase (Auth, Postgres 16, Storage), serve
 2. **Never use supabase-js for tenant tables.** It is for Auth and Storage only.
 3. **Every server action checks `can()`** (`src/lib/auth/can.ts`) before touching data.
 4. **Job card state changes go through one function** (`transitionJobCard`) and always write `job_card_events`.
-5. **No unauthenticated endpoints** except login/health, the single-use driver odometer link under the limits in ADR-006, and the single-use invitation page under ADR-012. No generic SQL-exec RPCs, ever.
+5. **No unauthenticated endpoints** except login/health, the single-use driver odometer link under the limits in ADR-006, the single-use invitation page under ADR-012, and the public sign-up page under ADR-014. No generic SQL-exec RPCs, ever.
 6. **No secrets or infrastructure IDs in the repo.**
-7. **Pricing is undecided.** Only plan limits and feature flags exist. Do not add prices.
+7. **Pricing is decided (ADR-014): USD 149 per month per organization, 3-day trial.** The price lives in the `plans` table, never in code or the repository. No other prices, discounts or per-seat charges without the owner.
 8. Tenant migrations live in `db/tenant-template/NNNN_name.sql`, are idempotent, and run across all tenant schemas via `scripts/migrate-tenants.ts`.
+9. **An organization's data and memberships live in its own database** (ADR-014). The control plane holds only the registry, the login-to-organization index, token routes, sign-ups and billing. Connection strings are encrypted, never logged, never in the repository, never on a screen.
 
 ## Process
 - Append to `STATE.md` at the end of each phase (append-only).
