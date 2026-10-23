@@ -7,6 +7,23 @@ const nextConfig: NextConfig = {
   // Netlify's own Next.js runtime builds the server itself and must not get this output, so it is skipped there.
   output: process.env.NETLIFY ? undefined : "standalone",
   poweredByHeader: false,
+  // Reading an uploaded policy (OCR) runs on our own server. The reader starts worker threads from files on disk, so it is
+  // not bundled, and the page that uses it is told to carry the reader, its model and the lstm engines (not the 44 MB of every variant).
+  serverExternalPackages: ["tesseract.js"],
+  outputFileTracingIncludes: {
+    "/w/*/policy": [
+      "./node_modules/tesseract.js/**/*",
+      "./node_modules/wasm-feature-detect/**/*",
+      "./node_modules/bmp-js/**/*",
+      "./node_modules/zlibjs/**/*",
+      "./node_modules/idb-keyval/**/*",
+      "./node_modules/tesseract.js-core/package.json",
+      "./node_modules/tesseract.js-core/index.js",
+      "./node_modules/tesseract.js-core/tesseract-core{,-simd,-relaxedsimd}.*",
+      "./node_modules/@tesseract.js-data/eng/4.0.0_best_int/*",
+      "./node_modules/@tesseract.js-data/eng/package.json",
+    ],
+  },
   // Photo uploads go through server actions; the largest allowed file is 4 MB and the host refuses a body over about 6 MB.
   experimental: { serverActions: { bodySizeLimit: "6mb" }, authInterrupts: true },
   partialPrefetching: true,

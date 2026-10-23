@@ -9,6 +9,8 @@ import { getSettings } from "@/lib/control/service";
 import { SettingsForm } from "../settings/forms";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { PolicyRemove, PolicyUpload } from "./forms";
+import { PolicyReader } from "./reader";
+import { getReading } from "@/lib/master/policy-reading";
 
 export default function PolicyPage({ params }: PageProps<"/w/[slug]/policy">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} /></Suspense>;
@@ -25,6 +27,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const rules = settings.filter((s) => s.group === "policy");
   const manage = perms.has("policy.manage");
   const [current, ...earlier] = versions;
+  const reading = manage && current?.file ? await getReading(driver, m, current.id) : null;
 
   return (
     <main className="space-y-5 p-6 text-zinc-900">
@@ -44,6 +47,12 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
               </div>
             ) : <p className="text-sm text-zinc-500">{manage ? "No policy uploaded yet. Add your company's policy on the right." : "Your company has not uploaded a maintenance policy yet."}</p>}
           </Panel>
+
+          {manage && current?.file && (
+            <Panel title="Read this policy" sub="The system reads the file and offers the rules it finds. You decide what to apply.">
+              <PolicyReader slug={slug} policyId={current.id} reading={reading} />
+            </Panel>
+          )}
 
           <Panel title="Rules the system applies" sub="Each rule is off at 0. Set the numbers your own policy uses.">
             <SettingsForm slug={slug} group="policy" items={rules.map((r) => ({ key: r.key, label: r.label, hint: r.hint, unit: r.unit, value: r.value, editable: r.editable }))} />

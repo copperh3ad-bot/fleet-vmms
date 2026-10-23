@@ -246,3 +246,8 @@
 ## 2026-10-24: policy rules each company tunes
 - Four settings on the Maintenance policy page, all off at 0 (tenant migration 0018, permission policy.manage): replacement age (new flag replacement_due on vehicles), accidents covered per driver plus months between (cover shown on accident list and detail, src/lib/compliance/cover.ts), driver share percent of repairs (excludes routine service, wear items, accident damage).
 - Not built yet: inspections twice a year with ratings, one-time fit-out cap, entitlement by designation, replacement after promotion. Need new tables or designations; see chat.
+
+## 2026-10-24: reading an uploaded policy (ADR-015)
+- Manager presses Read this policy on the Maintenance policy page. PDF with text is read as is; a scanned PDF or photo is read with Tesseract on our server (no outside service). Plain patterns find replacement age, accidents covered, months between, driver share, oil change interval, plus notes it cannot apply yet. Manager ticks findings and applies; the server applies its stored findings through saveSettings and saveServiceRule. Tenant migration 0019 (policy_readings).
+- Verified on a real 4-page scan: all four policy settings and the oil interval found correctly; tyre interval missed (table too messy). Packaged reader proven by running it from a copy of the built output outside the repo. Not verified on the host itself.
+- Not done: registration book, insurance, compliance document, challan, quotation and invoice parsing (next step, pre-fill forms for review).
