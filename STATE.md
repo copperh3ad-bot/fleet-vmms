@@ -300,3 +300,6 @@
 
 ## 2026-10-25: recovery code closes the administrator-takeover hole (ADR-025)
 - A reset link for someone with no email now also needs a recovery code only the person knows (hash only, control migration 0012, NOT yet applied live); five wrong tries an hour per person. "Replace login" for someone who forgot both. Not deployed.
+
+## 2026-10-25: invitation links go to a phone number only (ADR-026)
+- Phone number required on every invitation (international form), link box offers only WhatsApp and text message to that number (no copy, no email, link not shown), reset links go to the phone on the employee record. Invite form keeps its inputs after an error; single-column layout fixed. Not deployed.

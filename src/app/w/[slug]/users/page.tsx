@@ -121,7 +121,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
               <MemberControls key={editing.user_id} slug={slug} userId={editing.user_id} role={editing.role} scope={editing.vehicle_scope} status={editing.status} roles={roleOpts} isMe={editing.is_me} isVendor={editing.role === "vendor"} />
             </Panel>
           ) : (
-            <Panel title="Invite a person" sub="Each invitation is for one employee code and one role. Send the link: the person creates their account, with their email or with a sign-in name you give them if they have no email. Workshops are invited here too, with the role Vendor. People can also ask to join with your company code, below.">
+            <Panel title="Invite a person" sub="Each invitation is for one employee code and one role, and the link is sent to the person's phone number only. They create their account with their email, or with a sign-in name you give them if they have no email. Workshops are invited here too, with the role Vendor. People can also ask to join with your company code, below.">
               <InviteForm stack slug={slug} roles={roleOpts} vendors={vendors.filter((v) => v.status === "active").map((v) => [v.id, v.name])} />
             </Panel>
           )}

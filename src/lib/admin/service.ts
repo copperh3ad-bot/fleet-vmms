@@ -11,6 +11,7 @@ import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
 import { checkRecoveryCode, checkUsername, deleteLoginName, hashRecoveryCode, loginNameByUserId, loginNameByUsername, loginNamesFor, newLoginEmail, recordLoginName, setRecoveryHash, usernameTaken, verifyRecoveryCode } from "@/lib/auth/login-names";
 import { allowShared } from "@/lib/rate-limit";
+import { normalizePhone } from "@/lib/phone";
 import { authAdminConfigured, createLoginUser, deleteLoginUser, setLoginPassword } from "@/lib/supabase/admin";
 
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
@@ -159,9 +160,12 @@ export const inviteSchema = z.object({
 });
 type InviteData = z.output<typeof inviteSchema> & { username?: string };
 
-export type NewInvite = { id: string; token: string; full_name: string; email: string | null; username: string | null; employee_no: string | null; reset: boolean; expires_at: string };
+export type NewInvite = { id: string; token: string; full_name: string; email: string | null; phone: string | null; username: string | null; employee_no: string | null; reset: boolean; expires_at: string };
 
-async function createInvite(q: Parameters<Parameters<typeof authorized>[3]>[0], m: Membership, d: InviteData): Promise<NewInvite & { hash: string }> {
+/** `phoneOptional` is only for a request approved from the join-with-a-code page: that person is told on their own screen, so no link is sent anywhere. */
+type InviteOptions = { phoneOptional?: boolean };
+
+async function createInvite(q: Parameters<Parameters<typeof authorized>[3]>[0], m: Membership, d: InviteData, opts: InviteOptions = {}): Promise<NewInvite & { hash: string }> {
   await q.query("select 1 from public.tenants where id = $1 for update", [m.tenantId]);
   if ((await q.query("select 1 from roles where key = $1", [d.role])).rows.length === 0) throw new UserError("Unknown role.", { role: "Choose a role" });
   if (d.role === "vendor") {
@@ -187,6 +191,13 @@ async function createInvite(q: Parameters<Parameters<typeof authorized>[3]>[0], 
   }
   if (!name) throw new UserError("Enter the full name.", { full_name: "Enter the full name" });
 
+  // The link is sent to the person's phone number and nowhere else (ADR-026), so every invitation needs a number a message can reach.
+  if (phone) {
+    const n = normalizePhone(phone);
+    if (!n.ok) throw new UserError(n.message, { phone: n.message });
+    phone = n.e164;
+  } else if (!opts.phoneOptional) throw new UserError("Enter their phone number. The invitation link is sent to it.", { phone: "Enter their phone number" });
+
   if (d.role !== "vendor") {
     const limit = (await q.query<{ l: number | null }>(
       `select (p.limits->>'max_users')::int as l from public.tenant_subscriptions s join public.plans p on p.id = s.plan_id where s.tenant_id = $1 and s.status in ('trial','active')`, [m.tenantId])).rows[0]?.l ?? null;
@@ -209,7 +220,7 @@ async function createInvite(q: Parameters<Parameters<typeof authorized>[3]>[0], 
       `insert into public.invitations(tenant_id, full_name, email, phone, username, employee_no, role_key, vehicle_scope, invited_by, token_hash, vendor_id, expires_at)
        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, now() + ($12 || ' days')::interval) returning id, expires_at::text`,
       [m.tenantId, name, d.email ?? null, phone ?? null, d.email ? null : d.username ?? null, d.employee_no ?? null, d.role, scope, m.userId, hashInviteToken(token), d.vendor_id ?? null, String(INVITE_DAYS)])).rows[0];
-    return { id: row.id, token, full_name: name, email: d.email ?? null, username: d.email ? null : d.username ?? null, employee_no: d.employee_no ?? null, reset: false, expires_at: row.expires_at, hash: hashInviteToken(token) };
+    return { id: row.id, token, full_name: name, email: d.email ?? null, phone: phone ?? null, username: d.email ? null : d.username ?? null, employee_no: d.employee_no ?? null, reset: false, expires_at: row.expires_at, hash: hashInviteToken(token) };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";
     if (/invitations_live_email_uq/.test(msg)) throw new UserError("This email already has an open invitation. Cancel it or send a new link from the list.", { email: "Already invited" });
@@ -247,7 +258,7 @@ async function checkNewUsername(driver: Driver, raw: string | undefined): Promis
 }
 
 /** The link is shown once; only its hash is stored. */
-export async function inviteUser(driver: Driver, m: Membership, input: Record<string, unknown>): Promise<NewInvite> {
+export async function inviteUser(driver: Driver, m: Membership, input: Record<string, unknown>, opts: InviteOptions = {}): Promise<NewInvite> {
   const r = inviteSchema.safeParse(input);
   if (!r.success) throw new UserError("Fix the highlighted fields.", fieldErrors(r.error));
   const d: InviteData = { ...r.data };
@@ -256,7 +267,7 @@ export async function inviteUser(driver: Driver, m: Membership, input: Record<st
     if (!authAdminConfigured()) throw new UserError("Inviting someone without an email is not switched on yet. Enter their email, or ask the platform owner to finish the set-up.", { email: "Enter an email" });
     d.username = await checkNewUsername(driver, d.username);
   }
-  const inv = await authorized(driver, m, "admin.users", (q) => createInvite(q, m, d));
+  const inv = await authorized(driver, m, "admin.users", (q) => createInvite(q, m, d, opts));
   await track(driver, m, inv);
   return publicInvite(inv);
 }
@@ -283,7 +294,7 @@ export async function resendInvitation(driver: Driver, m: Membership, id: string
     const fresh = await createInvite(q, m, {
       full_name: o.full_name, email: o.email ?? undefined, phone: o.phone ?? undefined, username: o.username ?? undefined, employee_no: o.employee_no ?? undefined,
       role: o.role_key, vehicle_scope: o.vehicle_scope as "all" | "own", vendor_id: o.vendor_id ?? undefined,
-    });
+    }, { phoneOptional: !o.phone });
     return { fresh, oldHash: o.token_hash };
   });
   await track(driver, m, fresh);
@@ -303,20 +314,23 @@ export async function issueResetLink(driver: Driver, m: Membership, userId: stri
   const ln = await loginNameByUserId(driver, userId);
   if (!ln) throw new UserError("This person signs in with an email, so they can choose a new password with \"Forgot your password?\".");
   const { inv, oldHashes } = await authorized(driver, m, "admin.users", async (q) => {
-    const mem = (await q.query<{ role: string; vehicle_scope: string; status: string; full_name: string | null; employee_no: string | null; vendor_name: string | null }>(
-      `select mm.role, mm.vehicle_scope, mm.status, e.full_name, e.employee_no, vn.name as vendor_name
+    const mem = (await q.query<{ role: string; vehicle_scope: string; status: string; full_name: string | null; employee_no: string | null; vendor_name: string | null; phone: string | null }>(
+      `select mm.role, mm.vehicle_scope, mm.status, e.full_name, e.employee_no, e.phone, vn.name as vendor_name
          from public.tenant_memberships mm left join employees e on e.user_id = mm.user_id left join vendors vn on vn.user_id = mm.user_id
         where mm.tenant_id = $1 and mm.user_id = $2`, [m.tenantId, userId])).rows[0];
     if (!mem) throw new UserError("That person is not in this workspace.");
     if (mem.status !== "active") throw new UserError("That person's access is switched off. Switch it on first.");
+    // Like every link, a reset link goes to the person's phone number only. So their employee record must have one.
+    const phone = mem.phone ? normalizePhone(mem.phone) : null;
+    if (!phone || !phone.ok) throw new UserError("This person has no phone number on their employee record. Add it under Employees first: the reset link is sent to it.");
     const olds = (await q.query<{ token_hash: string; id: string }>("update public.invitations set revoked_at = now() where reset_user_id = $1 and tenant_id = $2 and accepted_at is null and revoked_at is null returning token_hash, id", [userId, m.tenantId])).rows;
     const token = newInviteToken();
     const row = (await q.query<{ id: string; expires_at: string }>(
-      `insert into public.invitations(tenant_id, full_name, username, employee_no, role_key, vehicle_scope, invited_by, token_hash, reset_user_id, expires_at)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, now() + ($10 || ' days')::interval) returning id, expires_at::text`,
-      [m.tenantId, mem.full_name ?? mem.vendor_name ?? ln.username, ln.username, mem.employee_no, mem.role, mem.vehicle_scope, m.userId, hashInviteToken(token), userId, String(RESET_DAYS)])).rows[0];
+      `insert into public.invitations(tenant_id, full_name, phone, username, employee_no, role_key, vehicle_scope, invited_by, token_hash, reset_user_id, expires_at)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now() + ($11 || ' days')::interval) returning id, expires_at::text`,
+      [m.tenantId, mem.full_name ?? mem.vendor_name ?? ln.username, phone.e164, ln.username, mem.employee_no, mem.role, mem.vehicle_scope, m.userId, hashInviteToken(token), userId, String(RESET_DAYS)])).rows[0];
     return {
-      inv: { id: row.id, token, full_name: mem.full_name ?? mem.vendor_name ?? ln.username, email: null, username: ln.username, employee_no: mem.employee_no, reset: true, expires_at: row.expires_at, hash: hashInviteToken(token) } as CreatedInvite,
+      inv: { id: row.id, token, full_name: mem.full_name ?? mem.vendor_name ?? ln.username, email: null, phone: phone.e164, username: ln.username, employee_no: mem.employee_no, reset: true, expires_at: row.expires_at, hash: hashInviteToken(token) } as CreatedInvite,
       oldHashes: olds,
     };
   });
@@ -366,7 +380,7 @@ async function linkEmployee(q: Parameters<Parameters<typeof withTenant>[2]>[0], 
     const e = (await q.query<{ id: string; user_id: string | null }>("select id, user_id from employees where lower(employee_no) = lower($1)", [inv.employee_no])).rows[0];
     if (e) {
       if (e.user_id && e.user_id !== userId) throw new UserError("That employee already has a login. Ask for a new invitation.");
-      await q.query("update employees set user_id = $1 where id = $2", [userId, e.id]);
+      await q.query("update employees set user_id = $1, phone = coalesce(phone, $3) where id = $2", [userId, e.id, inv.phone]);
     } else {
       await q.query("insert into employees(user_id, full_name, employee_no, email, phone) values ($1, $2, $3, $4, $5)", [userId, inv.full_name, inv.employee_no, inv.email, inv.phone]);
     }

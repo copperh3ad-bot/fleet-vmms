@@ -56,7 +56,7 @@ describe.runIf(!!url)("an organization in its own real database", () => {
     await master.addVehicle(router, m, { registration_no: "REAL-1", odometer_km: "500" });
     expect((await master.listVehicles(router, m)).map((v) => v.registration_no)).toEqual(["REAL-1"]);
 
-    const inv = await ad.inviteUser(router, m, { full_name: "Real Manager", email: "manager@example.com", role: "fleet_manager", employee_no: "R-1" });
+    const inv = await ad.inviteUser(router, m, { phone: "0300 1234567", full_name: "Real Manager", email: "manager@example.com", role: "fleet_manager", employee_no: "R-1" });
     expect(await ad.acceptInvitation(router, { token: inv.token }, { id: U(2), email: "manager@example.com", emailConfirmed: true })).toEqual({ slug: "real-co" });
     expect(await resolveMembership(router, U(2), "real-co")).toMatchObject({ role: "fleet_manager" });
 

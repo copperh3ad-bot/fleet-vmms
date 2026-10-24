@@ -70,6 +70,11 @@ this order. Do not switch the hook on (step 5) before steps 1 to 4, or every sig
 - **Rotating the mail password:** change it at the service, update `SMTP_URL` in Netlify, redeploy.
 - **Rotating the hook secret:** generate a new one in Supabase, update `AUTH_HOOK_SECRET`, redeploy, in that order, within a few minutes.
 
+## Invitation links (ADR-026)
+Every invitation, and every password reset link, goes to the person's phone number and nowhere else. After you create one, press "Send on WhatsApp" or "Send as a text message": your own phone opens
+with their number and the message ready. Check the number on your phone before you send. There is no copy or email option, and the link is not shown on the screen. Do not open a first-time link
+yourself: whoever opens it first sets the password. A person with no phone number on their employee record cannot be sent a reset link until you add one under Employees.
+
 ## People with no email (sign-in names, ADR-025)
 Drivers and others with no email address are invited with an employee code, a role and a sign-in name. Nothing is emailed: you give them the link (copy it, or WhatsApp it).
 - **One-time set-up** **(you)**: in Supabase, Project settings, API, copy the **service_role** key. In Netlify, Site configuration, Environment variables, add

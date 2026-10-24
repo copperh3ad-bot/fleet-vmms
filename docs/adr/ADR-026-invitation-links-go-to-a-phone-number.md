@@ -1,0 +1,14 @@
+# ADR-026: Invitation links go to a phone number and nowhere else
+
+Status: accepted, 2026-10-25. Owner request: "send invitation links on user phone numbers only".
+
+## Decision
+1. **Every invitation needs a phone number.** It is typed on the invitation, or taken from the employee record when that has one, and stored in the international form (`+923001234567`). People type numbers the way they say them (`0300 1234567`, `0300-1234567`, `3001234567`); a number a message cannot reach is refused with a plain message, in the form and again on the server (`src/lib/phone.ts`, shared). A Pakistani number must be a mobile number (the code `92` and ten digits starting with 3); other countries are accepted with a `+` and their code.
+2. **The only ways to send the link are to that number.** After an invitation is made, the screen offers "Send on WhatsApp" and "Send as a text message", both opening the administrator's own phone with that exact number and the message ready. There is no "Copy link", no "Email it", and the link is not printed on the screen. The number is shown so the administrator can check it before pressing send. A person's email, when they have one, is used only to sign in; it is not where the link goes.
+3. **Reset links follow the same rule.** They go to the phone number on the person's employee record; a person with no number on file cannot be sent one until it is added under Employees. When someone joins, the number the link was sent to is kept on their employee record if it had none.
+4. **Requests approved from the join-with-a-code page are the one exception.** That person asked to join, is told on their own screen after signing in, and no link is handed to anyone, so approving them needs no phone number.
+5. **The form keeps what was typed.** The invitation form is sent by hand rather than as a form action, so a mistake in one field no longer clears the role, the employee code and the choice of how the person signs in. In the narrow side panel it is a single column; a block that asked to span two columns had been squeezing the fields before it.
+
+## What this does not do yet
+- **The link still passes through the administrator's phone.** Without a texting service, the app cannot send a message itself, so the administrator's WhatsApp or messages app does, and the link is in that message. For a person with no email this leaves the one gap named in ADR-025: whoever opens a first-time link first sets the password and the recovery code. The screen says so.
+- **Closing it fully means sending from the server.** With a WhatsApp Business or SMS provider, the app would send the message to the number itself and the administrator would never see the link at all. That needs an account, a verified sender and a per-message cost, which are the owner's choices. The pieces are ready for it: the number is validated and stored in the international form, and the message text is built in one place.

@@ -11,6 +11,7 @@ import * as master from "@/lib/master/service";
 import { UserError } from "@/lib/master/service";
 import { withTenant } from "@/lib/db/tenant";
 import { checkRecoveryCode, checkUsername, hashRecoveryCode, isLoginEmail, loginEmailFor, loginNameByUserId, looksLikeEmail, suggestUsername, usernameTaken, verifyRecoveryCode } from "@/lib/auth/login-names";
+import { normalizePhone, smsLink, whatsappLink } from "@/lib/phone";
 import { farm, newControl, platformMigrations, stripExt, tenantMigrations } from "./helpers";
 
 const U = (n: number) => `00000000-0000-0000-0000-00000000${String(n).padStart(4, "0")}`;
@@ -100,18 +101,18 @@ describe("the rules for a sign-in name", () => {
 
 describe("inviting someone with no email", () => {
   it("is for one employee code and one role; the name and phone come from the employee record", async () => {
-    const inv = await ad.inviteUser(router, admin, { employee_no: "D-101", username: "acme.d-101", role: "requester" });
-    expect(inv).toMatchObject({ full_name: "Driver One", email: null, username: "acme.d-101", employee_no: "D-101", reset: false });
+    const inv = await ad.inviteUser(router, admin, { employee_no: "D-101", username: "acme.d-101", role: "requester" });   // no phone typed: the one on the employee record is used
+    expect(inv).toMatchObject({ full_name: "Driver One", email: null, phone: "+923001111111", username: "acme.d-101", employee_no: "D-101", reset: false });
     const row = await raw(async (q) => (await q.query<{ email: string | null; username: string; employee_no: string; phone: string; role_key: string; vehicle_scope: string }>(
       "select email, username, employee_no, phone, role_key, vehicle_scope from public.invitations where id = $1", [inv.id])).rows[0]);
-    expect(row).toEqual({ email: null, username: "acme.d-101", employee_no: "D-101", phone: "0300 1111111", role_key: "requester", vehicle_scope: "own" });
+    expect(row).toEqual({ email: null, username: "acme.d-101", employee_no: "D-101", phone: "+923001111111", role_key: "requester", vehicle_scope: "own" });
     expect(await ad.previewInvitation(router, inv.token)).toEqual({ workspace: "Acme Transport", full_name: "Driver One", email: null, username: "acme.d-101", reset: false });
     const listed = (await ad.listInvitations(router, admin)).find((i) => i.id === inv.id);
     expect(listed).toMatchObject({ username: "acme.d-101", employee_no: "D-101", email: null, reset: false });
   });
 
   it("refuses what cannot work, in plain words", async () => {
-    const t = (input: Record<string, unknown>) => ad.inviteUser(router, admin, input);
+    const t = (input: Record<string, unknown>) => ad.inviteUser(router, admin, { phone: "0300 1234567", ...input });
     await expect(t({ username: "acme.nocode", role: "requester" })).rejects.toThrow(/employee code/i);
     await expect(t({ employee_no: "D-102", role: "requester" })).rejects.toThrow(/sign-in name/i);                                  // no email and no name
     await expect(t({ employee_no: "D-102", username: "admin", role: "requester" })).rejects.toThrow(/not available/);
@@ -124,20 +125,20 @@ describe("inviting someone with no email", () => {
   });
 
   it("an employee code with no record yet is fine, but then a name is needed", async () => {
-    await expect(ad.inviteUser(router, admin, { employee_no: "N-1", username: "acme.n-1", role: "requester" })).rejects.toThrow(/full name/i);
-    const inv = await ad.inviteUser(router, admin, { employee_no: "N-1", username: "acme.n-1", role: "requester", full_name: "New Hire" });
+    await expect(ad.inviteUser(router, admin, { phone: "0300 1234567", employee_no: "N-1", username: "acme.n-1", role: "requester" })).rejects.toThrow(/full name/i);
+    const inv = await ad.inviteUser(router, admin, { phone: "0300 1234567", employee_no: "N-1", username: "acme.n-1", role: "requester", full_name: "New Hire" });
     expect(inv.full_name).toBe("New Hire");
     await ad.revokeInvitation(router, admin, inv.id);
   });
 
   it("says plainly when the owner has not switched sign-in names on", async () => {
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-    await expect(ad.inviteUser(router, admin, { employee_no: "D-102", username: "acme.d-102", role: "requester" })).rejects.toThrow(/not switched on/);
+    await expect(ad.inviteUser(router, admin, { phone: "0300 1234567", employee_no: "D-102", username: "acme.d-102", role: "requester" })).rejects.toThrow(/not switched on/);
   });
 
   it("an invitation by email is also for an employee code and a role", async () => {
-    await expect(ad.inviteUser(router, admin, { full_name: "Mgr", email: "mgr@example.com", role: "fleet_manager" })).rejects.toThrow(/employee code/i);
-    const inv = await ad.inviteUser(router, admin, { email: "mgr@example.com", role: "fleet_manager", employee_no: "M-1", full_name: "Mona Manager" });
+    await expect(ad.inviteUser(router, admin, { phone: "0300 1234567", full_name: "Mgr", email: "mgr@example.com", role: "fleet_manager" })).rejects.toThrow(/employee code/i);
+    const inv = await ad.inviteUser(router, admin, { phone: "0300 1234567", email: "mgr@example.com", role: "fleet_manager", employee_no: "M-1", full_name: "Mona Manager" });
     expect(inv).toMatchObject({ email: "mgr@example.com", username: null, employee_no: "M-1" });
     await ad.acceptInvitation(router, { token: inv.token }, { id: U(30), email: "mgr@example.com", emailConfirmed: true });
     expect(await raw(async (q) => (await q.query<{ employee_no: string; full_name: string }>("select employee_no, full_name from employees where user_id = $1", [U(30)])).rows)).toEqual([{ employee_no: "M-1", full_name: "Mona Manager" }]);
@@ -177,7 +178,7 @@ describe("opening the link and choosing a password", () => {
   });
 
   it("a weak or failed set-up leaves no login behind and the same link can be tried again", async () => {
-    const inv = await ad.inviteUser(router, admin, { employee_no: "D-102", username: "acme.d-102", role: "requester" });
+    const inv = await ad.inviteUser(router, admin, { phone: "0300 1234567", employee_no: "D-102", username: "acme.d-102", role: "requester" });
     await expect(ad.acceptWithUsername(router, inv.token, "short", CODE)).rejects.toThrow(/stronger/);
     fake.failNextCreate = true;
     await expect(ad.acceptWithUsername(router, inv.token, PW, CODE)).rejects.toBeInstanceOf(UserError);
@@ -190,7 +191,7 @@ describe("opening the link and choosing a password", () => {
 
   it("a half-made login is finished by the same link, and refused to any other", async () => {
     await master.saveEmployee(router, admin, { full_name: "Driver Three", employee_no: "D-103" });
-    const inv = await ad.inviteUser(router, admin, { employee_no: "D-103", username: "acme.d-103", role: "requester" });
+    const inv = await ad.inviteUser(router, admin, { phone: "0300 1234567", employee_no: "D-103", username: "acme.d-103", role: "requester" });
     // the login and its name were made, then the set-up stopped before the membership was written
     const id = randomUUID(), loginEmail = `u${"a".repeat(24)}@login.fleetotg.com`;
     fake.users.set(id, { id, email: loginEmail, secret: OLD_PW, confirmed: true });
@@ -204,7 +205,7 @@ describe("opening the link and choosing a password", () => {
     expect(await resolveMembership(router, id, "acme")).toMatchObject({ role: "requester" });
 
     // a name that belongs to a login made by a different invitation is not handed over
-    const other = await ad.inviteUser(router, admin, { employee_no: "D-104", username: "acme.d-104", role: "requester", full_name: "Driver Four" });
+    const other = await ad.inviteUser(router, admin, { phone: "0300 1234567", employee_no: "D-104", username: "acme.d-104", role: "requester", full_name: "Driver Four" });
     const id2 = randomUUID(), email2 = `u${"b".repeat(24)}@login.fleetotg.com`;
     fake.users.set(id2, { id: id2, email: email2, secret: OTHER_PW, confirmed: true });
     await addName("acme.d-104", id2, email2, randomUUID());
@@ -275,7 +276,7 @@ describe("the recovery code stops an administrator from taking a login over", ()
 
   it("a first set-up needs a good code, and the code is stored only as a hash", async () => {
     await master.saveEmployee(router, admin, { full_name: "Driver Five", employee_no: "D-105" });
-    const inv = await ad.inviteUser(router, admin, { employee_no: "D-105", username: "acme.d-105", role: "requester" });
+    const inv = await ad.inviteUser(router, admin, { phone: "0300 1234567", employee_no: "D-105", username: "acme.d-105", role: "requester" });
     await expect(ad.acceptWithUsername(router, inv.token, PW, "")).rejects.toThrow(/recovery code/i);
     await expect(ad.acceptWithUsername(router, inv.token, PW, "111111")).rejects.toThrow(/too easy/i);
     expect(await usernameTaken(router, "acme.d-105")).toBe(false);                    // nothing was made by the refused tries
@@ -331,7 +332,7 @@ describe("the recovery code stops an administrator from taking a login over", ()
     // the trace: the membership is kept (disabled), and the change is in the audit log with who made it
     expect(await raw(async (q) => (await q.query<{ status: string }>("select status from public.tenant_memberships where user_id = $1", [userId])).rows[0].status)).toBe("disabled");
     // and the person can be invited again, with a brand new login on the same employee record
-    const again = await ad.inviteUser(router, admin, { employee_no: "D-101", username: "acme.d-101", role: "requester" });
+    const again = await ad.inviteUser(router, admin, { phone: "0300 1234567", employee_no: "D-101", username: "acme.d-101", role: "requester" });
     const made = await ad.acceptWithUsername(router, again.token, PW, CODE);
     expect(made.slug).toBe("acme");
     const m = (await resolveMembership(router, [...fake.users.values()].find((u) => u.email === made.loginEmail)!.id, "acme"))!;
@@ -344,5 +345,61 @@ describe("the recovery code stops an administrator from taking a login over", ()
     await expect(ad.replaceLogin(router, admin, U(30))).rejects.toThrow(/signs in with an email/);
     await expect(ad.replaceLogin(router, asRole("fleet_manager", 41), userId)).rejects.toBeInstanceOf(ForbiddenError);
     await expect(ad.replaceLogin(router, admin, randomUUID())).rejects.toThrow(/signs in with an email/);
+  });
+});
+
+describe("invitation links go to a phone number and nowhere else", () => {
+  it("turns the way people type a number into one a message can reach", () => {
+    for (const [typed, e164] of [["0300 1234567", "+923001234567"], ["0300-1234567", "+923001234567"], ["(0300) 123 4567", "+923001234567"], ["3001234567", "+923001234567"], ["+92 300 1234567", "+923001234567"],
+      ["0092 300 1234567", "+923001234567"], ["923001234567", "+923001234567"], ["+44 7700 900123", "+447700900123"]] as const) {
+      const r = normalizePhone(typed);
+      expect(r.ok && r.e164, typed).toBe(e164);
+    }
+    const r = normalizePhone("0300 1234567");
+    expect(r.ok && r.display).toBe("0300 1234567");
+    expect(r.ok && r.digits).toBe("923001234567");
+  });
+  it("refuses what no message can reach", () => {
+    for (const bad of ["", "   ", "abc", "0300 12345", "0400 1234567", "0300 123456789", "+92 300", "1234567", "0000 0000000", "+1", "03001234567x", "+999999999999999999"])
+      expect(normalizePhone(bad).ok, bad).toBe(false);
+  });
+  it("makes links that open WhatsApp and the messages app on that exact number", () => {
+    expect(whatsappLink("923001234567", "Hi there: https://x.test/invite/abc")).toBe("https://wa.me/923001234567?text=Hi%20there%3A%20https%3A%2F%2Fx.test%2Finvite%2Fabc");
+    expect(smsLink("+923001234567", "a b")).toBe("sms:+923001234567?&body=a%20b");
+  });
+
+  it("every invitation needs a phone number, typed or from the employee record, and it is stored in the international form", async () => {
+    await master.saveEmployee(router, admin, { full_name: "No Phone Pat", employee_no: "NP-1" });
+    await expect(ad.inviteUser(router, admin, { employee_no: "NP-1", username: "acme.np-1", role: "requester" })).rejects.toThrow(/phone number/i);
+    await expect(ad.inviteUser(router, admin, { employee_no: "NP-1", username: "acme.np-1", role: "requester", phone: "12345" })).rejects.toThrow(/phone number|Start the number/i);
+    await expect(ad.inviteUser(router, admin, { employee_no: "NP-1", email: "pat@example.com", role: "requester" })).rejects.toThrow(/phone number/i);     // an email invitation too
+    const inv = await ad.inviteUser(router, admin, { employee_no: "NP-1", username: "acme.np-1", role: "requester", phone: "0301-2223334" });
+    expect(inv.phone).toBe("+923012223334");
+    await ad.revokeInvitation(router, admin, inv.id);
+  });
+
+  it("the number the link was sent to is kept on the employee record when the person joins", async () => {
+    await master.saveEmployee(router, admin, { full_name: "Keep Number", employee_no: "KN-1" });
+    const inv = await ad.inviteUser(router, admin, { employee_no: "KN-1", username: "acme.kn-1", role: "requester", phone: "0302 3334445" });
+    await ad.acceptWithUsername(router, inv.token, PW, CODE);
+    expect(await raw(async (q) => (await q.query<{ phone: string }>("select phone from employees where employee_no = 'KN-1'")).rows[0].phone)).toBe("+923023334445");
+  });
+
+  it("a reset link is sent to the phone on the employee record, so a person with none cannot be sent one", async () => {
+    await master.saveEmployee(router, admin, { full_name: "Reset Rana", employee_no: "RR-1", phone: "0303 4445556" });
+    const inv = await ad.inviteUser(router, admin, { employee_no: "RR-1", username: "acme.rr-1", role: "requester" });
+    await ad.acceptWithUsername(router, inv.token, PW, CODE);
+    const userId = (await ad.listMembers(router, admin)).find((p) => p.username === "acme.rr-1")!.user_id;
+    expect((await ad.issueResetLink(router, admin, userId)).phone).toBe("+923034445556");
+    await raw((q) => q.query("update employees set phone = null where employee_no = 'RR-1'"));
+    await expect(ad.issueResetLink(router, admin, userId)).rejects.toThrow(/no phone number/i);
+  });
+
+  it("a person who asks to join with the company code is not sent a link, so their approval needs no phone number", async () => {
+    // the approver's screen is exercised in the browser test; here, only that the option exists and is not the default
+    await expect(ad.inviteUser(router, admin, { employee_no: "JN-1", email: "join@example.com", role: "requester", full_name: "Join Person" })).rejects.toThrow(/phone number/i);
+    const inv = await ad.inviteUser(router, admin, { employee_no: "JN-1", email: "join@example.com", role: "requester", full_name: "Join Person" }, { phoneOptional: true });
+    expect(inv.phone).toBeNull();
+    await ad.revokeInvitation(router, admin, inv.id);
   });
 });

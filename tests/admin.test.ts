@@ -17,7 +17,7 @@ const raw = <T,>(fn: (q: import("@/lib/db/types").Queryable) => Promise<T>) => w
 const plat = <T,>(fn: (q: import("@/lib/db/types").Queryable) => Promise<T>) => withPlatform(d, fn);
 const person = (n: number, email = `p${n}@example.com`, confirmed = true) => ({ id: U(n), email, emailConfirmed: confirmed });
 let codeSeq = 0;
-const invite = (email: string, extra: Record<string, unknown> = {}) => ad.inviteUser(d, admin(), { full_name: "New Person", email, role: "requester", ...(extra.role === "vendor" ? {} : { employee_no: `T-${++codeSeq}` }), ...extra });
+const invite = (email: string, extra: Record<string, unknown> = {}) => ad.inviteUser(d, admin(), { phone: "0300 1234567", full_name: "New Person", email, role: "requester", ...(extra.role === "vendor" ? {} : { employee_no: `T-${++codeSeq}` }), ...extra });
 const setLimits = (limits: Record<string, number>) => plat(async (q) => {
   await q.query("insert into public.plans(key, name, limits) values ('small', 'Small', $1::jsonb) on conflict (key) do update set limits = excluded.limits", [JSON.stringify(limits)]);
   await q.query("insert into public.tenant_subscriptions(tenant_id, plan_id) select $1, id from public.plans where key = 'small' on conflict (tenant_id) do update set plan_id = excluded.plan_id, status = 'active'", [t.tenantId]);
@@ -31,7 +31,7 @@ beforeAll(async () => {
 
 describe("inviting", () => {
   it("makes a long random link, keeps only its hash, and needs admin.users", async () => {
-    const inv = await invite("anna@example.com", { phone: "+92 300 111" });
+    const inv = await invite("anna@example.com", { phone: "+92 300 1112233" });
     expect(inv.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
     const row = await plat(async (q) => (await q.query<Record<string, unknown>>("select * from public.invitations where id = $1", [inv.id])).rows[0]);
     expect(JSON.stringify(row)).not.toContain(inv.token);

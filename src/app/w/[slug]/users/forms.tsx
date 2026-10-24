@@ -1,48 +1,66 @@
 "use client";
 import { useActionState, useState, type FormEvent } from "react";
-import { Input, Notice, Select, Submit } from "@/components/form";
+import { Input, Notice, Select } from "@/components/form";
 import { suggestUsername } from "@/lib/auth/username";
+import { normalizePhone, smsLink, whatsappLink } from "@/lib/phone";
 import type { FormState } from "../actions-util";
 import { changeMemberAction, inviteAction, replaceLoginAction, resendAction, resetLinkAction, revokeAction, type InviteResult, type InviteState } from "./actions";
 
+/** The link is sent to the person's phone number and nowhere else (ADR-026): no copy button, no email, and the link is not shown on screen. */
 function LinkBox({ invite }: { invite: InviteResult }) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => { try { await navigator.clipboard.writeText(invite.url); setCopied(true); } catch { setCopied(false); } };
+  const phone = invite.phone ? normalizePhone(invite.phone) : null;
   const byName = !invite.email && !!invite.username;
-  const text = encodeURIComponent(
-    invite.reset
-      ? `Your Fleet OTG password reset. Open this link to choose a new password (works once, valid 2 days): ${invite.url}`
-      : byName
-        ? `You are invited to join our fleet system. Your sign-in name is ${invite.username}. Open this link to choose your password (works once, valid 7 days): ${invite.url}`
-        : `You are invited to join our fleet system. Create your account here (works once, valid 7 days): ${invite.url}`);
+  const text = invite.reset
+    ? `Your Fleet OTG password reset. Open this link and choose a new password. You will also need your recovery code (works once, valid 2 days): ${invite.url}`
+    : byName
+      ? `You are invited to join our fleet system. Your sign-in name is ${invite.username}. Open this link to choose your password (works once, valid 7 days): ${invite.url}`
+      : `You are invited to join our fleet system. Create your account here (works once, valid 7 days): ${invite.url}`;
+  if (!phone || !phone.ok) return <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">This invitation has no phone number, so it cannot be sent. Cancel it and invite again with a phone number.</p>;
+  const btn = "inline-flex h-9 items-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-900 hover:bg-zinc-50";
   return (
     <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-zinc-900">
-      {byName
-        ? <p>Give this to <span className="font-medium">{invite.full_name}</span>. Their sign-in name is <span className="rounded bg-white px-1.5 py-0.5 font-mono font-medium">{invite.username}</span>{invite.reset ? "" : ", and they choose their own password"}. The link is shown only now.</p>
-        : <p>Send this to <span className="font-medium">{invite.email}</span>. It is shown only now.</p>}
-      {invite.reset && <p className="text-xs text-zinc-700">They also need the recovery code they chose when they first set up. You do not have it and cannot see it, so the link is no use without them.</p>}
-      {byName && !invite.reset && <p className="text-xs text-zinc-700">They will choose a password and a recovery code themselves. Hand this over in person, and do not open it yourself: whoever opens it first owns the account.</p>}
-      <input readOnly value={invite.url} onFocus={(e) => e.currentTarget.select()} aria-label="Invitation link" className="h-10 w-full rounded-md border border-zinc-300 bg-white px-2 text-xs" />
+      <p>
+        Send the {invite.reset ? "password reset" : "invitation"} link to <span className="font-medium">{invite.full_name}</span> on <span className="rounded bg-white px-1.5 py-0.5 font-mono font-medium">{phone.display}</span>.
+        {byName && <> Their sign-in name is <span className="rounded bg-white px-1.5 py-0.5 font-mono font-medium">{invite.username}</span>.</>} The link goes to this number only, and is not shown here.
+      </p>
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={copy} className="h-9 rounded-md border border-zinc-300 bg-white px-3">{copied ? "Copied" : "Copy link"}</button>
-        {!byName && invite.email && <a className="h-9 rounded-md border border-zinc-300 bg-white px-3 leading-9" href={`mailto:${invite.email}?subject=${encodeURIComponent("Your invitation")}&body=${text}`}>Email it</a>}
-        <a className="h-9 rounded-md border border-zinc-300 bg-white px-3 leading-9" href={`https://wa.me/?text=${text}`} target="_blank" rel="noreferrer">WhatsApp</a>
+        <a className={btn} href={whatsappLink(phone.digits, text)} target="_blank" rel="noreferrer">Send on WhatsApp</a>
+        <a className={btn} href={smsLink(phone.e164, text)}>Send as a text message</a>
       </div>
+      {invite.reset
+        ? <p className="text-xs text-zinc-700">They also need the recovery code they chose when they first set up. You do not have it and cannot see it, so the link is no use without them.</p>
+        : <p className="text-xs text-zinc-700">Check the number on your phone before you press send. {byName ? "They choose their own password and recovery code. " : ""}The link works once. Do not open it yourself: whoever opens it first owns the account.</p>}
     </div>
   );
 }
 
 export function InviteForm({ slug, roles, vendors, stack }: { stack?: boolean; slug: string; roles: [string, string][]; vendors: [string, string][] }) {
-  const [state, action] = useActionState<InviteState, FormData>(inviteAction.bind(null, slug), {});
+  const [state, setState] = useState<InviteState>({});
+  const [pending, setPending] = useState(false);
   const [role, setRole] = useState("");
   const [code, setCode] = useState("");
   const [noEmail, setNoEmail] = useState(false);
   const [typed, setTyped] = useState<string | null>(null);
   const isVendor = role === "vendor";
   const suggested = suggestUsername(slug, code);
+  // In the narrow side panel the form is one column, so nothing may ask to span two: that forces a hidden second column and squeezes the fields.
+  const span = stack ? "" : "sm:col-span-2";
+  // Sent by hand, not as a form action: React clears a form after an action, which would wipe the role, the employee code and the
+  // sign-in choice from a form that only needed one field fixed. This keeps everything the administrator entered until it works.
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (pending) return;
+    const form = e.currentTarget;
+    setPending(true);
+    try {
+      const result = await inviteAction(slug, {}, new FormData(form));
+      setState(result);
+      if (result.ok) { form.reset(); setRole(""); setCode(""); setTyped(null); setNoEmail(false); }
+    } finally { setPending(false); }
+  }
   return (
     <div className="space-y-3">
-      <form action={action} className={`grid grid-cols-1 gap-3 ${stack ? "" : "sm:grid-cols-2"}`} noValidate>
+      <form onSubmit={submit} className={`grid grid-cols-1 gap-3 ${stack ? "" : "sm:grid-cols-2"}`} noValidate>
         {!isVendor && <Input name="employee_no" label="Employee code" state={state} required value={code} onChange={(e) => setCode(e.target.value)} hint="The code on their employee record. Their login is linked to that employee." />}
         <Input name="full_name" label="Full name" state={state} required={isVendor} hint={isVendor ? undefined : "Leave empty to use the name already on the employee record."} />
         <div>
@@ -57,7 +75,7 @@ export function InviteForm({ slug, roles, vendors, stack }: { stack?: boolean; s
           : role === "requester"
             ? <Select key="own" name="vehicle_scope" label="Vehicles they can raise job cards for" state={{ ...state, values: { vehicle_scope: "own" } }} options={[["own", "Only the vehicle they hold"]]} />
             : <Select key="any" name="vehicle_scope" label="Vehicles they can see" state={{ ...state, values: { vehicle_scope: state.values?.vehicle_scope ?? "all" } }} blank="All" options={[["all", "All vehicles"], ["own", "Only the vehicle they hold"]]} />}
-        <fieldset className="sm:col-span-2">
+        <fieldset className={span}>
           <legend className="mb-1 text-xs font-medium text-zinc-600">How will they sign in?</legend>
           <div className="flex flex-wrap gap-4 text-sm">
             <label className="flex items-center gap-2"><input type="radio" name="contact" checked={!noEmail} onChange={() => setNoEmail(false)} /> With their email</label>
@@ -68,8 +86,8 @@ export function InviteForm({ slug, roles, vendors, stack }: { stack?: boolean; s
           ? <Input name="username" label="Sign-in name" state={state} required value={typed ?? suggested} onChange={(e) => setTyped(e.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false}
               hint="They sign in with this and a password they choose. Letters, numbers, dots and dashes." />
           : <Input name="email" label="Email" type="email" state={state} required hint="They confirm this address to join." />}
-        <Input name="phone" label="Phone (optional)" state={state} inputMode="tel" />
-        <div className="flex flex-wrap items-center gap-3 sm:col-span-2"><Submit>Create invitation</Submit><Notice state={state} /></div>
+        <Input name="phone" label="Phone number" state={state} inputMode="tel" required hint="The invitation link is sent to this number, and nowhere else. For example 0300 1234567." />
+        <div className={`flex flex-wrap items-center gap-3 ${span}`}><button type="submit" disabled={pending} className="h-10 rounded-md bg-brand px-5 text-sm font-medium text-white disabled:opacity-60">{pending ? "Creating" : "Create invitation"}</button><Notice state={state} /></div>
       </form>
       {state.invite && <LinkBox invite={state.invite} />}
     </div>

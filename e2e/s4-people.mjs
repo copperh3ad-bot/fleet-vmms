@@ -243,12 +243,28 @@ export async function people(S) {
     await f.locator("#full_name").fill(noMail.name);
     await f.locator("#role").selectOption("requester");
     await f.getByLabel("With a sign-in name (no email)").check();
+    await press(o, "Create invitation", { wait: 1200 });
+    check(has(await body(o), "Enter their phone number"), "an invitation with no phone number was accepted");
+    await f.locator("#full_name").fill(noMail.name); await f.locator("#phone").fill("12345"); await press(o, "Create invitation", { wait: 1200 });   // the form clears its text boxes after a failed try
+    const widths = await o.page.evaluate(() => ["employee_no", "full_name", "role", "phone"].map((id) => document.getElementById(id)?.offsetWidth ?? 0));
+    check(widths.every((w) => w > 150), `the invite form is squeezed: field widths ${widths.join(", ")}`);
+    check(has(await body(o), "Start the number with 0") || has(await body(o), "wrong length") || has(await body(o), "Pakistani"), `a bad phone number was accepted: ${(await o.page.locator("[role=alert], [role=status]").allInnerTexts()).join(" | ")} // phone=${await f.locator("#phone").inputValue()}`);
+    await f.locator("#full_name").fill(noMail.name); await f.locator("#phone").fill("0300-1234567");
     const shown = await f.locator("#username").inputValue();
     check(shown === noMail.user, `the suggested sign-in name was "${shown}", wanted "${noMail.user}"`);
     await press(o, "Create invitation", { wait: 2000 });
     check(has(await body(o), "Their sign-in name is") && has(await body(o), noMail.user), `no sign-in name shown: ${(await body(o)).slice(0, 200)}`);
-    const url = await o.page.locator('input[aria-label="Invitation link"]').first().inputValue();
-    linkPath = new URL(url).pathname;
+    // The link is sent to the phone number only: the box offers WhatsApp and a text message to that number, and nothing else.
+    const box = o.page.locator("div", { hasText: "goes to this number only" }).last();
+    check(has(await box.innerText(), "0300 1234567"), "the number is not shown for checking");
+    const wa = await o.page.getByRole("link", { name: "Send on WhatsApp" }).first().getAttribute("href");
+    const sms = await o.page.getByRole("link", { name: "Send as a text message" }).first().getAttribute("href");
+    check(/^https:\/\/wa\.me\/923001234567\?text=/.test(wa ?? ""), `the WhatsApp link was ${wa}`);
+    check(/^sms:\+923001234567\?&body=/.test(sms ?? ""), `the text message link was ${sms}`);
+    check(await o.page.locator('input[aria-label="Invitation link"]').count() === 0, "the link is shown on screen");
+    check(!has(await body(o), "Copy link") && !has(await body(o), "Email it"), "there is a way to copy or email the link");
+    const url = (decodeURIComponent(new URL(wa).searchParams.get("text") ?? "").match(/https?:\/\/\S+\/invite\/[A-Za-z0-9_-]{43}/) ?? [""])[0];
+    linkPath = url ? new URL(url).pathname : "";
     check(/^\/invite\/[A-Za-z0-9_-]{43}$/.test(linkPath), `the link was ${url}`);
     check(sql(`select count(*) from "public".invitations where username = '${noMail.user}' and email is null and employee_no = '${noMail.code}'`) === "1", "the invitation was not stored with the sign-in name and code");
   });
@@ -298,7 +314,9 @@ export async function people(S) {
     const row = o.page.locator("tr", { hasText: noMail.name }).first();
     check(has(await row.innerText(), noMail.code) && has(await row.innerText(), noMail.user), "the people list does not show the employee code and sign-in name");
     await press(o, row.getByRole("button", { name: "Make a password reset link" }), { wait: 2000 });
-    const url = await o.page.locator('input[aria-label="Invitation link"]').first().inputValue();
+    const wa = await o.page.getByRole("link", { name: "Send on WhatsApp" }).first().getAttribute("href");
+    check(/^https:\/\/wa\.me\/923001234567\?text=/.test(wa ?? ""), `the reset link was not addressed to the person's phone: ${wa}`);
+    const url = (decodeURIComponent(new URL(wa).searchParams.get("text") ?? "").match(/https?:\/\/\S+\/invite\/[A-Za-z0-9_-]{43}/) ?? [""])[0];
     const reset = new URL(url).pathname;
     await nd.ctx.clearCookies();
     await go(nd, reset);

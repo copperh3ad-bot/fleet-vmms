@@ -6,11 +6,11 @@ import { changeMember, inviteUser, issueResetLink, replaceLogin, resendInvitatio
 import { suggestUsername } from "@/lib/auth/login-names";
 import { runAction, str, typed, type FormState } from "../actions-util";
 
-export type InviteResult = { url: string; full_name: string; email: string | null; username: string | null; employee_no: string | null; reset: boolean; expires_at: string };
+export type InviteResult = { url: string; full_name: string; email: string | null; phone: string | null; username: string | null; employee_no: string | null; reset: boolean; expires_at: string };
 export type InviteState = FormState & { invite?: InviteResult };
 
 async function link(base: Promise<string>, i: NewInvite): Promise<InviteResult> {
-  return { url: `${await base}/invite/${i.token}`, full_name: i.full_name, email: i.email, username: i.username, employee_no: i.employee_no, reset: i.reset, expires_at: i.expires_at };
+  return { url: `${await base}/invite/${i.token}`, full_name: i.full_name, email: i.email, phone: i.phone, username: i.username, employee_no: i.employee_no, reset: i.reset, expires_at: i.expires_at };
 }
 
 export async function inviteAction(slug: string, _prev: InviteState, form: FormData): Promise<InviteState> {

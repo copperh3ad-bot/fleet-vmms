@@ -156,12 +156,12 @@ export async function approveJoinRequest(driver: Driver, m: Membership, id: stri
       vendorId = (await saveVendor(driver, m, { name: req.workshop_name, contact: req.full_name, phone: req.phone ?? undefined, email: req.email })).id;
       await authorized(driver, m, "admin.users", (q) => q.query("update public.join_requests set vendor_id = $2 where id = $1 and tenant_id = $3", [id, vendorId, m.tenantId]));
     }
-    invite = await inviteUser(driver, m, { full_name: req.full_name, email: req.email, phone: req.phone ?? "", role: "vendor", vehicle_scope: "all", vendor_id: vendorId });
+    invite = await inviteUser(driver, m, { full_name: req.full_name, email: req.email, phone: req.phone ?? "", role: "vendor", vehicle_scope: "all", vendor_id: vendorId }, { phoneOptional: true });
   } else {
     const role = choice.role || "requester";
     if (role === "vendor") throw new UserError("Choose a staff role. Workshops join through the workshop form.", { role: "Choose a staff role" });
     // Every invitation is for one employee code (ADR-025), so whoever approves says which employee this person is.
-    invite = await inviteUser(driver, m, { full_name: req.full_name, email: req.email, phone: req.phone ?? "", role, vehicle_scope: choice.vehicle_scope === "all" ? "all" : "own", employee_no: choice.employee_no ?? "" });
+    invite = await inviteUser(driver, m, { full_name: req.full_name, email: req.email, phone: req.phone ?? "", role, vehicle_scope: choice.vehicle_scope === "all" ? "all" : "own", employee_no: choice.employee_no ?? "" }, { phoneOptional: true });
   }
   await authorized(driver, m, "admin.users", (q) => q.query(
     "update public.join_requests set status = 'approved', decided_by = $2, decided_at = now(), invitation_id = $3 where id = $1 and tenant_id = $4", [id, m.userId, invite.id, m.tenantId]));
