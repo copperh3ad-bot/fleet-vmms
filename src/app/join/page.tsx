@@ -1,10 +1,10 @@
+import { pageMeta } from "@/lib/site";
 import { Suspense } from "react";
-import type { Metadata } from "next";
 import { SiteShell } from "@/components/site-shell";
 import { normalizeCode } from "@/lib/orgs/join";
 import { JoinForm } from "./form";
 
-export const metadata: Metadata = { title: "Join your company · Fleet OTG" };
+export const metadata = pageMeta("Join your company · Fleet OTG", "Join your company on Fleet OTG with the company code your administrator gave you.");
 
 export default function JoinPage({ searchParams }: PageProps<"/join">) {
   return <Suspense fallback={<SiteShell active="join"><p className="p-6 text-sm text-zinc-500">Loading</p></SiteShell>}><Inner searchParams={searchParams} /></Suspense>;

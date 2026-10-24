@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
+import { pageMeta } from "@/lib/site";
 import { LegalPage } from "@/components/legal";
 import { TERMS_VERSION } from "@/lib/orgs/signup";
 
-export const metadata: Metadata = { title: "Privacy policy · Fleet OTG" };
+export const metadata = pageMeta("Privacy policy · Fleet OTG", "How Fleet OTG collects, uses and protects your information.");
 
 export default function PrivacyPage() {
   return (

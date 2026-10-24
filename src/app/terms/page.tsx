@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
+import { pageMeta } from "@/lib/site";
 import { LegalPage } from "@/components/legal";
 import { TERMS_VERSION } from "@/lib/orgs/signup";
 
-export const metadata: Metadata = { title: "Terms of service · Fleet OTG" };
+export const metadata = pageMeta("Terms of service · Fleet OTG", "The terms for using Fleet OTG.");
 
 export default function TermsPage() {
   return (

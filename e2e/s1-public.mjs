@@ -44,6 +44,27 @@ export async function publicPages(S) {
     check(v.page.url().includes("/login"), "left the login page");
   });
 
+  await step("crawler files are open to anyone, and pages carry link-preview tags, a canonical link and the phone icon", async () => {
+    const get = (p) => fetch(`${APP}${p}`, { redirect: "manual" });
+    const robots = await get("/robots.txt");
+    check(robots.status === 200 && /disallow: \/w\//i.test(await robots.text()), `robots.txt gave ${robots.status}`);
+    const map = await get("/sitemap.xml");
+    const xml = await map.text();
+    check(map.status === 200 && xml.includes("<urlset") && xml.includes("/pricing") && !xml.includes("/login") && !xml.includes("/w/"), `sitemap.xml gave ${map.status}`);
+    const sec = await get("/.well-known/security.txt");
+    check(sec.status === 200 && /^Contact:/m.test(await sec.text()), `security.txt gave ${sec.status}`);
+    for (const p of ["/apple-touch-icon.png", "/apple-icon.png", "/opengraph-image.png"]) check((await get(p)).status === 200, `${p} did not answer 200`);
+    for (const [path, title] of [["/", "Fleet OTG"], ["/about", "About us"], ["/pricing", "Pricing"]]) {
+      const html = await (await get(path)).text();
+      const meta = (re) => html.match(re)?.[1] ?? "";
+      check(has(meta(/<meta property="og:title" content="([^"]*)"/), title), `${path}: og:title is "${meta(/<meta property="og:title" content="([^"]*)"/)}"`);
+      check(/<meta property="og:image" content="https?:\/\/[^"]+"/.test(html), `${path}: no og:image`);
+      check(/<meta name="twitter:card" content="summary_large_image"/.test(html), `${path}: no twitter card`);
+      check(/<link rel="canonical" href="https?:\/\/[^"]+"/.test(html), `${path}: no canonical link`);
+      check(/<link rel="apple-touch-icon"/.test(html), `${path}: no apple-touch-icon link`);
+    }
+  });
+
   const OLD = ["an", "old", "test", "word", "1"].join("-"), NEW = ["a", "new", "test", "word", "2"].join("-"), OTHER = ["not", "the", "same", "one", "3"].join("-");
 
   await step("forgot password: the sign-in page links to it, and a known and an unknown address get the same answer", async () => {

@@ -48,6 +48,9 @@ Rotate immediately if a value was pasted somewhere public, shown on a screen sha
 - Owner (you): operator pages, billing, tax settings, deploys, all dashboards above.
 - The assistant: code, tests, migrations scripts, read-only audits. It does not hold your Supabase, Netlify or Namecheap logins.
 
+## Once a year
+- `public/.well-known/security.txt` says when it expires (`Expires:`, October 2027). Change that date to a year ahead before then; a security.txt past its date is ignored by tools.
+
 ## Known gaps (as of 24 October 2026)
 - Application email comes from Supabase's built-in sender, which is limited. Set up SMTP from your own domain before real customers arrive.
 - No external uptime monitor. Add a free one (for example UptimeRobot) that checks `/api/health` every five minutes and emails you **(you)**.

@@ -1,14 +1,11 @@
+import { pageMeta } from "@/lib/site";
 import { Suspense } from "react";
-import type { Metadata } from "next";
 import { SiteShell } from "@/components/site-shell";
 import { getDriver } from "@/lib/db";
 import { loadPlatformSettings } from "@/lib/billing/settings";
 import { ContactForm } from "./form";
 
-export const metadata: Metadata = {
-  title: "Contact us · Fleet OTG",
-  description: "Ask a question about Fleet OTG, get help with your account, or ask about a payment.",
-};
+export const metadata = pageMeta("Contact us · Fleet OTG", "Ask a question about Fleet OTG, get help with your account, or ask about a payment.");
 
 export default function ContactPage() {
   return (

@@ -1,6 +1,6 @@
+import { pageMeta } from "@/lib/site";
 import { Suspense } from "react";
 import { connection } from "next/server";
-import type { Metadata } from "next";
 import { SiteShell } from "@/components/site-shell";
 import { getDriver } from "@/lib/db";
 import { loadOffer } from "@/lib/billing/offer";
@@ -8,7 +8,7 @@ import { signupsOpen } from "@/lib/orgs/runtime";
 import { countryOptions } from "@/lib/orgs/countries";
 import { SignupForm } from "./form";
 
-export const metadata: Metadata = { title: "Start your free trial · Fleet OTG" };
+export const metadata = pageMeta("Start your free trial · Fleet OTG", "Start a free trial of Fleet OTG for your company fleet. Every feature is open and no card is needed.");
 
 export default function SignupPage() {
   return <Suspense fallback={<SiteShell active="signup"><p className="p-6 text-sm text-zinc-500">Loading</p></SiteShell>}><Inner /></Suspense>;

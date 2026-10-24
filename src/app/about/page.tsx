@@ -1,10 +1,7 @@
-import type { Metadata } from "next";
+import { pageMeta } from "@/lib/site";
 import { SiteShell } from "@/components/site-shell";
 
-export const metadata: Metadata = {
-  title: "About us · Fleet OTG",
-  description: "Why Fleet OTG exists: the everyday problems of running a company fleet on spreadsheets, and what we built to end them.",
-};
+export const metadata = pageMeta("About us · Fleet OTG", "Why Fleet OTG exists: the everyday problems of running a company fleet on spreadsheets, and what we built to end them.");
 
 // Each block is a problem we met first-hand, and the thing in the product that answers it. Nothing here is a statistic or a
 // customer claim: every answer names something the product does today.

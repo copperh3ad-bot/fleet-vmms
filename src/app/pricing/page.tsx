@@ -1,11 +1,11 @@
+import { pageMeta } from "@/lib/site";
 import { Suspense } from "react";
 import { connection } from "next/server";
-import type { Metadata } from "next";
 import { SiteShell } from "@/components/site-shell";
 import { getDriver } from "@/lib/db";
 import { loadOffer } from "@/lib/billing/offer";
 
-export const metadata: Metadata = { title: "Pricing · Fleet OTG" };
+export const metadata = pageMeta("Pricing · Fleet OTG", "One plan with everything included, priced about the same as one month's wage of an unskilled labourer. Free trial, pay by bank transfer.");
 
 export default function PricingPage() {
   return <Suspense fallback={<SiteShell active="pricing"><p className="p-6 text-sm text-zinc-500">Loading</p></SiteShell>}><Inner /></Suspense>;
