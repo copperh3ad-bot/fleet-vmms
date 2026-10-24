@@ -1,6 +1,6 @@
 import { APP, MOCK, axe, body, check, finding, fill, go, has, mock, overflow, persona, press, scenario, step, waitText } from "./lib.mjs";
 
-const PUBLIC = ["/", "/pricing", "/signup", "/signup/check-email", "/join", "/join/workshop", "/join/sent", "/login", "/forgot-password", "/terms", "/privacy"];
+const PUBLIC = ["/", "/pricing", "/signup", "/signup/check-email", "/join", "/join/workshop", "/join/sent", "/login", "/forgot-password", "/about", "/terms", "/privacy"];
 
 export async function publicPages(S) {
   scenario("1. Public pages, signed out");
