@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import ExcelJS from "exceljs";
-import { APP, body, check, fill, finding, fixture, go, has, mock, press, scenario, sql, step, waitText } from "./lib.mjs";
+import { APP, body, check, fill, finding, fixture, go, has, mock, press, scenario, shot, sql, step, waitText } from "./lib.mjs";
 
 const tenantId = (slug) => sql(`select id from public.tenants where slug = '${slug}'`);
 const setting = (slug, key) => sql(`select value from "${sql(`select schema_name from public.tenants where slug = '${slug}'`)}".settings where key = '${key}'`);
@@ -20,6 +20,23 @@ export async function workspace(S) {
       check(!has(t, "application error") && !has(t, "something went wrong"), `${p || "/"} showed an error`);
       check(new URL(o.page.url()).pathname.startsWith(base), `${p} went to ${o.page.url()}`);
     }
+  });
+
+  await step("a new company's dashboard walks the owner through getting started, and the list can be put away and brought back", async () => {
+    await go(o, base);
+    let t = await body(o);
+    check(has(t, "Get started") && has(t, "Add your vehicles") && has(t, "Raise your first job card"), "the get-started steps are not shown on a new company's dashboard");
+    check(has(t, "0 of") || has(t, "1 of"), "the progress count is missing");
+    if (process.env.E2E_SHOTS) await shot(o, "screen-get-started");
+    const href = await o.page.getByRole("link", { name: "Add a vehicle" }).first().getAttribute("href");
+    check(href === `${base}/vehicles/new`, `the first step points to ${href}`);
+    await press(o, "Hide this for now", { wait: 1200 });
+    t = await body(o);
+    check(!has(t, "Add your vehicles") && has(t, "Show the get-started steps"), "the steps were not put away");
+    await go(o, base);
+    check(!has(await body(o), "Add your vehicles"), "the steps came back on reload, so the choice was not remembered");
+    await press(o, "Show the get-started steps", { wait: 1200 });
+    check(has(await body(o), "Add your vehicles"), "the steps did not come back");
   });
 
   await step("an employee is added", async () => {

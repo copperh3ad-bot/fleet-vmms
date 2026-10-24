@@ -5,6 +5,9 @@ import { ForbiddenError, permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { getDashboard, type Dashboard } from "@/lib/dashboard/service";
 import { getOverview, type Overview } from "@/lib/dashboard/overview";
+import { getOnboarding, onboardingCookie } from "@/lib/dashboard/onboarding";
+import { GetStarted, GetStartedShow } from "./get-started";
+import { cookies } from "next/headers";
 import { Kpi, Panel, Pill, Plate, btn, money } from "@/components/ui";
 import { DOC_LABEL } from "@/lib/compliance/schemas";
 import { REASON_CATEGORY, dayMonth, monthShort, plural } from "@/lib/labels";
@@ -28,6 +31,9 @@ async function Workspace({ params }: { params: Promise<{ slug: string }> }) {
   try { d = await getDashboard(driver, m); } catch (e) { if (!(e instanceof ForbiddenError)) throw e; }
   let o: Overview | null = null;
   if (perms.has("report.view")) o = await getOverview(driver, m);
+  const start = await getOnboarding(driver, m);
+  const unfinished = start !== null && start.doneCount < start.steps.length;
+  const hidden = (await cookies()).get(onboardingCookie(slug))?.value === "1";
   const to = (href: string) => `/w/${slug}/${href}`;
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
@@ -51,6 +57,7 @@ async function Workspace({ params }: { params: Promise<{ slug: string }> }) {
           <div className="flex flex-wrap items-center gap-2">{actions}</div>
         </div>
       </header>
+      {start && unfinished && !hidden && <GetStarted o={start} slug={slug} to={to} />}
       {!d && !o && <p className="rounded-lg border border-zinc-200 bg-white p-4 text-sm">Nothing is set up for your role yet. Ask your administrator.</p>}
 
       {o ? <OverviewBlocks o={o} to={to} /> : d && <Needs d={d} to={to} />}
@@ -72,6 +79,7 @@ async function Workspace({ params }: { params: Promise<{ slug: string }> }) {
           </ul>
         </Panel>
       )}
+      {start && unfinished && hidden && <GetStartedShow slug={slug} />}
     </main>
   );
 }

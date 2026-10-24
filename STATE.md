@@ -306,3 +306,7 @@
 
 ## 2026-10-25: premium surface and 3D wheel on the home page (ADR-027)
 - Shared pieces restyled (panels, number cards, buttons, sidebar, table rows) so every signed-in screen changes together; a 3D wheel with a route network sits behind the home page headline, loaded only on wide screens with motion allowed (about 86 KB, separate download). Browser test 144 passed (accessibility and phone-width checks included), unit tests 618 passed (one old timezone-dependent test fails only between 00:00 and 05:00 Pakistan time), no new vulnerabilities. E2E_SHOTS=1 now keeps a picture of each signed-in screen in e2e/shots.
+
+## 2026-10-25: dashboard polish and a get-started walk-through (ADR-028)
+- Dashboard: welcome band, icons on number cards, gradient charts, and wording that made no sense with no data fixed (currency on spend, no empty buttons or bars).
+- New companies see a nine-step "Get started" list on the dashboard; each step is marked done from the company's own data and shows what it will light up. Per-role steps; hidden per person with a cookie; no migration. Tests: 3 new unit tests, a new browser step (put away, remembered, brought back); browser test 93 passed, unit 621 passed (the one failure is the old timezone-dependent ledger test, only between 00:00 and 05:00 Pakistan time).
