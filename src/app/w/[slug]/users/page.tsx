@@ -7,7 +7,7 @@ import { listVendors } from "@/lib/master/service";
 import { plural } from "@/lib/labels";
 import { getJoinCode, listJoinRequests } from "@/lib/orgs/join";
 import { origin } from "@/lib/origin";
-import { InviteForm, MemberControls, PendingActions, ResetLink } from "./forms";
+import { InviteForm, MemberControls, PendingActions, ReplaceLogin, ResetLink } from "./forms";
 import { JoinCodePanel, JoinRequestActions } from "./join-forms";
 
 export default function UsersPage({ params, searchParams }: PageProps<"/w/[slug]/users">) {
@@ -50,6 +50,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
 
   return (
     <main className="space-y-5 p-6 text-zinc-900">
+      {typeof sp.note === "string" && sp.note && <p role="status" className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-900">{sp.note.slice(0, 300)}</p>}
       <PageHeader title="Users and roles" sub={`${plural(members.length + invites.length, "person", "people")} · ${plural(matrix.roles.length, "role")} · ${usage(use.users)} users${limitHit ? " (limit reached)" : ""} · ${usage(use.vehicles)} vehicles`}
         actions={<a href="#invite" className={btnPrimary}>Invite a person</a>} />
 
@@ -84,7 +85,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
                     <td className="py-3">{p.role_name}{p.vehicle_scope === "own" && p.role !== "vendor" && <span className="block text-xs text-zinc-500">Own vehicle only</span>}</td>
                     <td className="py-3"><Pill tone={status(p.status).tone}>{status(p.status).label}</Pill></td>
                     <td className="py-3 whitespace-nowrap">{dmy(p.since)}</td>
-                    <td className="py-3 pr-5 text-right">{!p.is_me && <a className="text-sky-800 underline" href={`/w/${slug}/users?edit=${p.user_id}#invite`}>Change</a>}{!p.is_me && p.username && p.status === "active" && <div className="mt-1 text-left"><ResetLink slug={slug} userId={p.user_id} /></div>}</td>
+                    <td className="py-3 pr-5 text-right">{!p.is_me && <a className="text-sky-800 underline" href={`/w/${slug}/users?edit=${p.user_id}#invite`}>Change</a>}{!p.is_me && p.username && p.status === "active" && <div className="mt-1 space-y-1 text-left"><ResetLink slug={slug} userId={p.user_id} /><ReplaceLogin slug={slug} userId={p.user_id} name={p.full_name ?? p.username} /></div>}</td>
                   </tr>))}
                 {invites.map((i) => (
                   <tr key={i.id} className="border-t border-zinc-100 align-top">

@@ -40,6 +40,25 @@ export function CreateAccountForm({ token, email, username, reset }: { token: st
         <label htmlFor="confirm" className="mb-1 block text-sm font-medium">Type it again</label>
         <input id="confirm" name="confirm" type="password" autoComplete="new-password" className={box} />
       </div>
+      {username && (
+        <>
+          <div>
+            <label htmlFor="recovery" className="mb-1 block text-sm font-medium">{reset ? "Your recovery code" : "Choose a recovery code"}</label>
+            <input id="recovery" name="recovery" type="password" inputMode="numeric" autoComplete="off" className={box} aria-describedby="rc-hint" />
+            <p id="rc-hint" className="mt-1 text-xs text-zinc-500">
+              {reset
+                ? "The code you chose when you first set up your account. Your administrator does not have it."
+                : "6 to 12 digits. Keep it to yourself and write it down. If you forget your password you will need it to choose a new one. Nobody else can see it, including your administrator."}
+            </p>
+          </div>
+          {!reset && (
+            <div>
+              <label htmlFor="recovery_confirm" className="mb-1 block text-sm font-medium">Type the recovery code again</label>
+              <input id="recovery_confirm" name="recovery_confirm" type="password" inputMode="numeric" autoComplete="off" className={box} />
+            </div>
+          )}
+        </>
+      )}
       {state.error && <p role="alert" className="text-sm text-red-700">{state.error}</p>}
       <button type="submit" disabled={pending} className="h-12 w-full rounded-md bg-sky-800 px-5 text-lg font-medium text-white disabled:opacity-60">{pending ? "Please wait" : reset ? "Save my new password" : "Create my account"}</button>
     </form>

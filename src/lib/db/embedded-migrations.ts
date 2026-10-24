@@ -109,6 +109,11 @@ export const CONTROL_MIGRATIONS: Migration[] = [
     "name": "0011_login_names.sql",
     "sql": "-- Control-plane migration 0011: sign-in names for people who have no email (ADR-025). Idempotent.\n-- Supabase Auth signs people in by email, so a person invited without an email gets a made-up address that nothing is ever sent to\n-- (login_email), and signs in with a short name instead (username). This table is the only place that links the two. It is global\n-- because a name must find exactly one person whichever company they belong to. The application is its only client: row security\n-- is on and the public API roles hold no privileges.\ncreate table if not exists public.login_names (\n  username      text primary key check (username ~ '^[a-z0-9][a-z0-9._-]{2,29}$'),\n  user_id       uuid not null unique,\n  login_email   text not null unique,\n  invitation_id uuid,                 -- the invitation that made it, so a half-finished set-up can be retried by the same link\n  created_at    timestamptz not null default now()\n);\n\nalter table public.login_names enable row level security;\ndo $$\ndeclare r text;\nbegin\n  foreach r in array array['anon', 'authenticated'] loop\n    if exists (select 1 from pg_roles where rolname = r) then execute format('revoke all on table public.login_names from %I', r); end if;\n  end loop;\nend $$;\n",
     "checksum": "876158914584a7c6f35f848fc804d7665037b314139bfb92e35b4cc15ad85086"
+  },
+  {
+    "name": "0012_login_recovery_code.sql",
+    "sql": "-- Control-plane migration 0012: a recovery code for people who sign in with a name (ADR-025). Idempotent.\n-- An administrator makes a reset link for someone who has no email, which would let the administrator choose that person's password.\n-- So a reset link only works together with a code that only the person knows. They choose it when they first set up; only a salted\n-- hash is kept here, never the code. Wrong tries are limited in the application.\nalter table public.login_names add column if not exists recovery_hash text;\n",
+    "checksum": "cc67a85eb4efc401368da0285e3223421fc5f174ba6f4af4178bc2f65ab64d73"
   }
 ];
 

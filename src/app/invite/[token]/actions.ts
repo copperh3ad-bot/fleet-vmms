@@ -33,7 +33,10 @@ export async function createAccountAction(token: string, _prev: InviteFormState,
   // A person with no email: the app makes their login (or, on a reset link, changes its password), then signs them in with it (ADR-025).
   if (invite.username) {
     try {
-      const done = await acceptWithUsername(driver, token, password);
+      const recovery = String(form.get("recovery") ?? "");
+      // On a first set-up the code is typed twice; on a reset it is the code they already chose.
+      if (!invite.reset && recovery.replace(/\s+/g, "") !== String(form.get("recovery_confirm") ?? "").replace(/\s+/g, "")) return { error: "The two recovery codes do not match." };
+      const done = await acceptWithUsername(driver, token, password, recovery);
       const { error: signInError } = await supabase.auth.signInWithPassword({ email: done.loginEmail, password });
       if (signInError) return { notice: `Your password is set. Sign in with the sign-in name ${invite.username}.` };
       return { go: `/w/${done.slug}` };

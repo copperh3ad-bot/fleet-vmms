@@ -76,7 +76,10 @@ Drivers and others with no email address are invited with an employee code, a ro
   `SUPABASE_SERVICE_ROLE_KEY` with that value, mark it secret, and redeploy. Never paste it in a chat, a ticket or the repository. It can create and delete any login. Until it is set,
   inviting by sign-in name is refused with a plain message; email invitations are unaffected.
 - **Run the migrations** first (`scripts/migrate-tenants.mts`): they add the sign-in names table and the new invitation columns.
-- **A forgotten password:** an administrator opens Users and roles, finds the person, and presses "Make a password reset link". The link works once and lasts 2 days.
+- **A forgotten password:** an administrator opens Users and roles, finds the person, and presses "Make a password reset link". The link works once and lasts 2 days. The person
+  also needs the **recovery code** they chose when they first set up; you cannot see it and the link is no use without it. Hand over a first-time link in person and do not open it yourself.
+- **Forgot the password and the recovery code:** press "Replace login" on that person. Their old sign-in stops working at once and their employee code is freed; then invite them again
+  with the same employee code. It is recorded in the audit trail with your name.
 - **Rotating the key:** in Supabase, create a new service key, update `SUPABASE_SERVICE_ROLE_KEY` in Netlify, redeploy, then remove the old key.
 
 ## Who can do what

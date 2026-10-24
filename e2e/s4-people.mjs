@@ -228,6 +228,7 @@ export async function people(S) {
   });
   // ---------- a person with no email (ADR-025)
   const PW2 = ["a", "new", "test", "password", "2"].join("-");
+  const CODE = "482915", WRONG = "159263";
   const noMail = { code: `NE-${tag}`, name: "Noor Driver", user: `${slug}.ne-${tag}`.toLowerCase() };
   let linkPath = "";
   const nd = await persona("noemail");
@@ -259,8 +260,18 @@ export async function people(S) {
     await press(nd, "Create my account", { wait: 1200 });
     check(has(await body(nd), "at least 10"), "a short password was accepted");
     await fill(nd, "#password", PW); await fill(nd, "#confirm", PW);
+    await fill(nd, "#recovery", "111111"); await fill(nd, "#recovery_confirm", "111111");
+    await press(nd, "Create my account", { wait: 1200 });
+    check(has(await body(nd), "too easy"), "a trivial recovery code was accepted");
+    await fill(nd, "#password", PW); await fill(nd, "#confirm", PW);
+    await fill(nd, "#recovery", CODE); await fill(nd, "#recovery_confirm", "482916");
+    await press(nd, "Create my account", { wait: 1200 });
+    check(has(await body(nd), "recovery codes do not match"), "two different recovery codes were accepted");
+    await fill(nd, "#password", PW); await fill(nd, "#confirm", PW);
+    await fill(nd, "#recovery", CODE); await fill(nd, "#recovery_confirm", CODE);
     await press(nd, "Create my account", { wait: 3000 });
     await landed(nd);
+    check(sql(`select recovery_hash like 's1$%' and recovery_hash not like '%${CODE}%' from public.login_names where username = '${noMail.user}'`) === "t", "the recovery code is not stored as a hash");
     check(sql(`select count(*) from public.login_names where username = '${noMail.user}' and login_email like '%@login.fleetotg.com'`) === "1", "no sign-in name was recorded");
     check(sql(`select count(*) from "${schemaOf(slug)}".employees where employee_no = '${noMail.code}' and user_id is not null`) === "1", "the login was not linked to the employee code");
     check(sql(`select role || '|' || vehicle_scope from public.tenant_memberships m join public.login_names l on l.user_id = m.user_id where l.username = '${noMail.user}'`) === "requester|own", "wrong role or vehicle scope");
@@ -291,8 +302,12 @@ export async function people(S) {
     const reset = new URL(url).pathname;
     await nd.ctx.clearCookies();
     await go(nd, reset);
-    check(has(await body(nd), "Choose a new password"), "the reset page does not say so");
-    await fill(nd, "#password", PW2); await fill(nd, "#confirm", PW2);
+    check(has(await body(nd), "Choose a new password") && has(await body(nd), "Your recovery code"), "the reset page does not ask for the recovery code");
+    await fill(nd, "#password", "an-admins-own-choice-9"); await fill(nd, "#confirm", "an-admins-own-choice-9"); await fill(nd, "#recovery", WRONG);
+    await press(nd, "Save my new password", { wait: 2500 });
+    check(has(await body(nd), "recovery code is not right"), "a reset with the wrong recovery code was not refused");
+    check(!/\/w\//.test(nd.page.url()), "a reset with the wrong recovery code let the person in");
+    await fill(nd, "#password", PW2); await fill(nd, "#confirm", PW2); await fill(nd, "#recovery", CODE);
     await press(nd, "Save my new password", { wait: 3000 });
     await landed(nd);
     await go(nd, reset);
@@ -305,5 +320,20 @@ export async function people(S) {
     await press(nd, "Sign in", { exact: true, wait: 3000 });
     await landed(nd);
     await nd.ctx.close();
+  });
+  await step("an administrator can replace a login for someone who forgot everything: the old sign-in stops working and the employee code is free", async () => {
+    sql("delete from public.rate_limits");
+    await go(o, `${base}/users`);
+    const row = o.page.locator("tr", { hasText: noMail.name }).first();
+    o.page.once("dialog", (d) => d.accept());
+    await press(o, row.getByRole("button", { name: "Replace login" }), { wait: 2500 });
+    check(has(await body(o), "Login replaced"), `no confirmation: ${(await body(o)).slice(0, 200)}`);
+    check(sql(`select count(*) from public.login_names where username = '${noMail.user}'`) === "0", "the sign-in name is still taken");
+    check(sql(`select count(*) from "${schemaOf(slug)}".employees where employee_no = '${noMail.code}' and user_id is null`) === "1", "the employee code is not free");
+    const stranger = await persona("replaced");
+    await go(stranger, "/login"); await fill(stranger, "#email", noMail.user); await fill(stranger, "#password", PW2);
+    await press(stranger, "Sign in", { exact: true, wait: 1500 });
+    check(has(await body(stranger), "do not match"), "the replaced login still works");
+    await stranger.ctx.close();
   });
 }

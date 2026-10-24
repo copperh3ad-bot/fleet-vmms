@@ -9,7 +9,8 @@ import { withOrgPlatform, withTenant } from "@/lib/db/tenant";
 import { findTenantByInvitation, findTenantByToken, forgetMember, indexInvitation, rememberMember, routeToken, tenantsInvitingEmail, unindexInvitation, unrouteToken } from "@/lib/orgs";
 import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
-import { checkUsername, loginNameByUserId, loginNameByUsername, loginNamesFor, newLoginEmail, recordLoginName, usernameTaken } from "@/lib/auth/login-names";
+import { checkRecoveryCode, checkUsername, deleteLoginName, hashRecoveryCode, loginNameByUserId, loginNameByUsername, loginNamesFor, newLoginEmail, recordLoginName, setRecoveryHash, usernameTaken, verifyRecoveryCode } from "@/lib/auth/login-names";
+import { allowShared } from "@/lib/rate-limit";
 import { authAdminConfigured, createLoginUser, deleteLoginUser, setLoginPassword } from "@/lib/supabase/admin";
 
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
@@ -429,11 +430,13 @@ export async function acceptInvitation(driver: Driver, by: { id: string } | { to
 }
 
 /**
- * The person with a sign-in name opens their link and chooses a password. This makes their login (or, on a reset link, changes the
- * password of the login they already have), then joins the workspace. If the set-up stops half way, opening the same link again
- * finishes it: the half-made login is recognised by the invitation that made it. Returns what the page needs to sign them in.
+ * The person with a sign-in name opens their link and chooses a password and a recovery code. This makes their login, then joins the
+ * workspace. On a reset link, the link alone is not enough: it also needs the recovery code the person chose when they first set up,
+ * which no administrator ever sees, so whoever merely holds the link cannot take the login over. Wrong codes are counted per person,
+ * across every link, and stop after five in an hour. If the set-up stops half way, opening the same link again finishes it: the
+ * half-made login is recognised by the invitation that made it. Returns what the page needs to sign them in.
  */
-export async function acceptWithUsername(driver: Driver, token: string, password: string): Promise<{ slug: string; loginEmail: string; reset: boolean }> {
+export async function acceptWithUsername(driver: Driver, token: string, password: string, recoveryCode: string): Promise<{ slug: string; loginEmail: string; reset: boolean }> {
   const refused = () => new UserError("This invitation is not working. Ask your administrator for a new one.");
   if (!TOKEN_RE.test(token)) throw refused();
   const hash = hashInviteToken(token);
@@ -448,6 +451,9 @@ export async function acceptWithUsername(driver: Driver, token: string, password
 
   if (inv.reset_user_id) {
     if (!existing || existing.userId !== inv.reset_user_id) throw refused();
+    // The code proves it is the person and not whoever holds the link. Every try is counted before it is checked.
+    if (!(await allowShared(driver, `reset-code:${existing.userId}`, 5, 3600))) throw new UserError("Too many wrong recovery codes. Try again in an hour, or ask your administrator to replace your login.");
+    if (!verifyRecoveryCode(recoveryCode, existing.recoveryHash)) throw new UserError("That recovery code is not right. If you have forgotten it, ask your administrator to replace your login.");
     const active = await withTenant(driver, { schema: found.schema, userId: existing.userId, role: "invitee" }, async (q) =>
       (await q.query("select 1 from public.tenant_memberships where tenant_id = $1 and user_id = $2 and status = 'active'", [inv.tenant_id, existing.userId])).rows.length > 0);
     if (!active) throw new UserError("Your access is switched off. Ask your administrator.");
@@ -457,6 +463,9 @@ export async function acceptWithUsername(driver: Driver, token: string, password
     return { slug: found.slug, loginEmail: existing.loginEmail, reset: true };
   }
 
+  const rc = checkRecoveryCode(recoveryCode);
+  if (!rc.ok) throw new UserError(rc.message);
+  const recoveryHash = hashRecoveryCode(rc.code);
   let userId: string, loginEmail: string;
   if (existing) {
     // Only the invitation that made this login may finish it, and only while nobody has used it yet.
@@ -465,12 +474,45 @@ export async function acceptWithUsername(driver: Driver, token: string, password
     if (existing.invitationId !== inv.id || used) throw new UserError("That sign-in name is already taken. Ask your administrator for a new invitation.");
     userId = existing.userId; loginEmail = existing.loginEmail;
     await setLoginPassword(userId, password);
+    await setRecoveryHash(driver, userId, recoveryHash);
   } else {
     loginEmail = newLoginEmail();
     userId = await createLoginUser({ email: loginEmail, password, fullName: inv.full_name, username: inv.username });
-    try { await recordLoginName(driver, { username: inv.username, userId, loginEmail, invitationId: inv.id }); }
+    try { await recordLoginName(driver, { username: inv.username, userId, loginEmail, invitationId: inv.id, recoveryHash }); }
     catch (e) { await deleteLoginUser(userId); throw e; }
   }
   const { slug } = await acceptInvitation(driver, { token }, { id: userId, username: inv.username, emailConfirmed: true });
   return { slug, loginEmail, reset: false };
+}
+
+/**
+ * For someone with a sign-in name who has forgotten both their password and their recovery code. Their login is switched off and
+ * removed, and their employee record is freed, so they can be invited again with a new login. It is a visible event, not a quiet one:
+ * the old login stops working at once, the change is written to the audit trail with the administrator's name, and whoever signs in
+ * next is a new login on the same employee record. Never for yourself, never for the last administrator, only for sign-in-name logins.
+ */
+export async function replaceLogin(driver: Driver, m: Membership, userId: string): Promise<{ username: string; employee_no: string | null }> {
+  if (userId === m.userId) throw new UserError("Ask another administrator to replace your login.");
+  const ln = await loginNameByUserId(driver, userId);
+  if (!ln) throw new UserError("This person signs in with an email. Switch off their access, or invite them again, instead.");
+  const gone = await authorized(driver, m, "admin.users", async (q) => {
+    await q.query("select 1 from public.tenants where id = $1 for update", [m.tenantId]);   // one change at a time, so two administrators cannot remove each other
+    const mem = (await q.query<{ role: string; status: string; employee_no: string | null }>(
+      `select mm.role, mm.status, e.employee_no from public.tenant_memberships mm left join employees e on e.user_id = mm.user_id where mm.tenant_id = $1 and mm.user_id = $2`, [m.tenantId, userId])).rows[0];
+    if (!mem) throw new UserError("That person is not in this workspace.");
+    if (mem.role === "vendor") throw new UserError("A workshop login is replaced by inviting the workshop again.");
+    if (mem.role === "tenant_admin" && mem.status === "active") {
+      const others = (await q.query<{ c: number }>("select count(*)::int c from public.tenant_memberships where tenant_id = $1 and role = 'tenant_admin' and status = 'active' and user_id <> $2", [m.tenantId, userId])).rows[0].c;
+      if (others === 0) throw new UserError("There must be at least one active administrator.");
+    }
+    await q.query("update public.tenant_memberships set status = 'disabled' where tenant_id = $1 and user_id = $2", [m.tenantId, userId]);
+    await q.query("update employees set user_id = null where user_id = $1", [userId]);
+    const olds = (await q.query<{ token_hash: string; id: string }>("update public.invitations set revoked_at = now() where reset_user_id = $1 and tenant_id = $2 and accepted_at is null and revoked_at is null returning token_hash, id", [userId, m.tenantId])).rows;
+    return { employee_no: mem.employee_no, olds };
+  });
+  await forgetMember(driver, userId, m.tenantId);
+  await deleteLoginName(driver, userId);
+  await deleteLoginUser(userId);
+  for (const o of gone.olds) await untrack(driver, m.tenantId, o.id, o.token_hash);
+  return { username: ln.username, employee_no: gone.employee_no };
 }

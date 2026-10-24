@@ -1,9 +1,9 @@
 "use client";
-import { useActionState, useState } from "react";
+import { useActionState, useState, type FormEvent } from "react";
 import { Input, Notice, Select, Submit } from "@/components/form";
 import { suggestUsername } from "@/lib/auth/username";
 import type { FormState } from "../actions-util";
-import { changeMemberAction, inviteAction, resendAction, resetLinkAction, revokeAction, type InviteResult, type InviteState } from "./actions";
+import { changeMemberAction, inviteAction, replaceLoginAction, resendAction, resetLinkAction, revokeAction, type InviteResult, type InviteState } from "./actions";
 
 function LinkBox({ invite }: { invite: InviteResult }) {
   const [copied, setCopied] = useState(false);
@@ -20,6 +20,8 @@ function LinkBox({ invite }: { invite: InviteResult }) {
       {byName
         ? <p>Give this to <span className="font-medium">{invite.full_name}</span>. Their sign-in name is <span className="rounded bg-white px-1.5 py-0.5 font-mono font-medium">{invite.username}</span>{invite.reset ? "" : ", and they choose their own password"}. The link is shown only now.</p>
         : <p>Send this to <span className="font-medium">{invite.email}</span>. It is shown only now.</p>}
+      {invite.reset && <p className="text-xs text-zinc-700">They also need the recovery code they chose when they first set up. You do not have it and cannot see it, so the link is no use without them.</p>}
+      {byName && !invite.reset && <p className="text-xs text-zinc-700">They will choose a password and a recovery code themselves. Hand this over in person, and do not open it yourself: whoever opens it first owns the account.</p>}
       <input readOnly value={invite.url} onFocus={(e) => e.currentTarget.select()} aria-label="Invitation link" className="h-10 w-full rounded-md border border-zinc-300 bg-white px-2 text-xs" />
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={copy} className="h-9 rounded-md border border-zinc-300 bg-white px-3">{copied ? "Copied" : "Copy link"}</button>
@@ -97,6 +99,25 @@ export function ResetLink({ slug, userId }: { slug: string; userId: string }) {
       <form action={run}><button className="text-sm text-sky-800 underline" type="submit">Make a password reset link</button></form>
       {state.error && <p role="alert" className="text-xs text-red-700">{state.error}</p>}
       {state.invite && <LinkBox invite={state.invite} />}
+    </div>
+  );
+}
+
+/** For someone who has forgotten both their password and their recovery code. It removes their login so they can be invited again. */
+export function ReplaceLogin({ slug, userId, name }: { slug: string; userId: string; name: string }) {
+  const [error, setError] = useState("");
+  // The person's row changes as soon as this works, which would take the message with it. So the page is reloaded with the message on top.
+  async function run(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!window.confirm(`Replace ${name}'s login?\n\nTheir sign-in name stops working at once and their employee code is freed, so you can invite them again with a new login. Do this only if they have forgotten both their password and their recovery code. It is recorded in the audit trail with your name.`)) return;
+    const r = await replaceLoginAction(slug, userId);
+    if (r.ok) window.location.assign(`/w/${slug}/users?note=${encodeURIComponent(r.ok)}`);
+    else setError(r.error ?? "That did not work. Try again.");
+  }
+  return (
+    <div className="space-y-1">
+      <form onSubmit={run}><button className="text-sm text-red-700 underline" type="submit">Replace login</button></form>
+      {error && <p role="alert" className="text-xs text-red-700">{error}</p>}
     </div>
   );
 }

@@ -297,3 +297,6 @@
 
 ## 2026-10-24: invitations tied to an employee code; sign-in names for people with no email (ADR-025)
 - Every invitation (except a workshop) names a role and an employee code; accepting links the login to that employee record. People with no email get a sign-in name, set their own password from the link, and sign in with the name. An administrator makes a one-time reset link for them. Needs SUPABASE_SERVICE_ROLE_KEY in Netlify and control migration 0011 + public migration 0010 (NOT applied live). Not deployed.
+
+## 2026-10-25: recovery code closes the administrator-takeover hole (ADR-025)
+- A reset link for someone with no email now also needs a recovery code only the person knows (hash only, control migration 0012, NOT yet applied live); five wrong tries an hour per person. "Replace login" for someone who forgot both. Not deployed.

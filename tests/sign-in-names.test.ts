@@ -10,7 +10,7 @@ import * as ad from "@/lib/admin/service";
 import * as master from "@/lib/master/service";
 import { UserError } from "@/lib/master/service";
 import { withTenant } from "@/lib/db/tenant";
-import { checkUsername, isLoginEmail, loginEmailFor, loginNameByUserId, looksLikeEmail, suggestUsername, usernameTaken } from "@/lib/auth/login-names";
+import { checkRecoveryCode, checkUsername, hashRecoveryCode, isLoginEmail, loginEmailFor, loginNameByUserId, looksLikeEmail, suggestUsername, usernameTaken, verifyRecoveryCode } from "@/lib/auth/login-names";
 import { farm, newControl, platformMigrations, stripExt, tenantMigrations } from "./helpers";
 
 const U = (n: number) => `00000000-0000-0000-0000-00000000${String(n).padStart(4, "0")}`;
@@ -19,6 +19,7 @@ const secretWord = (...parts: string[]) => parts.join("-");
 const PW = secretWord("a-long", "test", "word", "1"), PW2 = secretWord("a-new", "test", "word", "2");
 const OLD_PW = secretWord("an-old", "test", "word", "3"), OTHER_PW = secretWord("someone-elses", "test", "word", "4");
 const KEY = secretWord("test", "service", "key");
+const CODE = "482915", WRONG_CODE = "159263";
 
 // ---- a stand-in for Supabase's admin API: makes, changes and removes logins in memory
 type FakeUser = { id: string; email: string; secret: string; confirmed: boolean };
@@ -147,7 +148,7 @@ describe("opening the link and choosing a password", () => {
   it("makes the login, links the employee (and so the vehicle), joins the workspace, and the link is used up", async () => {
     const open = (await ad.listInvitations(router, admin)).find((i) => i.employee_no === "D-101")!;
     const fresh = await ad.resendInvitation(router, admin, open.id);                  // the earlier link was shown once and is no longer in hand
-    const r = await ad.acceptWithUsername(router, fresh.token, PW);
+    const r = await ad.acceptWithUsername(router, fresh.token, PW, CODE);
     expect(r.slug).toBe("acme");
     expect(r.reset).toBe(false);
     expect(isLoginEmail(r.loginEmail)).toBe(true);
@@ -166,7 +167,7 @@ describe("opening the link and choosing a password", () => {
     expect(await raw(async (q) => (await q.query<{ c: number }>("select count(*)::int c from employees where employee_no = 'D-101'")).rows[0].c)).toBe(1);   // linked, not duplicated
     // the link works once
     expect(await ad.previewInvitation(router, fresh.token)).toBeNull();
-    await expect(ad.acceptWithUsername(router, fresh.token, PW)).rejects.toThrow(/not working/);
+    await expect(ad.acceptWithUsername(router, fresh.token, PW, CODE)).rejects.toThrow(/not working/);
     expect(fake.calls).toEqual(["POST /users"]);
   });
 
@@ -177,12 +178,12 @@ describe("opening the link and choosing a password", () => {
 
   it("a weak or failed set-up leaves no login behind and the same link can be tried again", async () => {
     const inv = await ad.inviteUser(router, admin, { employee_no: "D-102", username: "acme.d-102", role: "requester" });
-    await expect(ad.acceptWithUsername(router, inv.token, "short")).rejects.toThrow(/stronger/);
+    await expect(ad.acceptWithUsername(router, inv.token, "short", CODE)).rejects.toThrow(/stronger/);
     fake.failNextCreate = true;
-    await expect(ad.acceptWithUsername(router, inv.token, PW)).rejects.toBeInstanceOf(UserError);
+    await expect(ad.acceptWithUsername(router, inv.token, PW, CODE)).rejects.toBeInstanceOf(UserError);
     expect(await usernameTaken(router, "acme.d-102")).toBe(false);
     expect(fake.users.size).toBe(1);                                                  // only Driver One's login exists
-    const ok = await ad.acceptWithUsername(router, inv.token, PW);
+    const ok = await ad.acceptWithUsername(router, inv.token, PW, CODE);
     expect(ok.slug).toBe("acme");
     expect(fake.users.size).toBe(2);
   });
@@ -196,7 +197,7 @@ describe("opening the link and choosing a password", () => {
     const invRow = (await ad.listInvitations(router, admin)).find((i) => i.employee_no === "D-103")!;
     await addName("acme.d-103", id, loginEmail, invRow.id);
     fake.calls.length = 0;
-    const r = await ad.acceptWithUsername(router, inv.token, PW2);
+    const r = await ad.acceptWithUsername(router, inv.token, PW2, CODE);
     expect(fake.calls).toEqual(["PUT /users/:id"]);                                   // the password was set again; no second login was made
     expect(fake.users.get(id)!.secret).toBe(PW2);
     expect(r.loginEmail).toBe(loginEmail);
@@ -207,7 +208,7 @@ describe("opening the link and choosing a password", () => {
     const id2 = randomUUID(), email2 = `u${"b".repeat(24)}@login.fleetotg.com`;
     fake.users.set(id2, { id: id2, email: email2, secret: OTHER_PW, confirmed: true });
     await addName("acme.d-104", id2, email2, randomUUID());
-    await expect(ad.acceptWithUsername(router, other.token, PW)).rejects.toThrow(/already taken/);
+    await expect(ad.acceptWithUsername(router, other.token, PW, CODE)).rejects.toThrow(/already taken/);
     expect(fake.users.get(id2)!.secret).toBe(OTHER_PW);
   });
 });
@@ -223,11 +224,11 @@ describe("a password reset link for someone with no email", () => {
     const second = await ad.issueResetLink(router, admin, userId);                    // the first stops working
     expect(await ad.previewInvitation(router, first.token)).toBeNull();
     fake.calls.length = 0;
-    const r = await ad.acceptWithUsername(router, second.token, PW2);
+    const r = await ad.acceptWithUsername(router, second.token, PW2, CODE);
     expect(r).toMatchObject({ slug: "acme", reset: true });
     expect(fake.calls).toEqual(["PUT /users/:id"]);
     expect(fake.users.get(userId)!.secret).toBe(PW2);
-    await expect(ad.acceptWithUsername(router, second.token, PW)).rejects.toThrow(/not working/);
+    await expect(ad.acceptWithUsername(router, second.token, PW, CODE)).rejects.toThrow(/not working/);
     expect(fake.users.get(userId)!.secret).toBe(PW2);
     expect((await ad.listInvitations(router, admin)).filter((i) => i.reset)).toEqual([]);   // nothing left open
   });
@@ -243,7 +244,7 @@ describe("a password reset link for someone with no email", () => {
     const userId = await driverOne();
     const link = await ad.issueResetLink(router, admin, userId);
     await ad.changeMember(router, admin, userId, { status: "disabled" });
-    await expect(ad.acceptWithUsername(router, link.token, PW)).rejects.toThrow(/switched off/);
+    await expect(ad.acceptWithUsername(router, link.token, PW, CODE)).rejects.toThrow(/switched off/);
     await expect(ad.issueResetLink(router, admin, userId)).rejects.toThrow(/switched off/);
     await ad.changeMember(router, admin, userId, { status: "active" });
   });
@@ -251,5 +252,97 @@ describe("a password reset link for someone with no email", () => {
   it("a made-up login address is never indexed, so no invitation can be found by it", async () => {
     const n = await control.transaction(async (q) => { await q.query("set local search_path = public"); return (await q.query<{ n: string }>("select count(*)::text n from public.invite_index where lower(email) like '%@login.fleetotg.com'")).rows[0].n; });
     expect(n).toBe("0");
+  });
+});
+
+describe("the recovery code stops an administrator from taking a login over", () => {
+  const driverOne = async () => (await ad.listMembers(router, admin)).find((p) => p.username === "acme.d-101")!.user_id;
+  const clearLimits = () => control.transaction(async (q) => { await q.query("set local search_path = public"); await q.query("delete from public.rate_limits"); });
+
+  it("rules: digits only, 6 to 12, nothing trivial; only a salted hash is ever kept", () => {
+    expect(checkRecoveryCode("482 915")).toEqual({ ok: true, code: "482915" });
+    for (const bad of ["", "12345", "1234567890123", "12ab56", "111111", "123456", "654321", "000000"]) expect(checkRecoveryCode(bad).ok, bad).toBe(false);
+    const h = hashRecoveryCode("482915");
+    expect(h.startsWith("s1$")).toBe(true);
+    expect(h).not.toContain("482915");
+    expect(hashRecoveryCode("482915")).not.toBe(h);                                   // a fresh salt each time
+    expect(verifyRecoveryCode("482915", h)).toBe(true);
+    expect(verifyRecoveryCode("482 915", h)).toBe(true);
+    expect(verifyRecoveryCode("482916", h)).toBe(false);
+    expect(verifyRecoveryCode("482915", null)).toBe(false);
+    expect(verifyRecoveryCode("482915", "garbage")).toBe(false);
+  });
+
+  it("a first set-up needs a good code, and the code is stored only as a hash", async () => {
+    await master.saveEmployee(router, admin, { full_name: "Driver Five", employee_no: "D-105" });
+    const inv = await ad.inviteUser(router, admin, { employee_no: "D-105", username: "acme.d-105", role: "requester" });
+    await expect(ad.acceptWithUsername(router, inv.token, PW, "")).rejects.toThrow(/recovery code/i);
+    await expect(ad.acceptWithUsername(router, inv.token, PW, "111111")).rejects.toThrow(/too easy/i);
+    expect(await usernameTaken(router, "acme.d-105")).toBe(false);                    // nothing was made by the refused tries
+    await ad.acceptWithUsername(router, inv.token, PW, CODE);
+    const stored = await control.transaction(async (q) => { await q.query("set local search_path = public"); return (await q.query<{ recovery_hash: string }>("select recovery_hash from public.login_names where username = 'acme.d-105'")).rows[0].recovery_hash; });
+    expect(stored.startsWith("s1$")).toBe(true);
+    expect(stored).not.toContain(CODE);
+  });
+
+  it("the reset link alone does nothing: it needs the code the person chose, so whoever holds the link cannot set the password", async () => {
+    await clearLimits();
+    const userId = await driverOne();
+    const before = fake.users.get(userId)!.secret;
+    const link = await ad.issueResetLink(router, admin, userId);
+    fake.calls.length = 0;
+    await expect(ad.acceptWithUsername(router, link.token, "an-admins-own-choice-9", WRONG_CODE)).rejects.toThrow(/recovery code is not right/);
+    await expect(ad.acceptWithUsername(router, link.token, "an-admins-own-choice-9", "")).rejects.toThrow(/recovery code is not right/);
+    expect(fake.calls).toEqual([]);                                                   // the login service was never asked to change anything
+    expect(fake.users.get(userId)!.secret).toBe(before);
+    expect(await ad.previewInvitation(router, link.token)).toMatchObject({ reset: true });   // the link is still there for the real person
+    const ok = await ad.acceptWithUsername(router, link.token, PW2, CODE);            // the person, with their code
+    expect(ok.reset).toBe(true);
+    expect(fake.users.get(userId)!.secret).toBe(PW2);
+  });
+
+  it("wrong codes are counted per person across links, and five in an hour lock the guessing", async () => {
+    await clearLimits();
+    const userId = await driverOne();
+    const first = await ad.issueResetLink(router, admin, userId);
+    for (let i = 0; i < 5; i++) await expect(ad.acceptWithUsername(router, first.token, PW, String(100000 + i * 7919))).rejects.toThrow(/not right/);
+    const fresh = await ad.issueResetLink(router, admin, userId);                      // a new link does not give new tries
+    await expect(ad.acceptWithUsername(router, fresh.token, PW, WRONG_CODE)).rejects.toThrow(/Too many wrong recovery codes/);
+    await expect(ad.acceptWithUsername(router, fresh.token, PW, CODE)).rejects.toThrow(/Too many wrong recovery codes/);   // even the right one waits
+    await clearLimits();
+    expect((await ad.acceptWithUsername(router, fresh.token, PW, CODE)).reset).toBe(true);
+    await clearLimits();
+  });
+
+  it("replacing a login is for someone who forgot both: it switches the old login off, frees the code, and leaves a trace", async () => {
+    await clearLimits();
+    const userId = await driverOne();
+    const link = await ad.issueResetLink(router, admin, userId);
+    fake.calls.length = 0;
+    const r = await ad.replaceLogin(router, admin, userId);
+    expect(r).toEqual({ username: "acme.d-101", employee_no: "D-101" });
+    expect(fake.calls).toContain("DELETE /users/:id");
+    expect(fake.users.has(userId)).toBe(false);                                        // the old login no longer exists
+    expect(await usernameTaken(router, "acme.d-101")).toBe(false);
+    expect(await loginNameByUserId(router, userId)).toBeNull();
+    expect(await resolveMembership(router, userId, "acme")).toBeNull();
+    expect(await ad.previewInvitation(router, link.token)).toBeNull();                 // an open reset link died with it
+    expect(await raw(async (q) => (await q.query<{ user_id: string | null }>("select user_id from employees where employee_no = 'D-101'")).rows[0].user_id)).toBeNull();
+    // the trace: the membership is kept (disabled), and the change is in the audit log with who made it
+    expect(await raw(async (q) => (await q.query<{ status: string }>("select status from public.tenant_memberships where user_id = $1", [userId])).rows[0].status)).toBe("disabled");
+    // and the person can be invited again, with a brand new login on the same employee record
+    const again = await ad.inviteUser(router, admin, { employee_no: "D-101", username: "acme.d-101", role: "requester" });
+    const made = await ad.acceptWithUsername(router, again.token, PW, CODE);
+    expect(made.slug).toBe("acme");
+    const m = (await resolveMembership(router, [...fake.users.values()].find((u) => u.email === made.loginEmail)!.id, "acme"))!;
+    expect((await master.listVehicles(router, m)).map((v) => v.registration_no)).toEqual(["ACM-101"]);   // same employee record, same vehicle
+  });
+
+  it("replace login is not for yourself, not for email people, not without the permission, not for the last administrator", async () => {
+    const userId = await driverOne();
+    await expect(ad.replaceLogin(router, admin, U(1))).rejects.toThrow(/another administrator/);
+    await expect(ad.replaceLogin(router, admin, U(30))).rejects.toThrow(/signs in with an email/);
+    await expect(ad.replaceLogin(router, asRole("fleet_manager", 41), userId)).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(ad.replaceLogin(router, admin, randomUUID())).rejects.toThrow(/signs in with an email/);
   });
 });

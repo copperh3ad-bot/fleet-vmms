@@ -2,7 +2,7 @@
 import { refresh } from "next/cache";
 import { getDriver } from "@/lib/db";
 import { origin } from "@/lib/origin";
-import { changeMember, inviteUser, issueResetLink, resendInvitation, revokeInvitation, type NewInvite } from "@/lib/admin/service";
+import { changeMember, inviteUser, issueResetLink, replaceLogin, resendInvitation, revokeInvitation, type NewInvite } from "@/lib/admin/service";
 import { suggestUsername } from "@/lib/auth/login-names";
 import { runAction, str, typed, type FormState } from "../actions-util";
 
@@ -42,6 +42,15 @@ export async function resetLinkAction(slug: string, userId: string): Promise<Inv
   const state = await runAction(slug, async (m) => { invite = await link(base, await issueResetLink(getDriver(), m, userId)); return "Reset link created. It works once and stops working in 2 days."; });
   if (state.ok) refresh();
   return { ...state, invite };
+}
+
+export async function replaceLoginAction(slug: string, userId: string): Promise<FormState> {
+  const state = await runAction(slug, async (m) => {
+    const r = await replaceLogin(getDriver(), m, userId);
+    return `Login replaced. ${r.username} no longer works and the employee${r.employee_no ? ` code ${r.employee_no}` : ""} is free. Invite them again to give them a new login.`;
+  });
+  if (state.ok) refresh();
+  return state;
 }
 
 export async function revokeAction(slug: string, id: string): Promise<FormState> {
