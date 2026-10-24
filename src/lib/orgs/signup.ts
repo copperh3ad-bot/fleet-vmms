@@ -59,7 +59,7 @@ export function pendingSignupFor(driver: Driver, email: string): Promise<SignupR
       "select id, email, org_name, contact_name, phone, fleet_size, status, tenant_id from public.signups where lower(email) = lower($1) and status in ('pending', 'started')", [email])).rows[0] ?? null);
 }
 
-const RESERVED = new Set(["admin", "api", "app", "auth", "billing", "invite", "login", "o", "privacy", "setup", "signup", "terms", "w", "www"]);
+const RESERVED = new Set(["about", "contact", "admin", "api", "app", "auth", "billing", "invite", "login", "o", "privacy", "setup", "signup", "terms", "w", "www"]);
 
 /** "Acme Transport (Pvt) Ltd" -> "acme-transport-pvt-ltd". Letters and digits only, 2 to 40 characters. */
 export function slugFrom(name: string): string {

@@ -280,3 +280,7 @@
 - Public pages (landing, pricing, sign-up box, terms) say the price is the monthly wage of an unskilled labourer; no figure shown. The plans table still holds USD 149 and Billing inside a workspace still shows it. Tiered prices by subscription length are not designed yet.
 - Forgot password (ADR-019): /forgot-password (public, rate limited, same answer for every address), /auth/callback?next=reset, /reset-password (needs the emailed-link session; ends other sessions). The runbook had wrongly said this existed before.
 - Not yet live: commits since e895ec2 and migration 0009 are not deployed or applied.
+
+## 2026-10-24: sign-in fix, About us, Contact us, animated home page
+- Sign-in now moves on from the browser (server redirect used the wrong host on www). About us page (ADR-020). Contact us page (ADR-021): public form stores one row in public.contact_messages (control migration 0010, NOT yet applied live), operator inbox at /admin/messages. Home page: animated sample dashboard (CSS only, stops for reduced motion), scroll-reveal cards. Vehicles CSV has the holder employee ID.
+- Needs the owner: run scripts/migrate-tenants.mts (0009 and 0010) and deploy. The contact form errors until 0010 is applied.

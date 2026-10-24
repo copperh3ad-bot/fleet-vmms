@@ -1,5 +1,6 @@
 import { SiteShell } from "@/components/site-shell";
 import type { Offer } from "@/lib/billing/offer";
+import { HeroScene } from "@/components/hero-scene";
 
 const FEATURES: [string, string][] = [
   ["Job cards with approval", "A driver or fleet officer raises the job. A manager approves it. Nobody approves their own."],
@@ -10,33 +11,47 @@ const FEATURES: [string, string][] = [
   ["Papers and fines in one place", "Insurance, fitness, token tax, accidents and challans, with reminders before they expire."],
 ];
 
+// A plain mark for each feature, drawn from text so there is nothing to download.
+const ICON: Record<string, string> = {
+  "Job cards with approval": "✓", "Workshops and quotations": "⚙", "Odometer by link": "↗",
+  "Servicing that tells you what is due": "◷", "Budgets and flags": "▮", "Papers and fines in one place": "▤",
+};
+
 export function Landing({ offer }: { offer: Offer | null }) {
   const days = offer?.trialDays ?? 3;
   return (
     <SiteShell>
-      <section className="bg-side text-white">
-        <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 md:grid-cols-[1.2fr_1fr] md:py-24">
+      <section className="hero-bg relative overflow-hidden text-white">
+        <div aria-hidden className="hero-grid pointer-events-none absolute inset-0" />
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 md:grid-cols-[1fr_1.05fr] md:py-24">
           <div>
-            <h1 className="text-[40px] font-semibold leading-[1.1] md:text-5xl">Know what every vehicle costs, and why.</h1>
+            <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-[#C9D5DC]"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-badge" /> Vehicle management and mobility</p>
+            <h1 className="mt-5 text-[40px] font-semibold leading-[1.08] md:text-5xl">Know what every vehicle costs, <span className="text-badge">and why.</span></h1>
             <p className="mt-5 max-w-xl text-lg text-[#B6C6D0]">Maintenance for company fleets: job cards, approvals, workshops, budgets and servicing, in one place your whole team can use.</p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
-              <a href="/signup" className="rounded-md bg-badge px-6 py-3 text-base font-semibold text-side hover:opacity-90">Start your {days}-day free trial</a>
+              <a href="/signup" className="shine rounded-md bg-badge px-6 py-3 text-base font-semibold text-side hover:opacity-90">Start your {days}-day free trial</a>
               <a href="/login" className="text-[#C9D5DC] underline">I already have an account</a>
             </div>
             <p className="mt-4 text-sm text-[#8EA3B0]">No card needed. Your data stays yours, and you can export it at any time.</p>
           </div>
-          <div className="rounded-xl bg-white p-6 text-zinc-900 shadow-lg" aria-label="Price">
-            <p className="text-sm font-medium text-zinc-500">One plan, everything included</p>
-            {offer ? (
-              <>
-                <p className="mt-2"><span className="text-3xl font-semibold leading-tight">{offer.headline}</span> <span className="block text-zinc-500">{offer.per}</span></p>
-                <ul className="mt-5 space-y-2 text-sm">
-                  {offer.points.map((p) => <li key={p} className="flex gap-2"><span aria-hidden className="text-brand">✓</span>{p}</li>)}
-                </ul>
-                <a href="/signup" className="mt-6 block rounded-md bg-brand py-3 text-center font-semibold text-white hover:opacity-90">Start free trial</a>
-              </>
-            ) : <p className="mt-3 text-sm text-zinc-600">Sign-up opens soon. Check back shortly, or sign in if you already have an account.</p>}
-          </div>
+          <HeroScene />
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-3xl px-5 pt-16" aria-label="Price">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+          <p className="text-sm font-medium text-zinc-500">One plan, everything included</p>
+          {offer ? (
+            <div className="mt-2 grid gap-6 md:grid-cols-[1.1fr_1fr] md:items-center">
+              <div>
+                <p><span className="text-3xl font-semibold leading-tight">{offer.headline}</span> <span className="block text-zinc-500">{offer.per}</span></p>
+                <a href="/signup" className="shine mt-6 inline-block rounded-md bg-brand px-6 py-3 font-semibold text-white hover:opacity-90">Start free trial</a>
+              </div>
+              <ul className="space-y-2 text-sm">
+                {offer.points.map((p) => <li key={p} className="flex gap-2"><span aria-hidden className="text-brand">✓</span>{p}</li>)}
+              </ul>
+            </div>
+          ) : <p className="mt-3 text-sm text-zinc-600">Sign-up opens soon. Check back shortly, or sign in if you already have an account.</p>}
         </div>
       </section>
 
@@ -44,7 +59,7 @@ export function Landing({ offer }: { offer: Offer | null }) {
         <h2 className="text-2xl font-semibold">What you get</h2>
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(([t, d]) => (
-            <div key={t} className="rounded-xl border border-zinc-200 bg-white p-5"><h3 className="font-semibold">{t}</h3><p className="mt-2 text-sm text-zinc-600">{d}</p></div>
+            <div key={t} className="reveal lift rounded-xl border border-zinc-200 bg-white p-5"><span aria-hidden className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-side text-base text-badge">{ICON[t]}</span><h3 className="font-semibold">{t}</h3><p className="mt-2 text-sm text-zinc-600">{d}</p></div>
           ))}
         </div>
       </section>

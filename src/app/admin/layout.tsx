@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { requireOperator } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
 import { listClaimsForOperator } from "@/lib/billing/operator";
+import { countNewContactMessages } from "@/lib/contact";
 import { NavLink } from "@/components/shell/nav-link";
 import { signOut } from "@/app/login/actions";
 import { LogoMark } from "@/components/brand";
@@ -15,7 +16,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
 async function Shell({ children }: { children: ReactNode }) {
   const user = await requireOperator();
-  const pending = (await listClaimsForOperator(getDriver(), user.id)).length;
+  const [claims, unread] = await Promise.all([listClaimsForOperator(getDriver(), user.id), countNewContactMessages(getDriver(), user.id).catch(() => 0)]);
+  const pending = claims.length;
   return (
     <div className="flex flex-1 flex-col">
       <header className="bg-side text-white">
@@ -24,6 +26,7 @@ async function Shell({ children }: { children: ReactNode }) {
           <nav className="flex gap-1" aria-label="Operator">
             <NavLink href="/admin" label="Organizations" exact />
             <NavLink href="/admin/payments" label={pending ? `Payments (${pending})` : "Payments"} />
+            <NavLink href="/admin/messages" label={unread ? `Messages (${unread})` : "Messages"} />
             <NavLink href="/admin/tax" label="Tax" />
             <NavLink href="/admin/accounting" label="Accounting" />
             <NavLink href="/admin/rates" label="Rates" />

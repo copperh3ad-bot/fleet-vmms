@@ -1,6 +1,6 @@
-import { APP, MOCK, axe, body, check, finding, fill, go, has, mock, overflow, persona, press, scenario, step, waitText } from "./lib.mjs";
+import { APP, MOCK, axe, body, check, finding, fill, go, has, mock, overflow, persona, press, scenario, sql, step, uniq, waitText } from "./lib.mjs";
 
-const PUBLIC = ["/", "/pricing", "/signup", "/signup/check-email", "/join", "/join/workshop", "/join/sent", "/login", "/forgot-password", "/about", "/terms", "/privacy"];
+const PUBLIC = ["/", "/pricing", "/signup", "/signup/check-email", "/join", "/join/workshop", "/join/sent", "/login", "/forgot-password", "/about", "/contact", "/terms", "/privacy"];
 
 export async function publicPages(S) {
   scenario("1. Public pages, signed out");
@@ -83,6 +83,31 @@ export async function publicPages(S) {
     const status = (secret) => fetch(`${MOCK}/auth/v1/token?grant_type=password`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: S.resetEmail, ["pass" + "word"]: secret }) }).then((r) => r.status);
     check((await status(NEW)) === 200, "the new password does not work");
     check((await status(OLD)) === 400, "the old password still works");
+  });
+
+  await step("contact form: an empty form is refused, a real message is stored once, and a script's message is thrown away", async () => {
+    const c = await persona("contact");
+    const count = () => Number(sql("select count(*) from public.contact_messages"));
+    const before = count();
+    await go(c, "/contact");
+    await press(c, "Send message", { wait: 700 });
+    check(has(await body(c), "Enter your name") && has(await body(c), "Choose a topic"), "an empty form showed no messages");
+    check(count() === before, "an empty form stored a row");
+    await fill(c, "#name", "Test Visitor"); await fill(c, "#email", `visitor.${uniq()}@example.com`);
+    await c.page.locator("#topic").selectOption("sales");
+    await fill(c, "#message", "Do you support a fleet of forty vehicles?");
+    await press(c, "Send message", { wait: 1200 });
+    check(has(await body(c), "We have your message"), "no thanks shown");
+    check(count() === before + 1, `expected one new row, found ${count() - before}`);
+    await go(c, "/contact");
+    await fill(c, "#name", "Bot"); await fill(c, "#email", "bot@example.com");
+    await c.page.locator("#topic").selectOption("other");
+    await fill(c, "#message", "Buy cheap watches at this address today");
+    await c.page.locator("input[name=website]").evaluate((el) => { el.value = "http://spam.example"; });
+    await press(c, "Send message", { wait: 1200 });
+    check(has(await body(c), "We have your message"), "the script was not told it worked");
+    check(count() === before + 1, "the script's message was stored");
+    await c.ctx.close();
   });
 
   await step("forgot password: the new-password page is closed to anyone who is not signed in", async () => {

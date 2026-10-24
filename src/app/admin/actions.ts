@@ -8,6 +8,7 @@ import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { UserError } from "@/lib/master/service";
 import { confirmClaim, deleteOrganization, extendTrial, proofLink, recordManualPayment, rejectClaim, setComped, setSuspended } from "@/lib/billing/operator";
 import { savePlatformSetting } from "@/lib/billing/settings";
+import { markContactHandled } from "@/lib/contact";
 import { recordCertificate, saveTaxRule, setOrgCountry, setOrgWithholding } from "@/lib/billing/tax-data";
 import { saveScenario } from "@/lib/billing/tax-scenarios";
 import { fetchInterbankRate, saveRate } from "@/lib/billing/fx";
@@ -101,6 +102,10 @@ export async function setCountryAction(tenantId: string, _p: FormState, f: FormD
 
 export async function saveRateAction(_p: FormState, f: FormData): Promise<FormState> {
   return run(async (op) => { await saveRate(getDriver(), op, { date: text(f, "date"), buy: text(f, "buy"), sell: text(f, "sell"), note: text(f, "note") }); return "Rate saved."; });
+}
+
+export async function markContactHandledAction(id: string): Promise<FormState> {
+  return run(async (op) => { await markContactHandled(getDriver(), op, id); return "Marked handled."; });
 }
 
 export async function fetchRateAction(): Promise<FormState> {

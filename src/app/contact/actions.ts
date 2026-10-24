@@ -1,0 +1,33 @@
+"use server";
+// Leaving a message (ADR-021). Open to anyone, so: a hidden field that only a script fills in, limits per connection and per
+// address counted across all servers, strict length limits, and one row written. The answer never says whether the address is
+// a customer.
+import { getDriver } from "@/lib/db";
+import { allowShared } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/client-ip";
+import { UserError } from "@/lib/master/service";
+import { parseContact, recordContact } from "@/lib/contact";
+import type { FormState } from "@/app/w/[slug]/actions-util";
+
+const HOUR = 3600;
+const SENT = "Thank you. We have your message and will reply to the email address you gave.";
+
+const keep = (form: FormData): Record<string, string> =>
+  Object.fromEntries([...form.entries()].filter((e): e is [string, string] => typeof e[1] === "string" && !/^\$|^website$/.test(e[0])));
+
+export async function contactAction(_prev: FormState, form: FormData): Promise<FormState> {
+  // Real people never see this field (it is hidden), so anything in it is a script. It is told the message went through.
+  if (String(form.get("website") ?? "").trim() !== "") return { ok: SENT };
+  let input;
+  try {
+    input = parseContact(Object.fromEntries(["name", "email", "company", "topic", "message"].map((k) => [k, form.get(k) ?? undefined])));
+  } catch (e) {
+    if (e instanceof UserError) return { error: e.message, fields: e.fields, values: keep(form) };
+    throw e;
+  }
+  const driver = getDriver();
+  const [ipOk, mailOk] = await Promise.all([allowShared(driver, `contact-ip:${await clientIp()}`, 5, HOUR), allowShared(driver, `contact-email:${input.email}`, 3, HOUR)]);
+  if (!ipOk || !mailOk) return { error: "Too many messages from here. Wait a little and try again.", values: keep(form) };
+  await recordContact(driver, input);
+  return { ok: SENT };
+}
