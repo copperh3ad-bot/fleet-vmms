@@ -1,91 +1,53 @@
-# Operations: what you run, and when
+# Running Fleet OTG: what to check, and what to do when something breaks
 
-All commands run in the project folder in Terminal. They read the database connection from `.env.local`, which is never
-committed. Put `--env-file=.env.local` after `tsx` as shown. Nothing here prints a password or key.
+Written for the owner, not an engineer. Commands go in the terminal inside the project folder. Anything marked **(you)** is done in a
+website with your own login; the assistant cannot reach those accounts.
 
-## Create a customer workspace (invite only)
+## Every day (two minutes)
+- Open `/api/health` on the live address. It must answer `{"ok":true}`.
+- Netlify, then the site, then Functions: the `reminders` and `fx-rates` functions should show a run in the last 24 hours with no error.
+- Operator pages: `/admin/payments` for claims waiting to be confirmed, `/admin/rates` for today's exchange rate.
 
-```
-npx tsx --env-file=.env.local scripts/create-workspace.mts \
-  --name "Acme Transport" --slug acme --owner-name "Sara Khan" --owner-email sara@acme.example \
-  --plan small --base-url https://YOUR-SITE
-```
+## Every week
+- `npx tsx --env-file=.env.local scripts/audit-system.mts` reads the live database and prints `ok` or `FAIL` per check. It changes nothing.
+  Any `FAIL` line is worth a message to the assistant.
+- Supabase, then Advisors (security and performance) **(you)**. New warnings after a change are worth reading.
 
-Prints one link. Send it to Sara. It works once, for 7 days. She creates her account with that email and becomes the
-first administrator. From then on she invites everyone else on the Users screen. `--plan` and `--base-url` are optional.
+## Before and after any change that touches the database
+1. Check that a backup exists **(you)**: Supabase, Database, Backups. Know what your plan keeps: some plans keep only daily copies, or none.
+   If you cannot see a recent backup, do not run a migration.
+2. Run the tests: `npx vitest run`.
+3. Migrate: `npx tsx --env-file=.env.local scripts/migrate-tenants.mts`. It is safe to run twice.
+4. Deploy: `npx netlify-cli deploy --build --prod --context production`.
+5. Open `/api/health` and sign in once as an operator.
 
-## Set a plan's limits (no prices)
+## If the site is down or very slow
+1. `/api/health`: if it answers, the app is up and the problem is one page or one company.
+2. Netlify, then Deploys **(you)**: if the last deploy failed, the previous one is still live. If the last one succeeded but the site broke,
+   open an earlier deploy and choose "Publish deploy" to roll back in one click.
+3. Supabase, then Project status **(you)**: a paused or overloaded project makes every page fail.
+4. Netlify, then Logs, then Functions **(you)**: errors show a short code that matches the "quote this code" line users see.
 
-```
-npx tsx --env-file=.env.local scripts/set-plan.mts --plan small --name Small --max-vehicles 25 --max-users 5 --tenant acme
-```
+## If a customer cannot sign in
+- Wrong password: they use "Forgot password" on the sign-in page.
+- No confirmation email: check spam; the free Supabase email service allows very few emails per hour. A company that cannot wait can be
+  confirmed by hand in Supabase, Authentication, Users **(you)**.
+- "No access" after sign-in: their company may be locked for non-payment (the page says so), or they have no role yet (their administrator
+  assigns one under Users).
 
-Use `none` to remove a limit. Without `--tenant` it only defines the plan. A workspace with no plan has no limits.
+## Secrets: what to rotate and when
+Rotate immediately if a value was pasted somewhere public, shown on a screen share, or a laptop was lost.
+- **Database password** (Supabase, Database settings **(you)**): then update `DATABASE_URL` in Netlify and in `.env.local`, redeploy.
+- **Supabase keys** (Supabase, API settings **(you)**): update the two `NEXT_PUBLIC_` values in Netlify, redeploy (they are fixed in at build time).
+- **Secret box key** (encrypts dedicated-database addresses): do not rotate without the assistant; stored values must be re-encrypted first.
+- Never put any of these in a message, a ticket or the repository.
 
-## Add demo data to an empty workspace
+## Who can do what
+- Owner (you): operator pages, billing, tax settings, deploys, all dashboards above.
+- The assistant: code, tests, migrations scripts, read-only audits. It does not hold your Supabase, Netlify or Namecheap logins.
 
-```
-npx tsx --env-file=.env.local scripts/seed-demo.mts --slug demo
-```
-
-Create the workspace first (above, with any owner email you control). It refuses a workspace that already has vehicles.
-The sample people cannot sign in.
-
-## Send document expiry reminders (once a day)
-
-```
-npm run reminders
-```
-
-Safe to run as often as you like: no reminder is sent twice. It needs to be scheduled by whatever hosts the site.
-
-## Apply database changes after a new version
-
-```
-npx tsx --env-file=.env.local scripts/migrate-tenants.mts --check     # reports drift only, changes nothing
-npx tsx --env-file=.env.local scripts/migrate-tenants.mts             # applies what is missing, everywhere
-```
-
-## Before you trust a release
-
-```
-npx vitest run          # all tests on the built-in test database
-npx next build          # the site builds
-```
-
-## Running the SaaS (ADR-014)
-
-### What the server needs, in addition to the three in DEPLOY.md
-
-Nothing more is needed for the default (shared) mode: sign-up works with the three variables in DEPLOY.md. The table below is only for the optional dedicated-database mode (`ORG_DB_MODE=dedicated`).
-
-| Name | What it is | Secret? |
-|---|---|---|
-| `ORG_DB_PROVIDER` | `neon` in production (`local` for development) | no |
-| `NEON_API_KEY` | Neon API key; creates and removes each organization's database | **yes** |
-| `NEON_REGION` | where new databases live, for example `aws-ap-southeast-1` | no |
-| `ORG_DB_KEY` | 32 random bytes, base64: encrypts each organization's stored connection string | **yes** |
-
-Without `NEON_API_KEY` the sign-up page says sign-up is not open yet. If `ORG_DB_KEY` is lost, stored connection strings cannot be read; they can be fetched again from Neon, so keep a copy somewhere safe.
-
-### Becoming the operator
-
-`npx tsx --env-file=.env.local scripts/make-operator.mts --email you@example.com` (the person must have signed up and confirmed their email). Then open `/admin`. Remove with `--remove`.
-
-### First-time setup of billing (on `/admin/settings`)
-
-1. **Bank account for payments**: shown to customers on their billing page.
-2. **Seller details on invoices**: your company name, address, tax number.
-3. **PKR per USD** (optional): shows the rupee amount next to the dollar price.
-4. **Support email** and **payment instructions**.
-
-### Every day
-
-- The scheduled function sends document reminders and billing notices. Nothing else needs doing.
-- `/admin/payments`: check each claim against the bank statement, view the receipt, then confirm or reject. Confirming issues the invoice and extends the paid period by the months credited.
-
-### When something is wrong
-
-- **A sign-up is stuck**: `/admin` shows its set-up state and last error (never a connection string). The customer's progress page retries the failed step; if it never recovers, delete the empty database from the organization's page and ask them to try again.
-- **Update every database after a change in `db/`**: run `npm run embed:migrations`, commit, deploy, then `npx tsx --env-file=.env.local scripts/migrate-tenants.mts` (`--check` first to see drift). It visits the control database and every organization's own database, one at a time; one failing does not stop the others.
-- **Check the sign-in path against live data without changing anything**: `npx tsx --env-file=.env.local scripts/check-routing.mts`.
+## Known gaps (as of 24 October 2026)
+- Application email comes from Supabase's built-in sender, which is limited. Set up SMTP from your own domain before real customers arrive.
+- No external uptime monitor. Add a free one (for example UptimeRobot) that checks `/api/health` every five minutes and emails you **(you)**.
+- No content-script policy on pages yet (the other security headers are on). It needs a per-request nonce; do it as its own piece of work.
+- Bank details, seller sales-tax registration, fallback exchange rate, support email and tax authorities are empty in live settings.

@@ -29,9 +29,21 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   // The driver odometer link carries a secret in its path: never cache it, never leak it in a Referer, keep it out of search.
   async headers() {
-    return [{ source: "/o/:token", headers: [
-      { key: "Cache-Control", value: "no-store" }, { key: "Referrer-Policy", value: "no-referrer" }, { key: "X-Robots-Tag", value: "noindex, nofollow" },
-    ] }];
+    return [
+      // Every page: no framing (clickjacking), no content-type guessing, no unneeded browser features, https only once seen.
+      // No script policy yet: the framework's own inline scripts need a per-request nonce first, and a wrong one breaks every page.
+      { source: "/:path*", headers: [
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "X-Frame-Options", value: "DENY" },
+        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
+        { key: "Strict-Transport-Security", value: "max-age=31536000" },
+        { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'" },
+      ] },
+      { source: "/o/:token", headers: [
+        { key: "Cache-Control", value: "no-store" }, { key: "Referrer-Policy", value: "no-referrer" }, { key: "X-Robots-Tag", value: "noindex, nofollow" },
+      ] },
+    ];
   },
   turbopack: {
     rules: {

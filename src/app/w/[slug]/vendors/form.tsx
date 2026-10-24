@@ -11,13 +11,14 @@ export function VendorForm({ slug, vendor }: { slug: string; vendor?: Vendor }) 
   const s: FormState = vendor && !state.values
     ? { ...state, values: { name: vendor.name, categories: vendor.categories.join(", "), contact: vendor.contact ?? "", phone: vendor.phone ?? "", email: vendor.email ?? "" } }
     : state;
+  const p = `vendor-${vendor?.id ?? "new"}-`;   // several of these forms share a page; ids must differ
   return (
     <form action={action} className="grid grid-cols-1 gap-3 sm:grid-cols-2" noValidate>
-      <Input name="name" label="Workshop name" state={s} required />
-      <Input name="categories" label="Categories" state={s} hint="Comma separated: engine, tyres, electrical" />
-      <Input name="contact" label="Contact person" state={s} />
-      <Input name="phone" label="Phone" state={s} inputMode="tel" />
-      <Input name="email" label="Email" state={s} type="email" />
+      <Input id={p + "name"} name="name" label="Workshop name" state={s} required />
+      <Input id={p + "categories"} name="categories" label="Categories" state={s} hint="Comma separated: engine, tyres, electrical" />
+      <Input id={p + "contact"} name="contact" label="Contact person" state={s} />
+      <Input id={p + "phone"} name="phone" label="Phone" state={s} inputMode="tel" />
+      <Input id={p + "email"} name="email" label="Email" state={s} type="email" />
       <div className="flex items-center gap-3 sm:col-span-2"><Submit>{vendor ? "Save" : "Add vendor"}</Submit><Notice state={state} /></div>
     </form>
   );

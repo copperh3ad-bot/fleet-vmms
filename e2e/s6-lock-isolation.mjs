@@ -92,9 +92,8 @@ export async function lockAndIsolation(S) {
   });
   await step("a very long and an odd-character input does not break a form", async () => {
     await go(pk, `/w/${S.pkSlug}/vendors`);
-    await fill(pk, "#name:visible", "Ünïcödé Garage 车修理 " + "x".repeat(300));
+    await fill(pk, "#vendor-new-name", "Ünïcödé Garage 车修理 " + "x".repeat(300));
     await press(pk, pk.page.getByRole("button", { name: "Add vendor" }).locator("visible=true").first(), { wait: 1200 });
-    finding("html", "The vendors page contains two copies of its Add vendor form with the same field ids (one is hidden for the screen size), which is invalid HTML and confuses labels.");
     check(!has(await body(pk), "application error"), "an error page");
   });
   await step("the session cookies are marked safely", async () => {
