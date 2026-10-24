@@ -5,7 +5,7 @@ import { ForbiddenError, permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { getDashboard, type Dashboard } from "@/lib/dashboard/service";
 import { getOverview, type Overview } from "@/lib/dashboard/overview";
-import { Kpi, PageHeader, Panel, Pill, Plate, btn, btnPrimary, money } from "@/components/ui";
+import { Kpi, Panel, Pill, Plate, btn, money } from "@/components/ui";
 import { DOC_LABEL } from "@/lib/compliance/schemas";
 import { REASON_CATEGORY, dayMonth, monthShort, plural } from "@/lib/labels";
 
@@ -33,14 +33,24 @@ async function Workspace({ params }: { params: Promise<{ slug: string }> }) {
 
   const actions = (
     <>
-      <form action={to("vehicles")} role="search"><input name="q" placeholder="Search plate or job no." aria-label="Search" className="h-10 w-56 rounded-md border border-zinc-300 bg-white px-3 text-sm" /></form>
-      {perms.has("jobcard.create") && <a href={to("job-cards/new")} className={btnPrimary}>New job card</a>}
+      <form action={to("vehicles")} role="search"><input name="q" placeholder="Search plate or job no." aria-label="Search" className="h-10 w-56 rounded-lg border border-white/20 bg-white/95 px-3 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-500" /></form>
+      {perms.has("jobcard.create") && <a href={to("job-cards/new")} className="btn-base inline-flex h-10 items-center rounded-lg bg-badge px-4 text-sm font-semibold text-side shadow-[0_6px_16px_-6px_rgb(242_184_75/0.7)] hover:brightness-105">New job card</a>}
     </>
   );
 
   return (
     <main className="space-y-5 p-6 text-zinc-900">
-      <PageHeader title={o ? "Fleet overview" : "Home"} sub={o ? `${today} · ${plural(o.activeVehicles, "active vehicle")}` : today} actions={actions} />
+      {/* the welcome band: the one dark, lit surface on the page, so the eye starts here */}
+      <header className="dash-hero rise relative overflow-hidden rounded-2xl px-6 py-6 text-white">
+        <div aria-hidden className="hero-grid pointer-events-none absolute inset-0 opacity-70" />
+        <div className="relative flex flex-wrap items-center gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-[26px] font-semibold leading-tight tracking-tight">{o ? "Fleet overview" : "Home"}</h1>
+            <p className="mt-1 text-sm text-[#B6C6D0]">{o ? `${today} · ${plural(o.activeVehicles, "active vehicle")}` : today}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">{actions}</div>
+        </div>
+      </header>
       {!d && !o && <p className="rounded-lg border border-zinc-200 bg-white p-4 text-sm">Nothing is set up for your role yet. Ask your administrator.</p>}
 
       {o ? <OverviewBlocks o={o} to={to} /> : d && <Needs d={d} to={to} />}
@@ -73,7 +83,7 @@ function Needs({ d, to }: { d: Dashboard; to: (h: string) => string }) {
       {d.actions.length === 0 ? <p className="rounded-lg border border-dashed border-zinc-300 bg-white p-4 text-sm text-zinc-600">Nothing is waiting for you.</p> : (
         <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {d.actions.map((a) => (
-            <li key={a.key} className="rounded-lg border border-zinc-200 bg-white p-4">
+            <li key={a.key} className="panel rounded-xl border border-zinc-200/80 bg-white p-4">
               <a href={to(a.href)} className="flex items-baseline gap-3"><span className="font-mono text-[28px] font-semibold">{a.count}</span><span className="text-sm text-brand hover:underline">{a.label}</span></a>
               {a.samples.length > 0 && <ul className="mt-2 space-y-0.5 text-xs text-zinc-500">{a.samples.map((s) => <li key={s.href}><a className="hover:underline" href={to(s.href)}>{s.text}</a></li>)}</ul>}
             </li>
@@ -92,19 +102,19 @@ function OverviewBlocks({ o, to }: { o: Overview; to: (h: string) => string }) {
   const k = (n: number) => `${Math.round(n / 1000).toLocaleString("en-US")}k`;
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {o.approvals && <Kpi label="Awaiting your approval" value={o.approvals.count} note={o.approvals.oldestDays !== null ? `Oldest waiting ${plural(o.approvals.oldestDays, "day")}` : "Nothing waiting"} href={to("job-cards?status=submitted")} />}
-        <Kpi label="Open job cards" value={o.openCards.count} note={`${o.openCards.atWorkshop} at a workshop now`} href={to("job-cards")} />
-        <Kpi label="Spend this month" value={money(sm.spent)}
+      <div className="rise grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" style={{ "--i": 1 } as React.CSSProperties}>
+        {o.approvals && <Kpi icon={I.check} label="Awaiting your approval" value={o.approvals.count} note={o.approvals.oldestDays !== null ? `Oldest waiting ${plural(o.approvals.oldestDays, "day")}` : "Nothing waiting"} href={to("job-cards?status=submitted")} />}
+        <Kpi icon={I.card} label="Open job cards" value={o.openCards.count} note={`${o.openCards.atWorkshop} at a workshop now`} href={to("job-cards")} />
+        <Kpi icon={I.coin} label="Spend this month" value={money(sm.spent)}
           note={sm.monthlyBudget !== null ? <>of {cur} {money(sm.monthlyBudget)} · {sm.pacing === "over" ? <Pill tone="bad">Pacing over budget</Pill> : <Pill tone="ok">On pace</Pill>}</> : "No fleet budget set"} href={to("reports")} />
-        <Kpi label="Vehicles over budget" value={o.overBudget} note="This budget period" href={to("budgets")} />
-        <Kpi label="Service due" value={o.serviceDue.overdue + o.serviceDue.soon}
+        <Kpi icon={I.gauge} label="Vehicles over budget" value={o.overBudget} note="This budget period" href={to("budgets")} />
+        <Kpi icon={I.wrench} label="Service due" value={o.serviceDue.overdue + o.serviceDue.soon}
           note={<>{o.serviceDue.overdue > 0 && <Pill tone="bad">{o.serviceDue.overdue} overdue</Pill>} {o.serviceDue.soon} within {o.serviceDue.warnDays} days</>} href={to("vehicles")} />
-        <Kpi label="Documents expiring" value={o.docsExpiring.count} note="Within the next 30 days" href={to("compliance")} />
+        <Kpi icon={I.doc} label="Documents expiring" value={o.docsExpiring.count} note="Within the next 30 days" href={to("compliance")} />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
-        {o.approvals ? (
+      <div className={`rise grid gap-4 ${o.approvals ? "xl:grid-cols-[1.35fr_1fr]" : ""}`} style={{ "--i": 2 } as React.CSSProperties}>
+        {o.approvals && (
           <Panel title="Approval queue" flush action={<a href={to("job-cards?status=submitted")} className={`${btn} h-8`}>Open all {o.approvals.count}</a>}>
             {o.approvals.rows.length === 0 ? <p className="p-5 text-sm text-zinc-500">Nothing is waiting for your approval.</p> : (
               <div className="overflow-x-auto"><table className="w-full text-left text-sm">
@@ -121,7 +131,7 @@ function OverviewBlocks({ o, to }: { o: Overview; to: (h: string) => string }) {
               </table></div>
             )}
           </Panel>
-        ) : <div />}
+        )}
         <Panel title="Service due" flush action={<a href={to("vehicles")} className={`${btn} h-8`}>See all {o.serviceDue.overdue + o.serviceDue.soon}</a>}>
           {o.serviceDue.rows.length === 0 ? <p className="p-5 text-sm text-zinc-500">Nothing is due.</p> : (
             <table className="w-full text-left text-sm">
@@ -138,13 +148,13 @@ function OverviewBlocks({ o, to }: { o: Overview; to: (h: string) => string }) {
         </Panel>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
+      <div className="rise grid gap-4 xl:grid-cols-[1.35fr_1fr]" style={{ "--i": 3 } as React.CSSProperties}>
         <Panel title="Maintenance spend, last 12 months" sub={`${cur} thousands${sm.monthlyBudget !== null ? " · dashed line is the monthly budget" : ""}`}>
-          <div className="relative flex h-44 items-end gap-2 border-b border-zinc-100" role="img" aria-label={`Spend by month, this month so far ${money(sm.spent)}`}>
+          <div className="chart-grid relative flex h-44 items-end gap-2 border-b border-zinc-200" role="img" aria-label={`Spend by month, this month so far ${money(sm.spent)}`}>
             {sm.monthlyBudget !== null && <div className="pointer-events-none absolute inset-x-0 border-t-2 border-dashed border-red-600" style={{ bottom: `${(sm.monthlyBudget / maxBar) * 100}%` }} />}
             {o.spendByMonth.map((b, i) => (
               <div key={b.month} className="flex h-full flex-1 items-end" title={`${monthShort(b.month)}: ${money(b.cost)}`}>
-                <div className={`w-full rounded-t-[3px] ${i === o.spendByMonth.length - 1 ? "bg-brand/50" : "bg-brand"}`} style={{ height: `${Math.max(1, (b.cost / maxBar) * 100)}%` }} />
+                <div className={`chart-bar w-full rounded-t-md ${i === o.spendByMonth.length - 1 ? "chart-bar-now" : ""}`} style={{ height: `${Math.max(1, (b.cost / maxBar) * 100)}%`, "--i": i } as React.CSSProperties} />
               </div>
             ))}
           </div>
@@ -163,7 +173,7 @@ function OverviewBlocks({ o, to }: { o: Overview; to: (h: string) => string }) {
                   <li key={c.vehicle_id}>
                     <div className="flex items-center justify-between gap-2 text-sm"><a href={to(`vehicles/${c.vehicle_id}`)}><Plate>{c.registration_no}</Plate></a>
                       <span className="font-mono">{money(c.spent)}{c.pct !== null && <> · <span className={over ? "font-semibold text-red-700" : ""}>{Math.round(c.pct)}%</span></>}</span></div>
-                    <div className="mt-1.5 h-2 rounded bg-zinc-100"><div className={`h-2 rounded ${over ? "bg-red-600" : "bg-brand"}`} style={{ width: `${Math.min(100, c.pct ?? 0)}%` }} /></div>
+                    <div className="mt-1.5 h-2 rounded-full bg-zinc-100"><div className={`h-2 rounded-full ${over ? "bg-red-600" : "meter"}`} style={{ width: `${Math.min(100, c.pct ?? 0)}%` }} /></div>
                   </li>
                 );
               })}
@@ -172,12 +182,12 @@ function OverviewBlocks({ o, to }: { o: Overview; to: (h: string) => string }) {
         </Panel>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="rise grid gap-4 lg:grid-cols-2 xl:grid-cols-3" style={{ "--i": 4 } as React.CSSProperties}>
         <Panel title="Why jobs happen" sub="Last 90 days" action={<a href={to("reports/breaking")} className={`${btn} h-8`}>Details</a>}>
           {o.whyJobs.length === 0 ? <p className="text-sm text-zinc-500">No job cards in the last 90 days.</p> : (
             <ul className="space-y-3 text-sm">{o.whyJobs.map((w) => (
               <li key={w.category} className="grid grid-cols-[9rem_1fr_2.5rem] items-center gap-3"><span>{REASON_CATEGORY[w.category] ?? w.category}</span>
-                <span className="h-2 rounded bg-zinc-100"><span className="block h-2 rounded bg-brand" style={{ width: `${w.pct}%` }} /></span><span className="text-right font-mono">{w.pct}%</span></li>))}</ul>
+                <span className="h-2 rounded-full bg-zinc-100"><span className="meter block h-2 rounded-full" style={{ width: `${w.pct}%` }} /></span><span className="text-right font-mono">{w.pct}%</span></li>))}</ul>
           )}
         </Panel>
         <Panel title="Documents expiring" action={<a href={to("compliance")} className={`${btn} h-8`}>Compliance</a>} flush>
@@ -203,3 +213,16 @@ function OverviewBlocks({ o, to }: { o: Overview; to: (h: string) => string }) {
     </>
   );
 }
+
+// Small line icons for the number cards. Decoration only: each card's words and numbers say everything.
+const ico = (d: string) => (
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>
+);
+const I = {
+  check: ico("M5 12.5l4.5 4.5L19 7.5"),
+  card: ico("M7 3h8l4 4v14H7zM15 3v4h4M10 12h6M10 16h6"),
+  coin: ico("M12 3a9 9 0 100 18 9 9 0 000-18zM12 7v10M9.5 9.5c0-1 1-1.7 2.5-1.7s2.5.7 2.5 1.7-1 1.5-2.5 1.8-2.5.8-2.5 1.8 1 1.7 2.5 1.7 2.5-.7 2.5-1.7"),
+  gauge: ico("M4 16a8 8 0 1116 0M12 16l4-5M8 16h.01M16 16h.01"),
+  wrench: ico("M14.5 6.5a4 4 0 00-5.3 5.2L4 17l3 3 5.3-5.2a4 4 0 005.2-5.3l-2.6 2.6-2.4-.6-.6-2.4z"),
+  doc: ico("M7 3h7l4 4v14H7zM14 3v4h4M10 13h5M10 17h5"),
+};

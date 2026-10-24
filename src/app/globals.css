@@ -79,6 +79,20 @@ html { color-scheme: light; }
 .nav-item { transition: background-color 0.15s ease, color 0.15s ease; }
 .nav-active { background: linear-gradient(90deg, rgb(29 58 76 / 1) 0%, rgb(29 58 76 / 0.55) 100%); box-shadow: inset 3px 0 0 var(--color-badge); }
 
+/* Dashboard: the lit welcome band, number-card icons, chart bars that grow in, and blocks that rise one after another.
+   Movement is transform only (never opacity), so text is readable from the first frame; it stops for visitors who ask for less motion. */
+.dash-hero { background: radial-gradient(60% 120% at 92% 0%, rgb(242 184 75 / 0.22), transparent 65%), radial-gradient(70% 140% at 0% 100%, rgb(11 110 138 / 0.5), transparent 70%), linear-gradient(135deg, #12303f 0%, var(--color-side) 70%); box-shadow: 0 18px 40px -22px rgb(15 30 40 / 0.7), inset 0 0 0 1px rgb(255 255 255 / 0.07); }
+.kpi-icon { color: var(--color-brand); background: rgb(11 110 138 / 0.09); }
+.kpi-link:hover .kpi-icon { color: #fff; background: var(--color-brand); }
+.kpi-icon { transition: background-color 0.2s ease, color 0.2s ease; }
+.chart-grid { background-image: repeating-linear-gradient(to top, transparent 0, transparent calc(25% - 1px), rgb(15 30 40 / 0.07) calc(25% - 1px), rgb(15 30 40 / 0.07) 25%); }
+.chart-bar { background: linear-gradient(180deg, #2796b6 0%, var(--color-brand) 100%); transform-origin: bottom; animation: grow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 45ms); transition: filter 0.15s ease; }
+.chart-bar:hover { filter: brightness(1.12) saturate(1.1); }
+.chart-bar-now { background: linear-gradient(180deg, #f6c765 0%, var(--color-badge) 100%); }
+.meter { background: linear-gradient(90deg, var(--color-brand), #2796b6); }
+.rise { animation: rise 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both; animation-delay: calc(var(--i, 0) * 70ms); }
+@keyframes rise { from { transform: translateY(10px); } to { transform: none; } }
+
 /* tables: a row lights up under the pointer, so a wide row is easy to follow */
 tbody tr { transition: background-color 0.12s ease; }
 tbody tr:hover { background-color: rgb(11 110 138 / 0.045); }
@@ -168,7 +182,8 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .orb, .float-a, .float-b, .bar, .bar-flag, .count, .pipe-step, .pipe-line, .toast, .shine::after, .reveal { animation: none !important; }
-  .lift, .kpi, .btn-base, .nav-item { transition: none; }
+  .rise, .chart-bar { animation: none !important; }
+  .lift, .kpi, .btn-base, .nav-item, .kpi-icon, .chart-bar { transition: none; }
   .kpi-link:hover, .btn-base:active { transform: none; }
   .scene-card { transform: none; }
 }

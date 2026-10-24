@@ -18,9 +18,10 @@ export function Pill({ tone = "neutral", children }: { tone?: Tone; children: Re
 }
 
 /** A number card. `href` makes the whole card a link. */
-export function Kpi({ label, value, note, tone, href, mono = true }: { label: string; value: ReactNode; note?: ReactNode; tone?: Tone; href?: string; mono?: boolean }) {
+export function Kpi({ label, value, note, tone, href, mono = true, icon }: { label: string; value: ReactNode; note?: ReactNode; tone?: Tone; href?: string; mono?: boolean; icon?: ReactNode }) {
   const body = (
     <>
+      {icon && <span aria-hidden className="kpi-icon absolute right-3.5 top-4 flex h-8 w-8 items-center justify-center rounded-full">{icon}</span>}
       <p className="text-xs text-zinc-500">{label}</p>
       <p className={`mt-1 text-[28px] font-semibold leading-tight ${mono ? "font-mono" : ""}`}>{value}</p>
       {note && <p className="mt-1 text-xs text-zinc-500">{tone ? <Pill tone={tone}>{note}</Pill> : note}</p>}
