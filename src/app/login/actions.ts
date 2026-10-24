@@ -5,7 +5,8 @@ import { getDriver } from "@/lib/db";
 import { allowShared } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
 
-export type LoginState = { error?: string };
+/** `done` means the session cookie is set: the page then moves on itself (see login/page.tsx). */
+export type LoginState = { error?: string; done?: boolean };
 
 const TEN_MIN = 600;
 
@@ -24,7 +25,9 @@ export async function signIn(_prev: LoginState, form: FormData): Promise<LoginSt
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   // One message for every failure, so the form never reveals which emails exist.
   if (error) return { error: "That email and password do not match." };
-  redirect("/");
+  // Not redirect("/"): the server builds that address from the host it believes it has, which can differ from the one the
+  // person is on (a custom domain with and without www). The browser moves on with a plain relative address instead.
+  return { done: true };
 }
 
 export async function signOut() {

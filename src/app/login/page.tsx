@@ -1,5 +1,5 @@
 "use client";
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { signIn, type LoginState } from "./actions";
 import { Logo } from "@/components/brand";
 
@@ -8,6 +8,8 @@ const box = "h-11 w-full rounded-md border border-zinc-300 bg-white px-3 text-zi
 // The design's split screen: brand panel on the left, the form on the right. On a phone only the form shows.
 export default function LoginPage() {
   const [state, action, pending] = useActionState<LoginState, FormData>(signIn, {});
+  // A full page load, so the new session cookie is sent and "/" decides where this person belongs.
+  useEffect(() => { if (state.done) window.location.assign("/"); }, [state.done]);
   return (
     <main className="grid flex-1 md:grid-cols-2">
       <section className="hidden flex-col justify-between bg-side p-16 text-white md:flex">
@@ -35,8 +37,8 @@ export default function LoginPage() {
             <p className="mt-1 text-right text-xs"><a href="/forgot-password" className="font-medium text-brand underline">Forgot your password?</a></p>
           </div>
           {state.error && <p role="alert" className="text-sm text-red-700">{state.error}</p>}
-          <button type="submit" disabled={pending} className="h-11 w-full rounded-md bg-brand font-medium text-white disabled:opacity-60">
-            {pending ? "Signing in" : "Sign in"}
+          <button type="submit" disabled={pending || state.done} className="h-11 w-full rounded-md bg-brand font-medium text-white disabled:opacity-60">
+            {pending || state.done ? "Signing in" : "Sign in"}
           </button>
           <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-zinc-900">
             Drivers who only send odometer readings do not need to sign in. Use the link in your message.
