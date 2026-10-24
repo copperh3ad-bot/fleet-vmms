@@ -20,14 +20,14 @@ const DEFS: Record<string, Def> = {
   vehicles: {
     perms: ["vehicle.read"],
     columns: [col("Registration", "registration_no"), col("Make", "make"), col("Model", "model"), col("Year", "year"), col("Class", "vehicle_class"), col("Fuel", "fuel_type"),
-      col("Status", "status"), col("Odometer km", "odometer_km"), col("Base location", "base_location"), col("Held by", "holder"), col("Worst service status", "pm_worst")],
+      col("Status", "status"), col("Odometer km", "odometer_km"), col("Base location", "base_location"), col("Held by", "holder"), col("Employee ID", "holder_no"), col("Worst service status", "pm_worst")],
     async run({ q, m, f }) {
       const where: string[] = [], p: unknown[] = [];
       if (m.vehicleScope === "own") { p.push(m.userId); where.push(`h.user_id = $${p.length}`); }
       if (f.status) { p.push(f.status); where.push(`v.status = $${p.length}`); }
       if (f.q) { p.push(like(f.q)); where.push(`(v.registration_no ilike $${p.length} or v.make ilike $${p.length} or v.model ilike $${p.length} or h.full_name ilike $${p.length})`); }
       return (await q.query(
-        `select v.registration_no, v.make, v.model, v.year, v.vehicle_class, v.fuel_type, v.status, v.odometer_km::text, v.base_location, h.full_name as holder,
+        `select v.registration_no, v.make, v.model, v.year, v.vehicle_class, v.fuel_type, v.status, v.odometer_km::text, v.base_location, h.full_name as holder, h.employee_no as holder_no,
                 (select case min(case x.pm_status when 'overdue' then 0 when 'due_soon' then 1 when 'no_history' then 2 when 'scheduled' then 3 else 4 end)
                           when 0 then 'overdue' when 1 then 'due_soon' when 2 then 'no_history' when 3 then 'scheduled' when 4 then 'ok' end from v_pm_status x where x.vehicle_id = v.id) as pm_worst
            from vehicles v left join vehicle_custody c on c.vehicle_id = v.id and c.to_date is null left join employees h on h.id = c.employee_id

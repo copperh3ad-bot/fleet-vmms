@@ -104,6 +104,13 @@ describe("exports", () => {
     for (const [kind, m, ok] of cases) expect(!(await forbidden(exportCsv(d, m, kind))), `${m.role} ${kind}`).toBe(ok);
   });
 
+  it("the vehicles export gives the holder's employee ID next to the holder's name", async () => {
+    const lines = (await exportCsv(d, mgr(), "vehicles")).csv.replace(/^﻿/, "").split("\r\n");
+    const head = lines[0].split(",");
+    expect(head.indexOf("Employee ID")).toBe(head.indexOf("Held by") + 1);
+    expect(lines.find((l) => l.includes("BKL-245"))).toMatch(/,E-[^,]+,/);
+  });
+
   it("respects the 'own' scope: a requester gets only their vehicle and their job cards", async () => {
     const v = (await exportCsv(d, driver(), "vehicles")).csv;
     expect(v).toContain("BKL-245"); expect(v).not.toContain("BKL-300");
