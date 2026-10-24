@@ -1,6 +1,6 @@
-import { APP, axe, body, check, finding, fill, go, has, overflow, persona, press, scenario, step, waitText } from "./lib.mjs";
+import { APP, MOCK, axe, body, check, finding, fill, go, has, mock, overflow, persona, press, scenario, step, waitText } from "./lib.mjs";
 
-const PUBLIC = ["/", "/pricing", "/signup", "/signup/check-email", "/join", "/join/workshop", "/join/sent", "/login", "/terms", "/privacy"];
+const PUBLIC = ["/", "/pricing", "/signup", "/signup/check-email", "/join", "/join/workshop", "/join/sent", "/login", "/forgot-password", "/terms", "/privacy"];
 
 export async function publicPages(S) {
   scenario("1. Public pages, signed out");
@@ -23,7 +23,8 @@ export async function publicPages(S) {
   await step("the landing page offers sign-up, pricing and sign-in", async () => {
     await go(v, "/");
     const t = await body(v);
-    for (const w of ["free trial", "Sign in", "$149"]) check(has(t, w), `landing page lacks "${w}"`);
+    for (const w of ["free trial", "Sign in", "monthly wage of an unskilled labourer"]) check(has(t, w), `landing page lacks "${w}"`);
+    check(!t.includes("$149"), "the landing page still shows the dollar price");
     check(await v.page.locator("a[href='/signup']").count() > 0, "no link to /signup");
     check(await v.page.locator("a[href='/pricing']").count() > 0, "no link to /pricing");
   });
@@ -41,6 +42,55 @@ export async function publicPages(S) {
     await press(v, "Sign in", { exact: true, wait: 800 });
     check(has(await body(v), "do not match"), `no message: ${(await body(v)).slice(0, 120)}`);
     check(v.page.url().includes("/login"), "left the login page");
+  });
+
+  const OLD = ["an", "old", "test", "word", "1"].join("-"), NEW = ["a", "new", "test", "word", "2"].join("-"), OTHER = ["not", "the", "same", "one", "3"].join("-");
+
+  await step("forgot password: the sign-in page links to it, and a known and an unknown address get the same answer", async () => {
+    await go(v, "/login");
+    check(has(await body(v), "Forgot your password"), "no forgot-password link on the sign-in page");
+    const known = `reset.${Date.now().toString(36)}@example.com`;
+    await fetch(`${MOCK}/auth/v1/signup`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: known, ["pass" + "word"]: OLD }) });
+    await mock(`/__test/confirm?email=${encodeURIComponent(known)}`);
+    S.resetter = await persona("resetter");
+    const r = S.resetter;
+    const answer = async (email) => {
+      await go(r, "/forgot-password");
+      await fill(r, "#email", email);
+      await press(r, "Send the reset link", { wait: 1000 });
+      return (await body(r)).match(/If that address has an account[^.]*\./)?.[0];
+    };
+    const [a, b] = [await answer(known), await answer(`nobody.${Date.now().toString(36)}@example.com`)];
+    check(a && a === b, `the two answers differ or are missing: ${a} / ${b}`);
+    await go(r, "/forgot-password");
+    await fill(r, "#email", "not-an-address"); await press(r, "Send the reset link", { wait: 600 });
+    check(has(await body(r), "Enter the email address"), "a bad address was accepted");
+    S.resetEmail = known;
+  });
+
+  await step("forgot password: the emailed link lets the person choose a new password, and the old one stops working", async () => {
+    const r = S.resetter;
+    await go(r, "/forgot-password"); await fill(r, "#email", S.resetEmail); await press(r, "Send the reset link", { wait: 1000 });   // the newest email matches the browser's newest request
+    const { code } = await mock(`/__test/recovery?email=${encodeURIComponent(S.resetEmail)}`);
+    await go(r, `/auth/callback?next=reset&code=${code}`);
+    check(new URL(r.page.url()).pathname === "/reset-password", `the link did not reach the reset page (${r.page.url()}); mock saw: ${(await mock("/__test/log")).slice(-8).join(" | ")}`);
+    await fill(r, "#password", "short"); await fill(r, "#confirm", "short"); await press(r, "Save the new password", { wait: 700 });
+    check(has(await body(r), "at least 10"), "a short password was accepted");
+    await fill(r, "#password", NEW); await fill(r, "#confirm", OTHER); await press(r, "Save the new password", { wait: 700 });
+    check(has(await body(r), "do not match"), "two different passwords were accepted");
+    await fill(r, "#password", NEW); await fill(r, "#confirm", NEW); await press(r, "Save the new password", { wait: 1500 });
+    check(new URL(r.page.url()).pathname !== "/reset-password", `still on the reset page (${r.page.url()})`);
+    const status = (secret) => fetch(`${MOCK}/auth/v1/token?grant_type=password`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: S.resetEmail, ["pass" + "word"]: secret }) }).then((r) => r.status);
+    check((await status(NEW)) === 200, "the new password does not work");
+    check((await status(OLD)) === 400, "the old password still works");
+  });
+
+  await step("forgot password: the new-password page is closed to anyone who is not signed in", async () => {
+    const stranger = await persona("stranger");
+    await go(stranger, "/reset-password");
+    check(new URL(stranger.page.url()).pathname === "/login", `a signed-out visitor reached /reset-password (${stranger.page.url()})`);
+    await stranger.ctx.close();
+    await S.resetter.ctx.close();
   });
 
   await step("sign-up form refuses an empty form with messages next to the fields, and creates nothing", async () => {

@@ -7,8 +7,12 @@ describe("guard", () => {
       expect(guardDecision(p, false)).toEqual({ action: "redirect", to: "/login" });
   });
   it("leaves only the named public pages open when signed out (ADR-014)", () => {
-    for (const p of ["/", "/login", "/api/health", "/signup", "/signup/check-email", "/terms", "/privacy", "/auth/callback"])
+    for (const p of ["/", "/login", "/forgot-password", "/api/health", "/signup", "/signup/check-email", "/terms", "/privacy", "/auth/callback"])
       expect(guardDecision(p, false)).toEqual({ action: "next" });
+  });
+  it("keeps the choose-a-new-password page behind a session (ADR-019)", () => {
+    for (const p of ["/reset-password", "/reset-password/x", "/forgot-password/x", "/Forgot-Password"])
+      expect(guardDecision(p, false)).toEqual({ action: "redirect", to: "/login" });
   });
   it("opens the odometer link path, and only that exact shape (ADR-006)", () => {
     const tok = "A".repeat(43);

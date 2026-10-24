@@ -15,5 +15,7 @@ export async function GET(request: NextRequest) {
   const supabase = await supabaseServer();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   // The code only works in the browser that asked for it. Anywhere else the person signs in with the password they chose.
-  return NextResponse.redirect(error ? `${base}/login` : `${base}/`);
+  // The only other destination is the password-reset page (ADR-019), chosen from a fixed word, never from a typed address.
+  const dest = request.nextUrl.searchParams.get("next") === "reset" ? "/reset-password" : "/";
+  return NextResponse.redirect(error ? `${base}/login` : `${base}${dest}`);
 }

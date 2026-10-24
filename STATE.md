@@ -274,3 +274,9 @@
 - Report: docs/BETA-TEST-2026-10-24.md. Browser test in e2e/ (npm run e2e). Read-only live health check: scripts/audit-system.mts.
 - Fixed: sign-up hydration error, lost dropdown choices after a failed save, workshop could open Billing, three pages scrolled sideways on phones, unlabelled file field, low-contrast grey text, session cookie readable by scripts, sign-in page without sign-up or join links, rupees shown to customers abroad, empty labels on invoices, API-role table privileges (control migration 0009, NOT yet applied to the live database).
 - Open decisions are listed in the report (Administrator cannot approve job cards, placeholder terms and privacy text, empty live settings).
+
+## 2026-10-24: Fleet OTG name and logo everywhere, wage-based public pricing, forgot password
+- Brand: logo in every header, sign-in, favicon; hardening (security headers, error pages, runbook docs/OPERATIONS.md). Domain www.fleetotg.com pointed at Netlify; HTTPS certificate and Supabase redirect URLs were still being set up by the owner.
+- Public pages (landing, pricing, sign-up box, terms) say the price is the monthly wage of an unskilled labourer; no figure shown. The plans table still holds USD 149 and Billing inside a workspace still shows it. Tiered prices by subscription length are not designed yet.
+- Forgot password (ADR-019): /forgot-password (public, rate limited, same answer for every address), /auth/callback?next=reset, /reset-password (needs the emailed-link session; ends other sessions). The runbook had wrongly said this existed before.
+- Not yet live: commits since e895ec2 and migration 0009 are not deployed or applied.

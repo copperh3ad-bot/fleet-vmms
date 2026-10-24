@@ -7,6 +7,7 @@ const PORT = Number(process.env.MOCK_PORT ?? 54399);
 const KEY = crypto.randomBytes(32);                        // signs the test tokens; new for every run
 const users = new Map();      // email -> user
 const codes = new Map();      // pkce code -> email
+const recoveries = new Map(); // email -> the code in the latest password-reset email
 const refresh = new Map();    // refresh token -> email
 const files = new Map();      // bucket/path -> { bytes, type }
 const signed = new Map();     // token -> key
@@ -80,8 +81,18 @@ http.createServer(async (req, res) => {
   if (path === "/auth/v1/user") {
     const pl = verify((req.headers.authorization ?? "").replace(/^Bearer /, ""));
     const u = pl && [...users.values()].find((x) => x.id === pl.sub);
+    if (u && req.method === "PUT") {
+      const b = json();
+      if (b.password !== undefined) { if (String(b.password).length < 6) return err(res, 422, "weak_password", "Password should be at least 6 characters."); u.password = b.password; }
+    }
     return u ? send(res, 200, publicUser(u)) : err(res, 401, "bad_jwt", "invalid JWT");
   }
+  if (path === "/auth/v1/recover") {                       // like Supabase: the same answer for a known and an unknown address
+    const email = String(json().email ?? "").toLowerCase();
+    if (users.has(email)) { const code = crypto.randomBytes(16).toString("hex"); codes.set(code, email); recoveries.set(email, code); }
+    return send(res, 200, {});
+  }
+  if (path === "/__test/recovery") { const c = recoveries.get(String(url.searchParams.get("email")).toLowerCase()); return c ? send(res, 200, { code: c }) : send(res, 404, {}); }
   if (path === "/auth/v1/logout") return send(res, 204, "");
   if (path === "/auth/v1/resend") return send(res, 200, {});
 

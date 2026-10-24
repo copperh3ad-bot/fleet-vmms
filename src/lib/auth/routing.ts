@@ -1,9 +1,10 @@
 /**
  * Open without signing in, and nothing else (CLAUDE.md rule 5, ADR-014): the landing page and sign-up (which only record a
  * waiting row and ask Supabase for a login), the two legal pages (static text), the confirmation return (which only turns
- * a code from Supabase into a session), sign-in and the health check. Pages behind them check the person themselves.
+ * a code from Supabase into a session), sign-in, asking for a password-reset email (ADR-019) and the health check. The page
+ * for choosing the new password is not here: it is reached only through the signed-in session the emailed link creates. Pages behind them check the person themselves.
  */
-export const PUBLIC_PATHS = ["/", "/login", "/api/health", "/signup", "/signup/check-email", "/pricing", "/join", "/join/workshop", "/join/sent", "/terms", "/privacy", "/auth/callback"];
+export const PUBLIC_PATHS = ["/", "/login", "/forgot-password", "/api/health", "/signup", "/signup/check-email", "/pricing", "/join", "/join/workshop", "/join/sent", "/terms", "/privacy", "/auth/callback"];
 
 /** The driver odometer link (ADR-006): exactly one path segment, shaped like a 32-byte base64url token. */
 export const ODOMETER_LINK_PATH = /^\/o\/[A-Za-z0-9_-]{43}$/;

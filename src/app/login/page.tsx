@@ -32,6 +32,7 @@ export default function LoginPage() {
           <div>
             <label htmlFor="password" className="mb-1 block text-xs font-medium text-zinc-600">Password</label>
             <input id="password" name="password" type="password" autoComplete="current-password" required className={box} />
+            <p className="mt-1 text-right text-xs"><a href="/forgot-password" className="font-medium text-brand underline">Forgot your password?</a></p>
           </div>
           {state.error && <p role="alert" className="text-sm text-red-700">{state.error}</p>}
           <button type="submit" disabled={pending} className="h-11 w-full rounded-md bg-brand font-medium text-white disabled:opacity-60">

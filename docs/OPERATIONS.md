@@ -29,9 +29,11 @@ website with your own login; the assistant cannot reach those accounts.
 4. Netlify, then Logs, then Functions **(you)**: errors show a short code that matches the "quote this code" line users see.
 
 ## If a customer cannot sign in
-- Wrong password: they use "Forgot password" on the sign-in page.
-- No confirmation email: check spam; the free Supabase email service allows very few emails per hour. A company that cannot wait can be
-  confirmed by hand in Supabase, Authentication, Users **(you)**.
+- Wrong password: they use "Forgot your password?" on the sign-in page (ADR-019). The link in the email works once, and only in the
+  browser they asked from. It needs the address's `/**` entry in Supabase, Authentication, URL Configuration, and the Site URL **(you)**.
+  If the email never comes, set a new password by hand in Supabase, Authentication, Users **(you)**.
+- No confirmation or reset email: check spam; the free Supabase email service allows very few emails per hour. A company that cannot wait
+  can be confirmed by hand in Supabase, Authentication, Users **(you)**.
 - "No access" after sign-in: their company may be locked for non-payment (the page says so), or they have no role yet (their administrator
   assigns one under Users).
 
