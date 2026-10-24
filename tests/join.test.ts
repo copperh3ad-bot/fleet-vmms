@@ -6,6 +6,8 @@ import { ForbiddenError, listWorkspaces, resolveMembership, type Membership } fr
 import * as master from "@/lib/master/service";
 import { UserError } from "@/lib/master/service";
 import * as ad from "@/lib/admin/service";
+import * as jc from "@/lib/jobcards/service";
+import { getNavCounts } from "@/lib/dashboard/service";
 import { advanceProvisioning, type ProvisionDeps } from "@/lib/orgs/provision";
 import { claimSignup, parseSignup, recordSignup } from "@/lib/orgs/signup";
 import {
@@ -223,5 +225,53 @@ describe("one company never reaches another's requests", () => {
     await ask((await getJoinCode(router, A.admin))!, "staff", { email: "mixup@example.com" });
     expect((await listJoinRequests(router, B.admin)).length).toBe(before);
     expect((await indexed("mixup@example.com")).map((x) => x.company)).toEqual(["Join Alpha"]);
+  });
+});
+
+describe("telling the administrator", () => {
+  const notices = async (m: Membership) => (await jc.listNotifications(router, m)).filter((n) => n.kind === "join.requested");
+
+  it("a new request puts a notice in front of everyone who can manage users, and no one else", async () => {
+    const code = (await getJoinCode(router, A.admin))!;
+    const before = (await notices(A.admin)).length;
+    await ask(code, "staff", { email: "notice1@example.com", full_name: "Notice One" });
+    const mine = await notices(A.admin);
+    expect(mine).toHaveLength(before + 1);
+    expect(mine[0].payload).toMatchObject({ text: "Notice One asked to join." });
+    expect(mine[0].payload.request_id).toBeTruthy();
+    // the fleet manager made earlier (a member of this company without admin.users) gets nothing
+    expect(await notices(member(A, "fleet_manager", 60))).toEqual([]);
+  });
+
+  it("a workshop's notice says so, and asking again to change details does not repeat it", async () => {
+    const code = (await getJoinCode(router, A.admin))!;
+    const before = (await notices(A.admin)).length;
+    await ask(code, "workshop", { email: "notice2@example.com", full_name: "Imran", workshop_name: "Quick Fix Garage" });
+    await ask(code, "workshop", { email: "notice2@example.com", full_name: "Imran", workshop_name: "Quick Fix Garage", note: "added a note" });
+    const list = await notices(A.admin);
+    expect(list).toHaveLength(before + 1);
+    expect(list[0].payload.text).toBe("Quick Fix Garage asked to join as a workshop.");
+  });
+
+  it("another company's administrator is not told, and a request that fails to notify is still saved", async () => {
+    expect((await notices(B.admin)).map((n) => String(n.payload.text))).not.toContain("Notice One asked to join.");
+    // break only this company's notifications table: the request must still be recorded
+    const C = await signUp(4, "Join Delta");
+    const code = (await setJoinCode(router, C.admin, "on"))!;
+    await control.transaction(async (q) => { await q.query(`alter table "${C.schema}".notifications rename to notifications_gone`); });
+    await expect(ask(code, "staff", { email: "stillsaved@example.com" })).resolves.toMatchObject({ company: "Join Delta" });
+    expect(await pending(C)).toEqual(["stillsaved@example.com"]);
+    await control.transaction(async (q) => { await q.query(`alter table "${C.schema}".notifications_gone rename to notifications`); });
+  });
+
+  it("the sidebar count is the number waiting, for people who manage users only, and drops when decided", async () => {
+    const waiting = (await listJoinRequests(router, A.admin)).length;
+    expect(waiting).toBeGreaterThanOrEqual(2);
+    expect((await getNavCounts(router, A.admin)).joins).toBe(waiting);
+    expect((await getNavCounts(router, member(A, "fleet_manager", 60))).joins).toBe(0);
+    expect((await getNavCounts(router, B.admin)).joins).toBe((await listJoinRequests(router, B.admin)).length);
+    const first = (await listJoinRequests(router, A.admin))[0];
+    await declineJoinRequest(router, A.admin, first.id);
+    expect((await getNavCounts(router, A.admin)).joins).toBe(waiting - 1);
   });
 });

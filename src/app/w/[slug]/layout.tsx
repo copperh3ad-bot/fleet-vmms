@@ -63,7 +63,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
     { href: to("/accidents"), label: "Accidents and challans", show: has("compliance.manage", "report.view"), also: [to("/challans")] },
   ];
   const admin: Item[] = [
-    { href: to("/users"), label: "Users and roles", show: has("admin.users") },
+    { href: to("/users"), label: "Users and roles", show: has("admin.users"), badge: counts.joins },
     { href: to("/settings"), label: "Service rules", show: has("service.manage", "budget.manage", "admin.settings") },
     { href: to("/employees"), label: "Employees", show: has("employee.manage") },
     { href: to("/vehicles/new"), label: "Add a vehicle", show: has("vehicle.write") },
@@ -121,7 +121,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
         <details className="group">
           <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3">
             <span><span className="block text-[17px] font-semibold leading-tight">Fleet VMMS</span><span className="block text-xs text-[#9FB2BE]">{company}</span></span>
-            <span className="rounded-md border border-white/25 px-3 py-1.5 text-sm">Menu{counts.approvals + counts.odometer > 0 ? <span className="ml-2 rounded-full bg-badge px-1.5 text-xs font-semibold text-side">{counts.approvals + counts.odometer}</span> : null}</span>
+            <span className="rounded-md border border-white/25 px-3 py-1.5 text-sm">Menu{counts.approvals + counts.odometer + counts.joins > 0 ? <span className="ml-2 rounded-full bg-badge px-1.5 text-xs font-semibold text-side">{counts.approvals + counts.odometer + counts.joins}</span> : null}</span>
           </summary>
           <div className="space-y-4 px-3 pb-4">{nav}{foot}</div>
         </details>

@@ -256,3 +256,5 @@
 - /pricing (public). Company code on the Users page; /join and /join/workshop (public) make a request; approval = ordinary invitation. Control migration 0005 (tenants.join_code, join_index), platform migration 0009 (join_requests). Isolation test in tests/join.test.ts, shown to fail when the company filter is removed.
 - Public copy corrected: no longer says each company has a private database.
 - Not done: notification to the administrator when a request arrives; email to the person on approval (no mail service beyond Supabase confirmation mail).
+
+- 2026-10-24: a new join request now notifies everyone who can manage users (in-app) and shows a count on the Users link. No email yet.

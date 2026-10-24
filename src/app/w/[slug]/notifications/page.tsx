@@ -44,7 +44,9 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
               <li key={n.id} className={`flex flex-wrap items-baseline gap-x-2 px-5 py-3 ${n.read_at ? "text-zinc-600" : "font-medium"}`}>
                 {!n.read_at && <span aria-label="Unread" className="mr-1 inline-block h-2 w-2 rounded-full bg-brand" />}
                 <span>
-                  {n.kind.startsWith("billing.") ? (
+                  {n.kind.startsWith("join.") ? (
+                    <>{n.payload.text ?? "Someone asked to join."} <a className="text-sky-800 hover:underline" href={`/w/${slug}/users`}>Review</a></>
+                  ) : n.kind.startsWith("billing.") ? (
                     <>{n.payload.text ?? "A billing notice."} <a className="text-sky-800 hover:underline" href={`/w/${slug}/billing`}>Billing</a></>
                   ) : (
                     <>

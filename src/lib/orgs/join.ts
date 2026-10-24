@@ -4,11 +4,13 @@
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import type { Driver } from "@/lib/db/types";
-import { withOrgPlatform, withPlatform } from "@/lib/db/tenant";
+import { withOrgPlatform, withPlatform, withTenant } from "@/lib/db/tenant";
 import { authorized, type Membership } from "@/lib/auth/can";
 import { loadAccess } from "@/lib/billing/state";
 import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
+import { notify, usersWithPermission } from "@/lib/notify";
+import { SYSTEM_USER } from "@/lib/compliance/reminders";
 import { saveVendor } from "@/lib/master/service";
 import { inviteUser } from "@/lib/admin/service";
 import type { TenantRef } from "./index";
@@ -96,19 +98,34 @@ export async function findTenantByJoinCode(driver: Driver, code: string): Promis
 export async function submitJoinRequest(driver: Driver, kind: JoinKind, input: JoinInput): Promise<{ company: string }> {
   const t = await findTenantByJoinCode(driver, input.code);
   if (!t) throw new UserError("That company code is not recognised. Check it with your administrator.", { code: "Not recognised" });
-  const id = await withOrgPlatform(driver, t.schema, async (q) => {
+  const { id, created } = await withOrgPlatform(driver, t.schema, async (q) => {
     const waiting = (await q.query<{ c: number }>("select count(*)::int c from public.join_requests where tenant_id = $1 and status = 'pending'", [t.id])).rows[0].c;
     const again = (await q.query("select 1 from public.join_requests where tenant_id = $1 and lower(email) = $2 and status = 'pending'", [t.id, input.email])).rows.length > 0;
     if (waiting >= MAX_WAITING && !again) throw new UserError("This company has too many requests waiting. Ask its administrator to clear them.");
-    return (await q.query<{ id: string }>(
+    // xmax is 0 for a row that was just inserted, and not for one that was updated: only a new request needs a notice.
+    const r = (await q.query<{ id: string; created: boolean }>(
       `insert into public.join_requests(tenant_id, kind, full_name, email, phone, workshop_name, note) values ($1, $2, $3, $4, $5, $6, $7)
        on conflict (tenant_id, (lower(email))) where status = 'pending'
        do update set kind = excluded.kind, full_name = excluded.full_name, phone = excluded.phone, workshop_name = excluded.workshop_name, note = excluded.note
-       returning id`, [t.id, kind, input.full_name, input.email, input.phone ?? null, input.workshop_name ?? null, input.note ?? null])).rows[0].id;
+       returning id, (xmax = 0) as created`, [t.id, kind, input.full_name, input.email, input.phone ?? null, input.workshop_name ?? null, input.note ?? null])).rows[0];
+    return r;
   });
+  if (created) await tellAdministrators(driver, t, id, kind === "workshop" ? `${input.workshop_name} asked to join as a workshop.` : `${input.full_name} asked to join.`);
   await withPlatform(driver, (q) => q.query(
     "insert into public.join_index(tenant_id, request_id, email) values ($1, $2, lower($3)) on conflict (tenant_id, request_id) do nothing", [t.id, id, input.email]));
   return { company: t.name };
+}
+
+/**
+ * Everyone in the company who can manage users gets an in-app notice, and the Users link in the sidebar shows a count. A failure
+ * here never loses the request: it is already saved, and the sidebar count comes from the request itself.
+ */
+async function tellAdministrators(driver: Driver, t: TenantRef, requestId: string, text: string): Promise<void> {
+  try {
+    await withTenant(driver, { schema: t.schema, userId: SYSTEM_USER, role: "system" }, async (q) => {
+      await notify(q, await usersWithPermission(q, t.id, "admin.users"), "join.requested", { text, request_id: requestId }, SYSTEM_USER);
+    });
+  } catch (e) { console.error("join notice not written:", e instanceof Error ? e.message : e); }
 }
 
 /** Companies this address has asked to join and not yet heard back from. */

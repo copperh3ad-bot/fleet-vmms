@@ -103,18 +103,20 @@ export function getDashboard(driver: Driver, m: Membership): Promise<Dashboard> 
 }
 
 /** The two numbers shown as badges in the sidebar. Zero for roles that cannot act on them. */
-export async function getNavCounts(driver: Driver, m: Membership): Promise<{ approvals: number; odometer: number }> {
+export async function getNavCounts(driver: Driver, m: Membership): Promise<{ approvals: number; odometer: number; joins: number }> {
   try {
-    return await authorizedAny(driver, m, ["jobcard.approve", "odometer.review"], async (q, held) => {
+    return await authorizedAny(driver, m, ["jobcard.approve", "odometer.review", "admin.users"], async (q, held) => {
       const approvals = held.has("jobcard.approve")
-        ? (await q.query<{ c: number }>("select count(*)::int c from job_cards jc where jc.status = 'submitted' and jc.requested_by is distinct from actor_employee($1)", [m.userId])).rows[0].c : 0;
+        ? (await q.query<{ c: number }>("select count(*)::int c from job_cards jc where jc.status = 'submitted' and jc.requested_by is distinct from actor_employee($1)", [m.userId])).rows[0].c : 0
       const odometer = held.has("odometer.review")
         ? (await q.query<{ c: number }>(
             `select count(*)::int c from odometer_submissions s join odometer_cycles c on c.id = s.cycle_id where c.status = 'open' and s.status = 'submitted'`)).rows[0].c : 0;
-      return { approvals, odometer };
+      const joins = held.has("admin.users")
+        ? (await q.query<{ c: number }>("select count(*)::int c from public.join_requests where tenant_id = $1 and status = 'pending'", [m.tenantId])).rows[0].c : 0;
+      return { approvals, odometer, joins };
     });
   } catch (e) {
-    if (e instanceof ForbiddenError) return { approvals: 0, odometer: 0 };
+    if (e instanceof ForbiddenError) return { approvals: 0, odometer: 0, joins: 0 };
     throw e;
   }
 }
