@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fleet OTG flyer</title>
+<style>
+  /* A4 flyer. Every claim below is something the product does today, except the block marked "Coming soon". */
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --ink: #0a1a24; --ink2: #10303f; --gold: #f2b84b; --teal: #0b6e8a; --mist: #9fb2be; --paper: #f8fafb; }
+  html, body { width: 210mm; height: 297mm; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; background: var(--ink); color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page { width: 210mm; height: 297mm; padding: 12mm 15mm 12mm; position: relative; overflow: hidden;
+    background: radial-gradient(120mm 90mm at 100% 0%, rgba(11,110,138,.55), transparent 70%), linear-gradient(180deg, var(--ink) 0%, var(--ink2) 100%); }
+  .logo { height: 14mm; display: block; }
+  .kicker { margin-top: 8mm; font-size: 10.5pt; letter-spacing: .22em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+  h1 { margin-top: 3mm; font-size: 29pt; line-height: 1.04; font-weight: 800; letter-spacing: -.01em; }
+  h1 em { font-style: normal; color: var(--gold); }
+  .lead { margin-top: 4mm; font-size: 11.5pt; line-height: 1.45; color: #d6e2e8; max-width: 165mm; }
+  .bar { width: 22mm; height: 1.6mm; background: var(--gold); margin-top: 5mm; border-radius: 1mm; }
+
+  .grid { margin-top: 6mm; display: grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+  .card { background: rgba(255,255,255,.06); border: .3mm solid rgba(255,255,255,.14); border-radius: 3mm; padding: 4mm 4.5mm; display: grid; grid-template-columns: 7mm 1fr; column-gap: 3mm; align-content: start; }
+  .card h3, .card p { grid-column: 2; }
+  .card h3 { font-size: 12.5pt; color: #fff; margin-bottom: 1.6mm; }
+  .card p { font-size: 10pt; line-height: 1.42; color: var(--mist); }
+  .num { display: inline-block; width: 6.5mm; height: 6.5mm; line-height: 6.5mm; text-align: center; border-radius: 50%; background: var(--gold); color: var(--ink); font-weight: 800; font-size: 9.5pt; margin: 0; grid-column: 1; grid-row: 1 / span 2; }
+
+  .soon { margin-top: 7mm; border: .5mm dashed var(--gold); border-radius: 3.5mm; padding: 6mm 6mm 5mm; background: rgba(242,184,75,.08); position: relative; }
+  .tag { position: absolute; top: -3.2mm; left: 6mm; background: var(--gold); color: var(--ink); font-size: 8.5pt; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; padding: 1mm 3mm; border-radius: 1.2mm; }
+  .soon h2 { font-size: 16pt; line-height: 1.2; }
+  .soon h2 em { font-style: normal; color: var(--gold); }
+  .soon p { margin-top: 2mm; font-size: 10.5pt; line-height: 1.45; color: #d6e2e8; }
+
+  .foot { position: absolute; left: 15mm; right: 15mm; bottom: 12mm; display: flex; justify-content: space-between; align-items: flex-end; gap: 8mm; }
+  .price { font-size: 10pt; line-height: 1.45; color: var(--mist); max-width: 100mm; }
+  .price b { color: #fff; font-size: 12pt; display: block; margin-bottom: 1mm; }
+  .cta { text-align: right; }
+  .cta .url { font-size: 19pt; font-weight: 800; color: var(--gold); letter-spacing: .01em; }
+  .cta .sub { font-size: 9.5pt; color: var(--mist); margin-top: 1mm; }
+</style>
+</head>
+<body>
+<div class="page">
+  <img class="logo" src="../../public/fleetotg-logo.png" alt="Fleet OTG, vehicle management and mobility">
+
+  <div class="kicker">Vehicle maintenance, with nowhere to hide</div>
+  <h1>Every repair. Every rupee.<br><em>Every approval on record.</em></h1>
+  <p class="lead">Fleet OTG replaces spreadsheets, phone calls and chat approvals with one job card for every repair, so you can see what was done, what it cost and who said yes.</p>
+  <div class="bar"></div>
+
+  <div class="grid">
+    <div class="card"><span class="num">1</span><h3>No one approves their own request</h3><p>Whoever raises a job card cannot approve it. The approval is stored with the person's name and the time.</p></div>
+    <div class="card"><span class="num">2</span><h3>One card per repair, full history</h3><p>Status, parts, labour and cost on one card. Every step is logged: who did what, and when.</p></div>
+    <div class="card"><span class="num">3</span><h3>Repeat repairs are flagged</h3><p>The same fault coming back on the same vehicle is shown, so you can see what keeps failing and why.</p></div>
+    <div class="card"><span class="num">4</span><h3>Cost lands on the right vehicle</h3><p>Spend is counted per vehicle and per period against its budget, and follows who held the vehicle at the time.</p></div>
+    <div class="card"><span class="num">5</span><h3>Fill it in offline</h3><p>Download the standard job card form as Excel, fill it in at the workshop with no internet, and upload it later.</p></div>
+    <div class="card"><span class="num">6</span><h3>Every person has an employee code</h3><p>Each login is tied to an employee code and a role in your organisation, so each action traces back to a real person.</p></div>
+  </div>
+
+  <div class="soon">
+    <span class="tag">Coming soon</span>
+    <h2>Built to counter <em>corruption</em>: invitations that only reach the person they are meant for.</h2>
+    <p>Each person will receive their sign-in link by WhatsApp or SMS on their own phone number, sent by the system itself, so no administrator ever sees or handles the link. No borrowed logins, no one taking over someone else's account.</p>
+  </div>
+
+  <div class="foot">
+    <div class="price"><b>Priced to be easy to say yes to</b>One month costs about the same as a month's wage for an unskilled labourer. Start with a 3-day free trial.</div>
+    <div class="cta"><div class="url">www.fleetotg.com</div><div class="sub">Contact us on the website</div></div>
+  </div>
+</div>
+</body>
+</html>
