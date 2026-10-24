@@ -105,9 +105,9 @@ function OverviewBlocks({ o, to }: { o: Overview; to: (h: string) => string }) {
       <div className="rise grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" style={{ "--i": 1 } as React.CSSProperties}>
         {o.approvals && <Kpi icon={I.check} label="Awaiting your approval" value={o.approvals.count} note={o.approvals.oldestDays !== null ? `Oldest waiting ${plural(o.approvals.oldestDays, "day")}` : "Nothing waiting"} href={to("job-cards?status=submitted")} />}
         <Kpi icon={I.card} label="Open job cards" value={o.openCards.count} note={`${o.openCards.atWorkshop} at a workshop now`} href={to("job-cards")} />
-        <Kpi icon={I.coin} label="Spend this month" value={money(sm.spent)}
+        <Kpi icon={I.coin} label={`Spend this month (${cur})`} value={money(sm.spent)}
           note={sm.monthlyBudget !== null ? <>of {cur} {money(sm.monthlyBudget)} · {sm.pacing === "over" ? <Pill tone="bad">Pacing over budget</Pill> : <Pill tone="ok">On pace</Pill>}</> : "No fleet budget set"} href={to("reports")} />
-        <Kpi icon={I.gauge} label="Vehicles over budget" value={o.overBudget} note="This budget period" href={to("budgets")} />
+        <Kpi icon={I.gauge} label="Vehicles over budget" value={o.overBudget} note={o.costliest.some((c) => c.pct !== null) || sm.monthlyBudget !== null ? "This budget period" : "No budgets set yet"} href={to("budgets")} />
         <Kpi icon={I.wrench} label="Service due" value={o.serviceDue.overdue + o.serviceDue.soon}
           note={<>{o.serviceDue.overdue > 0 && <Pill tone="bad">{o.serviceDue.overdue} overdue</Pill>} {o.serviceDue.soon} within {o.serviceDue.warnDays} days</>} href={to("vehicles")} />
         <Kpi icon={I.doc} label="Documents expiring" value={o.docsExpiring.count} note="Within the next 30 days" href={to("compliance")} />
@@ -132,7 +132,7 @@ function OverviewBlocks({ o, to }: { o: Overview; to: (h: string) => string }) {
             )}
           </Panel>
         )}
-        <Panel title="Service due" flush action={<a href={to("vehicles")} className={`${btn} h-8`}>See all {o.serviceDue.overdue + o.serviceDue.soon}</a>}>
+        <Panel title="Service due" flush action={o.serviceDue.overdue + o.serviceDue.soon > 0 ? <a href={to("vehicles")} className={`${btn} h-8`}>See all {o.serviceDue.overdue + o.serviceDue.soon}</a> : undefined}>
           {o.serviceDue.rows.length === 0 ? <p className="p-5 text-sm text-zinc-500">Nothing is due.</p> : (
             <table className="w-full text-left text-sm">
               <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-2.5">Vehicle</th><th>Driver</th><th>Due</th><th /></tr></thead>
@@ -173,7 +173,9 @@ function OverviewBlocks({ o, to }: { o: Overview; to: (h: string) => string }) {
                   <li key={c.vehicle_id}>
                     <div className="flex items-center justify-between gap-2 text-sm"><a href={to(`vehicles/${c.vehicle_id}`)}><Plate>{c.registration_no}</Plate></a>
                       <span className="font-mono">{money(c.spent)}{c.pct !== null && <> · <span className={over ? "font-semibold text-red-700" : ""}>{Math.round(c.pct)}%</span></>}</span></div>
-                    <div className="mt-1.5 h-2 rounded-full bg-zinc-100"><div className={`h-2 rounded-full ${over ? "bg-red-600" : "meter"}`} style={{ width: `${Math.min(100, c.pct ?? 0)}%` }} /></div>
+                    {c.pct === null
+                      ? <p className="mt-1 text-xs text-zinc-500">No budget set for this vehicle</p>
+                      : <div className="mt-1.5 h-2 rounded-full bg-zinc-100"><div className={`h-2 rounded-full ${over ? "bg-red-600" : "meter"}`} style={{ width: `${Math.min(100, c.pct)}%` }} /></div>}
                   </li>
                 );
               })}
