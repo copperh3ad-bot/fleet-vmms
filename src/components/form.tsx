@@ -35,7 +35,7 @@ export function Select({ name, label, state, options, blank = "Choose", required
 }) {
   return (
     <Field label={label} name={name} state={state} required={required}>
-      <select id={name} name={name} className={inputCls} defaultValue={state.values?.[name] ?? ""} aria-invalid={!!state.fields?.[name]}>
+      <select key={state.values?.[name] ?? ""} id={name} name={name} className={inputCls} defaultValue={state.values?.[name] ?? ""} aria-invalid={!!state.fields?.[name]}>
         <option value="">{blank}</option>
         {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>

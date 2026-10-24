@@ -52,7 +52,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
                   <tr key={r.key} className={`border-t border-zinc-100 ${r.check === "not_approved" ? "bg-red-50" : r.check === "ok" ? "" : "bg-amber-50"}`}>
                     <td className="px-5 py-3">{r.item}</td><td className="py-3 capitalize">{r.kind}</td>
                     <td className="py-3 text-right font-mono">{cell(r.quoted)}</td><td className="py-3 text-right font-mono">{cell(r.approved)}</td><td className="py-3 text-right font-mono">{cell(r.invoiced)}</td>
-                    <td className="px-5 py-3">{c ? <Pill tone={c.tone}>{c.text}</Pill> : <span className="text-zinc-400">—</span>}</td>
+                    <td className="px-5 py-3">{c ? <Pill tone={c.tone}>{c.text}</Pill> : <span className="text-zinc-600">—</span>}</td>
                   </tr>);
               })}</tbody>
             </table></div>

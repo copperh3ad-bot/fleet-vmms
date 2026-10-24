@@ -3,25 +3,22 @@ import { useActionState } from "react";
 import { Field, Input, Notice, Submit, inputCls } from "@/components/form";
 import type { FormState } from "../actions-util";
 import type { TaxProfile } from "@/lib/billing/tax-data";
-import { countryOptions } from "@/lib/orgs/countries";
 import { saveTaxProfileAction } from "./actions";
 
-const COUNTRIES = countryOptions();
-
 /** The customer's own details for its tax invoice. What it withholds is not asked here: that is agreed with the operator. */
-export function TaxProfileForm({ slug, profile, rules }: { slug: string; profile: TaxProfile | null; rules: { code: string; label: string; sales_tax_pct: string }[] }) {
+export function TaxProfileForm({ slug, profile, rules, countries }: { slug: string; profile: TaxProfile | null; rules: { code: string; label: string; sales_tax_pct: string }[]; countries: [string, string][] }) {
   const [state, action] = useActionState<FormState, FormData>(saveTaxProfileAction.bind(null, slug), {});
   const v = (k: keyof TaxProfile) => state.values?.[k] ?? (profile?.[k] as string | null | undefined) ?? "";
   return (
     <form action={action} noValidate className="space-y-4">
       <Field label="Country" name="country" state={state} hint="Where your company is. Customers outside Pakistan are not charged tax through us.">
-        <select id="country" name="country" defaultValue={v("country")} className={inputCls} aria-invalid={!!state.fields?.country}>
+        <select key={v("country")} id="country" name="country" defaultValue={v("country")} className={inputCls} aria-invalid={!!state.fields?.country}>
           <option value="">Choose</option>
-          {COUNTRIES.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+          {countries.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
         </select>
       </Field>
       <Field label="Where you are registered for sales tax (Pakistan)" name="tax_rule_code" state={state} hint="Choose the authority your company falls under. Leave empty if sales tax does not apply to you.">
-        <select id="tax_rule_code" name="tax_rule_code" defaultValue={v("tax_rule_code")} className={inputCls} aria-invalid={!!state.fields?.tax_rule_code}>
+        <select key={v("tax_rule_code")} id="tax_rule_code" name="tax_rule_code" defaultValue={v("tax_rule_code")} className={inputCls} aria-invalid={!!state.fields?.tax_rule_code}>
           <option value="">Not applicable</option>
           {rules.map((r) => <option key={r.code} value={r.code}>{r.label} ({Number(r.sales_tax_pct)}%)</option>)}
         </select>

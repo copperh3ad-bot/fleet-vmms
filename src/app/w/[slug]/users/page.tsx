@@ -101,12 +101,12 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
           <Panel title="What each role can do" sub="Read-only here" flush>
             <div className="overflow-x-auto"><table className="w-full text-left text-sm">
               <thead className="text-[11px] uppercase tracking-wide text-zinc-500">
-                <tr><th className="px-5 py-3" />{matrix.roles.map((r) => <th key={r.key} className="px-2">{r.name}<span className="block font-normal normal-case text-zinc-400">{plural(r.people, "person", "people")}</span></th>)}</tr>
+                <tr><th className="px-5 py-3" />{matrix.roles.map((r) => <th key={r.key} className="px-2">{r.name}<span className="block font-normal normal-case text-zinc-600">{plural(r.people, "person", "people")}</span></th>)}</tr>
               </thead>
               <tbody>{CAPABILITIES.map(([label, perms]) => (
                 <tr key={label} className="border-t border-zinc-100">
                   <td className="px-5 py-2.5">{label}</td>
-                  {matrix.roles.map((r) => <td key={r.key} className="px-2 py-2.5">{perms.some((p) => matrix.grants[r.key]?.includes(p)) ? <Pill tone="ok">Yes</Pill> : <span className="text-zinc-400">—</span>}</td>)}
+                  {matrix.roles.map((r) => <td key={r.key} className="px-2 py-2.5">{perms.some((p) => matrix.grants[r.key]?.includes(p)) ? <Pill tone="ok">Yes</Pill> : <span className="text-zinc-600">—</span>}</td>)}
                 </tr>))}</tbody>
             </table></div>
           </Panel>

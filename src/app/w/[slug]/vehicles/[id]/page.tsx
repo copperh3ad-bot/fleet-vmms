@@ -95,7 +95,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
                     <td className="py-3 pr-3"><a className="font-mono hover:underline" href={to(`job-cards/${j.id}`)}>{j.job_no}</a><span className="mt-1 block"><StatusBadge status={j.status} /></span></td>
                     <td className="py-3 pr-3"><span className="flex flex-wrap gap-1"><Pill tone="neutral">{j.reason}</Pill>{j.repeat && <Pill tone="warn">Repeat repair</Pill>}</span></td>
                     <td className="py-3 pr-3 max-w-[22rem] text-zinc-700">{j.cause_text}</td>
-                    <td className="px-5 py-3">{j.vendor ?? <span className="text-zinc-400">Not assigned</span>}</td>
+                    <td className="px-5 py-3">{j.vendor ?? <span className="text-zinc-600">Not assigned</span>}</td>
                   </tr>))}</tbody>
               </table></div>
             ))}

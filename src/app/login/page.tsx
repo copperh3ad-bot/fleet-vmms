@@ -15,7 +15,7 @@ export default function LoginPage() {
           <h2 className="text-[34px] font-semibold leading-tight">Know what every vehicle costs, and why.</h2>
           <p className="mt-4 text-[#9FB2BE]">Job cards, approvals, workshops, budgets and servicing in one place.</p>
         </div>
-        <p className="text-xs text-[#7E93A1]">Pricing and plans are not shown here.</p>
+        <p className="text-xs text-[#7E93A1]"><a href="/pricing" className="underline">See pricing</a></p>
       </section>
       <section className="flex items-center justify-center p-6">
         <form action={action} className="w-full max-w-[380px] space-y-4">
@@ -39,7 +39,10 @@ export default function LoginPage() {
           <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-zinc-900">
             Drivers who only send odometer readings do not need to sign in. Use the link in your message.
           </p>
-          <p className="text-xs text-zinc-500">First time here? Use the invitation link your administrator sent you.</p>
+          <div className="space-y-1 text-sm text-zinc-600">
+            <p>New company? <a href="/signup" className="font-medium text-brand underline">Start a free trial</a>.</p>
+            <p>Your company already uses Fleet VMMS? Use your invitation link, or <a href="/join" className="font-medium text-brand underline">join with your company code</a>.</p>
+          </div>
         </form>
       </section>
     </main>

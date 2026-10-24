@@ -25,7 +25,7 @@ async function shrink(file: File): Promise<File> {
 }
 
 /** A file picker named "files" that shrinks photos and refuses a selection the host would reject, with a plain message. */
-export function FileInput({ className = "block w-full text-sm", id = "files", name = "files", multiple = true, accept = "image/*,application/pdf" }: { className?: string; id?: string; name?: string; multiple?: boolean; accept?: string }) {
+export function FileInput({ className = "block w-full text-sm", id = "files", name = "files", multiple = true, accept = "image/*,application/pdf", label }: { label?: string; className?: string; id?: string; name?: string; multiple?: boolean; accept?: string }) {
   const ref = useRef<HTMLInputElement>(null);
   const [note, setNote] = useState<string | null>(null);
   async function onChange() {
@@ -47,7 +47,7 @@ export function FileInput({ className = "block w-full text-sm", id = "files", na
   }
   return (
     <>
-      <input ref={ref} id={id} name={name} type="file" multiple={multiple} accept={accept} className={className} onChange={onChange} />
+      <input ref={ref} id={id} name={name} aria-label={label} type="file" multiple={multiple} accept={accept} className={className} onChange={onChange} />
       {note && <p role="status" className="mt-1 text-xs text-amber-800">{note}</p>}
     </>
   );

@@ -16,7 +16,7 @@ export function ReadingForm({ token }: { token: string }) {
       <div>
         <label htmlFor="reading" className="mb-2 block font-medium">What does the dashboard show now?</label>
         <input id="reading" name="reading" inputMode="decimal" autoComplete="off" autoFocus defaultValue={state.value ?? ""} placeholder="e.g. 79,420" aria-invalid={!!state.error}
-          className="h-16 w-full rounded-xl border border-zinc-300 bg-white px-4 font-mono text-2xl text-zinc-900 placeholder:text-zinc-400" />
+          className="h-16 w-full rounded-xl border border-zinc-300 bg-white px-4 font-mono text-2xl text-zinc-900 placeholder:text-zinc-600" />
         {state.error ? <p role="alert" className="mt-2 text-red-700">{state.error}</p> : <p className="mt-2 text-sm text-zinc-500">Numbers only, in kilometres. This link works once.</p>}
       </div>
       <div className="mt-auto pt-6"><Go /></div>

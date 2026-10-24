@@ -129,7 +129,7 @@ function OverviewBlocks({ o, to }: { o: Overview; to: (h: string) => string }) {
               <tbody>{o.serviceDue.rows.map((r) => (
                 <tr key={r.vehicle_id} className="border-t border-zinc-100">
                   <td className="px-5 py-3"><a href={to(`vehicles/${r.vehicle_id}`)}><Plate>{r.registration_no}</Plate></a><span className="mt-0.5 block text-xs text-zinc-500">{r.label}</span></td>
-                  <td className="py-3 pr-3">{r.driver ?? <span className="text-zinc-400">Unassigned</span>}</td>
+                  <td className="py-3 pr-3">{r.driver ?? <span className="text-zinc-600">Unassigned</span>}</td>
                   <td className="py-3 pr-3">{r.status === "overdue" ? <Pill tone="bad">{r.days !== null ? `${-r.days} days overdue` : "Overdue"}</Pill> : <Pill tone="warn">{r.days !== null ? `In ${plural(r.days, "day")}` : "Due soon"}</Pill>}</td>
                   <td className="px-5 py-3 text-right"><a href={to(`job-cards/new?vehicle=${r.vehicle_id}`)} className={`${btn} h-8`}>Raise</a></td>
                 </tr>))}</tbody>

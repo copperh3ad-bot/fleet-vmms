@@ -74,7 +74,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
                 {shown.map((r) => {
                   const held = r.verdict && r.verdict !== "normal";
                   const vehicle = <td className="px-5 py-4"><Plate>{r.registration_no}</Plate><span className="mt-1 block text-xs text-zinc-500">{car(r)}</span></td>;
-                  const driver = <td className="py-4 pr-3">{r.holder_name ?? <span className="text-zinc-400">Unassigned</span>}</td>;
+                  const driver = <td className="py-4 pr-3">{r.holder_name ?? <span className="text-zinc-600">Unassigned</span>}</td>;
                   if (tab === "pending") return (
                     <tr key={r.id} className="border-b border-zinc-100 align-top last:border-0">
                       {vehicle}{driver}

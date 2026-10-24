@@ -2,14 +2,12 @@
 import { useActionState } from "react";
 import { Field, Input, Notice, Select, inputCls } from "@/components/form";
 import type { FormState } from "@/app/w/[slug]/actions-util";
-import { countryOptions } from "@/lib/orgs/countries";
 import { signUpAction } from "./actions";
-
-const COUNTRIES = countryOptions();
 
 const SIZES: [string, string][] = [["1-5", "1 to 5 vehicles"], ["6-20", "6 to 20 vehicles"], ["21-50", "21 to 50 vehicles"], ["51-200", "51 to 200 vehicles"], ["200+", "More than 200"]];
 
-export function SignupForm({ trialDays }: { trialDays: number }) {
+/** `countries` is made on the server and passed in: the browser's own list of names can differ from the server's, which breaks hydration. */
+export function SignupForm({ trialDays, countries }: { trialDays: number; countries: [string, string][] }) {
   const [state, action, pending] = useActionState<FormState, FormData>(signUpAction, {});
   const err = state.fields?.terms;
   return (
@@ -21,7 +19,7 @@ export function SignupForm({ trialDays }: { trialDays: number }) {
       </div>
       <Input name="email" label="Work email" type="email" state={state} required autoComplete="email" hint="We send a confirmation link here. You sign in with this address." />
       <div className="grid gap-4 sm:grid-cols-2">
-        <Select name="country" label="Country" state={state} blank="Choose" required options={COUNTRIES} />
+        <Select name="country" label="Country" state={state} blank="Choose" required options={countries} />
         <Select name="fleet_size" label="How many vehicles?" state={state} blank="Choose" options={SIZES} />
       </div>
       <p className="-mt-2 text-xs text-zinc-500">Customers in Pakistan are invoiced with Pakistani sales tax where it applies. Customers elsewhere pay no tax through us.</p>

@@ -28,13 +28,13 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
           <div><h1 className="text-2xl font-semibold">{inv.tax?.snapshot.scenario?.title ?? (inv.tax ? "Tax invoice" : "Invoice")}</h1><p className="mt-1 font-mono text-lg">{inv.number}</p></div>
           <div className="text-sm sm:text-right">
             <p className="font-semibold">{inv.tax?.snapshot.seller.legal_name ?? "Fleet VMMS"}</p>
-            {inv.tax && <p className="text-zinc-600">NTN {inv.tax.snapshot.seller.ntn ?? "—"} · Sales tax reg. {inv.tax.snapshot.seller.tax_reg}{inv.tax.snapshot.seller.pseb_no ? ` · PSEB ${inv.tax.snapshot.seller.pseb_no}` : ""}</p>}
+            {inv.tax && [inv.tax.snapshot.seller.ntn && `NTN ${inv.tax.snapshot.seller.ntn}`, inv.tax.snapshot.seller.tax_reg && `Sales tax reg. ${inv.tax.snapshot.seller.tax_reg}`, inv.tax.snapshot.seller.pseb_no && `PSEB ${inv.tax.snapshot.seller.pseb_no}`].filter(Boolean).length > 0 && <p className="text-zinc-600">{[inv.tax.snapshot.seller.ntn && `NTN ${inv.tax.snapshot.seller.ntn}`, inv.tax.snapshot.seller.tax_reg && `Sales tax reg. ${inv.tax.snapshot.seller.tax_reg}`, inv.tax.snapshot.seller.pseb_no && `PSEB ${inv.tax.snapshot.seller.pseb_no}`].filter(Boolean).join(" · ")}</p>}
             {settings.company_details && <p className="whitespace-pre-wrap text-zinc-600">{settings.company_details}</p>}
           </div>
         </header>
         <dl className="mt-8 grid gap-6 text-sm sm:grid-cols-3">
           <div><dt className="text-zinc-500">Billed to</dt><dd className="mt-1 font-medium">{inv.tax?.snapshot.buyer.legal_name ?? inv.billed_to}</dd>
-            {inv.tax && <dd className="text-zinc-600">NTN {inv.tax.snapshot.buyer.ntn ?? "—"}{inv.tax.snapshot.buyer.strn ? ` · STRN ${inv.tax.snapshot.buyer.strn}` : ""}{inv.tax.snapshot.buyer.address ? <span className="block whitespace-pre-wrap">{inv.tax.snapshot.buyer.address}</span> : null}</dd>}</div>
+            {inv.tax && (inv.tax.snapshot.buyer.ntn || inv.tax.snapshot.buyer.strn || inv.tax.snapshot.buyer.address) && <dd className="text-zinc-600">{[inv.tax.snapshot.buyer.ntn && `NTN ${inv.tax.snapshot.buyer.ntn}`, inv.tax.snapshot.buyer.strn && `STRN ${inv.tax.snapshot.buyer.strn}`].filter(Boolean).join(" · ")}{inv.tax.snapshot.buyer.address ? <span className="block whitespace-pre-wrap">{inv.tax.snapshot.buyer.address}</span> : null}</dd>}</div>
           <div><dt className="text-zinc-500">Issued</dt><dd className="mt-1">{dmy(inv.issued_at)}</dd></div>
           <div><dt className="text-zinc-500">Status</dt><dd className="mt-1 font-medium text-green-800">Paid</dd></div>
         </dl>

@@ -87,7 +87,7 @@ async function Vehicles({ params, searchParams }: { params: Promise<{ slug: stri
                   return (
                     <tr key={r.id} className="border-b border-zinc-100 align-top last:border-0">
                       <td className="px-5 py-4"><a href={`/w/${slug}/vehicles/${r.id}`}><Plate>{r.registration_no}</Plate></a><span className="mt-1 block text-xs text-zinc-500">{[r.make, r.model, r.year].filter(Boolean).join(" ")}</span></td>
-                      <td className="py-4 pr-3">{r.holder ?? <span className="text-zinc-400">Unassigned</span>}{r.department && <span className="block text-xs text-zinc-500">{r.department}</span>}</td>
+                      <td className="py-4 pr-3">{r.holder ?? <span className="text-zinc-600">Unassigned</span>}{r.department && <span className="block text-xs text-zinc-500">{r.department}</span>}</td>
                       <td className="py-4 pr-3 text-right"><span className="font-mono">{money(r.odometer_km)} km</span>
                         <span className="mt-1 block text-xs text-zinc-500">{r.odometer_age_days === null ? "no reading yet" : r.odometer_stale ? <Pill tone="warn">Stale · {r.odometer_age_days} days</Pill> : `updated ${plural(r.odometer_age_days, "day")} ago`}</span></td>
                       <td className="py-4 pl-6 pr-3"><Pill tone={s.tone}>{s.text}</Pill>{s.sub && <span className="mt-1 block text-xs text-zinc-500">{s.sub}</span>}</td>
@@ -101,7 +101,7 @@ async function Vehicles({ params, searchParams }: { params: Promise<{ slug: stri
                       </td>
                       <td className="py-4 pr-3 text-right font-mono">{r.jobs_90d}</td>
                       <td className="px-5 py-4"><div className="flex flex-wrap gap-1.5">
-                        {r.flags.length === 0 && r.docs.length === 0 && <span className="text-zinc-400">None</span>}
+                        {r.flags.length === 0 && r.docs.length === 0 && <span className="text-zinc-600">None</span>}
                         {r.flags.map((f) => <Pill key={f.text} tone={f.tone}>{f.text}</Pill>)}
                         {r.docs.map((d) => <Pill key={d.type} tone={d.days_left < 0 ? "bad" : "warn"}>{DOC_LABEL[d.type] ?? d.type} {d.days_left < 0 ? "expired" : `expires ${dayMonth(d.expires_on)}`}</Pill>)}
                       </div></td>

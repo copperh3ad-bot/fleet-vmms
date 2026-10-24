@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { forbidden } from "next/navigation";
 import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
@@ -10,6 +11,7 @@ import { loadPlatformSettings } from "@/lib/billing/settings";
 import { getTaxProfile, quoteTax } from "@/lib/billing/tax-data";
 import { fmtMinor } from "@/lib/billing/tax";
 import { ClaimForm } from "./forms";
+import { countryOptions } from "@/lib/orgs/countries";
 import { TaxProfileForm } from "./tax-form";
 
 export default function BillingPage({ params }: PageProps<"/w/[slug]/billing">) {
@@ -27,6 +29,7 @@ const minor = (v: string, cur: string) => formatPrice(Number(v), cur);
 async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const m = await requireMembership(slug, { allowLocked: true });   // this is where a locked workspace lands
+  if (m.role === "vendor") forbidden();                            // a workshop is an outside party: it does not see the company's subscription, price or payment reference
   const driver = getDriver();
   const perms = await permissionsOf(driver, m);
   const admin = perms.has(BILLING_PERMISSION);
@@ -37,7 +40,9 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
     : [{} as Record<string, string>, [], [], null, null];
   const rate = Number(settings.pkr_per_usd);
   const usd = a.priceCents / 100;
-  const pkr = a.currency === "USD" && rate > 0 ? Math.round(usd * rate) : null;
+  // The rupee hint is for customers in Pakistan (or not yet known) who have no tax quote above; a customer abroad pays in dollars and is not shown rupees.
+  const country = taxView?.profile?.country ?? null;
+  const pkr = !quote && (!country || country === "PK") && a.currency === "USD" && rate > 0 ? Math.round(usd * rate) : null;
   const waiting = claims.find((c) => c.status === "pending");
   const st = STATE[a.state] ?? STATE.locked;
   const today = new Date().toISOString().slice(0, 10);
@@ -50,7 +55,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
         <dl className="grid gap-4 text-sm sm:grid-cols-3">
           <div><dt className="text-zinc-500">Price</dt><dd className="mt-1 font-mono text-lg">{formatPrice(a.priceCents, a.currency)} <span className="font-sans text-sm text-zinc-500">a month</span></dd></div>
           <div><dt className="text-zinc-500">{a.state === "trial" ? "Trial ends" : a.state === "locked" ? "Locked since" : "Paid until"}</dt><dd className="mt-1">{a.until ? dmy(a.until) : "—"}{a.daysLeft !== null && a.state !== "locked" ? <span className="text-zinc-500"> ({a.daysLeft} {a.daysLeft === 1 ? "day" : "days"} left)</span> : null}</dd></div>
-          <div><dt className="text-zinc-500">Your payment reference</dt><dd className="mt-1 font-mono text-lg">{paymentReference(m.tenantId)}</dd></div>
+          {admin && <div><dt className="text-zinc-500">Your payment reference</dt><dd className="mt-1 font-mono text-lg">{paymentReference(m.tenantId)}</dd></div>}
         </dl>
         {(msg || !a.full) && <p role="status" className={`mt-4 rounded-md border px-4 py-3 text-sm ${a.full ? "border-sky-200 bg-sky-100 text-sky-900" : "border-red-200 bg-red-50 text-red-900"}`}>{msg?.text ?? LOCK_TEXT[a.lockedReason ?? "no_subscription"]}</p>}
       </Panel>
@@ -110,7 +115,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
 
           {taxView && (
             <Panel title="Your tax details" sub="For the invoice we issue to you. Tell us where your company is; if it is in Pakistan, also where you are registered for sales tax.">
-              <TaxProfileForm slug={slug} profile={taxView.profile} rules={taxView.rules} />
+              <TaxProfileForm slug={slug} profile={taxView.profile} rules={taxView.rules} countries={countryOptions()} />
             </Panel>
           )}
 

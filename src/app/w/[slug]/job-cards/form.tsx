@@ -116,7 +116,7 @@ export function JobCardForm({ slug, id, currency = "PKR", vehicles, reasons, ser
               {people && (
                 <div>
                   <label htmlFor="requested_by" className={label}>Raise on behalf of</label>
-                  <select id="requested_by" name="requested_by" defaultValue={v0.requested_by ?? ""} className={inputCls}><option value="">Myself</option>{people.map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}</select>
+                  <select key={v0.requested_by ?? ""} id="requested_by" name="requested_by" defaultValue={v0.requested_by ?? ""} className={inputCls}><option value="">Myself</option>{people.map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}</select>
                 </div>
               )}
               <div>
@@ -188,7 +188,7 @@ export function JobCardForm({ slug, id, currency = "PKR", vehicles, reasons, ser
           </Panel>
 
           <Panel title="Photos" sub="Up to 10. A dashboard photo proves the odometer.">
-            {id ? <p className="text-sm text-zinc-600">Add or remove photos on the job card page.</p> : <FileInput className="block w-full rounded-md border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm" />}
+            {id ? <p className="text-sm text-zinc-600">Add or remove photos on the job card page.</p> : <FileInput label="Photos or PDF files for this job card" className="block w-full rounded-md border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm" />}
           </Panel>
 
           <Notice state={state} />

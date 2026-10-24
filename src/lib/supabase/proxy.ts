@@ -11,7 +11,7 @@ export async function updateSession(request: NextRequest) {
       setAll: (list) => {
         list.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request });
-        list.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        list.forEach(({ name, value, options }) => response.cookies.set(name, value, { ...options, httpOnly: true, sameSite: "lax", secure: request.nextUrl.protocol === "https:" || options?.secure }));
       },
     },
   });

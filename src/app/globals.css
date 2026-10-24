@@ -66,3 +66,6 @@ body {
 
 /* every control gets the same visible focus ring */
 :focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
+
+/* A grid item is as wide as its content unless told otherwise, which made a wide table or field push whole pages sideways on a phone. */
+.grid > * { min-width: 0; }

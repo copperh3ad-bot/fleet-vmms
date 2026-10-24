@@ -269,3 +269,8 @@
 - Still empty and needed before the first Pakistani invoice: seller registration, PKR fallback or a rate, an authority and its rate, withholding defaults. All to be confirmed with a tax adviser.
 
 - 2026-10-24 correction: the bank details were cleared again at the owner's request; payment bank details are empty in live Settings. Seller name and NTN (from the FBR registration certificate) are set; sales tax registration, seller address and rates are not.
+
+## 2026-10-24: full system check and browser beta test
+- Report: docs/BETA-TEST-2026-10-24.md. Browser test in e2e/ (npm run e2e). Read-only live health check: scripts/audit-system.mts.
+- Fixed: sign-up hydration error, lost dropdown choices after a failed save, workshop could open Billing, three pages scrolled sideways on phones, unlabelled file field, low-contrast grey text, session cookie readable by scripts, sign-in page without sign-up or join links, rupees shown to customers abroad, empty labels on invoices, API-role table privileges (control migration 0009, NOT yet applied to the live database).
+- Open decisions are listed in the report (Administrator cannot approve job cards, placeholder terms and privacy text, empty live settings).

@@ -42,3 +42,9 @@ next-env.d.ts
 
 # netlify
 .netlify
+
+# browser beta test output
+e2e/shots
+e2e/report.json
+e2e/*.log
+e2e/build.out

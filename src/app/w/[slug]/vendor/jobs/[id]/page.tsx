@@ -57,9 +57,9 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
           <Panel title="After the repair">
             <p className="text-sm text-zinc-600">These unlock once the fleet manager approves your quotation. Shown so you know what comes next.</p>
             <div className="mt-3 space-y-2" aria-hidden="true">
-              <div className="h-10 rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm leading-10 text-zinc-400">Your invoice number</div>
-              <div className="h-10 rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm leading-10 text-zinc-400">Must match the approved quote unless explained</div>
-              <div className="rounded-md border border-dashed border-zinc-300 bg-zinc-50 p-4 text-center text-sm text-zinc-400">Locked</div>
+              <div className="h-10 rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm leading-10 text-zinc-600">Your invoice number</div>
+              <div className="h-10 rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm leading-10 text-zinc-600">Must match the approved quote unless explained</div>
+              <div className="rounded-md border border-dashed border-zinc-300 bg-zinc-50 p-4 text-center text-sm text-zinc-600">Locked</div>
             </div>
           </Panel>
           <Panel title="Rules for this order">
