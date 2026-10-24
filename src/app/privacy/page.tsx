@@ -18,7 +18,7 @@ export default function PrivacyPage() {
       <h2>Why we use it</h2>
       <p>To run the service for you, to keep it secure, to confirm payments, and to contact your administrator about your account. We do not sell your data and we do not use your company&apos;s records for advertising.</p>
       <h2>Where it is kept</h2>
-      <p>Each company has its own database at [database provider and region]. Sign-in data and files are held by Supabase at [region]. The site runs on Netlify. [List any other service that handles personal data.]</p>
+      <p>Each company&apos;s records are kept in a separate section of the database at [database provider and region], apart from every other company&apos;s. Sign-in data and files are held by Supabase at [region]. The site runs on Netlify. [List any other service that handles personal data.]</p>
       <h2>Who can see your records</h2>
       <p>Only the people your company administrator has given access to. Our staff do not open your company&apos;s records except to fix a problem you report, and then only as needed. [State the process for this.]</p>
       <h2>Keeping and deleting</h2>

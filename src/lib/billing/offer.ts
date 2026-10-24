@@ -26,7 +26,7 @@ export function offerFrom(plan: { key: string; limits: Record<string, number | u
       "Every feature included",
       l.max_vehicles ? `Up to ${l.max_vehicles} vehicles` : "Any number of vehicles",
       l.max_users ? `Up to ${l.max_users} users` : "Any number of users",
-      "Your own private database",
+      "Your data kept apart from every other company's",
       plan.trial_days > 0 ? `${plan.trial_days}-day free trial, no card needed` : "No trial",
       "Pay by bank transfer, cancel any time",
     ],

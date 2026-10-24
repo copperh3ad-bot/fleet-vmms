@@ -34,7 +34,7 @@ async function Inner() {
             <h2 className="font-semibold">What happens next</h2>
             <ol className="mt-3 list-decimal space-y-2 pl-5 text-zinc-700">
               <li>You confirm your email address.</li>
-              <li>We build your company&apos;s own workspace and private database. It takes about a minute.</li>
+              <li>We build your company&apos;s own workspace, kept apart from every other company&apos;s. It takes about a minute.</li>
               <li>You add vehicles and invite your team.</li>
               <li>{offer ? `After ${offer.trialDays} days, you choose whether to subscribe.` : "After the trial, you choose whether to subscribe."}</li>
             </ol>

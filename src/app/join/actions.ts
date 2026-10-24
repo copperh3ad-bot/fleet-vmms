@@ -1,0 +1,59 @@
+"use server";
+// Joining a company with its code (ADR-016), open to anyone, so it does as little as possible: check the form, slow down
+// repeats, write one request that an administrator must approve, and ask Supabase to create the login and send the
+// confirmation email. Nothing here gives access to anything.
+import { redirect } from "next/navigation";
+import { getDriver } from "@/lib/db";
+import { allowShared } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/client-ip";
+import { origin } from "@/lib/origin";
+import { supabaseServer } from "@/lib/supabase/server";
+import { UserError } from "@/lib/master/service";
+import { parseJoin, submitJoinRequest, type JoinKind } from "@/lib/orgs/join";
+import type { FormState } from "@/app/w/[slug]/actions-util";
+
+const HOUR = 3600;
+const MIN_PASSWORD = 10;
+
+/** The text fields as typed, sent back after an error. Passwords are never sent back. */
+const keep = (form: FormData): Record<string, string> =>
+  Object.fromEntries([...form.entries()].filter((e): e is [string, string] => typeof e[1] === "string" && !/password|confirm|^\$/.test(e[0])));
+
+export async function joinAction(kind: JoinKind, _prev: FormState, form: FormData): Promise<FormState> {
+  const driver = getDriver();
+  let input;
+  try {
+    input = parseJoin(Object.fromEntries(["code", "full_name", "email", "phone", "workshop_name", "note", "terms"].map((k) => [k, form.get(k) ?? undefined])), kind);
+  } catch (e) {
+    if (e instanceof UserError) return { error: e.message, fields: e.fields, values: keep(form) };
+    throw e;
+  }
+  const password = String(form.get("password") ?? "");
+  if (password.length < MIN_PASSWORD) return { error: "Fix the highlighted fields.", fields: { password: `Use at least ${MIN_PASSWORD} characters` }, values: keep(form) };
+  if (password !== String(form.get("confirm") ?? "")) return { error: "Fix the highlighted fields.", fields: { confirm: "The two passwords do not match" }, values: keep(form) };
+
+  // Every try counts, right or wrong, so a code cannot be guessed by trying many.
+  const [ipOk, mailOk] = await Promise.all([
+    allowShared(driver, `join-ip:${await clientIp()}`, 10, HOUR),
+    allowShared(driver, `join-email:${input.email}`, 4, HOUR),
+  ]);
+  if (!ipOk || !mailOk) return { error: "Too many tries. Wait a little and try again.", values: keep(form) };
+
+  try { await submitJoinRequest(driver, kind, input); }
+  catch (e) {
+    if (e instanceof UserError) return { error: e.message, fields: e.fields, values: keep(form) };
+    throw e;
+  }
+
+  const supabase = await supabaseServer();
+  const { data, error } = await supabase.auth.signUp({
+    email: input.email, password,
+    options: { emailRedirectTo: `${await origin()}/auth/callback`, data: { full_name: input.full_name } },
+  });
+  if (error && !/registered|exists/i.test(error.message)) {
+    if (/password/i.test(error.message)) return { error: "Fix the highlighted fields.", fields: { password: "Choose a stronger password" }, values: keep(form) };
+    return { error: "We could not create your account. Try again in a moment.", values: keep(form) };
+  }
+  // The request is saved. A person who already has a login simply signs in; their request is waiting either way.
+  redirect(data?.session ? "/" : `/join/sent${error ? "?existing=1" : ""}`);
+}

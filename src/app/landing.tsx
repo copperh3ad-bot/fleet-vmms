@@ -51,7 +51,7 @@ export function Landing({ offer }: { offer: Offer | null }) {
 
       <section className="border-y border-zinc-200 bg-white">
         <div className="mx-auto grid max-w-6xl gap-8 px-5 py-14 md:grid-cols-3">
-          {[["1", "Sign up", "Tell us your company and confirm your email. It takes about two minutes."], ["2", "We set up your own workspace", "Your company gets its own private database, ready in under a minute."], ["3", "Add vehicles and invite your team", `Try everything for ${days} days. Subscribe if it works for you; if not, export your data and leave.`]].map(([n, t, d]) => (
+          {[["1", "Sign up", "Tell us your company and confirm your email. It takes about two minutes."], ["2", "We set up your own workspace", "Your company gets its own workspace, kept apart from every other company's, ready in under a minute."], ["3", "Add vehicles and invite your team", `Try everything for ${days} days. Subscribe if it works for you; if not, export your data and leave.`]].map(([n, t, d]) => (
             <div key={n} className="flex gap-4"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-side font-semibold text-white">{n}</span><div><h3 className="font-semibold">{t}</h3><p className="mt-1 text-sm text-zinc-600">{d}</p></div></div>
           ))}
         </div>
@@ -60,7 +60,7 @@ export function Landing({ offer }: { offer: Offer | null }) {
       <section className="mx-auto max-w-3xl px-5 py-16">
         <h2 className="text-2xl font-semibold">Questions</h2>
         <dl className="mt-6 space-y-6 text-sm">
-          <div><dt className="font-semibold">Is my data separate from other companies?</dt><dd className="mt-1 text-zinc-600">Yes. Every company gets its own database. Other companies cannot reach it, and neither can their staff.</dd></div>
+          <div><dt className="font-semibold">Is my data separate from other companies?</dt><dd className="mt-1 text-zinc-600">Yes. Every company&apos;s records are kept apart from every other company&apos;s. People from other companies cannot see them, and we check this with automated tests.</dd></div>
           <div><dt className="font-semibold">What happens after the trial?</dt><dd className="mt-1 text-zinc-600">The workspace locks until you subscribe. Nothing is deleted, and you can still export your data. We keep it for 30 days after a lock.</dd></div>
           <div><dt className="font-semibold">How do I pay?</dt><dd className="mt-1 text-zinc-600">By direct bank transfer for now. You send the transfer, upload the receipt, and we confirm it. Card payment is planned.</dd></div>
           <div><dt className="font-semibold">Do my drivers need accounts?</dt><dd className="mt-1 text-zinc-600">No. Drivers who only send odometer readings use a link from a message. Staff who approve, raise or review jobs sign in.</dd></div>

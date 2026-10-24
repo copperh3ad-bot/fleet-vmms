@@ -251,3 +251,8 @@
 - Manager presses Read this policy on the Maintenance policy page. PDF with text is read as is; a scanned PDF or photo is read with Tesseract on our server (no outside service). Plain patterns find replacement age, accidents covered, months between, driver share, oil change interval, plus notes it cannot apply yet. Manager ticks findings and applies; the server applies its stored findings through saveSettings and saveServiceRule. Tenant migration 0019 (policy_readings).
 - Verified on a real 4-page scan: all four policy settings and the oil interval found correctly; tyre interval missed (table too messy). Packaged reader proven by running it from a copy of the built output outside the repo. Not verified on the host itself.
 - Not done: registration book, insurance, compliance document, challan, quotation and invoice parsing (next step, pre-fill forms for review).
+
+## 2026-10-24: pricing page and joining a company (ADR-016)
+- /pricing (public). Company code on the Users page; /join and /join/workshop (public) make a request; approval = ordinary invitation. Control migration 0005 (tenants.join_code, join_index), platform migration 0009 (join_requests). Isolation test in tests/join.test.ts, shown to fail when the company filter is removed.
+- Public copy corrected: no longer says each company has a private database.
+- Not done: notification to the administrator when a request arrives; email to the person on approval (no mail service beyond Supabase confirmation mail).

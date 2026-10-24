@@ -5,7 +5,10 @@ import { PageHeader, Panel, Pill, btnPrimary, type Tone } from "@/components/ui"
 import { getRoleMatrix, listInvitations, listMembers, listRoles, planUsage } from "@/lib/admin/service";
 import { listVendors } from "@/lib/master/service";
 import { plural } from "@/lib/labels";
+import { getJoinCode, listJoinRequests } from "@/lib/orgs/join";
+import { origin } from "@/lib/origin";
 import { InviteForm, MemberControls, PendingActions } from "./forms";
+import { JoinCodePanel, JoinRequestActions } from "./join-forms";
 
 export default function UsersPage({ params, searchParams }: PageProps<"/w/[slug]/users">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} searchParams={searchParams} /></Suspense>;
@@ -36,8 +39,9 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const sp = await searchParams;
   const m = await requireMembership(slug);
   const driver = getDriver();
-  const [members, invites, roles, use, vendors, matrix] = await Promise.all([
+  const [members, invites, roles, use, vendors, matrix, joinCode, requests, base] = await Promise.all([
     listMembers(driver, m), listInvitations(driver, m), listRoles(driver, m), planUsage(driver, m), listVendors(driver, m).catch(() => []), getRoleMatrix(driver, m),
+    getJoinCode(driver, m), listJoinRequests(driver, m), origin(),
   ]);
   const roleOpts = roles.map((r) => [r.key, r.name] as [string, string]);
   const editing = typeof sp.edit === "string" ? members.find((p) => p.user_id === sp.edit && !p.is_me) : undefined;
@@ -51,6 +55,23 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
 
       <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
         <div className="space-y-5">
+          {requests.length > 0 && (
+            <Panel title="Asked to join" sub="Nobody gets in until you approve. Approving sends them an invitation they accept after signing in." flush>
+              <ul className="divide-y divide-zinc-100 text-sm">
+                {requests.map((r) => (
+                  <li key={r.id} className="flex flex-wrap items-start justify-between gap-4 px-5 py-3">
+                    <div className="min-w-0 space-y-0.5">
+                      <p className="font-medium">{r.kind === "workshop" ? r.workshop_name : r.full_name} <Pill tone={r.kind === "workshop" ? "info" : "neutral"}>{r.kind === "workshop" ? "Workshop" : "Staff"}</Pill></p>
+                      <p className="text-zinc-600">{r.kind === "workshop" ? `${r.full_name} · ` : ""}{r.email}{r.phone ? ` · ${r.phone}` : ""}</p>
+                      {r.note && <p className="text-zinc-700">“{r.note}”</p>}
+                      <p className="text-xs text-zinc-500">Asked on {dmy(r.created_at)}</p>
+                    </div>
+                    <JoinRequestActions slug={slug} id={r.id} kind={r.kind} roles={roleOpts} />
+                  </li>))}
+              </ul>
+            </Panel>
+          )}
+
           <Panel title="People" flush>
             <div className="overflow-x-auto"><table className="w-full text-left text-sm">
               <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Name</th><th>Login or company</th><th>Role</th><th>Status</th><th>Since</th><th /></tr></thead>
@@ -97,10 +118,13 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
               <MemberControls key={editing.user_id} slug={slug} userId={editing.user_id} role={editing.role} scope={editing.vehicle_scope} status={editing.status} roles={roleOpts} isMe={editing.is_me} isVendor={editing.role === "vendor"} />
             </Panel>
           ) : (
-            <Panel title="Invite a person" sub="Nobody can join without an invitation. The person gets a link and creates their account with the email you enter. Workshops are invited here too, with the role Vendor.">
+            <Panel title="Invite a person" sub="Send a link. The person creates their account with the email you enter. Workshops are invited here too, with the role Vendor. People can also ask to join with your company code, below.">
               <InviteForm stack slug={slug} roles={roleOpts} vendors={vendors.filter((v) => v.status === "active").map((v) => [v.id, v.name])} />
             </Panel>
           )}
+          <Panel title="Company code" sub="So people can ask to join without waiting for an invitation">
+            <JoinCodePanel slug={slug} code={joinCode} staffUrl={joinCode ? `${base}/join?code=${joinCode}` : ""} workshopUrl={joinCode ? `${base}/join/workshop?code=${joinCode}` : ""} />
+          </Panel>
           <Panel title="Built-in rules">
             <ul className="list-disc space-y-2 pl-5 text-sm">
               <li>Nobody approves their own job card.</li>

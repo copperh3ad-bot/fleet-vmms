@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { advanceSetupAction, type SetupProgress } from "./actions";
 
 const STEPS: [string, string][] = [
-  ["creating_database", "Creating your private database"],
+  ["creating_database", "Creating your workspace"],
   ["migrating_platform", "Setting up access and security"],
   ["migrating_tenant", "Building your fleet tables"],
   ["seeding", "Preparing your account"],

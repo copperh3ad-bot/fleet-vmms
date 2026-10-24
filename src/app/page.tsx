@@ -7,6 +7,7 @@ import { listWorkspaces } from "@/lib/auth/can";
 import { postLoginDestination } from "@/lib/auth/routing";
 import { pendingInvitationsFor } from "@/lib/admin/service";
 import { pendingSignupFor } from "@/lib/orgs/signup";
+import { waitingRequestsFor } from "@/lib/orgs/join";
 import { loadOffer } from "@/lib/billing/offer";
 import { signOut } from "./login/actions";
 import { AcceptButton } from "./accept-button";
@@ -25,10 +26,11 @@ async function HomeInner() {
   const user = data.user;
   if (!user) return <Landing offer={await loadOffer(driver).catch(() => null)} />;
 
-  const [spaces, invites, waiting] = await Promise.all([
+  const [spaces, invites, waiting, asked] = await Promise.all([
     listWorkspaces(driver, user.id),
     pendingInvitationsFor(driver, { email: user.email, emailConfirmed: !!user.email_confirmed_at }),
     user.email && user.email_confirmed_at ? pendingSignupFor(driver, user.email) : Promise.resolve(null),
+    user.email && user.email_confirmed_at ? waitingRequestsFor(driver, user.email).catch(() => []) : Promise.resolve([]),
   ]);
   if (waiting && spaces.length === 0) redirect("/setup");                 // they signed up and confirmed: build the workspace
   const dest = invites.length === 0 ? postLoginDestination(spaces) : null;   // a waiting invitation is shown before going straight in
@@ -48,11 +50,19 @@ async function HomeInner() {
           </ul>
         </section>
       )}
+      {asked.length > 0 && (
+        <section aria-labelledby="asked" className="space-y-2">
+          <h2 id="asked" className="text-sm font-semibold">Waiting for approval</h2>
+          <ul className="space-y-2">
+            {asked.map((a) => <li key={a.company} className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-zinc-900">Your request to join <span className="font-medium">{a.company}</span> is waiting for its administrator. When it is approved, an invitation appears here.</li>)}
+          </ul>
+        </section>
+      )}
       <h1 className="text-xl font-semibold">{spaces.length ? "Choose a workspace" : "No workspace yet"}</h1>
       {spaces.length === 0 && invites.length === 0 && (
         <div className="space-y-3 text-sm text-zinc-600">
           <p>You are signed in as {user.email}, but you have not been added to a workspace.</p>
-          <p>If your company already uses Fleet VMMS, ask your administrator for an invitation. To use it for your own company, <a className="font-medium text-brand underline" href="/setup">start a free trial</a>.</p>
+          <p>If your company already uses Fleet VMMS, ask your administrator for an invitation or for the company code, then <a className="font-medium text-brand underline" href="/join">ask to join</a>. To use it for your own company, <a className="font-medium text-brand underline" href="/setup">start a free trial</a>.</p>
         </div>
       )}
       <ul className="space-y-2">
