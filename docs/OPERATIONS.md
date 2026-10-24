@@ -47,9 +47,14 @@ Rotate immediately if a value was pasted somewhere public, shown on a screen sha
 ## Email (sent by the app, ADR-024)
 The app sends sign-up confirmation and password-reset emails itself, from your own address, through a mail service you choose. Do the steps in
 this order. Do not switch the hook on (step 5) before steps 1 to 4, or every sign-up fails.
-1. **Pick a service and verify your domain** **(you)**. Any service with SMTP works: Resend (free up to 100 a day, paid plans are not capped by day),
-   Amazon SES (about $0.10 per 1,000 emails, no daily cap), Brevo, Postmark. Add the DNS records it names (SPF, DKIM, and DMARC) at Spaceship, then
-   wait for it to say the domain is verified.
+1. **Pick a service and verify your domain** **(you)**. Size it by vehicle users, not vehicles: everyone who raises job cards has an account, and each
+   one gets a confirmation email when they join (by invitation or company code), plus reset emails later. A customer with 100 vehicle users sends 100 or
+   more emails in its first days, and several customers can onboard in the same week. So choose a plan with **no daily cap**:
+   - Amazon SES: about $0.10 per 1,000 emails, no daily cap once AWS approves production use (ask in the AWS console; a new account starts in a test mode
+     of about 200 emails a day, to your verified addresses only). Cheapest at scale, more setup.
+   - Resend paid plan (about $20 a month for 50,000 emails): the easiest. Its free plan stops at 100 emails a day, so use it only for testing.
+   - Postmark, Brevo or similar also work. A hosting mailbox (Namecheap) works but shared-hosting mail often lands in spam and has hourly limits.
+   Add the DNS records it names (SPF, DKIM, and DMARC) at Spaceship, then wait for it to say the domain is verified.
 2. **Get the SMTP details** from the service: a host, a port (465 or 587), a user and a password or key. Put them in one address:
    `smtps://USER:PASSWORD@HOST:465`. Special characters in the user or password must be percent-encoded.
 3. **Set three settings in Netlify**, Site configuration, Environment variables **(you)**. Mark all three as secret.
