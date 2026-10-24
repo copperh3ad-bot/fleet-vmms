@@ -284,3 +284,7 @@
 ## 2026-10-24: sign-in fix, About us, Contact us, animated home page
 - Sign-in now moves on from the browser (server redirect used the wrong host on www). About us page (ADR-020). Contact us page (ADR-021): public form stores one row in public.contact_messages (control migration 0010, NOT yet applied live), operator inbox at /admin/messages. Home page: animated sample dashboard (CSS only, stops for reduced motion), scroll-reveal cards. Vehicles CSV has the holder employee ID.
 - Needs the owner: run scripts/migrate-tenants.mts (0009 and 0010) and deploy. The contact form errors until 0010 is applied.
+
+## 2026-10-24: offline job card form (ADR-022); deploy of the sign-in fix, About, Contact, animated home page
+- Deployed to production (www.fleetotg.com): sign-in fix, forgot password, About, Contact (form errors until control migration 0010 is applied: the permission system blocked the live migration, owner must run scripts/migrate-tenants.mts), animated home page, employee ID in vehicles CSV.
+- Offline job card form: blank .xlsx download with drop-downs, filled form upload creates a DRAFT job card through createJobCard (same checks). Not deployed yet.

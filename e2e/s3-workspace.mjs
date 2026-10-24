@@ -1,4 +1,8 @@
-import { body, check, fill, finding, fixture, go, has, mock, press, scenario, sql, step, waitText } from "./lib.mjs";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import ExcelJS from "exceljs";
+import { APP, body, check, fill, finding, fixture, go, has, mock, press, scenario, sql, step, waitText } from "./lib.mjs";
 
 const tenantId = (slug) => sql(`select id from public.tenants where slug = '${slug}'`);
 const setting = (slug, key) => sql(`select value from "${sql(`select schema_name from public.tenants where slug = '${slug}'`)}".settings where key = '${key}'`);
@@ -94,6 +98,39 @@ export async function workspace(S) {
     await go(o, S.jobUrl);
     check(await o.page.getByRole("button", { name: /approve/i }).count() === 0, "an Approve button is offered to the person who raised it");
     check(has(await body(o), "Awaiting approval"), "the job card is not shown as awaiting approval");
+  });
+
+  await step("the offline job card form is downloaded, filled in a spreadsheet, uploaded, and becomes a draft; a bad file changes nothing", async () => {
+    const schema = sql(`select schema_name from public.tenants where slug = '${slug}'`);
+    const cards = () => Number(sql(`select count(*) from "${schema}".job_cards`));
+    const res = await o.page.request.get(`${APP}${base}/job-cards/form`);
+    check(res.status() === 200 && /spreadsheetml/.test(res.headers()["content-type"] ?? ""), `the form download gave ${res.status()} ${res.headers()["content-type"]}`);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(await res.body());
+    const ws = wb.getWorksheet("Job card"), lists = wb.getWorksheet("Lists");
+    const vehicle = String(lists.getCell("A2").value), reason = String(lists.getCell("B2").value);
+    ws.getCell("B6").value = vehicle; ws.getCell("B8").value = reason;
+    ws.getCell("B9").value = "Offline form: the engine overheats after a long drive.";
+    ws.getCell("B11").value = "High";
+    ws.getCell("A17").value = "Part"; ws.getCell("B17").value = "Coolant hose"; ws.getCell("C17").value = 2; ws.getCell("D17").value = 3500;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "otg-form-"));
+    const good = path.join(dir, "filled.xlsx"), bad = path.join(dir, "notes.xlsx");
+    await wb.xlsx.writeFile(good);
+    fs.writeFileSync(bad, "this is not a spreadsheet");
+    const before = cards();
+    await go(o, `${base}/job-cards/import`);
+    check(has(await body(o), "Download the blank form"), "the offline form page does not offer the download");
+    await o.page.locator("#files").setInputFiles(bad);
+    await press(o, "Upload and create drafts", { wait: 1800 });
+    check(has(await body(o), "Not created") && has(await body(o), "not an Excel file"), `a bad file was not refused: ${(await body(o)).slice(0, 200)}`);
+    check(cards() === before, "a bad file created a job card");
+    await o.page.locator("#files").setInputFiles(good);
+    await press(o, "Upload and create drafts", { wait: 2500 });
+    check(has(await body(o), "Draft created"), `the filled form was not accepted: ${(await body(o)).slice(0, 300)}`);
+    check(cards() === before + 1, `expected one new job card, found ${cards() - before}`);
+    const row = sql(`select status, priority, (select count(*) from "${schema}".job_card_lines l where l.job_card_id = j.id) from "${schema}".job_cards j where cause_text like 'Offline form:%'`);
+    check(row === "draft|high|1", `the draft was stored as ${row}`);
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 
   // ---------- the policy

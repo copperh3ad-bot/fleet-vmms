@@ -25,7 +25,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const vehicle = typeof sp.vehicle === "string" ? sp.vehicle : "";
   return (
     <main className="space-y-5 p-6 text-zinc-900">
-      <PageHeader crumb={<><a className="underline" href={`/w/${slug}/job-cards`}>Job cards</a> / New</>} title="New job card" />
+      <PageHeader crumb={<><a className="underline" href={`/w/${slug}/job-cards`}>Job cards</a> / New</>} title="New job card" sub={<>No connection in the field? <a className="underline" href={`/w/${slug}/job-cards/import`}>Fill the offline form</a> and upload it later.</>} />
       <div className="md:hidden">
         <JobCardWizard slug={slug} reasons={reasons} vehicles={vehicleOpts} initial={vehicle ? { vehicle_id: vehicle } : undefined} />
       </div>

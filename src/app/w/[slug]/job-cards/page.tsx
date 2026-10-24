@@ -4,7 +4,7 @@ import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { listJobCards } from "@/lib/jobcards/service";
-import { PageHeader, Panel, Pill, Plate, btnPrimary, money, type Tone } from "@/components/ui";
+import { PageHeader, Panel, Pill, Plate, btn, btnPrimary, money, type Tone } from "@/components/ui";
 import { STATUS_LABEL, StatusBadge } from "./status";
 
 export default function JobCardsPage({ params, searchParams }: PageProps<"/w/[slug]/job-cards">) {
@@ -24,7 +24,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const control = "h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm";
   return (
     <main className="space-y-5 p-6 text-zinc-900">
-      <PageHeader title="Job cards" sub={`${rows.length} shown`} actions={<><ExportLink slug={slug} kind="job-cards" query={{ q, status }} />{perms.has("jobcard.create") && <a href={`/w/${slug}/job-cards/new`} className={btnPrimary}>New job card</a>}</>} />
+      <PageHeader title="Job cards" sub={`${rows.length} shown`} actions={<><ExportLink slug={slug} kind="job-cards" query={{ q, status }} />{perms.has("jobcard.create") && <a href={`/w/${slug}/job-cards/import`} className={btn}>Offline form</a>}{perms.has("jobcard.create") && <a href={`/w/${slug}/job-cards/new`} className={btnPrimary}>New job card</a>}</>} />
       <form className="flex flex-wrap gap-2" role="search">
         <input name="q" defaultValue={q} placeholder="Search job number, plate or requester" className={`${control} min-w-0 flex-1`} aria-label="Search job cards" />
         <select name="status" defaultValue={status} className={control} aria-label="Status">
