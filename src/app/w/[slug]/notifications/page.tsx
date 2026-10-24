@@ -36,7 +36,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const unread = rows.filter((r) => !r.read_at).length;
   return (
     <main className="space-y-5 p-6 text-zinc-900">
-      <PageHeader title="Notifications" sub={unread ? `${unread} unread` : "All read"} actions={unread ? <MarkRead slug={slug} /> : undefined} />
+      <PageHeader title="Notifications" sub={unread ? `${unread} unread` : "Nothing unread"} actions={unread ? <MarkRead slug={slug} /> : undefined} />
       <Panel flush>
         {rows.length === 0 ? <p className="p-5 text-sm text-zinc-500">Nothing yet.</p> : (
           <ul className="divide-y divide-zinc-100 text-sm">

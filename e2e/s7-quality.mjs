@@ -25,6 +25,16 @@ export async function quality(S) {
       return `${r.length} issue types`;
     });
   }
+  if (process.env.E2E_TEXT) {
+    // E2E_TEXT=1 writes the words on every screen to e2e/shots/text-*.txt, so the wording can be read through in one sitting.
+    await step("the words on every screen are saved for a wording check", async () => {
+      const fs = await import("node:fs");
+      for (const p of [...pages, "/odometer", "/vendors", "/accidents", "/challans", "/invoices", "/reports/breaking", "/notifications", "/vehicles/new", "/employees", "/maintenance-policy", "/policy"]) {
+        await go(S.pk, `${base}${p}`);
+        fs.writeFileSync(`e2e/shots/text-${(p || "home").replace(/\//g, "-").replace(/^-/, "")}.txt`, await body(S.pk));
+      }
+    });
+  }
   await step("operator screens: accessibility check", async () => {
     for (const p of ["/admin", "/admin/payments", "/admin/tax", "/admin/accounting", "/admin/rates", "/admin/settings"]) { await go(S.op, p); await axe(S.op, `${p} (operator)`); }
   });

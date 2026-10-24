@@ -57,7 +57,7 @@ export async function notifyAfter(q: Queryable, m: Membership, jobId: string, to
 export type ReasonCode = { id: string; category: string; code: string; label: string };
 export function listReasonCodes(driver: Driver, m: Membership): Promise<ReasonCode[]> {
   return authorizedAny(driver, m, ["jobcard.create", "jobcard.approve", "jobcard.read_all", "jobcard.read_own"], async (q) =>
-    (await q.query<ReasonCode>("select id, category, code, label from reason_codes where active order by category, label")).rows);
+    (await q.query<ReasonCode>("select id, category, code, label from reason_codes where active order by (category = 'other'), category, label")).rows);
 }
 
 // ---------- Create / edit ----------

@@ -49,7 +49,7 @@ export function costOverview(driver: Driver, m: Membership, months = 12): Promis
       byVendor: await slices(`select coalesce(vn.name, 'No vendor') as label, sum(c.cost)::text as cost, count(*)::int as jobs
         from v_vehicle_job_cost c join job_cards jc on jc.id = c.job_card_id left join vendors vn on vn.id = jc.vendor_id
         where c.created_at >= ${from} group by 1 order by sum(c.cost) desc limit 10`),
-      byDriver: await slices(`select coalesce(e.full_name, 'Nobody held it') as label, sum(c.cost)::text as cost, count(*)::int as jobs
+      byDriver: await slices(`select coalesce(e.full_name, 'No driver assigned') as label, sum(c.cost)::text as cost, count(*)::int as jobs
         from v_vehicle_job_cost c left join employees e on e.id = c.custodian_id where c.created_at >= ${from} group by 1 order by sum(c.cost) desc limit 10`),
     };
   });

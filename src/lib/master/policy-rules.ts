@@ -21,7 +21,7 @@ export function getPolicyImpact(driver: Driver, m: Membership): Promise<PolicyIm
     const moneyOk = held.has("policy.manage") || (await q.query("select 1 from role_permissions where role_key = $1 and permission_key = 'report.view'", [m.role])).rows.length > 0;
     const shares = sharePct > 0 && moneyOk
       ? (await q.query<{ driver: string; jobs: number; cost: string }>(
-          `select coalesce(e.full_name, 'Nobody held it') as driver, count(*)::int as jobs, sum(c.cost)::text as cost
+          `select coalesce(e.full_name, 'No driver assigned') as driver, count(*)::int as jobs, sum(c.cost)::text as cost
              from v_vehicle_job_cost c join reason_codes rc on rc.id = c.reason_code_id left join employees e on e.id = c.custodian_id
             where rc.category not in ('scheduled_service','wear_and_tear','accident_damage') and c.created_at >= now() - interval '12 months'
             group by 1 order by sum(c.cost) desc`)).rows.map((r) => ({ driver: r.driver, jobs: r.jobs, cost: Number(r.cost), share: Math.round(Number(r.cost) * sharePct) / 100 }))

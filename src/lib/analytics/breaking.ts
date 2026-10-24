@@ -91,7 +91,7 @@ export function breakingReport(driver: Driver, m: Membership, opts: { days?: num
     for (const j of jobs) {
       const key = group === "driver" ? `${j.emp_id ?? "none"}|${j.vehicle_id}` : group === "vehicle" ? j.vehicle_id : (j.vendor ?? "none");
       const e = bucket.get(key) ?? {
-        key, label: group === "driver" ? (j.emp ?? "Nobody held it") : group === "vehicle" ? j.plate : (j.vendor ?? "No workshop"),
+        key, label: group === "driver" ? (j.emp ?? "No driver assigned") : group === "vehicle" ? j.plate : (j.vendor ?? "No workshop"),
         sub: group === "driver" ? j.dept : null, vehicle: group === "driver" ? j.plate : null, vehicle_id: group === "driver" || group === "vehicle" ? j.vehicle_id : null,
         jobs: 0, cost: 0, per10k: null, misuse: 0, emp: j.emp_id,
       };

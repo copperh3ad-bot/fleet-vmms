@@ -111,7 +111,7 @@ export function JobCardForm({ slug, id, currency = "PKR", vehicles, reasons, ser
                 <label htmlFor="odometer_km" className={label}>Odometer reading now (km){req}</label>
                 <input id="odometer_km" name="odometer_km" inputMode="decimal" value={odometer} onChange={(e) => setOdometer(e.target.value)} className={`${inputCls} font-mono`} aria-invalid={!!err("odometer_km") || (odometer !== "" && !odoOk)} />
                 {err("odometer_km") ? <p role="alert" className="mt-1 text-xs text-red-700">{err("odometer_km")}</p>
-                  : <p className={`mt-1 text-xs ${odometer !== "" && !odoOk ? "text-red-700" : "text-zinc-500"}`}>{onFile !== null ? `On file: ${money(onFile)} km${shown?.vehicle.odometer_updated_at ? ` on ${dm(shown.vehicle.odometer_updated_at)}` : ""}. Must be at least that.` : "Look at the dashboard and type the number you see."}</p>}
+                  : <p className={`mt-1 text-xs ${odometer !== "" && !odoOk ? "text-red-700" : "text-zinc-500"}`}>{onFile !== null ? `On file: ${money(onFile)} km${shown?.vehicle.odometer_updated_at ? ` on ${dm(shown.vehicle.odometer_updated_at)}` : ""}. Must be at least that.` : "Read the odometer on the vehicle's dashboard and type the number you see."}</p>}
               </div>
               {people && (
                 <div>
@@ -187,7 +187,7 @@ export function JobCardForm({ slug, id, currency = "PKR", vehicles, reasons, ser
             </div>
           </Panel>
 
-          <Panel title="Photos" sub="Up to 10. A dashboard photo proves the odometer.">
+          <Panel title="Photos" sub="Up to 10. A photo of the odometer proves the reading.">
             {id ? <p className="text-sm text-zinc-600">Add or remove photos on the job card page.</p> : <FileInput label="Photos or PDF files for this job card" className="block w-full rounded-md border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm" />}
           </Panel>
 

@@ -15,7 +15,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const rows = await listEmployees(getDriver(), m);
   return (
     <main className="space-y-5 p-6 text-zinc-900">
-      <PageHeader title="Employees" sub={`${rows.length} people who can hold a vehicle`} />
+      <PageHeader title="Employees" sub={`${rows.length} ${rows.length === 1 ? "employee" : "employees"} on record`} />
       <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
         <Panel title="People" flush>
           <div className="overflow-x-auto"><table className="w-full text-left text-sm">

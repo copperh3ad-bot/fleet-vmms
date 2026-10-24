@@ -51,7 +51,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   return (
     <main className="space-y-5 p-6 text-zinc-900">
       {typeof sp.note === "string" && sp.note && <p role="status" className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-900">{sp.note.slice(0, 300)}</p>}
-      <PageHeader title="Users and roles" sub={`${plural(members.length + invites.length, "person", "people")} · ${plural(matrix.roles.length, "role")} · ${usage(use.users)} users${limitHit ? " (limit reached)" : ""} · ${usage(use.vehicles)} vehicles`}
+      <PageHeader title="Users and roles" sub={`${plural(members.length + invites.length, "person", "people")} · ${plural(matrix.roles.length, "role")} · ${use.users.limit === null ? plural(use.users.used, "user") : `${use.users.used} of ${use.users.limit} users`}${limitHit ? " (limit reached)" : ""} · ${usage(use.vehicles)} vehicles`}
         actions={<a href="#invite" className={btnPrimary}>Invite a person</a>} />
 
       <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">

@@ -5,6 +5,7 @@ import { getDriver } from "@/lib/db";
 import { Kpi, PageHeader, Panel } from "@/components/ui";
 import { costOverview, getFlags } from "@/lib/analytics/service";
 import { Bars, FlagList, money } from "./shared";
+import { monthShort } from "@/lib/labels";
 
 export default function ReportsPage({ params, searchParams }: PageProps<"/w/[slug]/reports">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} searchParams={searchParams} /></Suspense>;
@@ -41,7 +42,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
       <p className="-mt-2 text-xs text-zinc-500">Cost is the checked invoice amount once finance has verified it, otherwise the estimate. Drafts, cancelled and rejected cards are not counted.</p>
 
       <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
-        <Panel title="Spending by month"><Bars rows={r.byMonth.map((x) => ({ label: x.month, value: x.cost, note: x.jobs ? `${x.jobs} jobs` : undefined }))} /></Panel>
+        <Panel title="Spending by month"><Bars rows={r.byMonth.map((x) => ({ label: `${monthShort(x.month)} ${x.month.slice(0, 4)}`, value: x.cost, note: x.jobs ? `${x.jobs} ${x.jobs === 1 ? "job" : "jobs"}` : undefined }))} /></Panel>
         <Panel title="Needs a look" sub={`${flags.length} flagged`}><FlagList slug={slug} flags={flags} empty="Nothing is flagged." /></Panel>
       </div>
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">

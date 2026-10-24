@@ -107,10 +107,10 @@ export function JobCardWizard({ slug, vehicles, reasons, initial }: Props) {
             {shown?.vehicle.holder && <p className="mt-1 text-sm text-zinc-500">Driver: {shown.vehicle.holder}</p>}
           </div>
           <div>
-            <label htmlFor="m_odometer_km" className={lbl}>What does the dashboard show now? (km)</label>
+            <label htmlFor="m_odometer_km" className={lbl}>What does the odometer show now? (km)</label>
             <input id="m_odometer_km" name="odometer_km" inputMode="decimal" value={odometer} onChange={(e) => setOdometer(e.target.value)} placeholder="e.g. 48,320" className={`${big} font-mono`} aria-invalid={!!err("odometer_km") || (odometer !== "" && !odoOk)} />
             <p className={`mt-1 text-sm ${(odometer !== "" && !odoOk) || err("odometer_km") ? "text-red-700" : "text-zinc-500"}`}>
-              {err("odometer_km") ?? (onFile !== null ? `Last reading we have: ${money(onFile)} km${shown?.vehicle.odometer_updated_at ? ` on ${dm(shown.vehicle.odometer_updated_at)}` : ""}. Must be at least that.` : "Look at the dashboard and type the number you see.")}
+              {err("odometer_km") ?? (onFile !== null ? `Last reading we have: ${money(onFile)} km${shown?.vehicle.odometer_updated_at ? ` on ${dm(shown.vehicle.odometer_updated_at)}` : ""}. Must be at least that.` : "Read the odometer on the vehicle's dashboard and type the number you see.")}
             </p>
           </div>
         </section>
@@ -192,7 +192,7 @@ export function JobCardWizard({ slug, vehicles, reasons, initial }: Props) {
             </>
           )}
         </div>
-        {step === 1 && !step1Ok && vehicleId !== "" && <p className="text-sm text-zinc-500">Enter the dashboard reading to continue.</p>}
+        {step === 1 && !step1Ok && vehicleId !== "" && <p className="text-sm text-zinc-500">Enter the odometer reading to continue.</p>}
         {step === 2 && !step2Ok && <p className="text-sm text-zinc-500">Choose a reason and describe the problem (at least 10 characters) to continue.</p>}
       </div>
     </form>
