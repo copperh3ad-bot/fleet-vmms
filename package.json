@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "check:sql": "tsx scripts/check-sql.mts",
+    "fx-rates": "tsx --env-file=.env.local scripts/fetch-fx-rate.mts",
     "reminders": "tsx scripts/send-reminders.mts",
     "prebuild": "tsx scripts/embed-migrations.mts",
     "embed:migrations": "tsx scripts/embed-migrations.mts"

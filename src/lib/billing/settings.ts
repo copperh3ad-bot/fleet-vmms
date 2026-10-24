@@ -13,7 +13,9 @@ export type SettingDef = {
 export const PLATFORM_SETTINGS: SettingDef[] = [
   { key: "bank_details", label: "Bank account for payments", hint: "Shown to customers on their billing page: bank, account title, account number or IBAN, branch. One item per line.", multiline: true, max: 800 },
   { key: "payment_note", label: "Payment instructions", hint: "Anything customers should know when they pay, for example how long a confirmation takes.", multiline: true, max: 600 },
-  { key: "pkr_per_usd", label: "PKR per USD", hint: "Used to show the amount to send in rupees next to the dollar price. Leave empty to show dollars only.", max: 12, numeric: true },
+  { key: "pkr_per_usd", label: "PKR per USD (fallback)", hint: "Used when there is no dated rate for the day a customer paid (see the Rates page), and for the amount shown before a customer pays if no rate has been fetched or entered. Leave empty to show dollars only.", max: 12, numeric: true },
+  { key: "fx_side", label: "Which rate converts the price", hint: "Type buying, selling or average: the interbank buying rate, the selling rate, or the middle of the two. Ask your accountant which the tax authority expects. If empty, buying is used.", max: 8, oneOf: ["buying", "selling", "average"] },
+  { key: "fx_forexpk_consent", label: "Automatic rates from forex.pk: written consent", hint: "forex.pk's terms of use do not allow commercial use of its pages without its prior written consent. Fetching its rates automatically stays OFF until you write here who gave consent and when (for example: email from forex.pk, 12 Nov 2026). Leave empty to enter rates by hand.", max: 200 },
   { key: "company_details", label: "Seller details on invoices", hint: "Your company name, address and tax number as they should appear on an invoice. One item per line.", multiline: true, max: 600 },
   { key: "support_email", label: "Support email", hint: "Shown to customers who need help with billing.", max: 120 },
 
@@ -24,6 +26,7 @@ export const PLATFORM_SETTINGS: SettingDef[] = [
   { key: "seller_pseb_no", label: "Seller: PSEB registration number", hint: "Pakistan Software Export Board registration, printed on tax invoices. Optional.", max: 40 },
   { key: "wht_income_pct_default", label: "Income tax a withholding customer keeps back (%)", hint: "The usual percent a customer that withholds keeps back from what it owes you, and pays to the government for you. A customer can be given its own percent on its organization page. Ask your accountant; it depends on your filer status and the kind of service.", max: 6, percent: true },
   { key: "wht_sales_share_pct_default", label: "Share of the sales tax a withholding customer keeps back (%)", hint: "Some withholding customers keep back all of the sales tax, some a part, some none. 0 to 100.", max: 6, percent: true },
+  { key: "wht_certificate_section", label: "Section shown on withholding certificates", hint: "The provision of the tax law under which customers withhold from you, as your accountant words it. Printed on each certificate. Optional.", max: 120 },
   { key: "wht_income_base", label: "Income tax is worked out on", hint: "Type subtotal (the price before sales tax) or total (the price with sales tax). Ask your accountant. If empty, subtotal is used.", max: 8, oneOf: ["subtotal", "total"] },
 ];
 

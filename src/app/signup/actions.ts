@@ -26,11 +26,12 @@ export async function signUpAction(_prev: FormState, form: FormData): Promise<Fo
   const driver = getDriver();
   let input;
   try {
-    input = parseSignup(Object.fromEntries(["org_name", "contact_name", "email", "phone", "fleet_size", "terms"].map((k) => [k, form.get(k) ?? undefined])));
+    input = parseSignup(Object.fromEntries(["org_name", "contact_name", "email", "phone", "fleet_size", "country", "terms"].map((k) => [k, form.get(k) ?? undefined])));
   } catch (e) {
     if (e instanceof UserError) return { error: e.message, fields: e.fields, values: keep(form) };
     throw e;
   }
+  if (!input.country) return { error: "Fix the highlighted fields.", fields: { country: "Choose your country" }, values: keep(form) };
   const password = String(form.get("password") ?? "");
   if (password.length < MIN_PASSWORD) return { error: "Fix the highlighted fields.", fields: { password: `Use at least ${MIN_PASSWORD} characters` }, values: keep(form) };
   if (password !== String(form.get("confirm") ?? "")) return { error: "Fix the highlighted fields.", fields: { confirm: "The two passwords do not match" }, values: keep(form) };

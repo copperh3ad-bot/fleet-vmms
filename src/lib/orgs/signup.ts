@@ -8,6 +8,7 @@ import { withPlatform } from "@/lib/db/tenant";
 import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
 import { insertOrganization, type NewOrganization, type OrgKind } from "./provision";
+import { isCountryCode } from "./countries";
 
 /** Shown with the terms the person accepted. Change it when the terms change. */
 export const TERMS_VERSION = "2026-10-23-draft";
@@ -21,6 +22,8 @@ export const signupSchema = z.object({
   email: z.email("Enter a valid email address").max(200).transform((s) => s.toLowerCase()),
   phone: z.preprocess(blank, z.string().trim().max(30, "That phone number is too long").optional()),
   fleet_size: z.preprocess(blank, z.enum(FLEET_SIZES, "Choose a fleet size").optional()),
+  // Where the company is. It decides which tax applies, so it is asked at sign-up; the operator can correct it. Empty means unknown, taxed as before (not at all).
+  country: z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? undefined : typeof v === "string" ? v.trim().toUpperCase() : v), z.string().refine(isCountryCode, "Choose your country").optional()),
   terms: z.preprocess((v) => v === "on" || v === "true" || v === true, z.literal(true, "Accept the terms to continue")),
 });
 export type SignupInput = z.output<typeof signupSchema>;
@@ -40,11 +43,11 @@ export type SignupRow = { id: string; email: string; org_name: string; contact_n
 export function recordSignup(driver: Driver, input: SignupInput): Promise<void> {
   return withPlatform(driver, async (q) => {
     await q.query(
-      `insert into public.signups(email, org_name, contact_name, phone, fleet_size, terms_version) values (lower($1), $2, $3, $4, $5, $6)
+      `insert into public.signups(email, org_name, contact_name, phone, fleet_size, country, terms_version) values (lower($1), $2, $3, $4, $5, $6, $7)
        on conflict (lower(email)) do update set org_name = excluded.org_name, contact_name = excluded.contact_name, phone = excluded.phone,
-         fleet_size = excluded.fleet_size, terms_version = excluded.terms_version, updated_at = now()
+         fleet_size = excluded.fleet_size, country = excluded.country, terms_version = excluded.terms_version, updated_at = now()
        where public.signups.status = 'pending'`,
-      [input.email, input.org_name, input.contact_name, input.phone ?? null, input.fleet_size ?? null, TERMS_VERSION]);
+      [input.email, input.org_name, input.contact_name, input.phone ?? null, input.fleet_size ?? null, input.country ?? null, TERMS_VERSION]);
     // Waiting rows nobody came back for are tidied away now and then.
     if (Math.random() < 0.02) await q.query("delete from public.signups where status = 'pending' and updated_at < now() - interval '14 days'");
   });
@@ -84,8 +87,8 @@ export async function claimSignup(driver: Driver, user: Claimer, opts: { kind?: 
 function claimOnce(driver: Driver, user: Claimer, opts: { kind?: OrgKind }, suffixed: boolean): Promise<{ tenantId: string; schema: string } | null> {
   const email = user.email!;
   return withPlatform(driver, async (q) => {
-    const s = (await q.query<SignupRow & { terms_version: string }>(
-      "select id, email, org_name, contact_name, phone, fleet_size, status, tenant_id, terms_version from public.signups where lower(email) = lower($1) for update", [email])).rows[0];
+    const s = (await q.query<SignupRow & { terms_version: string; country: string | null }>(
+      "select id, email, org_name, contact_name, phone, fleet_size, country, status, tenant_id, terms_version from public.signups where lower(email) = lower($1) for update", [email])).rows[0];
     if (!s || s.status === "done") return null;
     if (s.tenant_id) {
       const t = (await q.query<{ id: string; schema_name: string; provision_owner: { userId?: string } | null }>(
@@ -104,6 +107,8 @@ function claimOnce(driver: Driver, user: Claimer, opts: { kind?: OrgKind }, suff
     }
     const t = await insertOrganization(q, { ...owner, slug });
     await q.query("update public.signups set status = 'started', tenant_id = $2, updated_at = now() where id = $1", [s.id, t.tenantId]);
+    // the customer's own tax record starts with the country it gave, so the right tax scenario applies from its first invoice
+    if (s.country) await q.query("insert into public.org_tax(tenant_id, country) values ($1, $2) on conflict (tenant_id) do update set country = excluded.country", [t.tenantId, s.country]);
     return t;
   });
 }

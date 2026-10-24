@@ -6,6 +6,7 @@ import { withPlatform } from "@/lib/db/tenant";
 import { UserError } from "@/lib/master/service";
 import { accessFrom, type Access, type BillingRow } from "./state";
 import { taxFor } from "./tax-data";
+import { postInvoiceJournal } from "./accounting";
 import { shortfall } from "./tax";
 import type { BlobStore } from "@/lib/jobcards/attachments";
 import type { DbProvider } from "@/lib/orgs/db-provider";
@@ -110,7 +111,7 @@ export function proofLink(driver: Driver, store: BlobStore, operatorId: string, 
 }
 
 /** Moves the paid-until date forward and issues an invoice. Shared by "confirm a claim" and "record a payment by hand". */
-async function settle(q: Queryable, operatorId: string, tenantId: string, months: number, opts: { claimId?: string; received?: { minor: string; currency: string }; note?: string }): Promise<{ invoiceId: string; number: string; periodEnd: string }> {
+async function settle(q: Queryable, operatorId: string, tenantId: string, months: number, opts: { claimId?: string; received?: { minor: string; currency: string }; note?: string; paymentDate?: string }): Promise<{ invoiceId: string; number: string; periodEnd: string }> {
   const b = (await q.query<{ price_cents: number; currency: string; current_period_end: string | null; name: string }>(
     `select b.price_cents, b.currency, b.current_period_end::text, t.name from public.org_billing b join public.tenants t on t.id = b.tenant_id where b.tenant_id = $1 for update of b`, [tenantId])).rows[0];
   if (!b) throw new UserError("That organization has no billing record.");
@@ -120,7 +121,7 @@ async function settle(q: Queryable, operatorId: string, tenantId: string, months
             (greatest(coalesce($1::timestamptz, now()), now()) + ($2 || ' months')::interval)::text as end`, [b.current_period_end, String(months)])).rows[0];
   await q.query(
     `update public.org_billing set status = 'active', current_period_end = $2::timestamptz, updated_at = now() where tenant_id = $1`, [tenantId, period.end]);
-  const tax = await taxFor(q, tenantId, b.price_cents * months, b.currency);
+  const tax = await taxFor(q, tenantId, b.price_cents * months, b.currency, { paymentDate: opts.paymentDate });
   const t = tax?.result;
   const inv = (await q.query<{ id: string; number: string }>(
     `insert into public.invoices(number, tenant_id, claim_id, billed_to, period_start, period_end, months, amount_cents, currency, received_minor, received_currency, issued_by, note,
@@ -131,11 +132,13 @@ async function settle(q: Queryable, operatorId: string, tenantId: string, months
     [tenantId, opts.claimId ?? null, b.name, period.start, period.end, months, b.price_cents * months, b.currency, opts.received?.minor ?? null, opts.received?.currency ?? null, operatorId, opts.note ?? null,
      t?.pkrPerUsd ?? null, t?.subtotalMinor ?? null, t?.salesTaxPct ?? null, t?.salesTaxMinor ?? null, t?.totalMinor ?? null, t?.whtIncomeMinor ?? null, t?.whtSalesMinor ?? null, t?.netExpectedMinor ?? null,
      tax ? JSON.stringify(tax.snapshot) : null])).rows[0];
+  await postInvoiceJournal(q, inv.id, operatorId);                      // the ledger entry is part of the same transaction: no invoice without it
   return { invoiceId: inv.id, number: inv.number, periodEnd: period.end };
 }
 
 export type ClaimTaxPreview = {
   subtotalMinor: number; salesTaxPct: number; salesTaxMinor: number; totalMinor: number; whtIncomeMinor: number; whtSalesMinor: number; netExpectedMinor: number; authority: string;
+  currency: string; scenario: string | null; country: string | null; fx: string | null;
   /** how what the customer said it sent compares with what should arrive; null if it was not sent in rupees */
   against: { state: "exact" | "short" | "over"; diffMinor: number } | null;
 } | null;
@@ -143,17 +146,18 @@ export type ClaimTaxPreview = {
 /** The invoice the confirmation would make, worked out now, so a short payment or a missing withholding certificate is seen before confirming. */
 export function previewClaimTax(driver: Driver, operatorId: string, claimId: string, months?: number): Promise<ClaimTaxPreview> {
   return asOperator(driver, operatorId, async (q) => {
-    const c = (await q.query<{ tenant_id: string; months: number; amount_minor: string; currency: string }>("select tenant_id, months, amount_minor::text, currency from public.payment_claims where id = $1", [claimId])).rows[0];
+    const c = (await q.query<{ tenant_id: string; months: number; amount_minor: string; currency: string; paid_on: string }>("select tenant_id, months, amount_minor::text, currency, paid_on::text from public.payment_claims where id = $1", [claimId])).rows[0];
     if (!c) throw new UserError("Payment not found.");
     const b = (await q.query<{ price_cents: number; currency: string }>("select price_cents, currency from public.org_billing where tenant_id = $1", [c.tenant_id])).rows[0];
     if (!b) return null;
-    const tax = await taxFor(q, c.tenant_id, b.price_cents * (months ?? c.months), b.currency);
+    const tax = await taxFor(q, c.tenant_id, b.price_cents * (months ?? c.months), b.currency, { paymentDate: c.paid_on });
     if (!tax) return null;
     const r = tax.result;
     return {
       subtotalMinor: r.subtotalMinor, salesTaxPct: r.salesTaxPct, salesTaxMinor: r.salesTaxMinor, totalMinor: r.totalMinor, whtIncomeMinor: r.whtIncomeMinor, whtSalesMinor: r.whtSalesMinor,
-      netExpectedMinor: r.netExpectedMinor, authority: tax.snapshot.buyer.authority,
-      against: c.currency === "PKR" ? shortfall(Number(c.amount_minor), r.netExpectedMinor) : null,
+      netExpectedMinor: r.netExpectedMinor, authority: tax.snapshot.buyer.authority, currency: tax.snapshot.currency ?? "PKR", scenario: tax.snapshot.scenario?.label ?? null, country: tax.snapshot.country ?? null,
+      fx: tax.snapshot.fx ? `${tax.snapshot.fx.rate} (${tax.snapshot.fx.source}, ${tax.snapshot.fx.side}, rate of ${tax.snapshot.fx.rate_date}, payment of ${tax.snapshot.fx.payment_date})` : null,
+      against: c.currency === (tax.snapshot.currency ?? "PKR") ? shortfall(Number(c.amount_minor), r.netExpectedMinor) : null,
     };
   });
 }
@@ -161,13 +165,13 @@ export function previewClaimTax(driver: Driver, operatorId: string, claimId: str
 /** The money has arrived: confirm the claim. The months can be corrected if the customer sent a different amount. */
 export function confirmClaim(driver: Driver, operatorId: string, claimId: string, opts: { months?: number; note?: string } = {}): Promise<{ number: string; periodEnd: string }> {
   return asOperator(driver, operatorId, async (q) => {
-    const c = (await q.query<{ tenant_id: string; months: number; amount_minor: string; currency: string; status: string }>(
-      "select tenant_id, months, amount_minor::text, currency, status from public.payment_claims where id = $1 for update", [claimId])).rows[0];
+    const c = (await q.query<{ tenant_id: string; months: number; amount_minor: string; currency: string; status: string; paid_on: string }>(
+      "select tenant_id, months, amount_minor::text, currency, status, paid_on::text from public.payment_claims where id = $1 for update", [claimId])).rows[0];
     if (!c) throw new UserError("Payment not found.");
     if (c.status !== "pending") throw new UserError("That payment has already been decided.");
     const months = opts.months ?? c.months;
     if (!Number.isInteger(months) || months < 1 || months > 12) throw new UserError("Choose between 1 and 12 months.");
-    const s = await settle(q, operatorId, c.tenant_id, months, { claimId, received: { minor: c.amount_minor, currency: c.currency }, note: opts.note?.slice(0, 500) });
+    const s = await settle(q, operatorId, c.tenant_id, months, { claimId, received: { minor: c.amount_minor, currency: c.currency }, note: opts.note?.slice(0, 500), paymentDate: c.paid_on });
     await q.query("update public.payment_claims set status = 'confirmed', decided_by = $2, decided_at = now(), decision_note = $3, invoice_id = $4, months = $5 where id = $1",
       [claimId, operatorId, opts.note?.slice(0, 500) ?? null, s.invoiceId, months]);
     return { number: s.number, periodEnd: s.periodEnd };

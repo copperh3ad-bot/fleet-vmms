@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { requireOperator } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
 import { listClaimsForOperator, previewClaimTax } from "@/lib/billing/operator";
-import { rupees } from "@/lib/billing/tax";
+import { fmtMinor } from "@/lib/billing/tax";
 import { loadPlatformSettings } from "@/lib/billing/settings";
 import { formatPrice } from "@/lib/billing/offer";
 import { PageHeader, Panel, Pill } from "@/components/ui";
@@ -43,19 +43,20 @@ async function Inner({ searchParams }: { searchParams: Promise<Record<string, st
               <div><dt className="text-zinc-500">Bank reference</dt><dd className="mt-1 break-all">{c.bank_reference}<span className="block text-xs text-zinc-500">they should have written {c.reference_code}</span></dd></div>
             </dl>
             {previews.get(c.id) && (() => {
-              const t = previews.get(c.id)!;
+              const t = previews.get(c.id)!, m = (n: number | string) => fmtMinor(n, t.currency), kept = t.whtIncomeMinor + t.whtSalesMinor;
               return (
                 <div className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm">
-                  <p className="font-medium">Tax invoice this will make ({t.authority})</p>
+                  <p className="font-medium">Invoice this will make: {t.scenario ?? t.authority}{t.country ? ` (customer's country: ${t.country})` : ""}</p>
                   <dl className="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2">
-                    <div className="flex justify-between"><dt>Subtotal</dt><dd className="font-mono">{rupees(t.subtotalMinor)}</dd></div>
-                    <div className="flex justify-between"><dt>Sales tax {t.salesTaxPct}%</dt><dd className="font-mono">{rupees(t.salesTaxMinor)}</dd></div>
-                    <div className="flex justify-between font-medium"><dt>Total</dt><dd className="font-mono">{rupees(t.totalMinor)}</dd></div>
-                    {t.whtIncomeMinor + t.whtSalesMinor > 0 && <div className="flex justify-between"><dt>They keep back (income tax {rupees(t.whtIncomeMinor)}, sales tax {rupees(t.whtSalesMinor)})</dt><dd className="font-mono">{rupees(t.whtIncomeMinor + t.whtSalesMinor)}</dd></div>}
-                    <div className="flex justify-between font-medium"><dt>Should arrive in the bank</dt><dd className="font-mono">{rupees(t.netExpectedMinor)}</dd></div>
+                    <div className="flex justify-between"><dt>Subtotal</dt><dd className="font-mono">{m(t.subtotalMinor)}</dd></div>
+                    <div className="flex justify-between"><dt>{t.authority} {t.salesTaxPct}%</dt><dd className="font-mono">{m(t.salesTaxMinor)}</dd></div>
+                    <div className="flex justify-between font-medium"><dt>Total</dt><dd className="font-mono">{m(t.totalMinor)}</dd></div>
+                    {kept > 0 && <div className="flex justify-between"><dt>They keep back (income tax {m(t.whtIncomeMinor)}, sales tax {m(t.whtSalesMinor)})</dt><dd className="font-mono">{m(kept)}</dd></div>}
+                    <div className="flex justify-between font-medium"><dt>Should arrive in the bank</dt><dd className="font-mono">{m(t.netExpectedMinor)}</dd></div>
                   </dl>
-                  {t.against && <p className={`mt-2 ${t.against.state === "exact" ? "text-green-800" : "text-red-800"}`}>{t.against.state === "exact" ? "What they say they sent matches." : t.against.state === "short" ? `They say they sent ${rupees(-t.against.diffMinor)} less than that.` : `They say they sent ${rupees(t.against.diffMinor)} more than that.`}</p>}
-                  {t.whtIncomeMinor + t.whtSalesMinor > 0 && <p className="mt-2 text-xs text-zinc-600">After confirming, collect their withholding certificate (Tax page).</p>}
+                  {t.fx && <p className="mt-2 text-xs text-zinc-600">Exchange rate used: {t.fx}</p>}
+                  {t.against && <p className={`mt-2 ${t.against.state === "exact" ? "text-green-800" : "text-red-800"}`}>{t.against.state === "exact" ? "What they say they sent matches." : t.against.state === "short" ? `They say they sent ${m(-t.against.diffMinor)} less than that.` : `They say they sent ${m(t.against.diffMinor)} more than that.`}</p>}
+                  {kept > 0 && <p className="mt-2 text-xs text-zinc-600">After confirming, collect their withholding certificate (Tax page), or issue one for them there.</p>}
                 </div>
               );
             })()}

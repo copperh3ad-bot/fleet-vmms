@@ -36,7 +36,7 @@ async function makeOrg(n: number, name: string): Promise<{ tenantId: string; sch
   return { ...t, admin: { ...base, userId: U(n), role: "tenant_admin" }, requester: { ...base, userId: U(n + 500), role: "requester" } };
 }
 const set = (k: string, v: string) => savePlatformSetting(control, OP, k, v);
-const profile = (over: Record<string, unknown> = {}) => ({ tax_rule_code: "PRA", legal_name: "Alpha Textiles Pvt Ltd", ntn: "1234567-8", strn: "", address: "Lahore", withholding_agent: false, ...over });
+const profile = (over: Record<string, unknown> = {}) => ({ country: "PK", tax_rule_code: "PRA", legal_name: "Alpha Textiles Pvt Ltd", ntn: "1234567-8", strn: "", address: "Lahore", withholding_agent: false, ...over });
 
 let A: Awaited<ReturnType<typeof makeOrg>>, B: Awaited<ReturnType<typeof makeOrg>>;
 

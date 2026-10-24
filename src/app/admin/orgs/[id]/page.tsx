@@ -7,7 +7,7 @@ import { getOrgTax } from "@/lib/billing/tax-data";
 import { formatPrice } from "@/lib/billing/offer";
 import { paymentReference } from "@/lib/billing/payments";
 import { PageHeader, Panel, Pill } from "@/components/ui";
-import { deleteOrganizationAction, extendTrialAction, manualPaymentAction, setCompedAction, setOrgWithholdingAction, setSuspendedAction } from "../../actions";
+import { deleteOrganizationAction, extendTrialAction, manualPaymentAction, setCompedAction, setCountryAction, setOrgWithholdingAction, setSuspendedAction } from "../../actions";
 import { MiniForm, ToggleButton } from "../../forms";
 
 export default function OrgPage({ params }: PageProps<"/admin/orgs/[id]">) {
@@ -41,7 +41,11 @@ async function Inner({ params }: { params: Promise<{ id: string }> }) {
       </Panel>
 
       <Panel title="Tax details" sub="What this customer told us for its tax invoices">
-        {!tax ? <p className="text-sm text-zinc-500">Not given yet. No sales tax is charged until the customer fills this in on its Billing page.</p> : (
+        <div className="mb-4">
+          <p className="mb-2 text-sm font-medium">Country: {tax?.country ?? "not given"} <span className="font-normal text-zinc-500">(chosen by the customer; it decides which tax scenario applies, so correct it here if it is wrong)</span></p>
+          <MiniForm action={setCountryAction.bind(null, o.id)} fields={[{ name: "country", label: "Two-letter code", width: "w-28", defaultValue: tax?.country ?? "", placeholder: "PK" }]} button="Save country" />
+        </div>
+        {!tax ? <p className="text-sm text-zinc-500">No tax details yet. No tax is charged until the customer has given its country (and, in Pakistan, its tax details) on its Billing page.</p> : (
           <div className="space-y-4">
             <dl className="grid gap-4 text-sm sm:grid-cols-3">
               <div><dt className="text-zinc-500">Registered name</dt><dd className="mt-1">{tax.legal_name ?? "—"}</dd></div>

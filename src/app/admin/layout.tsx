@@ -24,6 +24,8 @@ async function Shell({ children }: { children: ReactNode }) {
             <NavLink href="/admin" label="Organizations" exact />
             <NavLink href="/admin/payments" label={pending ? `Payments (${pending})` : "Payments"} />
             <NavLink href="/admin/tax" label="Tax" />
+            <NavLink href="/admin/accounting" label="Accounting" />
+            <NavLink href="/admin/rates" label="Rates" />
             <NavLink href="/admin/settings" label="Settings" />
           </nav>
           <span className="ml-auto text-[#9FB2BE]">{user.email}</span>

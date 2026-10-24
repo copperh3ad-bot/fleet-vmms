@@ -8,42 +8,71 @@ import { authorized, type Membership } from "@/lib/auth/can";
 import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
 import { computeTax, type TaxResult } from "./tax";
+import { rateFor } from "./fx";
+import { resolveScenario } from "./tax-scenarios";
 import { BILLING_PERMISSION } from "./payments";
 
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
 
 /** The seller and the customer as they were on the day, kept with the invoice because invoices never change. */
 export type TaxSnapshot = {
-  seller: { legal_name: string | null; ntn: string | null; tax_reg: string; pseb_no: string | null };
+  /** "PKR" (tax worked out in rupees at a dated rate) or "USD". Older invoices have none and are rupees. */
+  currency?: "PKR" | "USD";
+  country?: string | null;
+  scenario?: { code: string; label: string; mode: "none" | "authority" | "fixed"; title: string; note: string | null; tax_name: string | null };
+  /** The rate used to turn dollars into rupees, where it came from, and for which day. Null when no conversion was needed. */
+  fx?: { rate: number; rate_date: string; payment_date: string; source: string; side: string } | null;
+  seller: { legal_name: string | null; ntn: string | null; tax_reg: string | null; pseb_no: string | null };
   buyer: { legal_name: string | null; ntn: string | null; strn: string | null; address: string | null; withholding_agent: boolean; authority_code: string; authority: string };
   wht: { income_pct: number; sales_share_pct: number; income_base: "subtotal" | "total" };
 };
 
-const SETTING_KEYS = ["pkr_per_usd", "seller_legal_name", "seller_ntn", "seller_tax_reg", "seller_pseb_no", "wht_income_pct_default", "wht_sales_share_pct_default", "wht_income_base"];
+const SETTING_KEYS = ["pkr_per_usd", "fx_side", "seller_legal_name", "seller_ntn", "seller_tax_reg", "seller_pseb_no", "wht_income_pct_default", "wht_sales_share_pct_default", "wht_income_base"];
+const todayIso = () => new Date().toISOString().slice(0, 10);
 
 /**
- * The figures for a subscription price, or null when no tax applies: not in dollars, no exchange rate, the seller has no sales tax
- * registration, or the customer has not said which authority it falls under (or that authority is switched off).
+ * The figures for a subscription price, or null when nothing is recorded: not a dollar plan, or the customer has no country
+ * (as before this existed), or no scenario matches, or a taxed scenario is not fully set up yet (no registration number, no
+ * exchange rate, no authority chosen). A scenario that charges no tax gives a result with zero tax, so the invoice can say so.
+ * `paymentDate` is the day the customer paid: the exchange rate is the one for that day.
  */
-export async function taxFor(q: Queryable, tenantId: string, subtotalUsdCents: number, currency: string): Promise<{ result: TaxResult; snapshot: TaxSnapshot } | null> {
+export async function taxFor(q: Queryable, tenantId: string, subtotalUsdCents: number, currency: string, opts: { paymentDate?: string } = {}): Promise<{ result: TaxResult; snapshot: TaxSnapshot } | null> {
   if (currency !== "USD") return null;
+  const p = (await q.query<{ country: string | null; legal_name: string | null; ntn: string | null; strn: string | null; address: string | null; withholding_agent: boolean; wht_income_pct: string | null; wht_sales_share_pct: string | null; code: string | null; label: string | null; sales_tax_pct: string | null }>(
+    `select o.country, o.legal_name, o.ntn, o.strn, o.address, o.withholding_agent, o.wht_income_pct::text, o.wht_sales_share_pct::text, r.code, r.label, r.sales_tax_pct::text
+       from public.org_tax o left join public.tax_rules r on r.code = o.tax_rule_code and r.active where o.tenant_id = $1`, [tenantId])).rows[0];
+  const sc = await resolveScenario(q, p?.country);
+  if (!p || !sc) return null;
   const st = Object.fromEntries((await q.query<{ key: string; value: string }>("select key, value from public.platform_settings where key = any($1::text[])", [SETTING_KEYS])).rows.map((r) => [r.key, r.value]));
-  const rate = Number(st.pkr_per_usd);
-  if (!(rate > 0) || !st.seller_tax_reg) return null;
-  const p = (await q.query<{ legal_name: string | null; ntn: string | null; strn: string | null; address: string | null; withholding_agent: boolean; wht_income_pct: string | null; wht_sales_share_pct: string | null; code: string; label: string; sales_tax_pct: string }>(
-    `select o.legal_name, o.ntn, o.strn, o.address, o.withholding_agent, o.wht_income_pct::text, o.wht_sales_share_pct::text, r.code, r.label, r.sales_tax_pct::text
-       from public.org_tax o join public.tax_rules r on r.code = o.tax_rule_code and r.active where o.tenant_id = $1`, [tenantId])).rows[0];
-  if (!p) return null;
-  const income = Number(p.wht_income_pct ?? st.wht_income_pct_default ?? 0), share = Number(p.wht_sales_share_pct ?? st.wht_sales_share_pct_default ?? 0);
+  const side = (["buying", "selling", "average"] as const).find((x) => x === st.fx_side) ?? "buying";
+  const paid = opts.paymentDate ?? todayIso();
+  const seller = { legal_name: st.seller_legal_name ?? null, ntn: st.seller_ntn ?? null, pseb_no: st.seller_pseb_no ?? null };
   const base = st.wht_income_base === "total" ? "total" : "subtotal";
-  const result = computeTax({ subtotalUsdCents, pkrPerUsd: rate, salesTaxPct: Number(p.sales_tax_pct), withholdingAgent: p.withholding_agent, whtIncomePct: income, whtSalesSharePct: share, whtIncomeBase: base });
+  const income = p.wht_income_pct ?? st.wht_income_pct_default ?? "0", share = p.wht_sales_share_pct ?? st.wht_sales_share_pct_default ?? "0";
+  const meta = { code: sc.code, label: sc.label, mode: sc.sales_tax_mode, title: sc.document_title, note: sc.note, tax_name: sc.tax_name };
+  const buyer = { legal_name: p.legal_name, ntn: p.ntn, strn: p.strn, address: p.address, withholding_agent: sc.withholding_allowed && p.withholding_agent };
+
+  let salesTaxPct = 0, rate = 1, fx: TaxSnapshot["fx"] = null, taxReg: string | null = null, authorityCode = sc.code, authority = sc.label;
+  if (sc.sales_tax_mode === "authority") {
+    taxReg = st.seller_tax_reg ?? null;
+    if (!taxReg || !p.code) return null;                                   // the seller is not registered, or the customer has not said where it is
+    salesTaxPct = Number(p.sales_tax_pct); authorityCode = p.code; authority = p.label ?? p.code;
+  } else if (sc.sales_tax_mode === "fixed") {
+    taxReg = sc.seller_registration;
+    if (!taxReg) return null;
+    salesTaxPct = Number(sc.sales_tax_pct ?? 0); authority = sc.tax_name ?? sc.label;
+  }
+  if (sc.currency === "PKR") {
+    const dated = await rateFor(q, paid, side);
+    const fallback = Number(st.pkr_per_usd);
+    if (dated) { rate = dated.rate; fx = { rate, rate_date: dated.date, payment_date: paid, source: dated.source, side }; }
+    else if (fallback > 0) { rate = fallback; fx = { rate, rate_date: paid, payment_date: paid, source: "settings", side }; }
+    else return null;                                                      // no way to convert: no invoice with rupee amounts
+  }
+  const result = computeTax({ subtotalUsdCents, pkrPerUsd: rate, salesTaxPct, withholdingAgent: buyer.withholding_agent, whtIncomePct: Number(income), whtSalesSharePct: Number(share), whtIncomeBase: base });
   return {
     result,
-    snapshot: {
-      seller: { legal_name: st.seller_legal_name ?? null, ntn: st.seller_ntn ?? null, tax_reg: st.seller_tax_reg, pseb_no: st.seller_pseb_no ?? null },
-      buyer: { legal_name: p.legal_name, ntn: p.ntn, strn: p.strn, address: p.address, withholding_agent: p.withholding_agent, authority_code: p.code, authority: p.label },
-      wht: { income_pct: income, sales_share_pct: share, income_base: base },
-    },
+    snapshot: { currency: sc.currency, country: p.country, scenario: meta, fx, seller: { ...seller, tax_reg: taxReg }, buyer: { ...buyer, authority_code: authorityCode, authority }, wht: { income_pct: Number(income), sales_share_pct: Number(share), income_base: base } },
   };
 }
 
@@ -83,8 +112,19 @@ export async function saveTaxRule(driver: Driver, operatorId: string, input: Rec
 /** One customer's tax details as the operator sees them, with the authority's name and rate. Null if the customer has given none. */
 export function getOrgTax(driver: Driver, operatorId: string, tenantId: string): Promise<(TaxProfile & { authority: string | null; sales_tax_pct: string | null }) | null> {
   return asOperator(driver, operatorId, async (q) => (await q.query<TaxProfile & { authority: string | null; sales_tax_pct: string | null }>(
-    `select o.tax_rule_code, o.legal_name, o.ntn, o.strn, o.address, o.withholding_agent, o.wht_income_pct::text, o.wht_sales_share_pct::text, r.label as authority, r.sales_tax_pct::text
+    `select o.country, o.tax_rule_code, o.legal_name, o.ntn, o.strn, o.address, o.withholding_agent, o.wht_income_pct::text, o.wht_sales_share_pct::text, r.label as authority, r.sales_tax_pct::text
        from public.org_tax o left join public.tax_rules r on r.code = o.tax_rule_code where o.tenant_id = $1`, [tenantId])).rows[0] ?? null);
+}
+
+/** The customer chose its own country when it signed up. The operator can correct it: it decides which tax scenario applies. */
+export async function setOrgCountry(driver: Driver, operatorId: string, tenantId: string, country: string): Promise<void> {
+  const c = country.trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(c)) throw new UserError("Use a two-letter country code, like PK or AE.", { country: "Two-letter code" });
+  await asOperator(driver, operatorId, async (q) => {
+    if ((await q.query("select 1 from public.tenants where id = $1", [tenantId])).rows.length === 0) throw new UserError("Organization not found.");
+    await q.query(
+      `insert into public.org_tax(tenant_id, country, updated_by) values ($1, $2, $3) on conflict (tenant_id) do update set country = excluded.country, updated_at = now(), updated_by = excluded.updated_by`, [tenantId, c, operatorId]);
+  });
 }
 
 /** For one customer whose withholding is not the platform default. Empty clears the override. */
@@ -105,7 +145,7 @@ export async function setOrgWithholding(driver: Driver, operatorId: string, tena
 // ------------------------------------------------------------------------------------------ the customer's own details
 
 export type TaxProfile = {
-  tax_rule_code: string | null; legal_name: string | null; ntn: string | null; strn: string | null; address: string | null; withholding_agent: boolean;
+  country: string | null; tax_rule_code: string | null; legal_name: string | null; ntn: string | null; strn: string | null; address: string | null; withholding_agent: boolean;
   wht_income_pct: string | null; wht_sales_share_pct: string | null;
 };
 export type TaxProfileView = { profile: TaxProfile | null; rules: { code: string; label: string; sales_tax_pct: string }[] };
@@ -113,12 +153,13 @@ export type TaxProfileView = { profile: TaxProfile | null; rules: { code: string
 export function getTaxProfile(driver: Driver, m: Membership): Promise<TaxProfileView> {
   return authorized(driver, m, BILLING_PERMISSION, async () => undefined).then(() => withPlatform(driver, async (q) => ({
     profile: (await q.query<TaxProfile>(
-      `select tax_rule_code, legal_name, ntn, strn, address, withholding_agent, wht_income_pct::text, wht_sales_share_pct::text from public.org_tax where tenant_id = $1`, [m.tenantId])).rows[0] ?? null,
+      `select country, tax_rule_code, legal_name, ntn, strn, address, withholding_agent, wht_income_pct::text, wht_sales_share_pct::text from public.org_tax where tenant_id = $1`, [m.tenantId])).rows[0] ?? null,
     rules: (await q.query<{ code: string; label: string; sales_tax_pct: string }>("select code, label, sales_tax_pct::text from public.tax_rules where active order by label")).rows,
   })));
 }
 
 const profileSchema = z.object({
+  country: z.preprocess(blank, z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, "Choose your country").optional()),
   tax_rule_code: z.preprocess(blank, z.string().regex(/^[A-Z][A-Z0-9_]{1,11}$/, "Choose where you are registered").optional()),
   legal_name: z.preprocess(blank, z.string().trim().max(160).optional()),
   ntn: z.preprocess(blank, z.string().trim().regex(/^[0-9A-Za-z-]{5,20}$/, "Letters, digits and dashes, 5 to 20 characters").optional()),
@@ -141,10 +182,10 @@ export async function saveTaxProfile(driver: Driver, m: Membership, input: Recor
     if (d.tax_rule_code && (await q.query("select 1 from public.tax_rules where code = $1 and active", [d.tax_rule_code])).rows.length === 0)
       throw new UserError("Choose where you are registered.", { tax_rule_code: "Choose from the list" });
     await q.query(
-      `insert into public.org_tax(tenant_id, tax_rule_code, legal_name, ntn, strn, address, withholding_agent, updated_by) values ($1, $2, $3, $4, $5, $6, $7, $8)
-       on conflict (tenant_id) do update set tax_rule_code = excluded.tax_rule_code, legal_name = excluded.legal_name, ntn = excluded.ntn, strn = excluded.strn,
+      `insert into public.org_tax(tenant_id, country, tax_rule_code, legal_name, ntn, strn, address, withholding_agent, updated_by) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       on conflict (tenant_id) do update set country = coalesce(excluded.country, public.org_tax.country), tax_rule_code = excluded.tax_rule_code, legal_name = excluded.legal_name, ntn = excluded.ntn, strn = excluded.strn,
          address = excluded.address, withholding_agent = excluded.withholding_agent, updated_at = now(), updated_by = excluded.updated_by`,
-      [m.tenantId, d.tax_rule_code ?? null, d.legal_name ?? null, d.ntn ?? null, d.strn ?? null, d.address ?? null, d.withholding_agent, m.userId]);
+      [m.tenantId, d.country ?? null, d.tax_rule_code ?? null, d.legal_name ?? null, d.ntn ?? null, d.strn ?? null, d.address ?? null, d.withholding_agent, m.userId]);
   });
 }
 

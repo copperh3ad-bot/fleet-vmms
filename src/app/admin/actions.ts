@@ -8,7 +8,11 @@ import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { UserError } from "@/lib/master/service";
 import { confirmClaim, deleteOrganization, extendTrial, proofLink, recordManualPayment, rejectClaim, setComped, setSuspended } from "@/lib/billing/operator";
 import { savePlatformSetting } from "@/lib/billing/settings";
-import { recordCertificate, saveTaxRule, setOrgWithholding } from "@/lib/billing/tax-data";
+import { recordCertificate, saveTaxRule, setOrgCountry, setOrgWithholding } from "@/lib/billing/tax-data";
+import { saveScenario } from "@/lib/billing/tax-scenarios";
+import { fetchInterbankRate, saveRate } from "@/lib/billing/fx";
+import { postManualJournal, postMissingInvoices, reverseJournal, saveAccount } from "@/lib/billing/accounting";
+import { issueCertificate, voidCertificate } from "@/lib/billing/certificates";
 import { providerFromEnv } from "@/lib/orgs/db-provider";
 import type { FormState } from "@/app/w/[slug]/actions-util";
 
@@ -76,4 +80,63 @@ export async function recordCertificateAction(invoiceId: string, _p: FormState, 
 
 export async function setOrgWithholdingAction(tenantId: string, _p: FormState, f: FormData): Promise<FormState> {
   return run(async (op) => { await setOrgWithholding(getDriver(), op, tenantId, { income_pct: text(f, "income_pct"), sales_share_pct: text(f, "sales_share_pct") }); return "Saved."; });
+}
+
+export async function saveScenarioAction(_p: FormState, f: FormData): Promise<FormState> {
+  return run(async (op) => {
+    await saveScenario(getDriver(), op, {
+      code: text(f, "code"), label: text(f, "label"), priority: text(f, "priority"), countries: text(f, "countries"), sales_tax_mode: text(f, "sales_tax_mode"), sales_tax_pct: text(f, "sales_tax_pct"),
+      tax_name: text(f, "tax_name"), currency: text(f, "currency").toUpperCase(), withholding_allowed: yes(text(f, "withholding_allowed")), seller_registration: text(f, "seller_registration"),
+      document_title: text(f, "document_title"), note: text(f, "note"), active: !no(text(f, "active")),
+    });
+    return "Saved.";
+  });
+}
+const yes = (v: string) => /^(yes|y|on|true|1)$/i.test(v.trim());
+const no = (v: string) => /^(no|n|off|false|0)$/i.test(v.trim());
+
+export async function setCountryAction(tenantId: string, _p: FormState, f: FormData): Promise<FormState> {
+  return run(async (op) => { await setOrgCountry(getDriver(), op, tenantId, text(f, "country")); return "Saved."; });
+}
+
+export async function saveRateAction(_p: FormState, f: FormData): Promise<FormState> {
+  return run(async (op) => { await saveRate(getDriver(), op, { date: text(f, "date"), buy: text(f, "buy"), sell: text(f, "sell"), note: text(f, "note") }); return "Rate saved."; });
+}
+
+export async function fetchRateAction(): Promise<FormState> {
+  return run(async (op) => {
+    const r = await fetchInterbankRate(getDriver(), op);
+    return r.stored ? `Stored the rate for ${r.date}: buying ${r.buy}, selling ${r.sell}.` : `The rate for ${r.date} was entered by hand, so it was kept.`;
+  });
+}
+
+export async function saveAccountAction(_p: FormState, f: FormData): Promise<FormState> {
+  return run(async (op) => { await saveAccount(getDriver(), op, { code: text(f, "code"), name: text(f, "name"), kind: text(f, "kind").toLowerCase(), role: text(f, "role"), active: !no(text(f, "active")) }); return "Saved."; });
+}
+
+export async function postManualAction(_p: FormState, f: FormData): Promise<FormState> {
+  return run(async (op) => {
+    const lines = [0, 1, 2, 3].map((i) => ({ account: text(f, `account${i}`), debit: text(f, `debit${i}`), credit: text(f, `credit${i}`) }));
+    const r = await postManualJournal(getDriver(), op, { currency: text(f, "currency").toUpperCase(), memo: text(f, "memo"), lines });
+    return `Posted ${r.number}.`;
+  });
+}
+
+export async function reverseJournalAction(journalId: string, _p: FormState, f: FormData): Promise<FormState> {
+  return run(async (op) => { const r = await reverseJournal(getDriver(), op, journalId, text(f, "memo")); return `Reversed as ${r.number}.`; });
+}
+
+export async function backfillLedgerAction(): Promise<FormState> {
+  return run(async (op) => { const n = await postMissingInvoices(getDriver(), op); return n ? `Posted ${n} invoice${n === 1 ? "" : "s"}.` : "Nothing was missing."; });
+}
+
+export async function issueCertificateForCustomerAction(invoiceId: string, _p: FormState, f: FormData): Promise<FormState> {
+  return run(async (op) => {
+    const r = await issueCertificate(getDriver(), { kind: "operator", operatorId: op }, invoiceId, { deposit_reference: text(f, "deposit_reference"), deposit_date: text(f, "deposit_date"), note: text(f, "note") });
+    return `Certificate ${r.number} issued.`;
+  });
+}
+
+export async function voidCertificateAction(id: string, _p: FormState, f: FormData): Promise<FormState> {
+  return run(async (op) => { await voidCertificate(getDriver(), op, id, text(f, "reason")); return "Voided."; });
 }

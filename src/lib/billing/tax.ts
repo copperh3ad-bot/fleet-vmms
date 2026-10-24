@@ -70,3 +70,7 @@ export function shortfall(receivedMinor: number, netExpectedMinor: number): { st
   const diff = receivedMinor - netExpectedMinor;
   return { state: Math.abs(diff) <= 100 ? "exact" : diff < 0 ? "short" : "over", diffMinor: diff };
 }
+
+/** An amount in the smallest unit of a currency: "Rs 41,720.00" or "$149.00". */
+export const fmtMinor = (minor: number | string, currency: string): string =>
+  currency === "PKR" ? rupees(minor) : `${currency === "USD" ? "$" : `${currency} `}${(Number(minor) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

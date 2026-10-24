@@ -262,3 +262,8 @@
 ## 2026-10-24: tax for customers in Pakistan (ADR-017)
 - Tax added on top of USD 149; invoice in USD with rupee amounts; no rate built in. Control migration 0006 (tax_rules, org_tax, invoice tax columns and snapshot, invoice_certificates). Customer enters tax details on Billing; operator manages authorities and certificates on /admin/tax and withholding overrides on the organization page.
 - NOT in use until the operator sets: seller sales tax registration, PKR per USD, at least one authority, and the customer fills its details. Rates must be confirmed with a tax adviser (see ADR-017 list). No credit notes yet.
+
+## 2026-10-24: scenarios, ledger, certificates, dated rates (ADR-018)
+- Country at sign-up; tax scenarios (operator Tax page): outside Pakistan = no tax, Pakistan = authority rate in rupees, owner can add more. Rupee conversion at the rate for the payment date (operator Rates page; forex.pk fetch OFF until written consent is recorded in Settings; manual always works). Ledger on /admin/accounting (balanced journal per invoice, reversals, trial balance, tax by month, CSV). Withholding certificates WHC-YYYY-NNNNNN issued by the customer (invoice page) or the operator. Control migrations 0007 and 0008. Scheduled function netlify/functions/fx-rates.mts.
+- Bank details for payments set in live Settings (Bank AL Habib, account title UROOJ AZHAR). CNIC and address from the bank certificate were deliberately not entered.
+- Still empty and needed before the first Pakistani invoice: seller registration, PKR fallback or a rate, an authority and its rate, withholding defaults. All to be confirmed with a tax adviser.
