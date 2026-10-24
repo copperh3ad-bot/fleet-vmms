@@ -7,7 +7,10 @@ import { accessMessage, LOCK_TEXT } from "@/lib/billing/state";
 import { formatPrice } from "@/lib/billing/offer";
 import { listClaims, listInvoices, paymentReference, BILLING_PERMISSION } from "@/lib/billing/payments";
 import { loadPlatformSettings } from "@/lib/billing/settings";
+import { getTaxProfile, quoteTax } from "@/lib/billing/tax-data";
+import { rupees } from "@/lib/billing/tax";
 import { ClaimForm } from "./forms";
+import { TaxProfileForm } from "./tax-form";
 
 export default function BillingPage({ params }: PageProps<"/w/[slug]/billing">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} /></Suspense>;
@@ -29,9 +32,9 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const admin = perms.has(BILLING_PERMISSION);
   const a = m.billing!;
   const msg = accessMessage(a);
-  const [settings, claims, invoices] = admin
-    ? await Promise.all([loadPlatformSettings(driver), listClaims(driver, m), listInvoices(driver, m)])
-    : [{} as Record<string, string>, [], []];
+  const [settings, claims, invoices, taxView, quote] = admin
+    ? await Promise.all([loadPlatformSettings(driver), listClaims(driver, m), listInvoices(driver, m), getTaxProfile(driver, m), quoteTax(driver, m, a.priceCents, a.currency, 1)])
+    : [{} as Record<string, string>, [], [], null, null];
   const rate = Number(settings.pkr_per_usd);
   const usd = a.priceCents / 100;
   const pkr = a.currency === "USD" && rate > 0 ? Math.round(usd * rate) : null;
@@ -59,6 +62,24 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
           <Panel title="How to pay" sub="By direct bank transfer">
             {settings.bank_details ? (
               <div className="space-y-4 text-sm">
+                {quote && (
+                  <div className="rounded-md border border-sky-200 bg-sky-50 p-3" aria-label="Amount to send">
+                    <p className="font-medium">Amount to send for one month</p>
+                    <dl className="mt-2 space-y-1">
+                      <div className="flex justify-between gap-4"><dt>{formatPrice(a.priceCents, a.currency)} at Rs {quote.result.pkrPerUsd} to the dollar</dt><dd className="font-mono">{rupees(quote.result.subtotalMinor)}</dd></div>
+                      <div className="flex justify-between gap-4"><dt>Sales tax {quote.result.salesTaxPct}% ({quote.snapshot.buyer.authority})</dt><dd className="font-mono">{rupees(quote.result.salesTaxMinor)}</dd></div>
+                      <div className="flex justify-between gap-4 border-t border-sky-200 pt-1 font-medium"><dt>Invoice total</dt><dd className="font-mono">{rupees(quote.result.totalMinor)}</dd></div>
+                      {quote.result.whtIncomeMinor + quote.result.whtSalesMinor > 0 && (
+                        <>
+                          <div className="flex justify-between gap-4"><dt>You keep back and pay to the government for us: income tax {rupees(quote.result.whtIncomeMinor)}{quote.result.whtSalesMinor > 0 ? `, sales tax ${rupees(quote.result.whtSalesMinor)}` : ""}</dt><dd className="font-mono">−{rupees(quote.result.whtIncomeMinor + quote.result.whtSalesMinor)}</dd></div>
+                          <div className="flex justify-between gap-4 font-medium"><dt>Send us</dt><dd className="font-mono">{rupees(quote.result.netExpectedMinor)}</dd></div>
+                        </>
+                      )}
+                    </dl>
+                    {quote.result.whtIncomeMinor + quote.result.whtSalesMinor > 0 && <p className="mt-2 text-xs text-zinc-700">Please send us the withholding certificate for what you keep back. We need it to claim that tax.</p>}
+                    <p className="mt-2 text-xs text-zinc-600">The rate is fixed on the day your payment is confirmed, so the invoice can differ slightly if it changes before then.</p>
+                  </div>
+                )}
                 <ol className="list-decimal space-y-2 pl-5">
                   <li>Send <strong>{formatPrice(a.priceCents, a.currency)}</strong>{pkr ? <> (about <strong>Rs {pkr.toLocaleString("en-US")}</strong> at Rs {rate} to the dollar)</> : null} for each month you want to pay for, to this account:</li>
                   <li>Write <span className="font-mono font-semibold">{paymentReference(m.tenantId)}</span> in the transfer&apos;s reference or description.</li>
@@ -79,6 +100,12 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
               </div>
             ) : <ClaimForm slug={slug} defaultAmount={String(usd)} defaultCurrency={a.currency === "PKR" ? "PKR" : "USD"} today={today} />}
           </Panel>
+
+          {taxView && (taxView.rules.length > 0 || taxView.profile) && (
+            <Panel title="Your tax details" sub="For the tax invoice we issue to you. If sales tax applies to you, tell us where you are registered.">
+              <TaxProfileForm slug={slug} profile={taxView.profile} rules={taxView.rules} />
+            </Panel>
+          )}
 
           <Panel title="Payments you have told us about" flush>
             {claims.length === 0 ? <p className="p-5 text-sm text-zinc-500">None yet.</p> : (

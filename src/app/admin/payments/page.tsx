@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import { requireOperator } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
-import { listClaimsForOperator } from "@/lib/billing/operator";
+import { listClaimsForOperator, previewClaimTax } from "@/lib/billing/operator";
+import { rupees } from "@/lib/billing/tax";
 import { loadPlatformSettings } from "@/lib/billing/settings";
 import { formatPrice } from "@/lib/billing/offer";
 import { PageHeader, Panel, Pill } from "@/components/ui";
@@ -20,6 +21,7 @@ async function Inner({ searchParams }: { searchParams: Promise<Record<string, st
   const view = sp.view === "confirmed" || sp.view === "rejected" ? sp.view : "pending";
   const [claims, settings] = await Promise.all([listClaimsForOperator(getDriver(), op.id, view), loadPlatformSettings(getDriver())]);
   const rate = Number(settings.pkr_per_usd);
+  const previews = new Map(await Promise.all(claims.filter((c) => c.status === "pending").map(async (c) => [c.id, await previewClaimTax(getDriver(), op.id, c.id).catch(() => null)] as const)));
   const tab = (on: boolean) => `rounded-full border px-4 py-1.5 text-sm ${on ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300 bg-white hover:bg-zinc-50"}`;
   return (
     <main className="mx-auto max-w-5xl space-y-5 p-6 text-zinc-900">
@@ -40,6 +42,23 @@ async function Inner({ searchParams }: { searchParams: Promise<Record<string, st
               <div><dt className="text-zinc-500">Expected</dt><dd className="mt-1 font-mono">{formatPrice(expected, c.billing_currency)}{expectedPkr ? <span className="block font-sans text-xs text-zinc-500">about Rs {expectedPkr.toLocaleString("en-US")}</span> : null}</dd></div>
               <div><dt className="text-zinc-500">Bank reference</dt><dd className="mt-1 break-all">{c.bank_reference}<span className="block text-xs text-zinc-500">they should have written {c.reference_code}</span></dd></div>
             </dl>
+            {previews.get(c.id) && (() => {
+              const t = previews.get(c.id)!;
+              return (
+                <div className="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm">
+                  <p className="font-medium">Tax invoice this will make ({t.authority})</p>
+                  <dl className="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2">
+                    <div className="flex justify-between"><dt>Subtotal</dt><dd className="font-mono">{rupees(t.subtotalMinor)}</dd></div>
+                    <div className="flex justify-between"><dt>Sales tax {t.salesTaxPct}%</dt><dd className="font-mono">{rupees(t.salesTaxMinor)}</dd></div>
+                    <div className="flex justify-between font-medium"><dt>Total</dt><dd className="font-mono">{rupees(t.totalMinor)}</dd></div>
+                    {t.whtIncomeMinor + t.whtSalesMinor > 0 && <div className="flex justify-between"><dt>They keep back (income tax {rupees(t.whtIncomeMinor)}, sales tax {rupees(t.whtSalesMinor)})</dt><dd className="font-mono">{rupees(t.whtIncomeMinor + t.whtSalesMinor)}</dd></div>}
+                    <div className="flex justify-between font-medium"><dt>Should arrive in the bank</dt><dd className="font-mono">{rupees(t.netExpectedMinor)}</dd></div>
+                  </dl>
+                  {t.against && <p className={`mt-2 ${t.against.state === "exact" ? "text-green-800" : "text-red-800"}`}>{t.against.state === "exact" ? "What they say they sent matches." : t.against.state === "short" ? `They say they sent ${rupees(-t.against.diffMinor)} less than that.` : `They say they sent ${rupees(t.against.diffMinor)} more than that.`}</p>}
+                  {t.whtIncomeMinor + t.whtSalesMinor > 0 && <p className="mt-2 text-xs text-zinc-600">After confirming, collect their withholding certificate (Tax page).</p>}
+                </div>
+              );
+            })()}
             {c.note && <p className="mt-3 text-sm text-zinc-600">Note: {c.note}</p>}
             {c.decision_note && <p className="mt-3 text-sm text-zinc-600">Decision note: {c.decision_note}</p>}
             {c.has_proof && <p className="mt-3 text-sm"><ProofLink claimId={c.id} /></p>}

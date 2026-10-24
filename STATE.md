@@ -258,3 +258,7 @@
 - Not done: notification to the administrator when a request arrives; email to the person on approval (no mail service beyond Supabase confirmation mail).
 
 - 2026-10-24: a new join request now notifies everyone who can manage users (in-app) and shows a count on the Users link. No email yet.
+
+## 2026-10-24: tax for customers in Pakistan (ADR-017)
+- Tax added on top of USD 149; invoice in USD with rupee amounts; no rate built in. Control migration 0006 (tax_rules, org_tax, invoice tax columns and snapshot, invoice_certificates). Customer enters tax details on Billing; operator manages authorities and certificates on /admin/tax and withholding overrides on the organization page.
+- NOT in use until the operator sets: seller sales tax registration, PKR per USD, at least one authority, and the customer fills its details. Rates must be confirmed with a tax adviser (see ADR-017 list). No credit notes yet.

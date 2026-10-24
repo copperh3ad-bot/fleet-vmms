@@ -6,7 +6,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const SHARED_TABLES = ["tenant_memberships", "invitations", "odometer_links", "tenant_subscriptions", "join_requests"];
+const SHARED_TABLES = ["tenant_memberships", "invitations", "odometer_links", "tenant_subscriptions", "join_requests", "org_tax"];
 // A condition that pins the query to one organization, one login's own rows, or one secret token.
 const PINNED = /tenant_id|user_id\s*=|token_hash|schema_name|\bt\.id\b|t\.slug|i\.id = \$|where id = \$|submission_id/;
 

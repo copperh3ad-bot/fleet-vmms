@@ -5,6 +5,8 @@ import type { Driver, Queryable } from "@/lib/db/types";
 import { withPlatform } from "@/lib/db/tenant";
 import { UserError } from "@/lib/master/service";
 import { accessFrom, type Access, type BillingRow } from "./state";
+import { taxFor } from "./tax-data";
+import { shortfall } from "./tax";
 import type { BlobStore } from "@/lib/jobcards/attachments";
 import type { DbProvider } from "@/lib/orgs/db-provider";
 
@@ -118,12 +120,42 @@ async function settle(q: Queryable, operatorId: string, tenantId: string, months
             (greatest(coalesce($1::timestamptz, now()), now()) + ($2 || ' months')::interval)::text as end`, [b.current_period_end, String(months)])).rows[0];
   await q.query(
     `update public.org_billing set status = 'active', current_period_end = $2::timestamptz, updated_at = now() where tenant_id = $1`, [tenantId, period.end]);
+  const tax = await taxFor(q, tenantId, b.price_cents * months, b.currency);
+  const t = tax?.result;
   const inv = (await q.query<{ id: string; number: string }>(
-    `insert into public.invoices(number, tenant_id, claim_id, billed_to, period_start, period_end, months, amount_cents, currency, received_minor, received_currency, issued_by, note)
-     values ('INV-' || to_char(now(), 'YYYY') || '-' || lpad(nextval('public.invoice_number_seq')::text, 6, '0'), $1, $2, $3, $4::date, $5::timestamptz::date, $6, $7, $8, $9, $10, $11, $12)
+    `insert into public.invoices(number, tenant_id, claim_id, billed_to, period_start, period_end, months, amount_cents, currency, received_minor, received_currency, issued_by, note,
+                                 pkr_per_usd, subtotal_minor, sales_tax_pct, sales_tax_minor, total_minor, wht_income_minor, wht_sales_minor, net_expected_minor, tax_snapshot)
+     values ('INV-' || to_char(now(), 'YYYY') || '-' || lpad(nextval('public.invoice_number_seq')::text, 6, '0'), $1, $2, $3, $4::date, $5::timestamptz::date, $6, $7, $8, $9, $10, $11, $12,
+             $13, $14, $15, $16, $17, $18, $19, $20, $21::jsonb)
      returning id, number`,
-    [tenantId, opts.claimId ?? null, b.name, period.start, period.end, months, b.price_cents * months, b.currency, opts.received?.minor ?? null, opts.received?.currency ?? null, operatorId, opts.note ?? null])).rows[0];
+    [tenantId, opts.claimId ?? null, b.name, period.start, period.end, months, b.price_cents * months, b.currency, opts.received?.minor ?? null, opts.received?.currency ?? null, operatorId, opts.note ?? null,
+     t?.pkrPerUsd ?? null, t?.subtotalMinor ?? null, t?.salesTaxPct ?? null, t?.salesTaxMinor ?? null, t?.totalMinor ?? null, t?.whtIncomeMinor ?? null, t?.whtSalesMinor ?? null, t?.netExpectedMinor ?? null,
+     tax ? JSON.stringify(tax.snapshot) : null])).rows[0];
   return { invoiceId: inv.id, number: inv.number, periodEnd: period.end };
+}
+
+export type ClaimTaxPreview = {
+  subtotalMinor: number; salesTaxPct: number; salesTaxMinor: number; totalMinor: number; whtIncomeMinor: number; whtSalesMinor: number; netExpectedMinor: number; authority: string;
+  /** how what the customer said it sent compares with what should arrive; null if it was not sent in rupees */
+  against: { state: "exact" | "short" | "over"; diffMinor: number } | null;
+} | null;
+
+/** The invoice the confirmation would make, worked out now, so a short payment or a missing withholding certificate is seen before confirming. */
+export function previewClaimTax(driver: Driver, operatorId: string, claimId: string, months?: number): Promise<ClaimTaxPreview> {
+  return asOperator(driver, operatorId, async (q) => {
+    const c = (await q.query<{ tenant_id: string; months: number; amount_minor: string; currency: string }>("select tenant_id, months, amount_minor::text, currency from public.payment_claims where id = $1", [claimId])).rows[0];
+    if (!c) throw new UserError("Payment not found.");
+    const b = (await q.query<{ price_cents: number; currency: string }>("select price_cents, currency from public.org_billing where tenant_id = $1", [c.tenant_id])).rows[0];
+    if (!b) return null;
+    const tax = await taxFor(q, c.tenant_id, b.price_cents * (months ?? c.months), b.currency);
+    if (!tax) return null;
+    const r = tax.result;
+    return {
+      subtotalMinor: r.subtotalMinor, salesTaxPct: r.salesTaxPct, salesTaxMinor: r.salesTaxMinor, totalMinor: r.totalMinor, whtIncomeMinor: r.whtIncomeMinor, whtSalesMinor: r.whtSalesMinor,
+      netExpectedMinor: r.netExpectedMinor, authority: tax.snapshot.buyer.authority,
+      against: c.currency === "PKR" ? shortfall(Number(c.amount_minor), r.netExpectedMinor) : null,
+    };
+  });
 }
 
 /** The money has arrived: confirm the claim. The months can be corrected if the customer sent a different amount. */

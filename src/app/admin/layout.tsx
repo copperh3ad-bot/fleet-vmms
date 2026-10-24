@@ -23,6 +23,7 @@ async function Shell({ children }: { children: ReactNode }) {
           <nav className="flex gap-1" aria-label="Operator">
             <NavLink href="/admin" label="Organizations" exact />
             <NavLink href="/admin/payments" label={pending ? `Payments (${pending})` : "Payments"} />
+            <NavLink href="/admin/tax" label="Tax" />
             <NavLink href="/admin/settings" label="Settings" />
           </nav>
           <span className="ml-auto text-[#9FB2BE]">{user.email}</span>

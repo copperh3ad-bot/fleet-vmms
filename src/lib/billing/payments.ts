@@ -81,12 +81,29 @@ export function listInvoices(driver: Driver, m: Membership): Promise<InvoiceRow[
          from public.invoices where tenant_id = $1 order by issued_at desc limit 100`, [m.tenantId])).rows));
 }
 
-export type InvoiceDetail = InvoiceRow & { billed_to: string; received_minor: string | null; received_currency: string | null; note: string | null };
+export type InvoiceTax = {
+  pkr_per_usd: string; subtotal_minor: string; sales_tax_pct: string; sales_tax_minor: string; total_minor: string; wht_income_minor: string; wht_sales_minor: string; net_expected_minor: string;
+  snapshot: import("./tax-data").TaxSnapshot; certificate: { certificate_no: string; received_on: string } | null;
+};
+export type InvoiceDetail = InvoiceRow & { billed_to: string; received_minor: string | null; received_currency: string | null; note: string | null; tax: InvoiceTax | null };
 
 export function getInvoice(driver: Driver, m: Membership, id: string): Promise<InvoiceDetail | null> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return Promise.resolve(null);
-  return authorized(driver, m, BILLING_PERMISSION, async () => undefined).then(() => withPlatform(driver, async (q) =>
-    (await q.query<InvoiceDetail>(
-      `select id, number, period_start::text, period_end::text, months, amount_cents::text, currency, issued_at::text, billed_to, received_minor::text, received_currency, note
-         from public.invoices where id = $1 and tenant_id = $2`, [id, m.tenantId])).rows[0] ?? null));
+  return authorized(driver, m, BILLING_PERMISSION, async () => undefined).then(() => withPlatform(driver, async (q) => {
+    const r = (await q.query<InvoiceDetail & { t_total: string | null; t_rate: string; t_sub: string; t_pct: string; t_tax: string; t_wi: string; t_ws: string; t_net: string; t_snap: InvoiceTax["snapshot"] | null; cert_no: string | null; cert_on: string | null }>(
+      `select i.id, i.number, i.period_start::text, i.period_end::text, i.months, i.amount_cents::text, i.currency, i.issued_at::text, i.billed_to, i.received_minor::text, i.received_currency, i.note,
+              i.total_minor::text as t_total, i.pkr_per_usd::text as t_rate, i.subtotal_minor::text as t_sub, i.sales_tax_pct::text as t_pct, i.sales_tax_minor::text as t_tax,
+              coalesce(i.wht_income_minor, 0)::text as t_wi, coalesce(i.wht_sales_minor, 0)::text as t_ws, i.net_expected_minor::text as t_net, i.tax_snapshot as t_snap,
+              c.certificate_no as cert_no, c.received_on::text as cert_on
+         from public.invoices i left join public.invoice_certificates c on c.invoice_id = i.id where i.id = $1 and i.tenant_id = $2`, [id, m.tenantId])).rows[0];
+    if (!r) return null;
+    const tax: InvoiceTax | null = r.t_total && r.t_snap ? {
+      pkr_per_usd: r.t_rate, subtotal_minor: r.t_sub, sales_tax_pct: r.t_pct, sales_tax_minor: r.t_tax, total_minor: r.t_total, wht_income_minor: r.t_wi, wht_sales_minor: r.t_ws, net_expected_minor: r.t_net,
+      snapshot: r.t_snap, certificate: r.cert_no && r.cert_on ? { certificate_no: r.cert_no, received_on: r.cert_on } : null,
+    } : null;
+    return {
+      id: r.id, number: r.number, period_start: r.period_start, period_end: r.period_end, months: r.months, amount_cents: r.amount_cents, currency: r.currency, issued_at: r.issued_at,
+      billed_to: r.billed_to, received_minor: r.received_minor, received_currency: r.received_currency, note: r.note, tax,
+    };
+  }));
 }

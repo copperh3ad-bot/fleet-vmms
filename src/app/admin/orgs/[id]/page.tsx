@@ -3,10 +3,11 @@ import { notFound } from "next/navigation";
 import { requireOperator } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
 import { getOrganization } from "@/lib/billing/operator";
+import { getOrgTax } from "@/lib/billing/tax-data";
 import { formatPrice } from "@/lib/billing/offer";
 import { paymentReference } from "@/lib/billing/payments";
 import { PageHeader, Panel, Pill } from "@/components/ui";
-import { deleteOrganizationAction, extendTrialAction, manualPaymentAction, setCompedAction, setSuspendedAction } from "../../actions";
+import { deleteOrganizationAction, extendTrialAction, manualPaymentAction, setCompedAction, setOrgWithholdingAction, setSuspendedAction } from "../../actions";
 import { MiniForm, ToggleButton } from "../../forms";
 
 export default function OrgPage({ params }: PageProps<"/admin/orgs/[id]">) {
@@ -22,6 +23,7 @@ async function Inner({ params }: { params: Promise<{ id: string }> }) {
   const o = await getOrganization(getDriver(), op.id, id);
   if (!o) notFound();
   const b = o.billing;
+  const tax = await getOrgTax(getDriver(), op.id, id);
   const closed = o.status === "closed";
   return (
     <main className="mx-auto max-w-4xl space-y-5 p-6 text-zinc-900">
@@ -36,6 +38,27 @@ async function Inner({ params }: { params: Promise<{ id: string }> }) {
           <div><dt className="text-zinc-500">People</dt><dd className="mt-1">{o.members}</dd></div>
         </dl>
         {o.provision_state !== "ready" && <p className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Set-up state: {o.provision_state.replace("_", " ")}{o.provision_error ? `. Last error: ${o.provision_error}` : ""}</p>}
+      </Panel>
+
+      <Panel title="Tax details" sub="What this customer told us for its tax invoices">
+        {!tax ? <p className="text-sm text-zinc-500">Not given yet. No sales tax is charged until the customer fills this in on its Billing page.</p> : (
+          <div className="space-y-4">
+            <dl className="grid gap-4 text-sm sm:grid-cols-3">
+              <div><dt className="text-zinc-500">Registered name</dt><dd className="mt-1">{tax.legal_name ?? "—"}</dd></div>
+              <div><dt className="text-zinc-500">NTN / STRN</dt><dd className="mt-1 font-mono">{tax.ntn ?? "—"} / {tax.strn ?? "—"}</dd></div>
+              <div><dt className="text-zinc-500">Authority</dt><dd className="mt-1">{tax.authority ? `${tax.authority} (${Number(tax.sales_tax_pct)}%)` : "None chosen"}</dd></div>
+              <div><dt className="text-zinc-500">Withholds tax</dt><dd className="mt-1">{tax.withholding_agent ? "Yes" : "No"}</dd></div>
+              <div className="sm:col-span-2"><dt className="text-zinc-500">Address</dt><dd className="mt-1 whitespace-pre-wrap">{tax.address ?? "—"}</dd></div>
+            </dl>
+            {tax.withholding_agent && (
+              <div>
+                <p className="mb-2 text-sm font-medium">What this customer keeps back (empty uses the default in Settings)</p>
+                <MiniForm action={setOrgWithholdingAction.bind(null, o.id)} button="Save"
+                  fields={[{ name: "income_pct", label: "Income tax %", width: "w-28", defaultValue: tax.wht_income_pct ?? "" }, { name: "sales_share_pct", label: "Share of sales tax %", width: "w-32", defaultValue: tax.wht_sales_share_pct ?? "" }]} />
+              </div>
+            )}
+          </div>
+        )}
       </Panel>
 
       {!closed && b && (

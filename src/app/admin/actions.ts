@@ -8,6 +8,7 @@ import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { UserError } from "@/lib/master/service";
 import { confirmClaim, deleteOrganization, extendTrial, proofLink, recordManualPayment, rejectClaim, setComped, setSuspended } from "@/lib/billing/operator";
 import { savePlatformSetting } from "@/lib/billing/settings";
+import { recordCertificate, saveTaxRule, setOrgWithholding } from "@/lib/billing/tax-data";
 import { providerFromEnv } from "@/lib/orgs/db-provider";
 import type { FormState } from "@/app/w/[slug]/actions-util";
 
@@ -60,4 +61,19 @@ export async function saveSettingAction(key: string, _p: FormState, f: FormData)
 export async function proofLinkAction(claimId: string): Promise<string | null> {
   const op = await requireOperator();
   return proofLink(getDriver(), await supabaseBlobStore(), op.id, claimId).catch(() => null);
+}
+
+export async function saveTaxRuleAction(_p: FormState, f: FormData): Promise<FormState> {
+  return run(async (op) => {
+    await saveTaxRule(getDriver(), op, { code: text(f, "code"), label: text(f, "label"), sales_tax_pct: text(f, "sales_tax_pct"), active: !/^(no|off|false|0)$/i.test(text(f, "active").trim()) });
+    return "Saved.";
+  });
+}
+
+export async function recordCertificateAction(invoiceId: string, _p: FormState, f: FormData): Promise<FormState> {
+  return run(async (op) => { await recordCertificate(getDriver(), op, invoiceId, { certificate_no: text(f, "certificate_no"), received_on: text(f, "received_on") }); return "Recorded."; });
+}
+
+export async function setOrgWithholdingAction(tenantId: string, _p: FormState, f: FormData): Promise<FormState> {
+  return run(async (op) => { await setOrgWithholding(getDriver(), op, tenantId, { income_pct: text(f, "income_pct"), sales_share_pct: text(f, "sales_share_pct") }); return "Saved."; });
 }
