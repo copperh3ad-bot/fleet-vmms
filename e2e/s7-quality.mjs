@@ -1,4 +1,4 @@
-import { axe, body, check, finding, go, has, overflow, persona, scenario, signInAs, step } from "./lib.mjs";
+import { axe, body, check, finding, go, has, overflow, persona, scenario, shot, signInAs, step } from "./lib.mjs";
 
 export async function quality(S) {
   scenario("7. Phones, accessibility and speed on the signed-in screens");
@@ -20,6 +20,7 @@ export async function quality(S) {
   for (const p of ["", "/vehicles", "/policy", "/billing", "/users", "/job-cards/new"]) {
     await step(`${base}${p || "/"}: accessibility check`, async () => {
       await go(S.pk, `${base}${p}`);
+      if (process.env.E2E_SHOTS) await shot(S.pk, `screen${p.replace(/\//g, "-") || "-home"}`);   // E2E_SHOTS=1 keeps a picture of each screen in e2e/shots
       const r = await axe(S.pk, `${p || "/"} (signed in)`);
       return `${r.length} issue types`;
     });

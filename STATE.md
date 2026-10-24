@@ -303,3 +303,6 @@
 
 ## 2026-10-25: invitation links go to a phone number only (ADR-026)
 - Phone number required on every invitation (international form), link box offers only WhatsApp and text message to that number (no copy, no email, link not shown), reset links go to the phone on the employee record. Invite form keeps its inputs after an error; single-column layout fixed. Not deployed.
+
+## 2026-10-25: premium surface and 3D wheel on the home page (ADR-027)
+- Shared pieces restyled (panels, number cards, buttons, sidebar, table rows) so every signed-in screen changes together; a 3D wheel with a route network sits behind the home page headline, loaded only on wide screens with motion allowed (about 86 KB, separate download). Browser test 144 passed (accessibility and phone-width checks included), unit tests 618 passed (one old timezone-dependent test fails only between 00:00 and 05:00 Pakistan time), no new vulnerabilities. E2E_SHOTS=1 now keeps a picture of each signed-in screen in e2e/shots.

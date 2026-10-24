@@ -128,7 +128,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
         </details>
       </header>
       {/* desktop: the fixed 232px sidebar */}
-      <aside className="hidden w-[232px] shrink-0 bg-side text-white md:block">
+      <aside className="side-bg hidden w-[232px] shrink-0 text-white md:block">
         <div className="sticky top-0 flex h-screen flex-col gap-5 overflow-y-auto px-3 py-5">
           <div className="px-3"><Logo height={44} /><p className="mt-2 text-xs text-[#9FB2BE]">{company}</p></div>
           <div className="flex-1">{nav}</div>

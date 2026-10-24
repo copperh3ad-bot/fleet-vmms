@@ -26,8 +26,8 @@ export function Kpi({ label, value, note, tone, href, mono = true }: { label: st
       {note && <p className="mt-1 text-xs text-zinc-500">{tone ? <Pill tone={tone}>{note}</Pill> : note}</p>}
     </>
   );
-  const cls = "block rounded-lg border border-zinc-200 bg-white p-4";
-  return href ? <a href={href} className={`${cls} hover:border-zinc-300`}>{body}</a> : <div className={cls}>{body}</div>;
+  const cls = "kpi block rounded-xl border border-zinc-200/80 bg-white p-4";
+  return href ? <a href={href} className={`${cls} kpi-link`}>{body}</a> : <div className={cls}>{body}</div>;
 }
 
 /** Title, one line of context, and the main actions on the right. */
@@ -36,7 +36,7 @@ export function PageHeader({ title, sub, actions, crumb }: { title: ReactNode; s
     <div className="flex flex-wrap items-start gap-3">
       <div className="min-w-0 flex-1">
         {crumb && <p className="text-sm text-zinc-500">{crumb}</p>}
-        <h1 className="text-[22px] font-semibold leading-tight">{title}</h1>
+        <h1 className="text-[24px] font-semibold leading-tight tracking-tight">{title}</h1>
         {sub && <p className="mt-0.5 text-sm text-zinc-500">{sub}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -47,9 +47,9 @@ export function PageHeader({ title, sub, actions, crumb }: { title: ReactNode; s
 /** A white card with a title row, as used on every designed screen. `action` sits at the right of the title. */
 export function Panel({ title, sub, action, children, flush }: { title?: ReactNode; sub?: ReactNode; action?: ReactNode; children: ReactNode; flush?: boolean }) {
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white text-zinc-900">
+    <section className="panel rounded-xl border border-zinc-200/80 bg-white text-zinc-900">
       {title && (
-        <header className="flex flex-wrap items-center gap-2 border-b border-zinc-100 px-5 py-3.5">
+        <header className="flex flex-wrap items-center gap-2 rounded-t-xl border-b border-zinc-100 bg-gradient-to-b from-white to-zinc-50 px-5 py-3.5">
           <h2 className="text-sm font-semibold">{title}</h2>
           {sub && <span className="text-xs text-zinc-500">{sub}</span>}
           {action && <div className="ml-auto">{action}</div>}
@@ -60,8 +60,8 @@ export function Panel({ title, sub, action, children, flush }: { title?: ReactNo
   );
 }
 
-export const btn ="inline-flex h-10 items-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 hover:bg-zinc-50";
-export const btnPrimary = "inline-flex h-10 items-center rounded-md bg-brand px-4 text-sm font-medium text-white hover:opacity-90";
+export const btn = "btn-base inline-flex h-10 items-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 shadow-sm hover:border-zinc-400 hover:bg-zinc-50";
+export const btnPrimary = "btn-base btn-primary inline-flex h-10 items-center rounded-lg px-4 text-sm font-medium text-white";
 
 /** Money as the design shows it: whole units, thousands separated, in mono. */
 export const money = (n: number | string) => Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 });

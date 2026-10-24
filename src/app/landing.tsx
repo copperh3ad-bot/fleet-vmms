@@ -1,6 +1,7 @@
 import { SiteShell } from "@/components/site-shell";
 import type { Offer } from "@/lib/billing/offer";
 import { HeroScene } from "@/components/hero-scene";
+import { Hero3D } from "@/components/hero-3d";
 
 const FEATURES: [string, string][] = [
   ["Job cards with approval", "A driver or fleet officer raises the job. A manager approves it. Nobody approves their own."],
@@ -23,6 +24,7 @@ export function Landing({ offer }: { offer: Offer | null }) {
     <SiteShell>
       <section className="hero-bg relative overflow-hidden text-white">
         <div aria-hidden className="hero-grid pointer-events-none absolute inset-0" />
+        <Hero3D />
         <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 md:grid-cols-[1fr_1.05fr] md:py-24">
           <div>
             <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-[#C9D5DC]"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-badge" /> Vehicle management and mobility</p>
@@ -39,7 +41,7 @@ export function Landing({ offer }: { offer: Offer | null }) {
       </section>
 
       <section className="mx-auto max-w-3xl px-5 pt-16" aria-label="Price">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-[var(--shadow-card)]">
           <p className="text-sm font-medium text-zinc-500">One plan, everything included</p>
           {offer ? (
             <div className="mt-2 grid gap-6 md:grid-cols-[1.1fr_1fr] md:items-center">
@@ -59,7 +61,7 @@ export function Landing({ offer }: { offer: Offer | null }) {
         <h2 className="text-2xl font-semibold">What you get</h2>
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(([t, d]) => (
-            <div key={t} className="reveal lift rounded-xl border border-zinc-200 bg-white p-5"><span aria-hidden className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-side text-base text-badge">{ICON[t]}</span><h3 className="font-semibold">{t}</h3><p className="mt-2 text-sm text-zinc-600">{d}</p></div>
+            <div key={t} className="reveal lift rounded-2xl border border-zinc-200 bg-white p-6 shadow-[var(--shadow-card)]"><span aria-hidden className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-side text-base text-badge">{ICON[t]}</span><h3 className="font-semibold">{t}</h3><p className="mt-2 text-sm text-zinc-600">{d}</p></div>
           ))}
         </div>
       </section>

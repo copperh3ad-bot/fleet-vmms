@@ -11,10 +11,10 @@ export function NavLink({ href, label, badge, exact, exclude = [], also = [], on
   const under = (base: string) => path === base || path.startsWith(`${base}/`);
   const active = (exact ? path === href : under(href) && !exclude.some(under)) || also.some(under);
   const tone = onDark
-    ? active ? "bg-side-active text-white" : "text-[#C6D3DC] hover:bg-side-active/60 hover:text-white"
+    ? active ? "nav-active text-white" : "text-[#C6D3DC] hover:bg-side-active/60 hover:text-white"
     : active ? "bg-sky-100 text-sky-800" : "text-zinc-700 hover:bg-zinc-100";
   return (
-    <Link href={href} aria-current={active ? "page" : undefined} className={`flex h-[38px] items-center gap-2 rounded-md px-3 text-sm font-medium ${tone}`}>
+    <Link href={href} aria-current={active ? "page" : undefined} className={`nav-item flex h-[38px] items-center gap-2 rounded-lg px-3 text-sm font-medium ${tone}`}>
       {icon}
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {badge ? <span className="rounded-full bg-badge px-2 py-0.5 text-xs font-semibold leading-none text-side" aria-label={`${badge} waiting`}>{badge}</span> : null}
