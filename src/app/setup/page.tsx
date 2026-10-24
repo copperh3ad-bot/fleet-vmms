@@ -11,7 +11,7 @@ import { signOut } from "@/app/login/actions";
 import { CreateOrganizationForm } from "./form";
 import { SetupProgressView } from "./progress";
 
-export const metadata: Metadata = { title: "Setting up · Fleet VMMS" };
+export const metadata: Metadata = { title: "Setting up · Fleet OTG" };
 
 export default function SetupPage() {
   return <Suspense fallback={<SiteShell><p className="p-6 text-sm text-zinc-500">Loading</p></SiteShell>}><Inner /></Suspense>;

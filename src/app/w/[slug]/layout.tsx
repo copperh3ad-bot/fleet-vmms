@@ -28,7 +28,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
       <div className="flex flex-1 flex-col">
         <header className="bg-side text-white">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-1 px-4 py-3 text-sm">
-            <span className="font-semibold">Fleet VMMS <span className="font-normal text-[#9FB2BE]">· {m.tenantName ?? slug}</span></span>
+            <span className="font-semibold">Fleet OTG <span className="font-normal text-[#9FB2BE]">· {m.tenantName ?? slug}</span></span>
             <nav className="flex gap-1" aria-label="Locked workspace"><NavLink href={`/w/${slug}/billing`} label="Billing" /></nav>
             <span className="ml-auto text-[#9FB2BE]">{who.name}</span>
             <form action={signOut}><button type="submit" className="underline">Sign out</button></form>
@@ -81,7 +81,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
       <div className="flex flex-1 flex-col">
         <header className="bg-side text-white">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-1 px-4 py-3 text-sm">
-            <span className="font-semibold">Fleet VMMS <span className="font-normal text-[#9FB2BE]">· Vendor portal</span></span>
+            <span className="font-semibold">Fleet OTG <span className="font-normal text-[#9FB2BE]">· Vendor portal</span></span>
             <nav className="flex gap-1" aria-label="Workshop">
               <NavLink href={to("/vendor")} label="My work" />
               <NavLink href={to("/notifications")} label={unread ? `Notifications (${unread})` : "Notifications"} />
@@ -120,7 +120,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
       <header className="bg-side text-white md:hidden">
         <details className="group">
           <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3">
-            <span><span className="block text-[17px] font-semibold leading-tight">Fleet VMMS</span><span className="block text-xs text-[#9FB2BE]">{company}</span></span>
+            <span><span className="block text-[17px] font-semibold leading-tight">Fleet OTG</span><span className="block text-xs text-[#9FB2BE]">{company}</span></span>
             <span className="rounded-md border border-white/25 px-3 py-1.5 text-sm">Menu{counts.approvals + counts.odometer + counts.joins > 0 ? <span className="ml-2 rounded-full bg-badge px-1.5 text-xs font-semibold text-side">{counts.approvals + counts.odometer + counts.joins}</span> : null}</span>
           </summary>
           <div className="space-y-4 px-3 pb-4">{nav}{foot}</div>
@@ -129,7 +129,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
       {/* desktop: the fixed 232px sidebar */}
       <aside className="hidden w-[232px] shrink-0 bg-side text-white md:block">
         <div className="sticky top-0 flex h-screen flex-col gap-5 overflow-y-auto px-3 py-5">
-          <div className="px-3"><p className="text-[17px] font-semibold leading-tight">Fleet VMMS</p><p className="mt-0.5 text-xs text-[#9FB2BE]">{company}</p></div>
+          <div className="px-3"><p className="text-[17px] font-semibold leading-tight">Fleet OTG</p><p className="mt-0.5 text-xs text-[#9FB2BE]">{company}</p></div>
           <div className="flex-1">{nav}</div>
           {foot}
         </div>

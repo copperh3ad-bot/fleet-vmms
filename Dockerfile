@@ -1,4 +1,4 @@
-# Fleet VMMS: self-contained production image (Next.js standalone output).
+# Fleet OTG: self-contained production image (Next.js standalone output).
 #
 # Build (the two NEXT_PUBLIC values are public by design but are fixed into the pages at build time, so pass them here):
 #   docker build -t fleet-vmms \

@@ -49,7 +49,7 @@ export function CertificateDocument({ c }: { c: Certificate }) {
         <div className="border-t border-zinc-400 pt-1 text-zinc-600">Received for the supplier: name, date</div>
       </div>
       <p className="mt-8 text-xs text-zinc-500">{CERTIFICATE_DISCLAIMER}</p>
-      <p className="mt-1 text-xs text-zinc-500">Issued by {c.issued_by_kind === "operator" ? "the supplier at the customer's request" : "the withholding agent"} through Fleet VMMS.</p>
+      <p className="mt-1 text-xs text-zinc-500">Issued by {c.issued_by_kind === "operator" ? "the supplier at the customer's request" : "the withholding agent"} through Fleet OTG.</p>
     </article>
   );
 }

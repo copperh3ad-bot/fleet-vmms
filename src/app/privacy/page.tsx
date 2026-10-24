@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal";
 import { TERMS_VERSION } from "@/lib/orgs/signup";
 
-export const metadata: Metadata = { title: "Privacy policy · Fleet VMMS" };
+export const metadata: Metadata = { title: "Privacy policy · Fleet OTG" };
 
 export default function PrivacyPage() {
   return (
     <LegalPage title="Privacy policy">
-      <p>Version {TERMS_VERSION}. [Company legal name] (&ldquo;we&rdquo;) runs Fleet VMMS. This page says what we collect and why.</p>
+      <p>Version {TERMS_VERSION}. [Company legal name] (&ldquo;we&rdquo;) runs Fleet OTG. This page says what we collect and why.</p>
       <h2>What we collect</h2>
       <ul>
         <li><strong>Sign-up details:</strong> company name, your name, email address, phone number (optional), fleet size.</li>

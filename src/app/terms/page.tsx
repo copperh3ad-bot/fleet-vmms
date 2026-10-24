@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal";
 import { TERMS_VERSION } from "@/lib/orgs/signup";
 
-export const metadata: Metadata = { title: "Terms of service · Fleet VMMS" };
+export const metadata: Metadata = { title: "Terms of service · Fleet OTG" };
 
 export default function TermsPage() {
   return (
     <LegalPage title="Terms of service">
       <p>Version {TERMS_VERSION}. These terms are between [company legal name, registration number, address] (&ldquo;we&rdquo;) and the company that signs up (&ldquo;you&rdquo;).</p>
       <h2>The service</h2>
-      <p>Fleet VMMS is software for managing the maintenance of vehicles and equipment: job cards, approvals, workshops, odometer readings, budgets, documents and reports. Your company gets its own workspace and its own database.</p>
+      <p>Fleet OTG is software for managing the maintenance of vehicles and equipment: job cards, approvals, workshops, odometer readings, budgets, documents and reports. Your company gets its own workspace and its own database.</p>
       <h2>Your account and your people</h2>
       <ul><li>The person who signs up is the administrator. You decide who else gets access and what they can do.</li><li>You are responsible for what your users do and for keeping their passwords private.</li><li>You must be authorised to sign up on behalf of your company.</li></ul>
       <h2>Free trial</h2>

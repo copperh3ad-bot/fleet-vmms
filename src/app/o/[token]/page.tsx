@@ -23,7 +23,7 @@ async function Inner({ params }: { params: Promise<{ token: string }> }) {
   const view = (await allowShared(getDriver(), `link-view-ip:${await clientIp()}`, 60, 600)) ? await lookupLink(getDriver(), token) : null;
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-page text-zinc-900">
-      <header className="bg-side px-5 py-5 text-white"><p className="text-lg font-semibold">Fleet VMMS</p></header>
+      <header className="bg-side px-5 py-5 text-white"><p className="text-lg font-semibold">Fleet OTG</p></header>
       <main className="flex flex-1 flex-col gap-5 p-5">
         {view ? (
           <>

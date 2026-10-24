@@ -4,7 +4,7 @@
 // replaced. Issuing one also records, on the invoice, that the certificate is held, so the operator's "certificates owed" list clears.
 //
 // What it is NOT: the statutory statement the withholding agent files and deposits through the tax authority's own system. This is a
-// document made by Fleet VMMS from the figures on the invoice and the deposit details the issuer enters, and it says so on its face.
+// document made by Fleet OTG from the figures on the invoice and the deposit details the issuer enters, and it says so on its face.
 import type { Driver, Queryable } from "@/lib/db/types";
 import { withPlatform } from "@/lib/db/tenant";
 import { authorized, type Membership } from "@/lib/auth/can";
@@ -20,7 +20,7 @@ export type Certificate = {
 };
 
 export const CERTIFICATE_DISCLAIMER =
-  "This certificate was prepared through Fleet VMMS from the figures on the invoice named above and the deposit details entered by the withholding agent. It does not replace any statement the withholding agent must file or issue through the tax authority's own system. The withholding agent remains responsible for deducting, depositing and reporting the tax as the law requires.";
+  "This certificate was prepared through Fleet OTG from the figures on the invoice named above and the deposit details entered by the withholding agent. It does not replace any statement the withholding agent must file or issue through the tax authority's own system. The withholding agent remains responsible for deducting, depositing and reporting the tax as the law requires.";
 
 const COLS = `c.id, c.number, c.invoice_id, i.number as invoice_number, c.tenant_id, i.billed_to as org_name, c.issued_by_kind, c.agent, c.payee, c.currency, c.gross_minor::text, c.income_tax_pct::text,
   c.income_tax_minor::text, c.sales_tax_minor::text, c.section, c.deposit_reference, c.deposit_date::text, c.note, c.status, c.void_reason, c.issued_at::text, i.issued_at::text as invoice_issued_at`;
@@ -58,7 +58,7 @@ async function issue(q: Queryable, by: { userId: string; kind: "customer" | "ope
      inv.snap.currency ?? "PKR", gross, inv.snap.wht.income_pct, whtI, whtS, set.wht_certificate_section ?? null, ref || null, date || null, (v.note ?? "").trim().slice(0, 300) || null])).rows[0];
   // the invoice now has its certificate: the operator's list of certificates still owed no longer shows it
   await q.query(
-    `insert into public.invoice_certificates(invoice_id, certificate_no, received_on, note, recorded_by) values ($1, $2, current_date, 'Issued through Fleet VMMS', $3)
+    `insert into public.invoice_certificates(invoice_id, certificate_no, received_on, note, recorded_by) values ($1, $2, current_date, 'Issued through Fleet OTG', $3)
      on conflict (invoice_id) do update set certificate_no = excluded.certificate_no, received_on = excluded.received_on, note = excluded.note, recorded_by = excluded.recorded_by`, [invoiceId, row.number, by.userId]);
   return row;
 }

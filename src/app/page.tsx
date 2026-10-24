@@ -62,7 +62,7 @@ async function HomeInner() {
       {spaces.length === 0 && invites.length === 0 && (
         <div className="space-y-3 text-sm text-zinc-600">
           <p>You are signed in as {user.email}, but you have not been added to a workspace.</p>
-          <p>If your company already uses Fleet VMMS, ask your administrator for an invitation or for the company code, then <a className="font-medium text-brand underline" href="/join">ask to join</a>. To use it for your own company, <a className="font-medium text-brand underline" href="/setup">start a free trial</a>.</p>
+          <p>If your company already uses Fleet OTG, ask your administrator for an invitation or for the company code, then <a className="font-medium text-brand underline" href="/join">ask to join</a>. To use it for your own company, <a className="font-medium text-brand underline" href="/setup">start a free trial</a>.</p>
         </div>
       )}
       <ul className="space-y-2">

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { SiteShell } from "@/components/site-shell";
 import { ResendForm } from "./resend";
 
-export const metadata: Metadata = { title: "Check your email · Fleet VMMS" };
+export const metadata: Metadata = { title: "Check your email · Fleet OTG" };
 
 export default function CheckEmailPage() {
   return (

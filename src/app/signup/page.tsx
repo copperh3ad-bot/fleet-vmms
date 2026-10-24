@@ -8,7 +8,7 @@ import { signupsOpen } from "@/lib/orgs/runtime";
 import { countryOptions } from "@/lib/orgs/countries";
 import { SignupForm } from "./form";
 
-export const metadata: Metadata = { title: "Start your free trial · Fleet VMMS" };
+export const metadata: Metadata = { title: "Start your free trial · Fleet OTG" };
 
 export default function SignupPage() {
   return <Suspense fallback={<SiteShell active="signup"><p className="p-6 text-sm text-zinc-500">Loading</p></SiteShell>}><Inner /></Suspense>;

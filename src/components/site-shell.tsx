@@ -7,7 +7,7 @@ export function SiteShell({ children, active }: { children: ReactNode; active?: 
     <div className="flex min-h-screen flex-col bg-page text-zinc-900">
       <header className="bg-side text-white">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-5 py-4">
-          <Link href="/" className="text-lg font-semibold">Fleet VMMS</Link>
+          <Link href="/" className="text-lg font-semibold">Fleet OTG</Link>
           <nav className="ml-auto flex items-center gap-2 text-sm" aria-label="Account">
             {active !== "pricing" && <a href="/pricing" className="rounded-md px-3 py-2 text-[#C9D5DC] hover:text-white">Pricing</a>}
             {active !== "login" && <a href="/login" className="rounded-md px-3 py-2 text-[#C9D5DC] hover:text-white">Sign in</a>}
@@ -18,7 +18,7 @@ export function SiteShell({ children, active }: { children: ReactNode; active?: 
       <main className="flex-1">{children}</main>
       <footer className="border-t border-zinc-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-6 text-sm text-zinc-500">
-          <span>Fleet VMMS</span>
+          <span>Fleet OTG</span>
           <a href="/terms" className="underline">Terms</a>
           <a href="/privacy" className="underline">Privacy</a>
           <a href="/pricing" className="underline">Pricing</a>

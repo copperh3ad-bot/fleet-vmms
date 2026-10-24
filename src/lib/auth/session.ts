@@ -47,7 +47,7 @@ export async function requireMembership(slug: string, opts: { allowLocked?: bool
 }
 
 /**
- * The signed-in platform operator (the person in platform_admins who runs Fleet VMMS itself). Anyone else is sent to the
+ * The signed-in platform operator (the person in platform_admins who runs Fleet OTG itself). Anyone else is sent to the
  * first page without a hint that the operator screen exists. Every operator action also checks this again inside the
  * database transaction that does the work.
  */

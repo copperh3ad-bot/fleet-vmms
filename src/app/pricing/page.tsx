@@ -5,7 +5,7 @@ import { SiteShell } from "@/components/site-shell";
 import { getDriver } from "@/lib/db";
 import { loadOffer } from "@/lib/billing/offer";
 
-export const metadata: Metadata = { title: "Pricing · Fleet VMMS" };
+export const metadata: Metadata = { title: "Pricing · Fleet OTG" };
 
 export default function PricingPage() {
   return <Suspense fallback={<SiteShell active="pricing"><p className="p-6 text-sm text-zinc-500">Loading</p></SiteShell>}><Inner /></Suspense>;
@@ -25,7 +25,7 @@ async function Inner() {
     <SiteShell active="pricing">
       <div className="mx-auto max-w-5xl px-5 py-12">
         <h1 className="text-3xl font-semibold">One plan, one price</h1>
-        <p className="mt-2 max-w-2xl text-zinc-600">Everything in Fleet VMMS for your whole company. No per-user charges and no extras to switch on.</p>
+        <p className="mt-2 max-w-2xl text-zinc-600">Everything in Fleet OTG for your whole company. No per-user charges and no extras to switch on.</p>
 
         <div className="mt-8 grid gap-6 md:grid-cols-[1fr_1.3fr]">
           <section className="rounded-xl border border-zinc-200 bg-white p-6" aria-labelledby="plan">

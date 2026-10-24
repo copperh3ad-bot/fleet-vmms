@@ -14,5 +14,5 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/admin/accoun
   const from = q.get("from") ?? undefined, to = q.get("to") ?? undefined;
   if ((from && !DATE.test(from)) || (to && !DATE.test(to))) return new NextResponse("Dates look like 2026-10-31", { status: 400 });
   const body = kind === "journal" ? await journalCsv(getDriver(), op.id, { from, to }) : await taxSummaryCsv(getDriver(), op.id, { from, to });
-  return new NextResponse(body, { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="fleet-vmms-${kind}.csv"`, "cache-control": "no-store" } });
+  return new NextResponse(body, { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="fleet-otg-${kind}.csv"`, "cache-control": "no-store" } });
 }

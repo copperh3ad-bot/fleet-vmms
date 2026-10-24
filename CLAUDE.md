@@ -1,4 +1,4 @@
-# Fleet VMMS: working rules
+# Fleet OTG: working rules
 
 Multi-tenant SaaS for vehicle and asset maintenance management. Plan: see `docs/PLAN.md`.
 

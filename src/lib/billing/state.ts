@@ -74,7 +74,7 @@ export function accessMessage(a: Access): { tone: "info" | "warn" | "bad"; text:
   const left = (n: number | null) => (n === 1 ? "1 day" : `${n} days`);
   switch (a.state) {
     case "trial": return { tone: a.daysLeft! <= 1 ? "warn" : "info", text: `Free trial: ${left(a.daysLeft)} left.` };
-    case "grace": return { tone: "warn", text: `Your subscription payment is overdue. Pay within ${left(a.daysLeft)} to keep using Fleet VMMS.` };
+    case "grace": return { tone: "warn", text: `Your subscription payment is overdue. Pay within ${left(a.daysLeft)} to keep using Fleet OTG.` };
     case "ending": return { tone: "info", text: `Your subscription ends in ${left(a.daysLeft)}.` };
     case "active": return a.daysLeft !== null && a.daysLeft <= 5 ? { tone: "info", text: `Your subscription renews in ${left(a.daysLeft)}. Pay before then to avoid a lock.` } : null;
     case "locked": return { tone: "bad", text: LOCK_TEXT[a.lockedReason ?? "no_subscription"] };

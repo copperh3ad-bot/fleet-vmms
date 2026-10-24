@@ -4,7 +4,7 @@ import { SiteShell } from "@/components/site-shell";
 import { normalizeCode } from "@/lib/orgs/join";
 import { JoinForm } from "../form";
 
-export const metadata: Metadata = { title: "Join as a workshop · Fleet VMMS" };
+export const metadata: Metadata = { title: "Join as a workshop · Fleet OTG" };
 
 export default function JoinWorkshopPage({ searchParams }: PageProps<"/join/workshop">) {
   return <Suspense fallback={<SiteShell active="join"><p className="p-6 text-sm text-zinc-500">Loading</p></SiteShell>}><Inner searchParams={searchParams} /></Suspense>;

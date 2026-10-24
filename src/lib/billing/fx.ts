@@ -75,7 +75,7 @@ export function parseInterbankPage(html: string): { date: string; buy: number; s
 
 export type FetchHtml = (url: string) => Promise<string>;
 const defaultFetch: FetchHtml = async (url) => {
-  const res = await fetch(url, { headers: { "user-agent": "FleetVMMS-rates/1.0 (daily rate check)" }, signal: AbortSignal.timeout(15000), redirect: "error" });
+  const res = await fetch(url, { headers: { "user-agent": "FleetOTG-rates/1.0 (daily rate check)" }, signal: AbortSignal.timeout(15000), redirect: "error" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.text();
 };

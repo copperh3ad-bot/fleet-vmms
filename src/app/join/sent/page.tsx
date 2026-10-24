@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { SiteShell } from "@/components/site-shell";
 import { ResendForm } from "@/app/signup/check-email/resend";
 
-export const metadata: Metadata = { title: "Request sent · Fleet VMMS" };
+export const metadata: Metadata = { title: "Request sent · Fleet OTG" };
 
 export default function JoinSentPage({ searchParams }: PageProps<"/join/sent">) {
   return <Suspense fallback={<SiteShell active="join"><p className="p-6 text-sm text-zinc-500">Loading</p></SiteShell>}><Inner searchParams={searchParams} /></Suspense>;

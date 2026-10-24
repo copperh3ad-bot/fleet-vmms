@@ -27,7 +27,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
         <header className="flex flex-wrap items-start justify-between gap-6">
           <div><h1 className="text-2xl font-semibold">{inv.tax?.snapshot.scenario?.title ?? (inv.tax ? "Tax invoice" : "Invoice")}</h1><p className="mt-1 font-mono text-lg">{inv.number}</p></div>
           <div className="text-sm sm:text-right">
-            <p className="font-semibold">{inv.tax?.snapshot.seller.legal_name ?? "Fleet VMMS"}</p>
+            <p className="font-semibold">{inv.tax?.snapshot.seller.legal_name ?? "Fleet OTG"}</p>
             {inv.tax && [inv.tax.snapshot.seller.ntn && `NTN ${inv.tax.snapshot.seller.ntn}`, inv.tax.snapshot.seller.tax_reg && `Sales tax reg. ${inv.tax.snapshot.seller.tax_reg}`, inv.tax.snapshot.seller.pseb_no && `PSEB ${inv.tax.snapshot.seller.pseb_no}`].filter(Boolean).length > 0 && <p className="text-zinc-600">{[inv.tax.snapshot.seller.ntn && `NTN ${inv.tax.snapshot.seller.ntn}`, inv.tax.snapshot.seller.tax_reg && `Sales tax reg. ${inv.tax.snapshot.seller.tax_reg}`, inv.tax.snapshot.seller.pseb_no && `PSEB ${inv.tax.snapshot.seller.pseb_no}`].filter(Boolean).join(" · ")}</p>}
             {settings.company_details && <p className="whitespace-pre-wrap text-zinc-600">{settings.company_details}</p>}
           </div>
@@ -41,7 +41,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
         <table className="mt-8 w-full text-left text-sm">
           <thead className="border-b border-zinc-300 text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="py-2">Description</th><th className="text-right">Amount</th></tr></thead>
           <tbody>
-            <tr className="border-b border-zinc-100"><td className="py-3">Fleet VMMS subscription, {inv.months} {inv.months === 1 ? "month" : "months"}<br /><span className="text-zinc-500">{dmy(inv.period_start)} to {dmy(inv.period_end)}</span></td><td className="py-3 text-right font-mono">{formatPrice(Number(inv.amount_cents), inv.currency)}</td></tr>
+            <tr className="border-b border-zinc-100"><td className="py-3">Fleet OTG subscription, {inv.months} {inv.months === 1 ? "month" : "months"}<br /><span className="text-zinc-500">{dmy(inv.period_start)} to {dmy(inv.period_end)}</span></td><td className="py-3 text-right font-mono">{formatPrice(Number(inv.amount_cents), inv.currency)}</td></tr>
             {inv.tax && (() => {
               const t = inv.tax, ccy = t.snapshot.currency ?? "PKR", none = t.snapshot.scenario?.mode === "none", kept = Number(t.wht_income_minor) + Number(t.wht_sales_minor);
               return none ? (

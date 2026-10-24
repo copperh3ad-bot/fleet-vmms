@@ -10,7 +10,7 @@ export default function LoginPage() {
   return (
     <main className="grid flex-1 md:grid-cols-2">
       <section className="hidden flex-col justify-between bg-side p-16 text-white md:flex">
-        <p className="text-lg font-semibold">Fleet VMMS</p>
+        <p className="text-lg font-semibold">Fleet OTG</p>
         <div className="max-w-md">
           <h2 className="text-[34px] font-semibold leading-tight">Know what every vehicle costs, and why.</h2>
           <p className="mt-4 text-[#9FB2BE]">Job cards, approvals, workshops, budgets and servicing in one place.</p>
@@ -20,7 +20,7 @@ export default function LoginPage() {
       <section className="flex items-center justify-center p-6">
         <form action={action} className="w-full max-w-[380px] space-y-4">
           <div>
-            <p className="mb-6 text-lg font-semibold md:hidden">Fleet VMMS</p>
+            <p className="mb-6 text-lg font-semibold md:hidden">Fleet OTG</p>
             <h1 className="text-xl font-semibold">Sign in</h1>
             <p className="text-sm text-zinc-500">Use the email your fleet office gave you.</p>
           </div>
@@ -41,7 +41,7 @@ export default function LoginPage() {
           </p>
           <div className="space-y-1 text-sm text-zinc-600">
             <p>New company? <a href="/signup" className="font-medium text-brand underline">Start a free trial</a>.</p>
-            <p>Your company already uses Fleet VMMS? Use your invitation link, or <a href="/join" className="font-medium text-brand underline">join with your company code</a>.</p>
+            <p>Your company already uses Fleet OTG? Use your invitation link, or <a href="/join" className="font-medium text-brand underline">join with your company code</a>.</p>
           </div>
         </form>
       </section>
