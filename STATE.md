@@ -291,3 +291,6 @@
 
 ## 2026-10-24: crawler files, link previews, phone icon (ADR-023)
 - robots.txt, sitemap.xml and security.txt are public; every page has a canonical link and its own link-preview tags with a 1200x630 share picture; apple-icon added. From audit items 3 to 5. Not deployed yet.
+
+## 2026-10-24: emails sent by the app (ADR-024)
+- POST /api/auth/send-email: Supabase Send Email hook, signed (Standard Webhooks), sends through any SMTP service (SMTP_URL, EMAIL_FROM, AUTH_HOOK_SECRET in Netlify). Covers sign-up confirmation, resend, join-with-code, password reset. Setup steps in docs/OPERATIONS.md, "Email". NOT live until the owner sets the mail service, the three settings and the Supabase hook (rollout order matters).

@@ -7,6 +7,10 @@ cd "$(dirname "$0")/.."
 export E2E_DB="${E2E_DB:-fleet_vmms_e2e}" E2E_PGHOST="${E2E_PGHOST:-/tmp}"
 export NEXT_PUBLIC_SUPABASE_URL="http://127.0.0.1:54399" NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="local-test-key"
 export DATABASE_URL="postgres:///${E2E_DB}?host=${E2E_PGHOST}"
+# The email hook (ADR-024): mail is written to a file instead of sent, and the hook secret is a made-up one for this run only.
+export E2E_OUTBOX="${E2E_OUTBOX:-/tmp/fleet-otg-e2e-outbox.jsonl}"
+rm -f "$E2E_OUTBOX"
+export AUTH_HOOK_SECRET="v1,whsec_$(printf "e2e-only-hook-secret-0123456789" | base64)" SMTP_URL="file:${E2E_OUTBOX}" EMAIL_FROM="Fleet OTG <noreply@example.test>" ALLOW_FILE_MAILER=1
 psql -h "$E2E_PGHOST" -d postgres -c "drop database if exists ${E2E_DB}" -c "create database ${E2E_DB}" >/dev/null
 npx tsx scripts/migrate-tenants.mts >/dev/null
 find .next -name "* [0-9]*" -delete 2>/dev/null || true

@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+import fs from "node:fs";
 import { APP, MOCK, axe, body, check, finding, fill, go, has, mock, overflow, persona, press, scenario, sql, step, uniq, waitText } from "./lib.mjs";
 
 const PUBLIC = ["/", "/pricing", "/signup", "/signup/check-email", "/join", "/join/workshop", "/join/sent", "/login", "/forgot-password", "/about", "/contact", "/terms", "/privacy"];
@@ -63,6 +65,23 @@ export async function publicPages(S) {
       check(/<link rel="canonical" href="https?:\/\/[^"]+"/.test(html), `${path}: no canonical link`);
       check(/<link rel="apple-touch-icon"/.test(html), `${path}: no apple-touch-icon link`);
     }
+  });
+
+  await step("the email hook sends a sign-up email only for a call signed by Supabase, and refuses everything else", async () => {
+    const secret = process.env.AUTH_HOOK_SECRET, outbox = process.env.E2E_OUTBOX;
+    check(secret && outbox, "the test run has no hook secret or outbox");
+    const sign = (id, ts, body) => crypto.createHmac("sha256", Buffer.from(secret.replace(/^v1,whsec_/, ""), "base64")).update(`${id}.${ts}.${body}`).digest("base64");
+    const to = `hook.${uniq()}@example.com`;
+    const body = JSON.stringify({ user: { email: to }, email_data: { token: "123456", token_hash: "hookhash0123456789", redirect_to: `${APP}/auth/callback`, email_action_type: "signup", site_url: APP } });
+    const post = (b, h) => fetch(`${APP}/api/auth/send-email`, { method: "POST", headers: { "content-type": "application/json", ...h }, body: b });
+    const ts = String(Math.floor(Date.now() / 1000));
+    check((await post(body, {})).status === 401, "an unsigned call was not refused");
+    check((await post(body, { "webhook-id": "m1", "webhook-timestamp": ts, "webhook-signature": "v1,AAAAAAAA" })).status === 401, "a wrongly signed call was not refused");
+    check(!fs.existsSync(outbox) || !fs.readFileSync(outbox, "utf8").includes(to), "a refused call still sent mail");
+    const ok = await post(body, { "webhook-id": "m2", "webhook-timestamp": ts, "webhook-signature": `v1,${sign("m2", ts, body)}` });
+    check(ok.status === 200, `a signed call gave ${ok.status}`);
+    const sent = fs.readFileSync(outbox, "utf8").trim().split("\n").map((l) => JSON.parse(l)).find((m) => m.to === to);
+    check(sent && /Confirm your Fleet OTG account/.test(sent.subject) && sent.text.includes("/auth/v1/verify?token=hookhash0123456789&type=signup"), `the mail was not as expected: ${JSON.stringify(sent)?.slice(0, 200)}`);
   });
 
   const OLD = ["an", "old", "test", "word", "1"].join("-"), NEW = ["a", "new", "test", "word", "2"].join("-"), OTHER = ["not", "the", "same", "one", "3"].join("-");
