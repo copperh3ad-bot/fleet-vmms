@@ -32,7 +32,7 @@ async function Inner() {
             <h2 id="plan" className="text-sm font-medium text-zinc-500">Standard plan</h2>
             {offer ? (
               <>
-                <p className="mt-2"><span className="text-4xl font-semibold">{offer.amount}</span> <span className="text-zinc-500">{offer.per}</span></p>
+                <p className="mt-2"><span className="text-3xl font-semibold leading-tight">{offer.headline}</span> <span className="block text-zinc-500">{offer.per}</span></p>
                 <ul className="mt-4 space-y-2 text-sm text-zinc-700">{offer.points.map((p) => <li key={p} className="flex gap-2"><span aria-hidden className="text-brand">✓</span>{p}</li>)}</ul>
                 <a href="/signup" className="mt-6 block rounded-md bg-brand py-3 text-center font-semibold text-white hover:opacity-90">Start your {offer.trialDays}-day free trial</a>
               </>

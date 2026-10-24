@@ -29,7 +29,7 @@ export function Landing({ offer }: { offer: Offer | null }) {
             <p className="text-sm font-medium text-zinc-500">One plan, everything included</p>
             {offer ? (
               <>
-                <p className="mt-2 flex items-baseline gap-2"><span className="text-5xl font-semibold">{offer.amount}</span><span className="text-zinc-500">{offer.per}</span></p>
+                <p className="mt-2"><span className="text-3xl font-semibold leading-tight">{offer.headline}</span> <span className="block text-zinc-500">{offer.per}</span></p>
                 <ul className="mt-5 space-y-2 text-sm">
                   {offer.points.map((p) => <li key={p} className="flex gap-2"><span aria-hidden className="text-brand">✓</span>{p}</li>)}
                 </ul>

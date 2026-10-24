@@ -6,6 +6,7 @@ export type Offer = {
   planKey: string; priceCents: number; currency: string; trialDays: number;
   /** "$149" */ amount: string;
   /** "per month" */ per: string;
+  /** What public pages say instead of the figure: the owner prices against a wage, and the exact amount is shown inside Billing. */ headline: string;
   /** Plain statements for the price box. */ points: string[];
 };
 
@@ -22,6 +23,7 @@ export function offerFrom(plan: { key: string; limits: Record<string, number | u
   return {
     planKey: plan.key, priceCents: plan.price_cents, currency: plan.currency, trialDays: plan.trial_days,
     amount: formatPrice(plan.price_cents, plan.currency), per: "per month, per company",
+    headline: "The monthly wage of an unskilled labourer",
     points: [
       "Every feature included",
       l.max_vehicles ? `Up to ${l.max_vehicles} vehicles` : "Any number of vehicles",
