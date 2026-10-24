@@ -63,7 +63,7 @@ describe("signing up onto the shared database", () => {
     expect(await resolveMembership(router, U(2), b.slug)).toBeNull();
     expect(await resolveMembership(router, U(3), a.slug)).toBeNull();
     expect((await ad.listMembers(router, a.admin)).map((m) => m.email)).toEqual(["owner2@example.com"]);
-    const inv = await ad.inviteUser(router, a.admin, { full_name: "Sam", email: "sam@example.com", role: "requester" });
+    const inv = await ad.inviteUser(router, a.admin, { full_name: "Sam", email: "sam@example.com", role: "requester", employee_no: "S-1" });
     await expect(ad.revokeInvitation(router, b.admin, inv.id)).rejects.toThrow(/no longer open/);
     expect(await ad.acceptInvitation(router, { token: inv.token }, { id: U(30), email: "sam@example.com", emailConfirmed: true })).toEqual({ slug: a.slug });
     expect(await listWorkspaces(router, U(30))).toEqual([{ slug: a.slug, name: "Side Alpha", role: "requester" }]);

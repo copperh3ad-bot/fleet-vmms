@@ -143,7 +143,7 @@ const forget = (driver: Driver, tenantId: string, requestId: string) =>
  * Approving makes an invitation (the person then accepts it after signing in, as with any invitation). A workshop also gets a
  * workshop record, remembered on the request so a retry does not make a second one.
  */
-export async function approveJoinRequest(driver: Driver, m: Membership, id: string, choice: { role?: string; vehicle_scope?: string } = {}): Promise<void> {
+export async function approveJoinRequest(driver: Driver, m: Membership, id: string, choice: { role?: string; vehicle_scope?: string; employee_no?: string } = {}): Promise<void> {
   const req = await authorized(driver, m, "admin.users", async (q) =>
     (await q.query<JoinRequest & { vendor_id: string | null }>(
       `select id, kind, full_name, email, phone, workshop_name, note, vendor_id, created_at::text from public.join_requests where id = $1 and tenant_id = $2 and status = 'pending'`, [id, m.tenantId])).rows[0]);
@@ -160,7 +160,8 @@ export async function approveJoinRequest(driver: Driver, m: Membership, id: stri
   } else {
     const role = choice.role || "requester";
     if (role === "vendor") throw new UserError("Choose a staff role. Workshops join through the workshop form.", { role: "Choose a staff role" });
-    invite = await inviteUser(driver, m, { full_name: req.full_name, email: req.email, phone: req.phone ?? "", role, vehicle_scope: choice.vehicle_scope === "all" ? "all" : "own" });
+    // Every invitation is for one employee code (ADR-025), so whoever approves says which employee this person is.
+    invite = await inviteUser(driver, m, { full_name: req.full_name, email: req.email, phone: req.phone ?? "", role, vehicle_scope: choice.vehicle_scope === "all" ? "all" : "own", employee_no: choice.employee_no ?? "" });
   }
   await authorized(driver, m, "admin.users", (q) => q.query(
     "update public.join_requests set status = 'approved', decided_by = $2, decided_at = now(), invitation_id = $3 where id = $1 and tenant_id = $4", [id, m.userId, invite.id, m.tenantId]));

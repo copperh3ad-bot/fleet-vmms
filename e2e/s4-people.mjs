@@ -60,6 +60,7 @@ export async function people(S) {
   });
   await step("approving makes an invitation, which the person accepts to get in as a requester", async () => {
     const item = o.page.locator("li", { hasText: "Bilal Ahmed" }).first();
+    await item.locator("input[name=employee_no]").fill(`B-${tag}`);
     await item.locator("select[name=role]").selectOption("requester");
     await press(o, item.getByRole("button", { name: "Approve" }), { wait: 1800 });
     await go(o, `${base}/users`);
@@ -97,6 +98,7 @@ export async function people(S) {
     await waitText(S.mgr, "Waiting for approval");
     await go(o, `${base}/users`);
     const item = o.page.locator("li", { hasText: "Farah Khan" }).first();
+    await item.locator("input[name=employee_no]").fill(`F-${tag}`);
     await item.locator("select[name=role]").selectOption("fleet_manager");
     await item.locator("select[name=vehicle_scope]").selectOption("all");
     await press(o, item.getByRole("button", { name: "Approve" }), { wait: 1800 });
@@ -223,5 +225,85 @@ export async function people(S) {
     check(limited, "13 wrong codes in a row were all answered");
     await v.ctx.close();
     sql("delete from public.rate_limits");
+  });
+  // ---------- a person with no email (ADR-025)
+  const PW2 = ["a", "new", "test", "password", "2"].join("-");
+  const noMail = { code: `NE-${tag}`, name: "Noor Driver", user: `${slug}.ne-${tag}`.toLowerCase() };
+  let linkPath = "";
+  const nd = await persona("noemail");
+  const landed = async (who) => {
+    try { await who.page.waitForURL(new RegExp(`/w/${slug}`), { timeout: 15000 }); }
+    catch { throw new Error(`stayed on ${who.page.url()}: ${(await body(who)).replace(/\s+/g, " ").slice(-350)}`); }
+  };
+  await step("an administrator invites someone with no email: employee code, role and a sign-in name, and gets a link to hand over", async () => {
+    await go(o, `${base}/users`);
+    const f = o.page.locator("form:has(#employee_no)").first();
+    await f.locator("#employee_no").fill(noMail.code);
+    await f.locator("#full_name").fill(noMail.name);
+    await f.locator("#role").selectOption("requester");
+    await f.getByLabel("With a sign-in name (no email)").check();
+    const shown = await f.locator("#username").inputValue();
+    check(shown === noMail.user, `the suggested sign-in name was "${shown}", wanted "${noMail.user}"`);
+    await press(o, "Create invitation", { wait: 2000 });
+    check(has(await body(o), "Their sign-in name is") && has(await body(o), noMail.user), `no sign-in name shown: ${(await body(o)).slice(0, 200)}`);
+    const url = await o.page.locator('input[aria-label="Invitation link"]').first().inputValue();
+    linkPath = new URL(url).pathname;
+    check(/^\/invite\/[A-Za-z0-9_-]{43}$/.test(linkPath), `the link was ${url}`);
+    check(sql(`select count(*) from "public".invitations where username = '${noMail.user}' and email is null and employee_no = '${noMail.code}'`) === "1", "the invitation was not stored with the sign-in name and code");
+  });
+  await step("the person opens the link, sees their sign-in name, chooses a password, and lands in the workspace", async () => {
+    await go(nd, linkPath);
+    check(has(await body(nd), "Your sign-in name") && has(await nd.page.locator("#identity").inputValue(), noMail.user), "the page does not show the sign-in name");
+    check(await nd.page.locator("#email").count() === 0, "an email box is shown to someone with no email");
+    await fill(nd, "#password", "short"); await fill(nd, "#confirm", "short");
+    await press(nd, "Create my account", { wait: 1200 });
+    check(has(await body(nd), "at least 10"), "a short password was accepted");
+    await fill(nd, "#password", PW); await fill(nd, "#confirm", PW);
+    await press(nd, "Create my account", { wait: 3000 });
+    await landed(nd);
+    check(sql(`select count(*) from public.login_names where username = '${noMail.user}' and login_email like '%@login.fleetotg.com'`) === "1", "no sign-in name was recorded");
+    check(sql(`select count(*) from "${schemaOf(slug)}".employees where employee_no = '${noMail.code}' and user_id is not null`) === "1", "the login was not linked to the employee code");
+    check(sql(`select role || '|' || vehicle_scope from public.tenant_memberships m join public.login_names l on l.user_id = m.user_id where l.username = '${noMail.user}'`) === "requester|own", "wrong role or vehicle scope");
+    const again = await go(nd, linkPath);
+    check(has(await body(nd), "not working"), `the link still works after use (${again?.status()})`);
+  });
+  await step("they sign in later with the sign-in name and password; a wrong password gives the one plain message", async () => {
+    await nd.ctx.clearCookies();
+    await go(nd, "/login");
+    await fill(nd, "#email", noMail.user.toUpperCase()); await fill(nd, "#password", "not-the-password-1");
+    await press(nd, "Sign in", { exact: true, wait: 1500 });
+    check(has(await body(nd), "do not match"), "a wrong password was not refused");
+    await fill(nd, "#email", noMail.user); await fill(nd, "#password", PW);   // the form clears itself after a failed try
+    await press(nd, "Sign in", { exact: true, wait: 3000 });
+    await landed(nd);
+    const ghost = await persona("ghost");
+    await go(ghost, "/login"); await fill(ghost, "#email", `nobody.${tag}`); await fill(ghost, "#password", PW);
+    await press(ghost, "Sign in", { exact: true, wait: 1500 });
+    check(has(await body(ghost), "do not match"), "an unknown sign-in name gave a different answer");
+    await ghost.ctx.close();
+  });
+  await step("the administrator makes a password reset link for them; it works once and the old password stops working", async () => {
+    await go(o, `${base}/users`);
+    const row = o.page.locator("tr", { hasText: noMail.name }).first();
+    check(has(await row.innerText(), noMail.code) && has(await row.innerText(), noMail.user), "the people list does not show the employee code and sign-in name");
+    await press(o, row.getByRole("button", { name: "Make a password reset link" }), { wait: 2000 });
+    const url = await o.page.locator('input[aria-label="Invitation link"]').first().inputValue();
+    const reset = new URL(url).pathname;
+    await nd.ctx.clearCookies();
+    await go(nd, reset);
+    check(has(await body(nd), "Choose a new password"), "the reset page does not say so");
+    await fill(nd, "#password", PW2); await fill(nd, "#confirm", PW2);
+    await press(nd, "Save my new password", { wait: 3000 });
+    await landed(nd);
+    await go(nd, reset);
+    check(has(await body(nd), "not working"), "the reset link worked twice");
+    await nd.ctx.clearCookies();
+    await go(nd, "/login"); await fill(nd, "#email", noMail.user); await fill(nd, "#password", PW);
+    await press(nd, "Sign in", { exact: true, wait: 1500 });
+    check(has(await body(nd), "do not match"), "the old password still works");
+    await fill(nd, "#email", noMail.user); await fill(nd, "#password", PW2);
+    await press(nd, "Sign in", { exact: true, wait: 3000 });
+    await landed(nd);
+    await nd.ctx.close();
   });
 }

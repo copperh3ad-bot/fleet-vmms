@@ -7,7 +7,7 @@ import { listVendors } from "@/lib/master/service";
 import { plural } from "@/lib/labels";
 import { getJoinCode, listJoinRequests } from "@/lib/orgs/join";
 import { origin } from "@/lib/origin";
-import { InviteForm, MemberControls, PendingActions } from "./forms";
+import { InviteForm, MemberControls, PendingActions, ResetLink } from "./forms";
 import { JoinCodePanel, JoinRequestActions } from "./join-forms";
 
 export default function UsersPage({ params, searchParams }: PageProps<"/w/[slug]/users">) {
@@ -74,21 +74,23 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
 
           <Panel title="People" flush>
             <div className="overflow-x-auto"><table className="w-full text-left text-sm">
-              <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Name</th><th>Login or company</th><th>Role</th><th>Status</th><th>Since</th><th /></tr></thead>
+              <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Name</th><th>Employee code</th><th>Sign-in</th><th>Role</th><th>Status</th><th>Since</th><th /></tr></thead>
               <tbody>
                 {members.map((p) => (
                   <tr key={p.user_id} className={`border-t border-zinc-100 align-top ${p.status === "disabled" ? "text-zinc-500" : ""}`}>
                     <td className="px-5 py-3 font-medium">{p.full_name ?? p.vendor_name ?? "Unnamed"}{p.is_me && <span className="ml-2 text-xs font-normal text-zinc-500">You</span>}</td>
-                    <td className="py-3">{p.email ?? (p.vendor_name ? p.vendor_name : "—")}</td>
+                    <td className="py-3 font-mono text-xs">{p.employee_no ?? "—"}</td>
+                    <td className="py-3">{p.email ?? (p.username ? <span><span className="font-mono">{p.username}</span><span className="block text-xs text-zinc-500">Sign-in name</span></span> : p.vendor_name ? p.vendor_name : "—")}</td>
                     <td className="py-3">{p.role_name}{p.vehicle_scope === "own" && p.role !== "vendor" && <span className="block text-xs text-zinc-500">Own vehicle only</span>}</td>
                     <td className="py-3"><Pill tone={status(p.status).tone}>{status(p.status).label}</Pill></td>
                     <td className="py-3 whitespace-nowrap">{dmy(p.since)}</td>
-                    <td className="py-3 pr-5 text-right">{!p.is_me && <a className="text-sky-800 underline" href={`/w/${slug}/users?edit=${p.user_id}#invite`}>Change</a>}</td>
+                    <td className="py-3 pr-5 text-right">{!p.is_me && <a className="text-sky-800 underline" href={`/w/${slug}/users?edit=${p.user_id}#invite`}>Change</a>}{!p.is_me && p.username && p.status === "active" && <div className="mt-1 text-left"><ResetLink slug={slug} userId={p.user_id} /></div>}</td>
                   </tr>))}
                 {invites.map((i) => (
                   <tr key={i.id} className="border-t border-zinc-100 align-top">
                     <td className="px-5 py-3 font-medium">{i.full_name}</td>
-                    <td className="py-3">{i.email ?? "—"}{i.vendor_name && <span className="block text-xs text-zinc-500">{i.vendor_name}</span>}</td>
+                    <td className="py-3 font-mono text-xs">{i.employee_no ?? "—"}</td>
+                    <td className="py-3">{i.email ?? (i.username ? <span className="font-mono">{i.username}</span> : "—")}{i.reset && <span className="block text-xs text-zinc-500">Password reset link</span>}{i.vendor_name && <span className="block text-xs text-zinc-500">{i.vendor_name}</span>}</td>
                     <td className="py-3">{i.role_name}</td>
                     <td className="py-3"><Pill tone={i.expired ? "bad" : "info"}>{i.expired ? "Link expired" : "Invited"}</Pill></td>
                     <td className="py-3 whitespace-nowrap">{dmy(i.created_at)}</td>
@@ -118,7 +120,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
               <MemberControls key={editing.user_id} slug={slug} userId={editing.user_id} role={editing.role} scope={editing.vehicle_scope} status={editing.status} roles={roleOpts} isMe={editing.is_me} isVendor={editing.role === "vendor"} />
             </Panel>
           ) : (
-            <Panel title="Invite a person" sub="Send a link. The person creates their account with the email you enter. Workshops are invited here too, with the role Vendor. People can also ask to join with your company code, below.">
+            <Panel title="Invite a person" sub="Each invitation is for one employee code and one role. Send the link: the person creates their account, with their email or with a sign-in name you give them if they have no email. Workshops are invited here too, with the role Vendor. People can also ask to join with your company code, below.">
               <InviteForm stack slug={slug} roles={roleOpts} vendors={vendors.filter((v) => v.status === "active").map((v) => [v.id, v.name])} />
             </Panel>
           )}

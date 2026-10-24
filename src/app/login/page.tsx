@@ -25,16 +25,17 @@ export default function LoginPage() {
           <div>
             <div className="mb-6 inline-block rounded-md bg-side px-4 py-3 md:hidden"><Logo height={36} /></div>
             <h1 className="text-xl font-semibold">Sign in</h1>
-            <p className="text-sm text-zinc-500">Use the email your fleet office gave you.</p>
+            <p className="text-sm text-zinc-500">Use the email or sign-in name your fleet office gave you.</p>
           </div>
           <div>
-            <label htmlFor="email" className="mb-1 block text-xs font-medium text-zinc-600">Email</label>
-            <input id="email" name="email" type="email" autoComplete="email" required placeholder="you@company.com" className={box} />
+            <label htmlFor="email" className="mb-1 block text-xs font-medium text-zinc-600">Email or sign-in name</label>
+            <input id="email" name="email" type="text" inputMode="email" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} required placeholder="you@company.com" className={box} />
           </div>
           <div>
             <label htmlFor="password" className="mb-1 block text-xs font-medium text-zinc-600">Password</label>
             <input id="password" name="password" type="password" autoComplete="current-password" required className={box} />
             <p className="mt-1 text-right text-xs"><a href="/forgot-password" className="font-medium text-brand underline">Forgot your password?</a></p>
+            <p className="mt-1 text-xs text-zinc-500">No email? Ask your administrator for a password reset link.</p>
           </div>
           {state.error && <p role="alert" className="text-sm text-red-700">{state.error}</p>}
           <button type="submit" disabled={pending || state.done} className="h-11 w-full rounded-md bg-brand font-medium text-white disabled:opacity-60">

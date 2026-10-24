@@ -54,6 +54,9 @@ export function JoinRequestActions({ slug, id, kind, roles }: { slug: string; id
       <form action={approve} className="flex flex-wrap items-center gap-2">
         {kind === "staff" ? (
           <>
+            <label className="sr-only" htmlFor={`code-${id}`}>Employee code</label>
+            <input id={`code-${id}`} name="employee_no" placeholder="Employee code" required className="h-9 w-32 rounded-md border border-zinc-300 bg-white px-2 text-sm" aria-describedby={`code-hint-${id}`} />
+            <span id={`code-hint-${id}`} className="sr-only">The code on this person&apos;s employee record</span>
             <label className="sr-only" htmlFor={`role-${id}`}>Role</label>
             <select id={`role-${id}`} name="role" defaultValue="requester" className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-sm">
               {roles.filter(([k]) => k !== "vendor").map(([k, n]) => <option key={k} value={k}>{n}</option>)}

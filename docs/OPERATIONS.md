@@ -70,6 +70,15 @@ this order. Do not switch the hook on (step 5) before steps 1 to 4, or every sig
 - **Rotating the mail password:** change it at the service, update `SMTP_URL` in Netlify, redeploy.
 - **Rotating the hook secret:** generate a new one in Supabase, update `AUTH_HOOK_SECRET`, redeploy, in that order, within a few minutes.
 
+## People with no email (sign-in names, ADR-025)
+Drivers and others with no email address are invited with an employee code, a role and a sign-in name. Nothing is emailed: you give them the link (copy it, or WhatsApp it).
+- **One-time set-up** **(you)**: in Supabase, Project settings, API, copy the **service_role** key. In Netlify, Site configuration, Environment variables, add
+  `SUPABASE_SERVICE_ROLE_KEY` with that value, mark it secret, and redeploy. Never paste it in a chat, a ticket or the repository. It can create and delete any login. Until it is set,
+  inviting by sign-in name is refused with a plain message; email invitations are unaffected.
+- **Run the migrations** first (`scripts/migrate-tenants.mts`): they add the sign-in names table and the new invitation columns.
+- **A forgotten password:** an administrator opens Users and roles, finds the person, and presses "Make a password reset link". The link works once and lasts 2 days.
+- **Rotating the key:** in Supabase, create a new service key, update `SUPABASE_SERVICE_ROLE_KEY` in Netlify, redeploy, then remove the old key.
+
 ## Who can do what
 - Owner (you): operator pages, billing, tax settings, deploys, all dashboards above.
 - The assistant: code, tests, migrations scripts, read-only audits. It does not hold your Supabase, Netlify or Namecheap logins.

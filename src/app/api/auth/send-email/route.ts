@@ -7,6 +7,7 @@ import { verifyWebhook } from "@/lib/email/webhook";
 import { buildMail, hookSchema } from "@/lib/email/templates";
 import { EmailNotConfigured, sendMail } from "@/lib/email/send";
 import { SITE_URL } from "@/lib/site";
+import { isLoginEmail } from "@/lib/auth/username";
 
 const MAX_BODY = 100_000;
 const fail = (status: number, message: string) => Response.json({ error: { http_code: status, message } }, { status, headers: { "Cache-Control": "no-store" } });
@@ -24,6 +25,8 @@ export async function POST(req: NextRequest) {
 
   let payload;
   try { payload = hookSchema.parse(JSON.parse(body)); } catch { return fail(400, "Unreadable request."); }
+  // A made-up login address (ADR-025) has no mailbox. Nothing is sent to it, and Supabase is told it went fine.
+  if (isLoginEmail(payload.user.email)) return Response.json({}, { headers: { "Cache-Control": "no-store" } });
   try {
     await sendMail(buildMail(payload, { supabaseUrl, siteUrl: SITE_URL }));
   } catch (e) {

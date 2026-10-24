@@ -25,7 +25,7 @@ type InputProps = { name: string; label: string; state: FormState; hint?: string
 export function Input({ name, label, state, hint, required, id = name, ...rest }: InputProps) {
   return (
     <Field label={label} name={name} state={state} hint={hint} required={required} id={id}>
-      <input id={id} name={name} className={inputCls} defaultValue={state.values?.[name] ?? ""} aria-invalid={!!state.fields?.[name]} {...rest} />
+      <input id={id} name={name} className={inputCls} {...("value" in rest ? {} : { defaultValue: state.values?.[name] ?? "" })} aria-invalid={!!state.fields?.[name]} {...rest} />
     </Field>
   );
 }

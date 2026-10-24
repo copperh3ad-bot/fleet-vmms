@@ -121,6 +121,12 @@ describe("the endpoint", () => {
     expect(sent).toMatchObject({ from: "Fleet OTG <noreply@fleetotg.com>", to: "Sara@Acme.example", subject: "Confirm your Fleet OTG account" });
     expect(sent.text).toContain("https://abc.supabase.co/auth/v1/verify?token=abc123DEF456ghi789&type=signup");
   });
+  it("sends nothing to a made-up login address (people with no email), and still answers fine", async () => {
+    const s = signed({ ...payload(), user: { id: "u1", email: "u0123456789abcdef01234567@login.fleetotg.com" } });
+    const r = await call(s.body, s.headers);
+    expect(r.status).toBe(200);
+    expect(existsSync(outbox)).toBe(false);
+  });
   it("sends nothing for an unsigned, wrongly signed or stale call", async () => {
     const s = signed(payload());
     expect((await call(s.body)).status).toBe(401);

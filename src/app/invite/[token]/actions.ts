@@ -7,9 +7,10 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { allowShared } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
 import { UserError } from "@/lib/master/service";
-import { acceptInvitation, hashInviteToken, previewInvitation } from "@/lib/admin/service";
+import { acceptInvitation, acceptWithUsername, hashInviteToken, previewInvitation } from "@/lib/admin/service";
 
-export type InviteFormState = { error?: string; notice?: string };
+/** `go` is where the browser moves on to once the account is made and the person is signed in. */
+export type InviteFormState = { error?: string; notice?: string; go?: string };
 
 const TEN_MIN = 600;
 const MIN_PASSWORD = 10;
@@ -28,6 +29,20 @@ export async function createAccountAction(token: string, _prev: InviteFormState,
   if (password !== String(form.get("confirm") ?? "")) return { error: "The two passwords do not match." };
 
   const supabase = await supabaseServer();
+
+  // A person with no email: the app makes their login (or, on a reset link, changes its password), then signs them in with it (ADR-025).
+  if (invite.username) {
+    try {
+      const done = await acceptWithUsername(driver, token, password);
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email: done.loginEmail, password });
+      if (signInError) return { notice: `Your password is set. Sign in with the sign-in name ${invite.username}.` };
+      return { go: `/w/${done.slug}` };
+    } catch (e) {
+      if (e instanceof UserError) return { error: e.message };
+      throw e;
+    }
+  }
+  if (!invite.email) return { error: "This invitation is not working. Ask for a new one." };
   const { data, error } = await supabase.auth.signUp({ email: invite.email, password });
   if (error) {
     if (/registered|exists/i.test(error.message)) return { error: "An account with this email already exists. Sign in with it, and your invitation will be waiting on the first page." };

@@ -16,7 +16,8 @@ const admin = () => mem("tenant_admin", 1);
 const raw = <T,>(fn: (q: import("@/lib/db/types").Queryable) => Promise<T>) => withTenant(d, admin(), fn);
 const plat = <T,>(fn: (q: import("@/lib/db/types").Queryable) => Promise<T>) => withPlatform(d, fn);
 const person = (n: number, email = `p${n}@example.com`, confirmed = true) => ({ id: U(n), email, emailConfirmed: confirmed });
-const invite = (email: string, extra: Record<string, unknown> = {}) => ad.inviteUser(d, admin(), { full_name: "New Person", email, role: "requester", ...extra });
+let codeSeq = 0;
+const invite = (email: string, extra: Record<string, unknown> = {}) => ad.inviteUser(d, admin(), { full_name: "New Person", email, role: "requester", ...(extra.role === "vendor" ? {} : { employee_no: `T-${++codeSeq}` }), ...extra });
 const setLimits = (limits: Record<string, number>) => plat(async (q) => {
   await q.query("insert into public.plans(key, name, limits) values ('small', 'Small', $1::jsonb) on conflict (key) do update set limits = excluded.limits", [JSON.stringify(limits)]);
   await q.query("insert into public.tenant_subscriptions(tenant_id, plan_id) select $1, id from public.plans where key = 'small' on conflict (tenant_id) do update set plan_id = excluded.plan_id, status = 'active'", [t.tenantId]);
@@ -36,7 +37,7 @@ describe("inviting", () => {
     expect(JSON.stringify(row)).not.toContain(inv.token);
     expect(row.token_hash).toBe(ad.hashInviteToken(inv.token));
     for (const role of ["fleet_manager", "finance", "requester", "auditor", "vendor"])
-      await expect(ad.inviteUser(d, mem(role, 40), { full_name: "X Y", email: "x@example.com", role: "requester" })).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(ad.inviteUser(d, mem(role, 40), { full_name: "X Y", email: "x@example.com", role: "requester", employee_no: "T-X" })).rejects.toBeInstanceOf(ForbiddenError);
     await expect(ad.listMembers(d, mem("fleet_manager", 40))).rejects.toBeInstanceOf(ForbiddenError);
   });
 
@@ -104,9 +105,9 @@ describe("accepting", () => {
     expect(await ad.previewInvitation(d, inv.token)).toBeNull();
   });
 
-  it("links an existing employee record with the same email instead of making a second one", async () => {
-    const e = await master.saveEmployee(d, admin(), { full_name: "Gina Imported", employee_no: "E-77", email: "gina@example.com" });
-    const inv = await invite("gina@example.com", { role: "fleet_manager", vehicle_scope: "own" });
+  it("links the employee record with the invitation's employee code instead of making a second one, whatever email is on it", async () => {
+    const e = await master.saveEmployee(d, admin(), { full_name: "Gina Imported", employee_no: "E-77", email: "gina.office@example.com" });
+    const inv = await invite("gina@example.com", { role: "fleet_manager", vehicle_scope: "own", employee_no: "E-77", full_name: undefined });
     await ad.acceptInvitation(d, { token: inv.token }, person(51, "gina@example.com"));
     expect(await raw(async (q) => (await q.query<{ id: string }>("select id from employees where user_id = $1", [U(51)])).rows)).toEqual([{ id: e.id }]);
     expect(await resolveMembership(d, U(51), slug)).toMatchObject({ role: "fleet_manager", vehicleScope: "own" });

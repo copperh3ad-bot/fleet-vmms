@@ -15,7 +15,7 @@ export async function joinCodeAction(slug: string, action: "on" | "regenerate" |
 
 export async function approveJoinAction(slug: string, id: string, _prev: FormState, form: FormData): Promise<FormState> {
   const state = await runAction(slug, async (m) => {
-    await approveJoinRequest(getDriver(), m, id, { role: str(form, "role"), vehicle_scope: str(form, "vehicle_scope") });
+    await approveJoinRequest(getDriver(), m, id, { role: str(form, "role"), vehicle_scope: str(form, "vehicle_scope"), employee_no: str(form, "employee_no") });
     return "Approved. They will see the invitation when they sign in.";
   });
   if (state.ok) refresh();

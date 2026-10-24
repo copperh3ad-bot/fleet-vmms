@@ -93,6 +93,25 @@ http.createServer(async (req, res) => {
     return send(res, 200, {});
   }
   if (path === "/__test/recovery") { const c = recoveries.get(String(url.searchParams.get("email")).toLowerCase()); return c ? send(res, 200, { code: c }) : send(res, 404, {}); }
+  // ---- the admin API (service key): make, change and remove a login for a person with no email (ADR-025)
+  if (path === "/auth/v1/admin/users" && req.method === "POST") {
+    if (!/^Bearer .+/.test(req.headers.authorization ?? "")) return err(res, 401, "no_authorization", "missing key");
+    const b = json(), email = String(b.email ?? "").toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+$/.test(email)) return err(res, 422, "validation_failed", "invalid email");
+    if (String(b.password ?? "").length < 6) return err(res, 422, "weak_password", "Password should be at least 6 characters.");
+    if (users.has(email)) return err(res, 422, "email_exists", "A user with this email address has already been registered");
+    const u = { id: crypto.randomUUID(), email, password: b.password, meta: b.user_metadata ?? {}, confirmed: b.email_confirm === true, confirmedAt: b.email_confirm === true ? new Date().toISOString() : null, createdAt: new Date().toISOString() };
+    users.set(email, u);
+    return send(res, 200, publicUser(u));
+  }
+  const adminUser = path.match(/^\/auth\/v1\/admin\/users\/([0-9a-f-]{36})$/);
+  if (adminUser) {
+    if (!/^Bearer .+/.test(req.headers.authorization ?? "")) return err(res, 401, "no_authorization", "missing key");
+    const u = [...users.values()].find((x) => x.id === adminUser[1]);
+    if (!u) return err(res, 404, "user_not_found", "User not found");
+    if (req.method === "PUT") { const b = json(); if (b.password !== undefined) { if (String(b.password).length < 6) return err(res, 422, "weak_password", "Password should be at least 6 characters."); u.password = b.password; } return send(res, 200, publicUser(u)); }
+    if (req.method === "DELETE") { users.delete(u.email); return send(res, 200, {}); }
+  }
   if (path === "/auth/v1/logout") return send(res, 204, "");
   if (path === "/auth/v1/resend") return send(res, 200, {});
 

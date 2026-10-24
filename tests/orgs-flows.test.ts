@@ -66,7 +66,7 @@ describe("signing in and finding the workspace", () => {
 
 describe("inviting and accepting across the two databases", () => {
   it("the invitation lives in the organization's database; the control plane only routes it", async () => {
-    const inv = await ad.inviteUser(router, admin, { full_name: "Sana Khan", email: "sana@example.com", role: "fleet_manager" });
+    const inv = await ad.inviteUser(router, admin, { full_name: "Sana Khan", email: "sana@example.com", role: "fleet_manager", employee_no: "F-1" });
     // in the organization's database, not in the control database
     const org = [...f.dbs.values()][0];
     expect((await org.transaction(async (q) => (await q.query("select email from public.invitations")).rows))).toEqual([{ email: "sana@example.com" }]);
@@ -76,7 +76,7 @@ describe("inviting and accepting across the two databases", () => {
     expect(routes).toContainEqual({ kind: "invite", tenant_id: admin.tenantId });
     expect(JSON.stringify(await control.transaction(async (q) => (await q.query("select * from public.link_routes")).rows))).not.toContain(inv.token);
 
-    expect(await ad.previewInvitation(router, inv.token)).toEqual({ workspace: "Acme Transport", full_name: "Sana Khan", email: "sana@example.com" });
+    expect(await ad.previewInvitation(router, inv.token)).toEqual({ workspace: "Acme Transport", full_name: "Sana Khan", email: "sana@example.com", username: null, reset: false });
     expect(await ad.previewInvitation(router, inv.token.slice(0, 42) + "x")).toBeNull();           // wrong token: nothing
 
     // she signs up elsewhere and sees the waiting invitation on the first page
@@ -97,7 +97,7 @@ describe("inviting and accepting across the two databases", () => {
   });
 
   it("accepting by invitation id from the first page works, and repeating a finished acceptance is safe", async () => {
-    const inv = await ad.inviteUser(router, admin, { full_name: "Ali Raza", email: "ali@example.com", role: "requester" });
+    const inv = await ad.inviteUser(router, admin, { full_name: "Ali Raza", email: "ali@example.com", role: "requester", employee_no: "F-2" });
     const user = person(12, "ali@example.com");
     expect(await ad.acceptInvitation(router, { id: inv.id }, user)).toEqual({ slug: "acme" });
     expect(await ad.acceptInvitation(router, { id: inv.id }, user).catch((e) => e.message)).toMatch(/not valid for your account|^\{/);   // the index row is gone after accepting
@@ -105,7 +105,7 @@ describe("inviting and accepting across the two databases", () => {
   });
 
   it("if the control plane step fails after joining, the person is a member and the same link finishes the job", async () => {
-    const inv = await ad.inviteUser(router, admin, { full_name: "Bilal Noor", email: "bilal@example.com", role: "requester" });
+    const inv = await ad.inviteUser(router, admin, { full_name: "Bilal Noor", email: "bilal@example.com", role: "requester", employee_no: "F-3" });
     let failNext = true;
     const flaky = routingDriver({
       control: { transaction: (fn) => control.transaction((q) => fn({ query: (sql, params) => { if (failNext && /insert into public\.user_orgs/.test(sql)) throw new Error("control plane unreachable"); return q.query(sql, params); } })) },
@@ -122,7 +122,7 @@ describe("inviting and accepting across the two databases", () => {
   });
 
   it("revoking and resending update the routes; another organization's administrator cannot see or cancel it", async () => {
-    const inv = await ad.inviteUser(router, admin, { full_name: "Zara Malik", email: "zara@example.com", role: "auditor" });
+    const inv = await ad.inviteUser(router, admin, { full_name: "Zara Malik", email: "zara@example.com", role: "auditor", employee_no: "F-4" });
     await expect(ad.revokeInvitation(router, other, inv.id)).rejects.toThrow(/no longer open/);
     const again = await ad.resendInvitation(router, admin, inv.id);
     expect(await ad.previewInvitation(router, inv.token)).toBeNull();                                // old link stopped
@@ -133,7 +133,7 @@ describe("inviting and accepting across the two databases", () => {
   });
 
   it("a suspended organization's links stop working", async () => {
-    const inv = await ad.inviteUser(router, admin, { full_name: "Yusuf Ali", email: "yusuf@example.com", role: "finance" });
+    const inv = await ad.inviteUser(router, admin, { full_name: "Yusuf Ali", email: "yusuf@example.com", role: "finance", employee_no: "F-5" });
     await control.transaction(async (q) => { await q.query("set local search_path = public"); await q.query("update public.tenants set status = 'suspended' where id = $1", [admin.tenantId]); });
     expect(await ad.previewInvitation(router, inv.token)).toBeNull();
     await expect(ad.acceptInvitation(router, { token: inv.token }, person(14, "yusuf@example.com"))).rejects.toThrow(/not valid/);

@@ -7,7 +7,7 @@ Next.js (App Router, TS), Tailwind, Supabase (Auth, Postgres 16, Storage), serve
 
 ## Non-negotiables
 1. **Tenant data is only reached through `src/lib/db/tenant.ts`.** No other module opens a DB connection or sets `search_path`.
-2. **Never use supabase-js for tenant tables.** It is for Auth and Storage only.
+2. **Never use supabase-js for tenant tables.** It is for Auth and Storage only. Supabase's service key is read in one file only, `src/lib/supabase/admin.ts` (ADR-025); `tests/auth-admin-key.test.ts` enforces it.
 3. **Every server action checks `can()`** (`src/lib/auth/can.ts`) before touching data.
 4. **Job card state changes go through one function** (`transitionJobCard`) and always write `job_card_events`.
 5. **No unauthenticated endpoints** except login/health, the single-use driver odometer link under the limits in ADR-006, the single-use invitation page under ADR-012, and the public landing, sign-up, terms, privacy and email-confirmation pages named in `PUBLIC_PATHS` under ADR-014, plus the pricing page and the join-with-a-code pages under ADR-016, the ask-for-a-password-reset page under ADR-019, the About us page under ADR-020, the Contact us form under ADR-021, the crawler files (robots.txt, sitemap.xml, security.txt) under ADR-023, and the signed email hook Supabase calls under ADR-024. No generic SQL-exec RPCs, ever.

@@ -146,7 +146,7 @@ describe("asking to join", () => {
 describe("the decision", () => {
   it("approving a staff request makes an invitation; accepting it after confirming the email makes the person a member with the chosen role", async () => {
     const [req] = await listJoinRequests(router, A.admin);
-    await approveJoinRequest(router, A.admin, req.id, { role: "fleet_manager", vehicle_scope: "all" });
+    await approveJoinRequest(router, A.admin, req.id, { role: "fleet_manager", vehicle_scope: "all", employee_no: "J-1" });
     expect(await pending(A)).toEqual([]);
     expect(await indexed("sana@example.com")).toEqual([]);                                            // no longer "waiting"
     const waitingInvites = await ad.pendingInvitationsFor(router, { email: "sana@example.com", emailConfirmed: true });
@@ -174,7 +174,7 @@ describe("the decision", () => {
     await ask(code, "workshop", { email: "speedy@example.com", full_name: "Imran Ali", workshop_name: "Speedy Auto Works", phone: "0300 1234567" });
     const req = (await listJoinRequests(router, A.admin)).find((r) => r.email === "speedy@example.com")!;
     expect(req).toMatchObject({ kind: "workshop", workshop_name: "Speedy Auto Works" });
-    await approveJoinRequest(router, A.admin, req.id);
+    await approveJoinRequest(router, A.admin, req.id, { employee_no: "J-2" });
     const shops = (await master.listVendors(router, A.admin)).filter((v) => v.name === "Speedy Auto Works");
     expect(shops).toHaveLength(1);
     const [inv] = await ad.pendingInvitationsFor(router, { email: "speedy@example.com", emailConfirmed: true });

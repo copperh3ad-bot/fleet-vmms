@@ -294,3 +294,6 @@
 
 ## 2026-10-24: emails sent by the app (ADR-024)
 - POST /api/auth/send-email: Supabase Send Email hook, signed (Standard Webhooks), sends through any SMTP service (SMTP_URL, EMAIL_FROM, AUTH_HOOK_SECRET in Netlify). Covers sign-up confirmation, resend, join-with-code, password reset. Setup steps in docs/OPERATIONS.md, "Email". NOT live until the owner sets the mail service, the three settings and the Supabase hook (rollout order matters).
+
+## 2026-10-24: invitations tied to an employee code; sign-in names for people with no email (ADR-025)
+- Every invitation (except a workshop) names a role and an employee code; accepting links the login to that employee record. People with no email get a sign-in name, set their own password from the link, and sign in with the name. An administrator makes a one-time reset link for them. Needs SUPABASE_SERVICE_ROLE_KEY in Netlify and control migration 0011 + public migration 0010 (NOT applied live). Not deployed.
