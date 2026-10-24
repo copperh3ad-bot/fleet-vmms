@@ -1,4 +1,4 @@
-# Fleet VMMS design export
+# Fleet OTG design export
 
 18 screens from the Claude Design canvas "Fleet VMMS Screens". Each is a standalone HTML file in `screens/` (open in any browser, no build). `png/` has a full-page screenshot of each, so you can look at them without opening a browser. `index.html` lists them all. Fonts are IBM Plex Sans and IBM Plex Mono from Google Fonts; screenshots here used fallback fonts.
 

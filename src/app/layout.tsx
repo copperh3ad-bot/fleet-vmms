@@ -7,8 +7,9 @@ const sans = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], 
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-plex-mono", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Fleet OTG",
+  title: "Fleet OTG: Vehicle Management & Mobility",
   description: "Vehicle & asset maintenance management for fleets",
+  applicationName: "Fleet OTG",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
