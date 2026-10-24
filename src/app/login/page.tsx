@@ -1,6 +1,7 @@
 "use client";
 import { useActionState } from "react";
 import { signIn, type LoginState } from "./actions";
+import { Logo } from "@/components/brand";
 
 const box = "h-11 w-full rounded-md border border-zinc-300 bg-white px-3 text-zinc-900";
 
@@ -10,7 +11,7 @@ export default function LoginPage() {
   return (
     <main className="grid flex-1 md:grid-cols-2">
       <section className="hidden flex-col justify-between bg-side p-16 text-white md:flex">
-        <p className="text-lg font-semibold">Fleet OTG</p>
+        <Logo height={56} />
         <div className="max-w-md">
           <h2 className="text-[34px] font-semibold leading-tight">Know what every vehicle costs, and why.</h2>
           <p className="mt-4 text-[#9FB2BE]">Job cards, approvals, workshops, budgets and servicing in one place.</p>
@@ -20,7 +21,7 @@ export default function LoginPage() {
       <section className="flex items-center justify-center p-6">
         <form action={action} className="w-full max-w-[380px] space-y-4">
           <div>
-            <p className="mb-6 text-lg font-semibold md:hidden">Fleet OTG</p>
+            <div className="mb-6 inline-block rounded-md bg-side px-4 py-3 md:hidden"><Logo height={36} /></div>
             <h1 className="text-xl font-semibold">Sign in</h1>
             <p className="text-sm text-zinc-500">Use the email your fleet office gave you.</p>
           </div>

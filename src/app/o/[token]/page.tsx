@@ -6,6 +6,7 @@ import { allowShared } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
 import { DEAD_LINK, lookupLink } from "@/lib/odometer/link";
 import { ReadingForm } from "./form";
+import { Logo } from "@/components/brand";
 
 export const metadata: Metadata = { title: "Odometer reading", robots: { index: false, follow: false }, referrer: "no-referrer" };
 
@@ -23,7 +24,7 @@ async function Inner({ params }: { params: Promise<{ token: string }> }) {
   const view = (await allowShared(getDriver(), `link-view-ip:${await clientIp()}`, 60, 600)) ? await lookupLink(getDriver(), token) : null;
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-page text-zinc-900">
-      <header className="bg-side px-5 py-5 text-white"><p className="text-lg font-semibold">Fleet OTG</p></header>
+      <header className="bg-side px-5 py-5 text-white"><Logo height={40} /></header>
       <main className="flex flex-1 flex-col gap-5 p-5">
         {view ? (
           <>
