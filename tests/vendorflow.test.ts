@@ -219,6 +219,23 @@ describe("quotation decisions", () => {
     await expect(vf.decideQuotation(d, mgr(), q1, "approve")).rejects.toThrow(/not awaiting a decision/i);
   });
 
+  it("the administrator may decide the quotation and check the invoice on a card they raised and approved themselves", async () => {
+    const { id } = await jc.createJobCard(d, owner(), { vehicle_id: veh, reason_code_id: reason, cause_text: "Own car, administrator does it all", lines: [] }, true);
+    await jc.transitionJobCard(d, owner(), id, "approved");
+    await jc.transitionJobCard(d, owner(), id, "vendor_assigned", { vendorId: vA });
+    await vf.submitQuotation(d, vendorA(), id, quote());
+    await vf.decideQuotation(d, owner(), await quotationOf(id), "approve");
+    expect(await statusOf(id)).toBe("quotation_approved");
+    const wo = await woOf(id);
+    await vf.startWork(d, vendorA(), wo);
+    await vf.completeWork(d, vendorA(), wo, "Done");
+    await vf.submitInvoice(d, vendorA(), wo, await invoiceInput(id));
+    const inv = await invoiceOf(wo);
+    expect((await vf.getInvoiceReview(d, owner(), inv))!.blocked).toBeNull();
+    await vf.verifyInvoice(d, owner(), inv, "pay_approved");
+    expect(await statusOf(id)).toBe("invoice_verified");
+  });
+
   it("the requester cannot approve the quotation for their own card", async () => {
     // manager raises the card for themself; another manager approves it; the first one then tries to approve the quote
     const { id } = await jc.createJobCard(d, mgr(), { vehicle_id: veh, reason_code_id: reason, cause_text: "Own car needs brake work done", lines: [] }, true);

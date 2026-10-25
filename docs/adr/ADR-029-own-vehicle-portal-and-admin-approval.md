@@ -15,8 +15,11 @@
    `jobcard.assign_vendor`, drops the table's blunt "approver is not the requester" check, and the guard keeps that rule for every other role.
    Approval is still recorded with the person and the time.
 
+5. **The same holds for quotations and invoices.** Migration 0021 gives the administrator `quotation.approve` and `invoice.verify`, and
+   `approve_quotation` and `verify_invoice` skip the separation-of-duties refusal for that role only. Everyone else keeps it.
+
 ## Not changed
-Quotation approval and invoice checking keep their separation of duties, including for administrators.
+Finance and fleet managers keep every separation of duties.
 
 ## Needs the owner
-Migration 0020 must be run on every tenant schema (`scripts/migrate-tenants.mts`) before administrators can self-approve on the live site.
+Migrations 0020 and 0021 must be run on every tenant schema (`scripts/migrate-tenants.mts`) before administrators can self-approve on the live site.

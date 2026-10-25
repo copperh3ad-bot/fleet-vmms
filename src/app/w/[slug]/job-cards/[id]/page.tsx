@@ -36,7 +36,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
   const canEdit = c.mine && perms.has("jobcard.create") && ["draft", "returned_for_edit"].includes(c.status);
   const commercial = perms.has("jobcard.read_all") && !["draft", "submitted", "returned_for_edit", "rejected", "cancelled", "approved"].includes(c.status);
   const flow = commercial ? await getJobFlow(driver, m, id) : null;
-  const canDecideQuote = c.status === "quotation_received" && perms.has("quotation.approve") && !c.requester_is_me;
+  const canDecideQuote = c.status === "quotation_received" && perms.has("quotation.approve") && (!c.requester_is_me || m.role === "tenant_admin");
   const canClose = c.status === "invoice_verified" && perms.has("invoice.verify");
   const [files, ctx, reasons, assignable] = await Promise.all([
     listJobCardAttachments(driver, await supabaseBlobStore(), m, id),

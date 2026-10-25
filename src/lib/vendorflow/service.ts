@@ -175,7 +175,8 @@ export function getInvoiceReview(driver: Driver, m: Membership, id: string): Pro
     const over = invoiced - approved;
 
     const me = (await q.query<{ id: string | null }>("select actor_employee($1) as id", [m.userId])).rows[0].id;
-    const blocked = me && me === j.approved_by ? { by: "approver" as const, name: j.approver_name ?? "The approver" }
+    // the administrator is the one role allowed to check an invoice on a card they raised or approved (migration 0021)
+    const blocked = m.role === "tenant_admin" ? null : me && me === j.approved_by ? { by: "approver" as const, name: j.approver_name ?? "The approver" }
       : me && me === j.requested_by ? { by: "requester" as const, name: j.requester_name } : null;
 
     const waitingRows = (await q.query<{ id: string }>("select i.id from invoices i where i.status = 'submitted' and i.id <> $1 order by i.invoice_date, i.id", [id])).rows;

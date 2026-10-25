@@ -89,7 +89,7 @@ describe("roles and permissions", () => {
     ["finance", "invoice.verify", true], ["finance", "jobcard.approve", false], ["finance", "vehicle.write", false],
     ["auditor", "jobcard.read_all", true], ["auditor", "jobcard.approve", false], ["auditor", "vehicle.write", false],
     ["vendor", "quotation.submit", true], ["vendor", "invoice.submit", true], ["vendor", "jobcard.read_all", false], ["vendor", "vehicle.read", false],
-    ["tenant_admin", "admin.users", true], ["tenant_admin", "invoice.verify", false],
+    ["tenant_admin", "admin.users", true], ["tenant_admin", "invoice.verify", true],
   ];
   it.each(matrix)("%s / %s -> %s", async (role, perm, want) => {
     const got = await withTenant(d, ctx(a, U(1), role), (q) => can(q, role, perm));
