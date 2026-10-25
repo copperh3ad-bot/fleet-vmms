@@ -6,6 +6,7 @@ import { unreadCount } from "@/lib/jobcards/service";
 import { getNavCounts } from "@/lib/dashboard/service";
 import { signOut } from "@/app/login/actions";
 import { NavLink } from "@/components/shell/nav-link";
+import { MobileMenu } from "@/components/shell/mobile-menu";
 import { AccessBanner } from "@/components/shell/access-banner";
 import { Logo, LogoMark } from "@/components/brand";
 
@@ -119,13 +120,11 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
     <div className="flex flex-1 flex-col md:flex-row">
       {/* phone and tablet: a bar with the menu folded away */}
       <header className="bg-side text-white md:hidden">
-        <details className="group">
-          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3">
+        <MobileMenu bar={<>
             <span className="flex items-center gap-3"><LogoMark height={30} /><span className="block text-xs text-[#9FB2BE]">{company}</span></span>
             <span className="rounded-md border border-white/25 px-3 py-1.5 text-sm">Menu{counts.approvals + counts.odometer + counts.joins > 0 ? <span className="ml-2 rounded-full bg-badge px-1.5 text-xs font-semibold text-side">{counts.approvals + counts.odometer + counts.joins}</span> : null}</span>
-          </summary>
-          <div className="space-y-4 px-3 pb-4">{nav}{foot}</div>
-        </details>
+          
+          </>}>{nav}{foot}</MobileMenu>
       </header>
       {/* desktop: the fixed 232px sidebar */}
       <aside className="side-bg hidden w-[232px] shrink-0 text-white md:block">

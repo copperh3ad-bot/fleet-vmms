@@ -11,7 +11,8 @@ const TITLE = "Fleet OTG: Vehicle Management & Mobility";
 const DESCRIPTION = "Vehicle & asset maintenance management for fleets";
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
-  openGraph: { type: "website", siteName: "Fleet OTG", locale: "en", title: TITLE, description: DESCRIPTION, url: "/" },
+  openGraph: { type: "website", siteName: "Fleet OTG", locale: "en", title: TITLE, description: DESCRIPTION, url: "/", images: [{ url: "/opengraph-image.png", width: 1200, height: 630 }] },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: ["/opengraph-image.png"] },
 };
 
 /** The price and trial length, kept for a few minutes. A failed read is kept for a second only, so a bad moment never sticks. */

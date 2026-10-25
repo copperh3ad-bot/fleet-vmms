@@ -17,6 +17,19 @@ export async function quality(S) {
     });
   }
 
+  await step("phone menu folds away after a link in it is used", async () => {
+    await go(m, `${base}`);
+    const menu = m.page.locator("header details");
+    await menu.locator("summary").click();
+    check(await menu.evaluate((d) => d.open), "the menu did not open");
+    await menu.locator('a[href$="/vehicles"]').first().click();
+    await m.page.waitForURL(`**${base}/vehicles**`);
+    check(!(await menu.evaluate((d) => d.open)), "the menu stayed open over the new page");
+    await menu.locator("summary").click();
+    await menu.locator(`a[aria-current="page"]`).first().click();   // the page you are already on
+    check(!(await menu.evaluate((d) => d.open)), "the menu stayed open after a link to the same page");
+  });
+
   for (const p of ["", "/vehicles", "/policy", "/billing", "/users", "/job-cards/new"]) {
     await step(`${base}${p || "/"}: accessibility check`, async () => {
       await go(S.pk, `${base}${p}`);

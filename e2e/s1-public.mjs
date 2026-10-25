@@ -22,6 +22,24 @@ export async function publicPages(S) {
     });
   }
 
+  await step("on a phone the public menu reaches About and Contact, marks the current page and closes after use", async () => {
+    const ph = await persona("visitor-phone", { viewport: { width: 375, height: 800 } });
+    await go(ph, "/pricing", 200);
+    const btn = ph.page.getByRole("button", { name: /open menu/i });
+    await btn.click();
+    const menu = ph.page.locator("#public-menu");
+    check(await menu.getByRole("link", { name: "About us" }).isVisible(), "About us is not in the phone menu");
+    check(await menu.getByRole("link", { name: "Contact us" }).isVisible(), "Contact us is not in the phone menu");
+    check((await menu.locator('a[aria-current="page"]').innerText()) === "Pricing", "the current page is not marked");
+    await ph.page.keyboard.press("Escape");
+    check(!(await menu.isVisible().catch(() => false)), "Escape did not close the menu");
+    await btn.click();
+    await menu.getByRole("link", { name: "About us" }).click();
+    await ph.page.waitForURL("**/about");
+    check((await ph.page.locator("#public-menu").count()) === 0, "the menu stayed open on the new page");
+    await ph.ctx.close();
+  });
+
   await step("the landing page offers sign-up, pricing and sign-in", async () => {
     await go(v, "/");
     const t = await body(v);
