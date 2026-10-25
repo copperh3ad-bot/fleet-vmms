@@ -8,7 +8,8 @@ import { ForbiddenError } from "@/lib/auth/can";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { addJobCardAttachment, removeJobCardAttachment } from "@/lib/jobcards/attachments";
 import { UserError } from "@/lib/master/service";
-import { decideQuotation } from "@/lib/vendorflow/service";
+import { createQuoteLink, decideQuotation } from "@/lib/vendorflow/service";
+import { origin } from "@/lib/origin";
 import { runAction, str, typed, type FormState } from "../actions-util";
 
 /** The form posts line fields as parallel lists (line_kind, line_description, ...). Fully blank rows are dropped. */
@@ -123,4 +124,20 @@ export async function reviewDecisionAction(slug: string, id: string, _prev: Form
   });
   if (state.ok) refresh();
   return state.error || state.fields ? { ...state, values: typed(form) } : state;
+}
+
+export type QuoteLinkState = FormState & { send?: { text: string; digits: string; e164: string; display: string; vendor: string; expires_at: string } };
+
+/** A fresh single-use estimate link for the assigned workshop. It goes to the workshop's own phone number only and is not shown on screen (ADR-030). */
+export async function createQuoteLinkAction(slug: string, jobId: string, _prev: QuoteLinkState): Promise<QuoteLinkState> {
+  const base = await origin();
+  let send: QuoteLinkState["send"];
+  const state = await runAction(slug, async (m) => {
+    const l = await createQuoteLink(getDriver(), m, jobId);
+    const url = `${base}/q/${l.token}`;
+    send = { text: `Fleet OTG: please send your estimate for job card ${l.job_no} using this link (works once, valid 7 days): ${url}`, digits: l.phone.digits, e164: l.phone.e164, display: l.phone.display, vendor: l.vendor_name, expires_at: l.expires_at };
+    return "Link ready.";
+  });
+  if (state.ok) refresh();
+  return { ...state, send };
 }

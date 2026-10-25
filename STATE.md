@@ -314,3 +314,8 @@
 ## 2026-10-25: own-vehicle portal, optional costs, administrator approval (ADR-029)
 - A person limited to their own vehicle sees only the dashboard (with what their vehicle has cost) and the job cards of their vehicle; all other pages refuse. Job card costs are optional for the person raising the card. The administrator may approve a card they raised (tenant migration 0020, NOT yet applied live: run scripts/migrate-tenants.mts).
 - Also this day: home page built ahead of time, public-site menus and footer, signed-in visitors see Open workspace, new logo and tagline, wording pass, sign-up says when an email already has an account, mail password kept out of logs.
+
+## 2026-10-25: workshop estimate link, quotations list, viewport and link checks
+- ADR-030: single-use /q/<token> link to the workshop phone; estimate saved against the job card. Needs platform 0011, control 0013, tenant 0022 run on live.
+- Quotations page; browser test now checks 5 widths and crawls every link; cost reconciliation test added.
+- Open: reports and some pages still hard-code PKR instead of the workspace currency.

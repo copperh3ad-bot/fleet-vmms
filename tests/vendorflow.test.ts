@@ -274,6 +274,9 @@ describe("permissions", () => {
     await forbidden(vf.decideQuotation(d, driver(), q, "approve"));
     await forbidden(vf.getJobFlow(d, driver(), job));                      // prices are not for requesters
     await forbidden(vf.getJobFlow(d, vendorA(), job));
+    expect((await vf.listQuotations(d, mgr(), { status: "submitted" })).some((x) => x.job_card_id === job)).toBe(true);   // the quotations list, for those who read all cards
+    await forbidden(vf.listQuotations(d, driver()));
+    await forbidden(vf.listQuotations(d, vendorA()));
     await forbidden(vf.listInvoices(d, mgr()));
     await forbidden(vf.listInvoices(d, vendorA()));
     await forbidden(vf.vendorOverview(d, mgr()));

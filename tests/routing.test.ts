@@ -26,6 +26,12 @@ describe("guard", () => {
     for (const p of ["/invite", "/invite/", "/invite/short", `/invite/${tok}/x`, `/invite/${tok}B`, `/x/invite/${tok}`, `/w/demo/invite/${tok}`, `/Invite/${tok}`])
       expect(guardDecision(p, false)).toEqual({ action: "redirect", to: "/login" });
   });
+  it("opens the workshop estimate link path, and only that exact shape (ADR-030)", () => {
+    const tok = "C".repeat(43);
+    expect(guardDecision(`/q/${tok}`, false)).toEqual({ action: "next" });
+    for (const p of ["/q", "/q/", "/q/short", `/q/${tok}/x`, `/q/${tok}C`, `/x/q/${tok}`, `/w/demo/q/${tok}`, `/Q/${tok}`])
+      expect(guardDecision(p, false)).toEqual({ action: "redirect", to: "/login" });
+  });
   it("lets signed-in users through", () => expect(guardDecision("/w/demo-fleet", true)).toEqual({ action: "next" }));
 });
 

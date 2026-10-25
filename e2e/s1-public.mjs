@@ -248,6 +248,19 @@ export async function publicPages(S) {
     check(/noindex/.test(h["x-robots-tag"] ?? ""), `x-robots-tag: ${h["x-robots-tag"]}`);
   });
 
+  await step("a workshop estimate link opens signed out, says only that a made-up link is not working, and is not cached or indexed", async () => {
+    const bad = "B".repeat(43);
+    const r = await go(v, `/q/${bad}`);
+    check(r.status() === 200, `status ${r.status()}`);
+    const t = await body(v);
+    check(/not working/i.test(t), "no plain message for a dead link");
+    check(!/tenant_|schema|error:|stack/i.test(t), "technical detail leaked");
+    const h = (await v.page.request.get(`${APP}/q/${bad}`)).headers();
+    check(/no-store/.test(h["cache-control"] ?? ""), `cache-control: ${h["cache-control"]}`);
+    check(/noindex/.test(h["x-robots-tag"] ?? ""), `x-robots-tag: ${h["x-robots-tag"]}`);
+    await go(v, "/q/too-short");
+  });
+
   await step("the site does not announce what it runs on", async () => {
     const r = await v.page.request.get(`${APP}/`);
     check(!r.headers()["x-powered-by"], `x-powered-by: ${r.headers()["x-powered-by"]}`);
@@ -263,14 +276,16 @@ export async function publicPages(S) {
     }
   });
 
-  for (const path of ["/", "/pricing", "/signup", "/login", "/join"]) {
-    await step(`${path} fits a phone screen (375px) with no sideways scrolling`, async () => {
-      const m = await persona("phone-" + path, { viewport: { width: 375, height: 800 } });
-      await go(m, path);
-      const o = await overflow(m);
-      await m.ctx.close();
-      check(o <= 1, `${o}px wider than the screen`);
-    });
+  for (const width of [320, 375, 768, 1024, 1440]) {
+    for (const path of ["/", "/pricing", "/about", "/contact", "/signup", "/login", "/join"]) {
+      await step(`${path} fits a ${width}px screen with no sideways scrolling`, async () => {
+        const m = await persona(`w${width}-` + path, { viewport: { width, height: 800 } });
+        await go(m, path);
+        const o = await overflow(m);
+        await m.ctx.close();
+        check(o <= 1, `${o}px wider than the screen`);
+      });
+    }
   }
 
   for (const path of ["/", "/pricing", "/signup", "/login", "/join", "/join/workshop"]) {

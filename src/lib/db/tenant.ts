@@ -32,13 +32,13 @@ export async function withTenant<T>(driver: Driver, ctx: TenantContext, fn: (q: 
  * as the database role odometer_link, which can do nothing except call link_submission_info and
  * submit_odometer_via_link. Anything else fails with "permission denied", whatever the calling code tries.
  */
-export async function withLinkContext<T>(driver: Driver, schema: string, fn: (q: Queryable) => Promise<T>): Promise<T> {
+export async function withLinkContext<T>(driver: Driver, schema: string, fn: (q: Queryable) => Promise<T>, role: "odometer_link" | "quotation_link" = "odometer_link"): Promise<T> {
   const name = assertSchemaName(schema);
   return driver.transaction(async (q) => {
     await q.query(`set local search_path = "${name}", public`);
-    await q.query(`select set_config('app.user_id', '', true), set_config('app.role', 'odometer_link', true)`);
+    await q.query(`select set_config('app.user_id', '', true), set_config('app.role', '${role}', true)`);
     // A real database role (migration 0011): no table access, EXECUTE on two functions only. Lasts until the transaction ends.
-    await q.query(`set local role odometer_link`);
+    await q.query(`set local role ${role}`);   // the role name is one of the two literals above, never input
     return fn(q);
   }, { schema: name });
 }

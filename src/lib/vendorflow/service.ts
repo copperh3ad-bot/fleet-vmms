@@ -9,6 +9,9 @@ import { fieldErrors } from "@/lib/master/schemas";
 import { lineSchema } from "@/lib/jobcards/schemas";
 import { friendly, notifyAfter } from "@/lib/jobcards/service";
 import { notify } from "@/lib/notify";
+import { normalizePhone } from "@/lib/phone";
+import { hashToken, newToken } from "@/lib/odometer/link";
+import { routeToken } from "@/lib/orgs";
 import { listAttachments, saveAttachment, type AttachmentRow, type BlobStore } from "@/lib/jobcards/attachments";
 
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
@@ -87,6 +90,49 @@ export function decideQuotation(driver: Driver, m: Membership, quotationId: stri
     if (decision === "approve") await notifyAfter(q, m, jobId, "quotation_approved");
     else await notify(q, [await vendorUserOfJob(q, jobId)], "quotation.rejected", { job_card_id: jobId, job_no: (await q.query<{ job_no: string }>("select job_no from job_cards where id = $1", [jobId])).rows[0].job_no }, m.userId);
   });
+}
+
+export type NewQuoteLink = { token: string; expires_at: string; job_no: string; vendor_name: string; phone: { e164: string; digits: string; display: string } };
+const QUOTE_LINK_HOURS = 168;
+const QUOTE_LINK_PERMS = ["jobcard.assign_vendor", "quotation.approve"];
+
+/** A fresh single-use link for the workshop on this job card, to be sent to the workshop's own phone number. Any earlier unused link stops working. */
+export async function createQuoteLink(driver: Driver, m: Membership, jobId: string): Promise<NewQuoteLink> {
+  const made = await authorizedAny(driver, m, QUOTE_LINK_PERMS, async (q) => {
+    const j = (await q.query<{ job_no: string; status: string; vendor_id: string | null; vendor_name: string | null; phone: string | null }>(
+      "select jc.job_no, jc.status, jc.vendor_id, vn.name as vendor_name, vn.phone from job_cards jc left join vendors vn on vn.id = jc.vendor_id where jc.id = $1", [jobId])).rows[0];
+    if (!j) throw new UserError("Job card not found.");
+    if (j.status !== "vendor_assigned" || !j.vendor_id) throw new UserError("This job card is not waiting for a workshop estimate.");
+    const phone = normalizePhone(j.phone ?? "");
+    if (!phone.ok) throw new UserError(`${j.vendor_name} has no mobile number a message can reach. Add it under Vendors first.`);
+    await q.query("update public.quotation_links set revoked_at = now() where tenant_id = $1 and job_card_id = $2 and used_at is null and revoked_at is null", [m.tenantId, jobId]);
+    const token = newToken();
+    const exp = (await q.query<{ e: string }>(
+      `insert into public.quotation_links(token_hash, tenant_id, job_card_id, vendor_id, created_by, expires_at)
+       values ($1, $2, $3, $4, $5, now() + ($6 || ' hours')::interval) returning expires_at::text as e`,
+      [hashToken(token), m.tenantId, jobId, j.vendor_id, m.userId, String(QUOTE_LINK_HOURS)])).rows[0].e;
+    return { token, expires_at: exp, job_no: j.job_no, vendor_name: j.vendor_name ?? "", phone: { e164: phone.e164, digits: phone.digits, display: phone.display } };
+  });
+  // The control plane learns which organization the link belongs to; without that it would not open.
+  try { await routeToken(driver, "quotation", m.tenantId, hashToken(made.token), made.expires_at); }
+  catch {
+    await authorizedAny(driver, m, QUOTE_LINK_PERMS, (q) => q.query("update public.quotation_links set revoked_at = now() where token_hash = $1", [hashToken(made.token)])).catch(() => undefined);
+    throw new UserError("The link could not be created. Try again.");
+  }
+  return made;
+}
+
+export type QuotationRow = { id: string; status: string; amount: string; created_at: string; valid_until: string | null; days_needed: number | null; warranty_months: number | null;
+  job_card_id: string; job_no: string; job_status: string; vendor_name: string; registration_no: string };
+
+/** Every vendor quotation in one list, newest first, for the people who may read all job cards. Read-only. */
+export function listQuotations(driver: Driver, m: Membership, opts: { status?: string } = {}): Promise<QuotationRow[]> {
+  return authorized(driver, m, "jobcard.read_all", async (q) =>
+    (await q.query<QuotationRow>(
+      `select qt.id, qt.status, qt.amount::text, qt.created_at::text, qt.valid_until::text, qt.days_needed, qt.warranty_months,
+              jc.id as job_card_id, jc.job_no, jc.status as job_status, vn.name as vendor_name, v.registration_no
+         from quotations qt join job_cards jc on jc.id = qt.job_card_id join vendors vn on vn.id = qt.vendor_id join vehicles v on v.id = jc.vehicle_id
+        ${opts.status ? "where qt.status = $1" : ""} order by qt.created_at desc, qt.id limit 300`, opts.status ? [opts.status] : [])).rows);
 }
 
 export type InvoiceRow = { id: string; invoice_no: string; invoice_date: string; amount: string; status: string; job_no: string; job_card_id: string; vendor_name: string; registration_no: string };

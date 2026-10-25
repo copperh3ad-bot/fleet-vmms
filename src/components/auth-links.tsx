@@ -19,7 +19,7 @@ export function HeaderAuth({ active }: { active: Active }) {
     <>
       <a href="/login" aria-current={active === "login" ? "page" : undefined}
         className={`hidden rounded-md px-3 py-2 sm:inline-block ${active === "login" ? "bg-white/10 text-white" : "text-[#C9D5DC] hover:text-white"}`}>Sign in</a>
-      {active !== "signup" && <a href="/signup" className="rounded-md bg-badge px-4 py-2 font-medium text-side hover:opacity-90"><span className="sm:hidden">Free trial</span><span className="hidden sm:inline">Start free trial</span></a>}
+      {active !== "signup" && <a href="/signup" className="rounded-md bg-badge px-3 py-2 font-medium text-side hover:opacity-90 sm:px-4"><span className="sm:hidden">Free trial</span><span className="hidden sm:inline">Start free trial</span></a>}
     </>
   );
 }

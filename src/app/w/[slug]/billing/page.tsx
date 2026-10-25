@@ -52,10 +52,10 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
       <PageHeader title="Billing" sub={`${m.tenantName ?? slug} · ${formatPrice(a.priceCents, a.currency)} per month`} actions={<a href={`/w/${slug}/export/vehicles`} className={btn}>Export my data</a>} />
 
       <Panel title="Your plan" action={<Pill tone={st.tone}>{st.label}</Pill>}>
-        <dl className="grid gap-4 text-sm sm:grid-cols-3">
+        <dl className="grid gap-4 break-words text-sm sm:grid-cols-3 [&>div]:min-w-0">
           <div><dt className="text-zinc-500">Price</dt><dd className="mt-1 font-mono text-lg">{formatPrice(a.priceCents, a.currency)} <span className="font-sans text-sm text-zinc-500">a month</span></dd></div>
           <div><dt className="text-zinc-500">{a.state === "trial" ? "Trial ends" : a.state === "locked" ? "Locked since" : "Paid until"}</dt><dd className="mt-1">{a.until ? dmy(a.until) : "—"}{a.daysLeft !== null && a.state !== "locked" ? <span className="text-zinc-500"> ({a.daysLeft} {a.daysLeft === 1 ? "day" : "days"} left)</span> : null}</dd></div>
-          {admin && <div><dt className="text-zinc-500">Your payment reference</dt><dd className="mt-1 font-mono text-lg">{paymentReference(m.tenantId)}</dd></div>}
+          {admin && <div><dt className="text-zinc-500">Your payment reference</dt><dd className="mt-1 break-all font-mono text-lg">{paymentReference(m.tenantId)}</dd></div>}
         </dl>
         {(msg || !a.full) && <p role="status" className={`mt-4 rounded-md border px-4 py-3 text-sm ${a.full ? "border-sky-200 bg-sky-100 text-sky-900" : "border-red-200 bg-red-50 text-red-900"}`}>{msg?.text ?? LOCK_TEXT[a.lockedReason ?? "no_subscription"]}</p>}
       </Panel>
@@ -121,27 +121,27 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
 
           <Panel title="Payments you have told us about" flush>
             {claims.length === 0 ? <p className="p-5 text-sm text-zinc-500">None yet.</p> : (
-              <table className="w-full text-left text-sm">
+              <div className="overflow-x-auto"><table className="w-full text-left text-sm">
                 <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Date</th><th>Amount</th><th>Reference</th><th className="px-5">Status</th></tr></thead>
                 <tbody>{claims.map((c) => (
                   <tr key={c.id} className="border-t border-zinc-100 align-top">
                     <td className="px-5 py-3">{dmy(c.paid_on)}</td><td className="py-3 font-mono">{minor(c.amount_minor, c.currency)}</td><td className="py-3">{c.bank_reference}</td>
                     <td className="px-5 py-3"><Pill tone={CLAIM[c.status].tone}>{CLAIM[c.status].label}</Pill>{c.decision_note && <span className="mt-1 block text-xs text-zinc-500">{c.decision_note}</span>}</td>
                   </tr>))}</tbody>
-              </table>
+              </table></div>
             )}
           </Panel>
 
           <Panel title="Invoices" flush>
             {invoices.length === 0 ? <p className="p-5 text-sm text-zinc-500">Invoices appear here once a payment is confirmed.</p> : (
-              <table className="w-full text-left text-sm">
+              <div className="overflow-x-auto"><table className="w-full text-left text-sm">
                 <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Invoice</th><th>Period</th><th className="px-5 text-right">Amount</th></tr></thead>
                 <tbody>{invoices.map((i) => (
                   <tr key={i.id} className="border-t border-zinc-100">
                     <td className="px-5 py-3"><a className="text-sky-800 underline" href={`/w/${slug}/billing/invoices/${i.id}`}>{i.number}</a></td>
                     <td className="py-3">{dmy(i.period_start)} to {dmy(i.period_end)}</td><td className="px-5 py-3 text-right font-mono">{minor(i.amount_cents, i.currency)}</td>
                   </tr>))}</tbody>
-              </table>
+              </table></div>
             )}
           </Panel>
         </div>

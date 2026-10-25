@@ -160,7 +160,7 @@ function OverviewBlocks({ o, to }: { o: Overview; to: (h: string) => string }) {
 
       <div className="rise grid gap-4 xl:grid-cols-[1.35fr_1fr]" style={{ "--i": 3 } as React.CSSProperties}>
         <Panel title="Maintenance spend, last 12 months" sub={`${cur} thousands${sm.monthlyBudget !== null ? " · dashed line is the monthly budget" : ""}`}>
-          <div className="chart-grid relative flex h-44 items-end gap-2 border-b border-zinc-200" role="img" aria-label={`Spend by month, this month so far ${money(sm.spent)}`}>
+          <div className="chart-grid relative flex h-44 items-end gap-1 border-b sm:gap-2 border-zinc-200" role="img" aria-label={`Spend by month, this month so far ${money(sm.spent)}`}>
             {sm.monthlyBudget !== null && <div className="pointer-events-none absolute inset-x-0 border-t-2 border-dashed border-red-600" style={{ bottom: `${(sm.monthlyBudget / maxBar) * 100}%` }} />}
             {o.spendByMonth.map((b, i) => (
               <div key={b.month} className="flex h-full flex-1 items-end" title={`${monthShort(b.month)}: ${money(b.cost)}`}>
@@ -168,7 +168,7 @@ function OverviewBlocks({ o, to }: { o: Overview; to: (h: string) => string }) {
               </div>
             ))}
           </div>
-          <div className="mt-1 flex gap-2 font-mono text-[11px] text-zinc-500">{o.spendByMonth.map((b) => <span key={b.month} className="flex-1 text-center">{monthShort(b.month)}</span>)}</div>
+          <div className="mt-1 flex gap-1 font-mono text-[9px] text-zinc-500 sm:gap-2 sm:text-[11px]">{o.spendByMonth.map((b) => <span key={b.month} className="min-w-0 flex-1 text-center">{monthShort(b.month)}</span>)}</div>
           <p className="mt-3 text-sm text-zinc-500">
             {monthName} so far is {k(sm.spent)} after {plural(sm.daysElapsed, "day")}.
             {sm.monthlyBudget !== null && sm.pctOverPace !== null && <> At this pace the month ends near {k(sm.projected)}, about {Math.abs(sm.pctOverPace)}% {sm.pctOverPace > 0 ? "over" : "under"} budget.</>}

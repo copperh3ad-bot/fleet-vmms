@@ -25,11 +25,11 @@ export type JobCardFormProps = {
   initial?: Record<string, string>; initialLines?: { kind: string; description: string; qty: string; unit_cost: string; service_type_key?: string | null }[];
 };
 
-function Submits({ editing }: { editing: boolean }) {
+function Submits({ editing, slug, id }: { editing: boolean; slug: string; id?: string }) {
   const { pending } = useFormStatus();
   return (
     <div className="flex flex-wrap gap-3">
-      <a href="../job-cards" className={`${btn} h-11`}>Cancel</a>
+      <a href={id ? `/w/${slug}/job-cards/${id}` : `/w/${slug}/job-cards`} className={`${btn} h-11`}>Cancel</a>
       <button type="submit" name="intent" value="draft" disabled={pending} className={`${btn} h-11 disabled:opacity-60`}>{editing ? "Save changes" : "Save draft"}</button>
       <button type="submit" name="intent" value="submit" disabled={pending} className="inline-flex h-11 items-center rounded-md bg-brand px-5 text-sm font-medium text-white disabled:opacity-60">{pending ? "Saving" : "Submit for approval"}</button>
     </div>
@@ -193,7 +193,7 @@ export function JobCardForm({ slug, id, currency = "PKR", vehicles, reasons, ser
 
           <Notice state={state} />
           <p className="text-sm text-zinc-500">Goes to a Fleet Manager for approval. You can&apos;t approve your own job card.</p>
-          <Submits editing={!!id} />
+          <Submits editing={!!id} slug={slug} id={id} />
         </div>
 
         <aside className="space-y-5">
