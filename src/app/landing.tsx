@@ -1,4 +1,5 @@
 import { SiteShell } from "@/components/site-shell";
+import type { ReactNode } from "react";
 import type { Offer } from "@/lib/billing/offer";
 import { HeroScene } from "@/components/hero-scene";
 import { Hero3D } from "@/components/hero-3d";
@@ -18,8 +19,9 @@ const ICON: Record<string, string> = {
   "Servicing that tells you what is due": "◷", "Budgets and flags": "▮", "Papers and fines in one place": "▤",
 };
 
-export function Landing({ offer }: { offer: Offer | null }) {
-  const days = offer?.trialDays ?? 3;
+/** `price` is the price box. It is passed in so the rest of the page can be built ahead of time while the price (read from the
+ *  plans table) is filled in separately. The trial length is not stated here for the same reason; the price box carries it. */
+export function Landing({ price }: { price: ReactNode }) {
   return (
     <SiteShell>
       <section className="hero-bg relative overflow-hidden text-white">
@@ -31,7 +33,7 @@ export function Landing({ offer }: { offer: Offer | null }) {
             <h1 className="mt-5 text-[40px] font-semibold leading-[1.08] md:text-5xl">Know what you&apos;re spending on your fleet&apos;s maintenance, <span className="text-badge">and why.</span></h1>
             <p className="mt-5 max-w-xl text-lg text-[#B6C6D0]">Maintenance for company fleets: job cards, approvals, workshops, budgets and servicing, in one place your whole team can use.</p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
-              <a href="/signup" className="shine rounded-md bg-badge px-6 py-3 text-base font-semibold text-side hover:opacity-90">Start your {days}-day free trial</a>
+              <a href="/signup" className="shine rounded-md bg-badge px-6 py-3 text-base font-semibold text-side hover:opacity-90">Start your free trial</a>
               <a href="/login" className="inline-block py-2 text-[#C9D5DC] underline">I already have an account</a>
             </div>
             <p className="mt-4 text-sm text-[#8EA3B0]">No card needed. Your data stays yours, and you can export it at any time.</p>
@@ -40,7 +42,42 @@ export function Landing({ offer }: { offer: Offer | null }) {
         </div>
       </section>
 
-      <section className="mx-auto max-w-3xl px-5 pt-16" aria-label="Price">
+      <section className="mx-auto max-w-3xl px-5 pt-16" aria-label="Price">{price}</section>
+
+      <section className="mx-auto max-w-6xl px-5 py-16">
+        <h2 className="text-2xl font-semibold">What you get</h2>
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURES.map(([t, d]) => (
+            <div key={t} className="reveal lift rounded-2xl border border-zinc-200 bg-white p-6 shadow-[var(--shadow-card)]"><span aria-hidden className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-side text-base text-badge">{ICON[t]}</span><h3 className="font-semibold">{t}</h3><p className="mt-2 text-sm text-zinc-600">{d}</p></div>
+          ))}
+        </div>
+      </section>
+
+      <section className="border-y border-zinc-200 bg-white">
+        <div className="mx-auto grid max-w-6xl gap-8 px-5 py-14 md:grid-cols-3">
+          {[["1", "Sign up", "Tell us your company and confirm your email. It takes about two minutes."], ["2", "We set up your own workspace", "Your company gets its own workspace, kept apart from every other company's, ready in under a minute."], ["3", "Add vehicles and invite your team", `Try everything during the free trial. Subscribe if it works for you; if not, export your data and leave.`]].map(([n, t, d]) => (
+            <div key={n} className="flex gap-4"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-side font-semibold text-white">{n}</span><div><h3 className="font-semibold">{t}</h3><p className="mt-1 text-sm text-zinc-600">{d}</p></div></div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-3xl px-5 py-16">
+        <h2 className="text-2xl font-semibold">Questions</h2>
+        <dl className="mt-6 space-y-6 text-sm">
+          <div><dt className="font-semibold">Is my data separate from other companies?</dt><dd className="mt-1 text-zinc-600">Yes. Every company&apos;s records are kept apart from every other company&apos;s. People from other companies cannot see them, and we check this with automated tests.</dd></div>
+          <div><dt className="font-semibold">What happens after the trial?</dt><dd className="mt-1 text-zinc-600">The workspace locks until you subscribe. Nothing is deleted, and you can still export your data. We keep it for 30 days after a lock.</dd></div>
+          <div><dt className="font-semibold">How do I pay?</dt><dd className="mt-1 text-zinc-600">By direct bank transfer for now. You send the transfer, upload the receipt, and we confirm it. Card payment is planned.</dd></div>
+          <div><dt className="font-semibold">Do my drivers need accounts?</dt><dd className="mt-1 text-zinc-600">No. Drivers who only send odometer readings use a link from a message. Staff who approve, raise or review jobs sign in.</dd></div>
+        </dl>
+        <a href="/signup" className="mt-10 inline-block rounded-md bg-brand px-6 py-3 font-semibold text-white hover:opacity-90">Start your free trial</a>
+      </section>
+    </SiteShell>
+  );
+}
+
+/** The price box, filled from the plan in the database. */
+export function PriceBox({ offer }: { offer: Offer | null }) {
+  return (
         <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-[var(--shadow-card)]">
           <p className="text-sm font-medium text-zinc-500">One plan, everything included</p>
           {offer ? (
@@ -55,35 +92,10 @@ export function Landing({ offer }: { offer: Offer | null }) {
             </div>
           ) : <p className="mt-3 text-sm text-zinc-600">Sign-up opens soon. Check back shortly, or sign in if you already have an account.</p>}
         </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-5 py-16">
-        <h2 className="text-2xl font-semibold">What you get</h2>
-        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map(([t, d]) => (
-            <div key={t} className="reveal lift rounded-2xl border border-zinc-200 bg-white p-6 shadow-[var(--shadow-card)]"><span aria-hidden className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-side text-base text-badge">{ICON[t]}</span><h3 className="font-semibold">{t}</h3><p className="mt-2 text-sm text-zinc-600">{d}</p></div>
-          ))}
-        </div>
-      </section>
-
-      <section className="border-y border-zinc-200 bg-white">
-        <div className="mx-auto grid max-w-6xl gap-8 px-5 py-14 md:grid-cols-3">
-          {[["1", "Sign up", "Tell us your company and confirm your email. It takes about two minutes."], ["2", "We set up your own workspace", "Your company gets its own workspace, kept apart from every other company's, ready in under a minute."], ["3", "Add vehicles and invite your team", `Try everything for ${days} days. Subscribe if it works for you; if not, export your data and leave.`]].map(([n, t, d]) => (
-            <div key={n} className="flex gap-4"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-side font-semibold text-white">{n}</span><div><h3 className="font-semibold">{t}</h3><p className="mt-1 text-sm text-zinc-600">{d}</p></div></div>
-          ))}
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-3xl px-5 py-16">
-        <h2 className="text-2xl font-semibold">Questions</h2>
-        <dl className="mt-6 space-y-6 text-sm">
-          <div><dt className="font-semibold">Is my data separate from other companies?</dt><dd className="mt-1 text-zinc-600">Yes. Every company&apos;s records are kept apart from every other company&apos;s. People from other companies cannot see them, and we check this with automated tests.</dd></div>
-          <div><dt className="font-semibold">What happens after the trial?</dt><dd className="mt-1 text-zinc-600">The workspace locks until you subscribe. Nothing is deleted, and you can still export your data. We keep it for 30 days after a lock.</dd></div>
-          <div><dt className="font-semibold">How do I pay?</dt><dd className="mt-1 text-zinc-600">By direct bank transfer for now. You send the transfer, upload the receipt, and we confirm it. Card payment is planned.</dd></div>
-          <div><dt className="font-semibold">Do my drivers need accounts?</dt><dd className="mt-1 text-zinc-600">No. Drivers who only send odometer readings use a link from a message. Staff who approve, raise or review jobs sign in.</dd></div>
-        </dl>
-        <a href="/signup" className="mt-10 inline-block rounded-md bg-brand px-6 py-3 font-semibold text-white hover:opacity-90">Start your {days}-day free trial</a>
-      </section>
-    </SiteShell>
   );
+}
+
+/** Shown in its place while the price is being read: the same box, empty. */
+export function PriceBoxPlaceholder() {
+  return <div aria-hidden className="h-64 rounded-2xl border border-zinc-200 bg-white shadow-[var(--shadow-card)]" />;
 }

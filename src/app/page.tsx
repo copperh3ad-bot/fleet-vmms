@@ -11,7 +11,7 @@ import { waitingRequestsFor } from "@/lib/orgs/join";
 import { loadOffer } from "@/lib/billing/offer";
 import { signOut } from "./login/actions";
 import { AcceptButton } from "./accept-button";
-import { Landing } from "./landing";
+import { Landing, PriceBox } from "./landing";
 
 export default function Home() {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><HomeInner /></Suspense>;
@@ -24,7 +24,7 @@ async function HomeInner() {
   const { data } = await supabase.auth.getUser();
   const driver = getDriver();
   const user = data.user;
-  if (!user) return <Landing offer={await loadOffer(driver).catch(() => null)} />;
+  if (!user) return <Landing price={<PriceBox offer={await loadOffer(driver).catch(() => null)} />} />;
 
   const [spaces, invites, waiting, asked] = await Promise.all([
     listWorkspaces(driver, user.id),
