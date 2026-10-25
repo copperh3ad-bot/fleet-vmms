@@ -15,7 +15,7 @@ export default function LoginPage() {
       <section className="hidden flex-col justify-between bg-side p-16 text-white md:flex">
         <Logo height={56} />
         <div className="max-w-md">
-          <h2 className="text-[34px] font-semibold leading-tight">Know what every vehicle costs, and why.</h2>
+          <h2 className="text-[34px] font-semibold leading-tight">Know what you&apos;re spending on your fleet&apos;s maintenance, and why.</h2>
           <p className="mt-4 text-[#9FB2BE]">Job cards, approvals, workshops, budgets and servicing in one place.</p>
         </div>
         <p className="text-xs text-[#7E93A1]"><a href="/pricing" className="underline">See pricing</a></p>

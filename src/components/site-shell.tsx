@@ -41,7 +41,7 @@ export function SiteShell({ children, active }: { children: ReactNode; active?: 
             <nav key={g.title} aria-label={g.title}>
               <p className="font-semibold text-zinc-900">{g.title}</p>
               <ul className="mt-2 space-y-1 text-zinc-600">
-                {g.links.map(([href, label]) => <li key={href}><a href={href} className="inline-block py-1 underline hover:text-zinc-900">{label}</a></li>)}
+                {g.links.map(([href, label]) => <li key={href}><a href={href} className="inline-block py-2 underline hover:text-zinc-900">{label}</a></li>)}
               </ul>
             </nav>
           ))}
