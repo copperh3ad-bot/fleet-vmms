@@ -22,6 +22,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const sp = await searchParams;
   const one = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : "");
   const m = await requireMembership(slug, { fullScope: true });
+  const cur = m.currency || "PKR";
   const driver = getDriver();
   const perms = await permissionsOf(driver, m);
   const manage = perms.has("compliance.manage");
@@ -64,10 +65,10 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
             )}
           </Panel>
 
-          <Panel title="Challans" sub={unpaid > 0 ? `PKR ${money(unpaid)} unpaid` : "Nothing unpaid"} flush action={<ExportLink slug={slug} kind="challans" query={{}} />}>
+          <Panel title="Challans" sub={unpaid > 0 ? `${cur} ${money(unpaid)} unpaid` : "Nothing unpaid"} flush action={<ExportLink slug={slug} kind="challans" query={{}} />}>
             {challans.length === 0 ? <p className="p-5 text-sm text-zinc-500">No challans.</p> : (
               <div className="overflow-x-auto"><table className="w-full text-left text-sm">
-                <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Date</th><th>Vehicle</th><th>Driver</th><th>Offence</th><th className="text-right">Amount (PKR)</th><th className="px-5">Status</th>{manage && <th />}</tr></thead>
+                <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Date</th><th>Vehicle</th><th>Driver</th><th>Offence</th><th className="text-right">Amount ({cur})</th><th className="px-5">Status</th>{manage && <th />}</tr></thead>
                 <tbody>{challans.map((c) => (
                   <tr key={c.id} className="border-t border-zinc-100 align-top">
                     <td className="px-5 py-3">{dmy(c.issued_on)}{c.reference && <span className="block text-xs text-zinc-500">{c.reference}</span>}</td>

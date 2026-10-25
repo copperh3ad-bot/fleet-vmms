@@ -13,28 +13,29 @@ const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
 
 export type QuoteLinkView = {
   job_no: string; registration_no: string; make: string | null; model: string | null; year: number | null;
-  description: string | null; cause_text: string | null; needed_by: string | null; vendor_name: string;
+  description: string | null; cause_text: string | null; needed_by: string | null; vendor_name: string; currency: string;
 };
 
-async function resolve(driver: Driver, token: string): Promise<{ schema: string; jobId: string; vendorId: string } | null> {
+async function resolve(driver: Driver, token: string): Promise<{ schema: string; jobId: string; vendorId: string; currency: string } | null> {
   if (!TOKEN_RE.test(token)) return null;
   const hash = hashToken(token);
   const t = await findTenantByToken(driver, "quotation", hash);       // the control plane says which organization's database to ask
   if (!t) return null;
-  const row = (await withOrgPlatform(driver, t.schema, (q) => q.query<{ job_card_id: string; vendor_id: string }>(
-    `select l.job_card_id, l.vendor_id
+  const row = (await withOrgPlatform(driver, t.schema, (q) => q.query<{ job_card_id: string; vendor_id: string; currency: string | null }>(
+    `select l.job_card_id, l.vendor_id, t.currency
        from public.quotation_links l join public.tenants t on t.id = l.tenant_id
       where l.token_hash = $1 and l.used_at is null and l.revoked_at is null and l.expires_at > now() and t.status = 'active'`, [hash]))).rows[0];
-  return row ? { schema: t.schema, jobId: row.job_card_id, vendorId: row.vendor_id } : null;
+  return row ? { schema: t.schema, jobId: row.job_card_id, vendorId: row.vendor_id, currency: row.currency || "PKR" } : null;
 }
 
 /** What the page shows, or null if the link does not work for any reason. */
 export async function lookupQuoteLink(driver: Driver, token: string): Promise<QuoteLinkView | null> {
   const link = await resolve(driver, token);
   if (!link) return null;
-  return withLinkContext(driver, link.schema, async (q) =>
-    (await q.query<QuoteLinkView>("select job_no, registration_no, make, model, year, description, cause_text, needed_by::text, vendor_name from quote_link_info($1, $2)", [link.jobId, link.vendorId])).rows[0] ?? null,
+  const view = await withLinkContext(driver, link.schema, async (q) =>
+    (await q.query<Omit<QuoteLinkView, "currency">>("select job_no, registration_no, make, model, year, description, cause_text, needed_by::text, vendor_name from quote_link_info($1, $2)", [link.jobId, link.vendorId])).rows[0] ?? null,
   "quotation_link");
+  return view ? { ...view, currency: link.currency } : null;
 }
 
 export type QuoteLinkResult = { ok: true } | { ok: false; reason: "invalid" } | { ok: false; reason: "bad_input"; message: string; fields?: Record<string, string> };

@@ -21,6 +21,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const sp = await searchParams;
   const months = [3, 6, 12, 24].includes(Number(sp.months)) ? Number(sp.months) : 12;
   const m = await requireMembership(slug, { fullScope: true });
+  const cur = m.currency || "PKR";
   const driver = getDriver();
   const [r, flags] = await Promise.all([costOverview(driver, m, months), getFlags(driver, m)]);
   const sel = "h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm";
@@ -35,9 +36,9 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
         </>} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Kpi label="Spent (PKR)" value={money(r.total)} />
+        <Kpi label={`Spent (${cur})`} value={money(r.total)} />
         <Kpi label="Job cards" value={r.jobs} />
-        <Kpi label="Average per job (PKR)" value={money(r.average)} />
+        <Kpi label={`Average per job (${cur})`} value={money(r.average)} />
       </div>
       <p className="-mt-2 text-xs text-zinc-500">Cost is the checked invoice amount once finance has verified it, otherwise the estimate. Drafts, cancelled and rejected cards are not counted.</p>
 

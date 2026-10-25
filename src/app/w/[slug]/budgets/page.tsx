@@ -24,6 +24,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const { slug } = await params;
   const sp = await searchParams;
   const m = await requireMembership(slug, { fullScope: true });
+  const cur = m.currency || "PKR";
   const driver = getDriver();
   const perms = await permissionsOf(driver, m);
   const manage = perms.has("budget.manage");
@@ -49,12 +50,12 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
             {!f ? <p className="text-sm text-zinc-500">No fleet budget for {board.year} yet. Add one on the right.</p> : (
               <div className="space-y-3">
                 <div className="flex flex-wrap items-baseline gap-x-8 gap-y-1">
-                  <p><span className="font-mono text-2xl">PKR {money(f.spent)}</span> <span className="text-sm text-zinc-500">of {money(f.amount)} spent</span></p>
+                  <p><span className="font-mono text-2xl">{cur} {money(f.spent)}</span> <span className="text-sm text-zinc-500">of {money(f.amount)} spent</span></p>
                   <Pill tone={STATUS[fleetTone].tone}>{f.pct}% used</Pill>
-                  <p className="text-sm text-zinc-500">{f.left >= 0 ? `PKR ${money(f.left)} left` : `PKR ${money(-f.left)} over`}</p>
+                  <p className="text-sm text-zinc-500">{f.left >= 0 ? `${cur} ${money(f.left)} left` : `${cur} ${money(-f.left)} over`}</p>
                 </div>
                 <span className="block h-2.5 rounded bg-zinc-100"><span className={`block h-2.5 rounded ${STATUS[fleetTone].bar}`} style={{ width: `${Math.min(100, f.pct)}%` }} /></span>
-                <p className="text-sm text-zinc-500">{f.yearGonePct}% of the period has gone. At this pace the year ends near PKR {money(f.projected)} ({f.projectedPct}% of budget){f.projectedPct > 100 ? ", which is over." : "."}</p>
+                <p className="text-sm text-zinc-500">{f.yearGonePct}% of the period has gone. At this pace the year ends near {cur} {money(f.projected)} ({f.projectedPct}% of budget){f.projectedPct > 100 ? ", which is over." : "."}</p>
               </div>
             )}
           </Panel>

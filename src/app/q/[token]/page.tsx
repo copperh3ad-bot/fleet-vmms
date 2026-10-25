@@ -36,7 +36,7 @@ async function Inner({ params }: { params: Promise<{ token: string }> }) {
               {(view.description || view.cause_text) && <p className="text-sm text-zinc-700">{view.description || view.cause_text}</p>}
               {view.needed_by && <p className="text-sm text-zinc-500">Needed by {new Date(view.needed_by).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}</p>}
             </div>
-            <EstimateForm token={token} currency="PKR" />
+            <EstimateForm token={token} currency={view.currency} />
           </>
         ) : (
           <p role="status" className="rounded-xl border border-zinc-200 bg-white p-5 text-base">{DEAD_QUOTE_LINK}</p>

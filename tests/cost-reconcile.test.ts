@@ -10,6 +10,7 @@ import * as jc from "@/lib/jobcards/service";
 import { costOverview } from "@/lib/analytics/service";
 import { exportCsv } from "@/lib/exports/service";
 import { getDashboard } from "@/lib/dashboard/service";
+import { findActiveTenant, membershipIn } from "@/lib/auth/can";
 
 const U = (n: number) => `00000000-0000-0000-0000-00000000${String(n).padStart(4, "0")}`;
 let d: Awaited<ReturnType<typeof testDriver>>;
@@ -67,5 +68,11 @@ describe("cost is the same number on every surface", () => {
     const all = (await getDashboard(d, owner())).health?.monthSpend ?? 0;
     expect(all).toBeGreaterThanOrEqual(mine!.monthSpend);
   });
+  it("the workspace currency reaches the signed-in context, so labels follow it", async () => {
+    await withPlatform(d, (q) => q.query("update public.tenants set currency = 'USD' where id = $1", [t.tenantId]));
+    const slug = (await withPlatform(d, async (q) => (await q.query<{ slug: string }>("select slug from public.tenants where id = $1", [t.tenantId])).rows[0].slug));
+    const tenant = (await findActiveTenant(d, slug))!;
+    expect(tenant.currency).toBe("USD");
+    expect((await membershipIn(d, tenant, U(11)))?.currency).toBe("USD");
+  });
 });
-

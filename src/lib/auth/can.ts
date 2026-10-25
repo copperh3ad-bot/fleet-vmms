@@ -9,16 +9,16 @@ export class ForbiddenError extends Error {
   constructor(public permission: string) { super(`forbidden: ${permission}`); }
 }
 
-export type Membership = TenantContext & { tenantId: string; vehicleScope: "all" | "own"; /** for display only */ tenantName?: string; /** set by requireMembership: trial, paid, grace or locked */ billing?: Access };
+export type Membership = TenantContext & { tenantId: string; vehicleScope: "all" | "own"; /** for display only */ tenantName?: string; /** the workspace currency code, for labels (display only) */ currency?: string; /** set by requireMembership: trial, paid, grace or locked */ billing?: Access };
 
-export type ActiveTenant = { id: string; schema: string; name: string };
+export type ActiveTenant = { id: string; schema: string; name: string; currency?: string };
 
 /** The active, fully set-up organization behind a web address, from the control plane. Null if there is none. */
 export async function findActiveTenant(driver: Driver, slug: string): Promise<ActiveTenant | null> {
   const t = await withPlatform(driver, async (q) =>
-    (await q.query<{ id: string; schema_name: string; name: string }>(
-      "select id, schema_name, name from public.tenants where slug = $1 and status = 'active' and provision_state = 'ready'", [slug])).rows[0]);
-  return t ? { id: t.id, schema: t.schema_name, name: t.name } : null;
+    (await q.query<{ id: string; schema_name: string; name: string; currency: string | null }>(
+      "select id, schema_name, name, currency from public.tenants where slug = $1 and status = 'active' and provision_state = 'ready'", [slug])).rows[0]);
+  return t ? { id: t.id, schema: t.schema_name, name: t.name, currency: t.currency || undefined } : null;
 }
 
 /** What this person is in that organization, read from the organization's own database (ADR-014). Null if not an active member. */
@@ -26,7 +26,7 @@ export async function membershipIn(driver: Driver, t: ActiveTenant, userId: stri
   const r = await withOrgPlatform(driver, t.schema, async (q) =>
     (await q.query<{ role: string; vehicle_scope: "all" | "own" }>(
       "select role, vehicle_scope from public.tenant_memberships where tenant_id = $1 and user_id = $2 and status = 'active'", [t.id, userId])).rows[0]);
-  return r ? { tenantId: t.id, schema: t.schema, userId, role: r.role, vehicleScope: r.vehicle_scope, tenantName: t.name } : null;
+  return r ? { tenantId: t.id, schema: t.schema, userId, role: r.role, vehicleScope: r.vehicle_scope, tenantName: t.name, currency: t.currency } : null;
 }
 
 /** Who is this user in this workspace? Null if not a member, disabled, or the tenant is not active. */

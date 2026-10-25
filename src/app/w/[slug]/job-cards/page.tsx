@@ -19,6 +19,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const q = typeof sp.q === "string" ? sp.q.slice(0, 80) : "";
   const status = typeof sp.status === "string" ? sp.status : "";
   const m = await requireMembership(slug);
+  const cur = m.currency || "PKR";
   const driver = getDriver();
   const [rows, perms] = await Promise.all([listJobCards(driver, m, { search: q || undefined, status: status || undefined }), permissionsOf(driver, m)]);
   const control = "h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm";
@@ -37,7 +38,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
         {rows.length === 0 ? <p className="p-5 text-sm text-zinc-500">{q || status ? "No job card matches." : "No job cards yet."}</p> : (
           <div className="overflow-x-auto"><table className="w-full text-left text-sm">
             <thead className="text-[11px] uppercase tracking-wide text-zinc-500">
-              <tr><th className="px-5 py-3">Job</th><th>Vehicle</th><th>Reason</th><th>Requested by</th><th>Priority</th><th className="text-right">Estimate (PKR)</th><th className="px-5">Status</th></tr>
+              <tr><th className="px-5 py-3">Job</th><th>Vehicle</th><th>Reason</th><th>Requested by</th><th>Priority</th><th className="text-right">Estimate ({cur})</th><th className="px-5">Status</th></tr>
             </thead>
             <tbody>
               {rows.map((r) => (

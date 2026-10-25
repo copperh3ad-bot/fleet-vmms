@@ -17,6 +17,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const sp = await searchParams;
   const status = typeof sp.status === "string" && LABEL[sp.status] ? sp.status : "submitted";
   const m = await requireMembership(slug, { fullScope: true });
+  const cur = m.currency || "PKR";
   const rows = await listInvoices(getDriver(), m, { status });
   const chip = (on: boolean) => `rounded-full border px-4 py-1.5 text-sm ${on ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"}`;
   return (
@@ -28,7 +29,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
       <Panel flush>
         {rows.length === 0 ? <p className="p-5 text-sm text-zinc-500">Nothing here.</p> : (
           <div className="overflow-x-auto"><table className="w-full text-left text-sm">
-            <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Invoice</th><th>Job</th><th>Vehicle</th><th>Vendor</th><th>Date</th><th className="px-5 text-right">Amount (PKR)</th></tr></thead>
+            <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Invoice</th><th>Job</th><th>Vehicle</th><th>Vendor</th><th>Date</th><th className="px-5 text-right">Amount ({cur})</th></tr></thead>
             <tbody>{rows.map((r) => (
               <tr key={r.id} className="border-t border-zinc-100">
                 <td className="px-5 py-3 font-medium"><a className="text-sky-800 hover:underline" href={`/w/${slug}/invoices/${r.id}`}>{r.invoice_no}</a></td>

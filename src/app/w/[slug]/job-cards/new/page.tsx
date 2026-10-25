@@ -27,10 +27,10 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
     <main className="space-y-5 p-6 text-zinc-900">
       <PageHeader crumb={<><a className="underline" href={`/w/${slug}/job-cards`}>Job cards</a> / New</>} title="New job card" sub={<>No connection in the field? <a className="underline" href={`/w/${slug}/job-cards/import`}>Fill the offline form</a> and upload it later.</>} />
       <div className="md:hidden">
-        <JobCardWizard slug={slug} reasons={reasons} vehicles={vehicleOpts} initial={vehicle ? { vehicle_id: vehicle } : undefined} />
+        <JobCardWizard slug={slug} currency={m.currency} reasons={reasons} vehicles={vehicleOpts} initial={vehicle ? { vehicle_id: vehicle } : undefined} />
       </div>
       <div className="hidden md:block">
-        <JobCardForm slug={slug} reasons={reasons} people={people} serviceTags={serviceTags} vehicles={vehicleOpts} initial={vehicle ? { vehicle_id: vehicle } : undefined} />
+        <JobCardForm slug={slug} currency={m.currency} reasons={reasons} people={people} serviceTags={serviceTags} vehicles={vehicleOpts} initial={vehicle ? { vehicle_id: vehicle } : undefined} />
       </div>
     </main>
   );

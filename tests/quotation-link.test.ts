@@ -93,7 +93,7 @@ describe("using a link without signing in", () => {
     const { token } = await vf.createQuoteLink(d, mgr(), job);
     const view = await lookupQuoteLink(d, token);
     expect(view?.registration_no).toBe("BKL-245");
-    expect(Object.keys(view!).sort()).toEqual(["cause_text", "description", "job_no", "make", "model", "needed_by", "registration_no", "vendor_name", "year"]);
+    expect(Object.keys(view!).sort()).toEqual(["cause_text", "currency", "description", "job_no", "make", "model", "needed_by", "registration_no", "vendor_name", "year"]);
     expect(await submitViaQuoteLink(d, token, estimate())).toEqual({ ok: true });
     expect(await statusOf(job)).toBe("quotation_received");
     const flow = await vf.getJobFlow(d, mgr(), job);

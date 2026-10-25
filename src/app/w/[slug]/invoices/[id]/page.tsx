@@ -20,6 +20,7 @@ const cell = (n: number | null) => (n === null ? "–" : money(n));
 async function Inner({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
   const m = await requireMembership(slug, { fullScope: true });
+  const cur = m.currency || "PKR";
   const driver = getDriver();
   const inv = await getInvoiceReview(driver, m, id);
   if (!inv) notFound();
@@ -43,7 +44,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="space-y-5">
-          <Panel title="Quotation against invoice (PKR)" flush>
+          <Panel title={`Quotation against invoice (${cur})`} flush>
             <div className="overflow-x-auto"><table className="w-full text-left text-sm">
               <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Item</th><th>Type</th><th className="text-right">Quoted</th><th className="text-right">Approved</th><th className="text-right">Invoiced</th><th className="px-5">Check</th></tr></thead>
               <tbody>{inv.comparison.map((r) => {
@@ -105,7 +106,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
             ) : (
               <div className="space-y-3">
                 <p className="rounded-md bg-amber-100 p-3 text-sm text-amber-800">You approved neither the request nor the quote, so you can check this.{inv.approver_name ? ` ${inv.approver_name} cannot, because they approved it.` : ""}</p>
-                <DecisionForm slug={slug} id={id} approved={money(inv.totals.approved)} invoiced={money(inv.totals.invoiced)} currency="PKR" />
+                <DecisionForm slug={slug} id={id} approved={money(inv.totals.approved)} invoiced={money(inv.totals.invoiced)} currency={cur} />
               </div>
             )}
           </Panel>

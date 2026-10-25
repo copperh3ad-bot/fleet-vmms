@@ -21,7 +21,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
   return (
     <main className="space-y-5 p-6 text-zinc-900">
       <PageHeader crumb={<><a className="underline" href={`/w/${slug}/job-cards`}>Job cards</a> / <a className="underline" href={`/w/${slug}/job-cards/${id}`}>{c.job_no}</a> / Edit</>} title={`Edit ${c.job_no}`} />
-      <JobCardForm slug={slug} id={id} reasons={reasons} serviceTags={serviceTags}
+      <JobCardForm slug={slug} currency={m.currency} id={id} reasons={reasons} serviceTags={serviceTags}
         vehicles={vehicles.map((v) => ({ id: v.id, registration_no: v.registration_no, label: `${v.registration_no}${v.make ? ` · ${[v.make, v.model].filter(Boolean).join(" ")}` : ""}` }))}
         initial={{ vehicle_id: c.vehicle_id, reason_code_id: c.reason_code_id, category: c.category, priority: c.priority, odometer_km: c.odometer_km ?? "", needed_by: c.needed_by ?? "", cause_text: c.cause_text, description: c.description ?? "" }}
         initialLines={c.lines.map((l) => ({ kind: l.kind, description: l.description, qty: String(Number(l.qty)), unit_cost: String(Number(l.unit_cost)), service_type_key: l.service_type_key }))} />

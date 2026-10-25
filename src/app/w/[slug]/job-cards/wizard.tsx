@@ -24,6 +24,7 @@ const big = `${inputCls} h-12 text-base`;
 
 type Props = {
   slug: string;
+  currency?: string;
   vehicles: { id: string; registration_no: string; label: string }[];
   reasons: { id: string; label: string; category: string }[];
   initial?: Record<string, string>;
@@ -42,7 +43,7 @@ function Draft() {
   return <button type="submit" name="intent" value="draft" disabled={pending} className={`${btn} h-12 px-6 text-base font-semibold disabled:opacity-60`}>Save</button>;
 }
 
-export function JobCardWizard({ slug, vehicles, reasons, initial }: Props) {
+export function JobCardWizard({ slug, currency = "PKR", vehicles, reasons, initial }: Props) {
   const [state, action] = useActionState<FormState, FormData>(saveJobCardAction.bind(null, slug, ""), {});
   const v0 = state.values ?? initial ?? {};
   const [step, setStep] = useState(1);
@@ -163,7 +164,7 @@ export function JobCardWizard({ slug, vehicles, reasons, initial }: Props) {
             </div>
             <div className="mt-3 flex items-center justify-between">
               <button type="button" onClick={() => setLines((ls) => [...ls, { kind: "service", description: "", qty: "1", unit_cost: "" }])} className={`${btn} h-11`}>Add line</button>
-              <p className="text-sm text-zinc-600">{estimate > 0 ? <>Estimate <span className="ml-1 font-mono text-lg font-semibold text-zinc-900">PKR {money(estimate)}</span></> : "No costs yet. That is fine: the workshop will quote."}</p>
+              <p className="text-sm text-zinc-600">{estimate > 0 ? <>Estimate <span className="ml-1 font-mono text-lg font-semibold text-zinc-900">{currency} {money(estimate)}</span></> : "No costs yet. That is fine: the workshop will quote."}</p>
             </div>
           </div>
           <div><label htmlFor="m_desc" className={lbl}>Extra details (optional)</label><textarea id="m_desc" name="description" rows={2} defaultValue={v0.description ?? ""} className={`${inputCls} h-auto py-3 text-base`} /></div>
@@ -178,7 +179,7 @@ export function JobCardWizard({ slug, vehicles, reasons, initial }: Props) {
             <div className="flex justify-between gap-3 p-3"><dt className="text-zinc-500">Reason</dt><dd className="text-right">{reasonLabel ?? "—"}</dd></div>
             <div className="p-3"><dt className="mb-1 text-zinc-500">Problem</dt><dd className="whitespace-pre-wrap">{cause || "—"}</dd></div>
             <div className="flex justify-between gap-3 p-3"><dt className="text-zinc-500">Priority</dt><dd className="capitalize">{priority}</dd></div>
-            <div className="flex justify-between gap-3 p-3"><dt className="text-zinc-500">Estimate</dt><dd className="font-mono">{estimate > 0 ? `PKR ${money(estimate)}` : "Not known yet"}</dd></div>
+            <div className="flex justify-between gap-3 p-3"><dt className="text-zinc-500">Estimate</dt><dd className="font-mono">{estimate > 0 ? `${currency} ${money(estimate)}` : "Not known yet"}</dd></div>
           </dl>
           <p className="text-sm text-zinc-500">Goes to a Fleet Manager for approval. You can&apos;t approve your own job card.</p>
           <Notice state={state} />

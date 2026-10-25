@@ -42,7 +42,7 @@ function checklist(v: Record<string, string>, serviceTypes: { key: string; label
   ];
 }
 
-export function AddVehicleForm({ slug, employees, serviceTypes, year }: { slug: string; employees: Employee[]; serviceTypes: { key: string; label: string }[]; year: number }) {
+export function AddVehicleForm({ slug, employees, serviceTypes, year, currency = "PKR" }: { slug: string; employees: Employee[]; serviceTypes: { key: string; label: string }[]; year: number; currency?: string }) {
   const [state, action] = useActionState<FormState, FormData>(createVehicleAction.bind(null, slug), {});
   const [snap, setSnap] = useState<Record<string, string>>({});
   const holder = employees.find((e) => e.id === snap.employee_id);
@@ -99,7 +99,7 @@ export function AddVehicleForm({ slug, employees, serviceTypes, year }: { slug: 
               {f("doc_fitness_expires", "Fitness expires", { type: "date" })}
               {f("doc_token_tax_expires", "Token tax paid until", { type: "date" })}
             </div>
-            <div className="mt-3">{f("budget_amount", `Budget for ${year} (PKR)`, { inputMode: "decimal" }, "Covers the whole calendar year. Set other periods on the Budgets screen.")}</div>
+            <div className="mt-3">{f("budget_amount", `Budget for ${year} (${currency})`, { inputMode: "decimal" }, "Covers the whole calendar year. Set other periods on the Budgets screen.")}</div>
             <details className="mt-4 text-sm">
               <summary className="cursor-pointer font-medium text-zinc-700">More insurance and document details</summary>
               <div className={`${three} mt-3`}>

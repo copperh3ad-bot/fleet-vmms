@@ -19,6 +19,7 @@ const INV_LABEL: Record<string, { text: string; tone: "ok" | "warn" | "info" | "
 async function Inner({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
   const m = await requireMembership(slug);
+  const cur = m.currency || "PKR";
   const o = await vendorGetOrder(getDriver(), m, id);
   if (!o) notFound();
   const openInvoice = o.invoices.some((i) => ["submitted", "verified", "paid"].includes(i.status));
@@ -43,7 +44,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
             <dl className="grid gap-4 text-sm sm:grid-cols-3">
               <div><dt className="text-xs text-zinc-500">Vehicle</dt><dd className="mt-0.5">{[o.make, o.model, o.year].filter(Boolean).join(" ")}</dd></div>
               <div><dt className="text-xs text-zinc-500">Priority</dt><dd className="mt-0.5 capitalize">{o.priority}</dd></div>
-              <div><dt className="text-xs text-zinc-500">Approved amount</dt><dd className="mt-0.5 font-mono">PKR {money(o.approved_amount)}</dd></div>
+              <div><dt className="text-xs text-zinc-500">Approved amount</dt><dd className="mt-0.5 font-mono">{cur} {money(o.approved_amount)}</dd></div>
             </dl>
             <p className="mt-4 text-xs font-medium text-zinc-500">Reported problem</p>
             <p className="mt-1 whitespace-pre-wrap text-sm">{o.cause_text}</p>

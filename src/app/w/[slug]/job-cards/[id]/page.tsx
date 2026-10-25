@@ -27,6 +27,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
   const sp = await searchParams;
   const note = typeof sp.note === "string" ? sp.note.slice(0, 300) : "";
   const m = await requireMembership(slug);
+  const cur = m.currency || "PKR";
   const driver = getDriver();
   const [c, perms] = await Promise.all([getJobCard(driver, m, id), permissionsOf(driver, m)]);
   if (!c) notFound();
@@ -99,7 +100,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
                     <td className="py-3 text-right font-mono">{Number(l.qty)}</td><td className="py-3 text-right font-mono">{money(Number(l.unit_cost))}</td><td className="px-5 py-3 text-right font-mono">{money(Number(l.qty) * Number(l.unit_cost))}</td></tr>))}</tbody>
               </table></div>
             )}
-            <p className="border-t border-zinc-100 px-5 py-4 text-right text-sm text-zinc-600">Estimated total <span className="ml-2 font-mono text-[22px] font-semibold text-zinc-900">PKR {money(total)}</span></p>
+            <p className="border-t border-zinc-100 px-5 py-4 text-right text-sm text-zinc-600">Estimated total <span className="ml-2 font-mono text-[22px] font-semibold text-zinc-900">{cur} {money(total)}</span></p>
           </Panel>
 
           {(files.length > 0 || canEdit) && (

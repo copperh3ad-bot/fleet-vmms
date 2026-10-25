@@ -21,7 +21,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
       <PageHeader title="Add a vehicle" sub="Takes about three minutes. Fields marked * are needed to save."
         actions={<a href={`/w/${slug}/vehicles/import`} className={btn}>Import many from a spreadsheet</a>} />
       {added && <p role="status" className="mt-4 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">{added} saved. Add the next one below.{note && <span className="block text-amber-800">{note}</span>}</p>}
-      <AddVehicleForm slug={slug} employees={employees} serviceTypes={serviceTypes} year={new Date().getFullYear()} />
+      <AddVehicleForm slug={slug} currency={m.currency} employees={employees} serviceTypes={serviceTypes} year={new Date().getFullYear()} />
     </main>
   );
 }
