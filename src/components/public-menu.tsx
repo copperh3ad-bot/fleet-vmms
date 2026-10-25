@@ -35,7 +35,7 @@ export function PublicMenu() {
         </svg>
       </button>
       {open && (
-        <nav id="public-menu" aria-label="Site" className="absolute right-0 top-12 z-20 max-h-[calc(100dvh-5rem)] w-64 overflow-y-auto rounded-xl border border-white/10 bg-[#14293a] p-2 shadow-2xl">
+        <nav id="public-menu" aria-label="Site" className="absolute right-0 top-12 z-20 max-h-[calc(100dvh-5rem)] w-64 overflow-y-auto rounded-xl border border-white/10 bg-[#1c2127] p-2 shadow-2xl">
           {links.map(([href, label]) => (
             <a key={href} href={href} aria-current={path === href ? "page" : undefined}
               className={`block rounded-lg px-3 py-3 text-sm ${path === href ? "bg-white/10 font-medium text-white" : "text-[#C9D5DC] hover:bg-white/5 hover:text-white"}`}>{label}</a>

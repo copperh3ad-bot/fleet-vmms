@@ -41,7 +41,7 @@ function Radios({ name, value, onChange, options }: { name: string; value: strin
     <div className="flex flex-wrap gap-2" role="radiogroup">
       {options.map(([v, l]) => (
         <label key={v} className={`inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border px-4 text-sm ${value === v ? "border-brand bg-sky-100 font-medium" : "border-zinc-300 bg-white"}`}>
-          <input type="radio" name={name} value={v} checked={value === v} onChange={() => onChange(v)} className="accent-[#0B6E8A]" />{l}
+          <input type="radio" name={name} value={v} checked={value === v} onChange={() => onChange(v)} className="accent-[#c2410c]" />{l}
         </label>
       ))}
     </div>

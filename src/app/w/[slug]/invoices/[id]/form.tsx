@@ -26,7 +26,7 @@ export function DecisionForm({ slug, id, approved, invoiced, currency }: { slug:
         <legend className="sr-only">Decision</legend>
         {options.map(([v, title, sub]) => (
           <label key={v} className="flex cursor-pointer items-start gap-3 text-sm">
-            <input type="radio" name="decision" value={v} checked={pick === v} onChange={() => setPick(v)} className="mt-1 accent-[#0B6E8A]" />
+            <input type="radio" name="decision" value={v} checked={pick === v} onChange={() => setPick(v)} className="mt-1 accent-[#c2410c]" />
             <span><span className="block font-medium">{title}</span><span className="block text-xs text-zinc-500">{sub}</span></span>
           </label>
         ))}

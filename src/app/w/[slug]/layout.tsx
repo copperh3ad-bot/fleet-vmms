@@ -124,6 +124,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
     <div className="flex flex-1 flex-col md:flex-row">
       {/* phone and tablet: a bar with the menu folded away */}
       <header className="bg-side text-white md:hidden">
+        <div aria-hidden className="hazard-bar" />
         <MobileMenu bar={<>
             <span className="flex items-center gap-3"><LogoMark height={30} /><span className="block text-xs text-[#9FB2BE]">{company}</span></span>
             <span className="rounded-md border border-white/25 px-3 py-1.5 text-sm">Menu{counts.approvals + counts.odometer + counts.joins > 0 ? <span className="ml-2 rounded-full bg-badge px-1.5 text-xs font-semibold text-side">{counts.approvals + counts.odometer + counts.joins}</span> : null}</span>
@@ -132,7 +133,8 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
       </header>
       {/* desktop: the fixed 232px sidebar */}
       <aside className="side-bg hidden w-[232px] shrink-0 text-white md:block">
-        <div className="sticky top-0 flex h-dvh flex-col gap-5 overflow-y-auto px-3 py-5">
+        <div className="sticky top-0 flex h-dvh flex-col gap-5 overflow-y-auto px-3 pb-5 pt-0">
+          <div aria-hidden className="hazard-bar -mx-3" />
           <div className="px-3"><Logo height={44} /><p className="mt-2 text-xs text-[#9FB2BE]">{company}</p></div>
           <div className="flex-1">{nav}</div>
           {foot}

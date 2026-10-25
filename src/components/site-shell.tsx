@@ -33,6 +33,7 @@ export function SiteShell({ children, active }: { children: ReactNode; active?: 
             <PublicMenu />
           </nav>
         </div>
+        <div aria-hidden className="hazard-bar" />
       </header>
       <main id="content" className="flex-1">{children}</main>
       <footer className="border-t border-zinc-200 bg-white">

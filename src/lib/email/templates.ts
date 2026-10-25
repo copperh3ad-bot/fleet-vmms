@@ -61,11 +61,11 @@ export function buildMail(payload: HookPayload, o: { supabaseUrl: string; siteUr
   const html = `<!doctype html><html lang="en"><body style="margin:0;background:#f3f5f6;font-family:Arial,Helvetica,sans-serif;color:#14202b">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f5f6;padding:24px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:10px;overflow:hidden">
-<tr><td style="background:#0f1e28;padding:18px 24px"><img src="${esc(o.siteUrl)}/fleetotg-logo.png" alt="Fleet OTG" width="160" height="40" style="display:block;border:0"></td></tr>
+<tr><td style="background:#15191d;padding:18px 24px"><img src="${esc(o.siteUrl)}/fleetotg-logo.png" alt="Fleet OTG" width="160" height="40" style="display:block;border:0"></td></tr>
 <tr><td style="padding:28px 24px">
 <h1 style="margin:0 0 14px;font-size:20px;line-height:1.3">${esc(c.heading)}</h1>
 ${c.lines.map((l) => `<p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#3d4a55">${esc(l)}</p>`).join("\n")}
-<p style="margin:22px 0"><a href="${esc(link)}" style="display:inline-block;background:#0b6e8a;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;padding:12px 22px;border-radius:6px">${esc(c.button)}</a></p>
+<p style="margin:22px 0"><a href="${esc(link)}" style="display:inline-block;background:#c2410c;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;padding:12px 22px;border-radius:6px">${esc(c.button)}</a></p>
 <p style="margin:0 0 12px;font-size:12px;line-height:1.5;color:#5b6b78">If the button does not work, copy this address into your browser:<br><span style="word-break:break-all">${esc(link)}</span></p>
 <p style="margin:0;font-size:12px;line-height:1.5;color:#5b6b78">${esc(c.ignore)}</p>
 </td></tr>

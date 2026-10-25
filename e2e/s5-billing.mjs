@@ -64,7 +64,7 @@ export async function billing(S) {
     await waitText(pk, "Saved", 6000);
     await go(pk, `/w/${slug}/billing`);
     const t = await body(pk);
-    for (const w of ["Amount to send", "Invoice total", "Punjab 16%", "Rs 41,720.00", "Rs 48,395.20"]) check(t.includes(w), `the amount box lacks "${w}": ${t.replace(/\s+/g, " ").slice(t.indexOf("Amount to send"), t.indexOf("Amount to send") + 300)}`);
+    for (const w of ["Amount to send", "Invoice total", "Punjab 16%", "Rs 41,720.00", "Rs 48,395.20"]) check(t.toLowerCase().includes(w.toLowerCase()), `the amount box lacks "${w}": ${t.replace(/\s+/g, " ").slice(t.indexOf("Amount to send"), t.indexOf("Amount to send") + 300)}`);
     check(has(t, "Test Bank"), "the bank details do not show");
     check(!has(t, "I have paid") === false, "no payment form");
   });
@@ -181,7 +181,7 @@ export async function billing(S) {
     await us.page.getByRole("link", { name: /^INV-/ }).first().click();
     await us.page.waitForLoadState("networkidle");
     const inv = await body(us);
-    check(inv.includes("Invoice") && !inv.includes("Tax invoice") && has(inv, "No tax is charged") && inv.includes("$149") && !inv.includes("Sales tax reg. Billed") && !inv.includes("NTN —"), `the dollar invoice: ${inv.replace(/\s+/g, " ").slice(0, 300)}`);
+    check(/invoice/i.test(inv) && !/tax invoice/i.test(inv) && has(inv, "No tax is charged") && inv.includes("$149") && !inv.includes("Sales tax reg. Billed") && !inv.includes("NTN —"), `the dollar invoice: ${inv.replace(/\s+/g, " ").slice(0, 300)}`);
     check(sql(`select tax_snapshot->>'currency' from public.invoices where tenant_id = (select id from public.tenants where slug = '${usSlug}')`) === "USD", "snapshot currency");
     check(sql(`select j.currency from public.acct_journals j join public.invoices i on i.id = j.source_id where i.tenant_id = (select id from public.tenants where slug = '${usSlug}')`) === "USD", "the ledger entry is not in dollars");
   });

@@ -43,7 +43,7 @@ export function DecisionForm({ slug, id, requester, reasons, currentReasonId, ve
         <legend className="mb-1 text-xs font-medium text-zinc-600">Decision</legend>
         {OPTIONS.filter(([k]) => k !== "approve" || canAssign).map(([k, title, sub]) => (
           <label key={k} className={`block cursor-pointer rounded-md border p-3 ${decision === k ? "border-brand bg-sky-100" : "border-zinc-200 bg-white"}`}>
-            <span className="flex items-start gap-3"><input type="radio" name="decision_pick" checked={decision === k} onChange={() => setDecision(k)} className="mt-1 accent-[#0B6E8A]" />
+            <span className="flex items-start gap-3"><input type="radio" name="decision_pick" checked={decision === k} onChange={() => setDecision(k)} className="mt-1 accent-[#c2410c]" />
               <span><span className="block text-sm font-medium">{title}</span><span className="block text-xs text-zinc-500">{k === "return" ? `Sends it back to ${requester} with your note.` : sub}</span></span></span>
           </label>
         ))}
@@ -55,7 +55,7 @@ export function DecisionForm({ slug, id, requester, reasons, currentReasonId, ve
           {vendors.length === 0 && <p className="text-sm text-zinc-500">No active workshops. Add one under Vendors first.</p>}
           {vendors.map((v) => (
             <label key={v.id} className={`block cursor-pointer rounded-md border p-3 ${vendor === v.id ? "border-brand bg-sky-100" : "border-zinc-200 bg-white"}`}>
-              <span className="flex items-start gap-3"><input type="radio" name="vendor_id" value={v.id} checked={vendor === v.id} onChange={() => setVendor(v.id)} className="mt-1 accent-[#0B6E8A]" />
+              <span className="flex items-start gap-3"><input type="radio" name="vendor_id" value={v.id} checked={vendor === v.id} onChange={() => setVendor(v.id)} className="mt-1 accent-[#c2410c]" />
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-medium">{v.name}</span>
                   <span className="block font-mono text-xs text-zinc-500">{v.jobs === 0 ? "no finished work yet" : `${days(v.avg_days)} · quote ${pct(v.quote_vs_bill_pct)} · rework ${v.rework_pct ?? 0}%`}</span>

@@ -40,7 +40,7 @@ export function HeroScene() {
         </div>
       </div>
 
-      <div className="float-a absolute bottom-0 left-0 w-full rounded-xl sm:w-[63%] border border-white/15 bg-[#14293a]/95 p-4 text-white shadow-2xl backdrop-blur md:left-[-4%]">
+      <div className="float-a absolute bottom-0 left-0 w-full rounded-xl sm:w-[63%] border border-white/15 bg-[#1c2127]/95 p-4 text-white shadow-2xl backdrop-blur md:left-[-4%]">
         <div className="mb-3 flex items-center justify-between text-[11px] text-[#9FB2BE]"><span>Job card · Brakes squealing</span><span>No self-approval</span></div>
         <div className="relative flex flex-wrap items-center gap-1.5">
           {STEPS.map((s, i) => <span key={s} className="pipe-step rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-medium text-[#C9D5DC]" style={v({ "--i": i })}>{s}</span>)}
