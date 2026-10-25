@@ -15,33 +15,47 @@
     background:
       linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px) 0 0 / 8mm 8mm,
       linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px) 0 0 / 8mm 8mm,
-      radial-gradient(120mm 90mm at 100% 0%, rgba(255,194,14,.16), transparent 70%),
+      radial-gradient(110mm 90mm at 92% 8%, rgba(255,194,14,.2), transparent 70%),
       linear-gradient(180deg, var(--ink) 0%, var(--ink2) 100%); }
   .hazard { height: 5mm; margin: 0 -15mm; background: repeating-linear-gradient(-45deg, var(--gold) 0 4mm, var(--ink) 4mm 8mm); }
   .logo { height: 13mm; display: block; margin-top: 5mm; }
-  .kicker { margin-top: 4.5mm; font-size: 10.5pt; letter-spacing: .22em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
-  h1 { margin-top: 2mm; font-size: 27pt; line-height: 1.02; font-weight: 700; letter-spacing: .005em; text-transform: uppercase; }
+  .hero { position: relative; height: 44mm; }
+  .hero-text { position: absolute; left: 0; top: 0; width: 96mm; }
+  .hero-art { position: absolute; right: 0; top: -8mm; width: 86mm; height: 54mm; }
+  .kicker { margin-top: 4mm; font-size: 10pt; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+  h1 { margin-top: 2mm; font-size: 22pt; line-height: 1.02; font-weight: 700; letter-spacing: .005em; text-transform: uppercase; }
   h1 em { font-style: normal; color: var(--gold); }
-  .lead { margin-top: 3mm; font-size: 10.5pt; line-height: 1.42; color: #d3d9dd; max-width: 170mm; }
-  .bar { width: 22mm; height: 1.4mm; background: var(--gold); margin-top: 3mm; }
 
-  .grid { margin-top: 4.5mm; display: grid; grid-template-columns: 1fr 1fr; gap: 2.8mm; }
-  .card { background: rgba(255,255,255,.06); border: .3mm solid rgba(255,255,255,.16); border-left: 1.2mm solid var(--gold); border-radius: .8mm; padding: 2.5mm 3.5mm; display: grid; grid-template-columns: 7mm 1fr; column-gap: 3mm; align-content: start; }
+  .journey { margin-top: 3.5mm; }
+  .journey .cap { font-size: 7.5pt; letter-spacing: .16em; text-transform: uppercase; color: var(--mist); margin-bottom: 1.4mm; }
+  .steps { display: flex; }
+  .step { flex: 1; height: 9mm; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 7.4pt; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink); background: var(--gold);
+    clip-path: polygon(0 0, calc(100% - 3.2mm) 0, 100% 50%, calc(100% - 3.2mm) 100%, 0 100%, 3.2mm 50%); margin-left: -1.6mm; padding: 0 3mm; line-height: 1.05; }
+  .step:first-child { margin-left: 0; clip-path: polygon(0 0, calc(100% - 3.2mm) 0, 100% 50%, calc(100% - 3.2mm) 100%, 0 100%); }
+  .step.rec { background: var(--rust); color: #fff; }
+  .legend { margin-top: 1.2mm; font-size: 7.2pt; color: var(--mist); }
+  .legend i { display: inline-block; width: 2.6mm; height: 2.6mm; background: var(--rust); vertical-align: -.5mm; margin-right: 1mm; }
+
+  .grid { margin-top: 4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 2.8mm; }
+  .card { background: rgba(255,255,255,.06); border: .3mm solid rgba(255,255,255,.16); border-left: 1.2mm solid var(--gold); border-radius: .8mm; padding: 2.5mm 3.5mm; display: grid; grid-template-columns: 10mm 1fr; column-gap: 3mm; align-content: start; }
   .card h3, .card p { grid-column: 2; }
   .card h3 { font-size: 12pt; font-weight: 700; color: #fff; margin-bottom: 1mm; text-transform: uppercase; letter-spacing: .02em; }
-  .card p { font-size: 8.8pt; line-height: 1.32; color: var(--mist); }
+  .card p { font-size: 8.6pt; line-height: 1.3; color: var(--mist); }
   .card p.pain { color: #e9b8a4; margin-bottom: 1mm; }
   .card p.fix { color: #d3d9dd; }
-  .card p b { display: inline-block; font-size: 7pt; letter-spacing: .12em; text-transform: uppercase; padding: .2mm 1.4mm; margin-right: 1.4mm; vertical-align: 1px; }
+  .card p b { display: inline-block; font-size: 6.8pt; letter-spacing: .12em; text-transform: uppercase; padding: .2mm 1.4mm; margin-right: 1.4mm; vertical-align: 1px; }
   .card p.pain b { background: var(--rust); color: #fff; }
   .card p.fix b { background: var(--gold); color: var(--ink); }
-  .num { display: inline-block; width: 6.5mm; height: 6.5mm; line-height: 6.5mm; text-align: center; background: var(--rust); color: #fff; font-weight: 800; font-size: 9.5pt; margin: 0; grid-column: 1; grid-row: 1 / span 3; }
+  .ico { grid-column: 1; grid-row: 1 / span 3; width: 10mm; height: 10mm; background: var(--rust); color: #fff; display: flex; align-items: center; justify-content: center; position: relative; }
+  .ico svg { width: 6.4mm; height: 6.4mm; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .ico::after { content: attr(data-n); position: absolute; right: -1.6mm; top: -1.6mm; width: 4mm; height: 4mm; line-height: 4mm; text-align: center; background: var(--gold); color: var(--ink); font-size: 6.6pt; font-weight: 800; }
 
-  .soon { margin-top: 6mm; border: .5mm dashed var(--gold); padding: 5mm 6mm 3.2mm; background: rgba(255,194,14,.08); position: relative; }
+  .soon { margin-top: 6mm; border: .5mm dashed var(--gold); padding: 5mm 6mm 3mm; background: rgba(255,194,14,.08); position: relative; display: grid; grid-template-columns: 1fr 24mm; column-gap: 5mm; align-items: center; }
   .tag { position: absolute; top: -3.2mm; left: 6mm; background: var(--gold); color: var(--ink); font-size: 8.5pt; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; padding: 1mm 3mm; }
-  .soon h2 { font-size: 14pt; line-height: 1.15; text-transform: uppercase; letter-spacing: .01em; }
+  .soon h2 { font-size: 13.5pt; line-height: 1.15; text-transform: uppercase; letter-spacing: .01em; }
   .soon h2 em { font-style: normal; color: var(--gold); }
-  .soon p { margin-top: 1.4mm; font-size: 9.4pt; line-height: 1.38; color: #d3d9dd; }
+  .soon p { margin-top: 1.2mm; font-size: 9pt; line-height: 1.36; color: #d3d9dd; }
+  .soon svg { width: 24mm; height: 24mm; }
 
   .foot { position: absolute; left: 15mm; right: 15mm; bottom: 11mm; display: flex; justify-content: space-between; align-items: flex-end; gap: 8mm; }
   .price { font-size: 9.8pt; line-height: 1.45; color: var(--mist); max-width: 100mm; }
@@ -52,29 +66,95 @@
 </style>
 </head>
 <body>
-<div class="page cond-root">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-stamp" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M8.5 12l2.5 2.5L15.5 10"/></symbol>
+    <symbol id="i-card" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/><path d="M10 9.5l4 0M10.5 12.5l3 0"/><path d="M10 7.2h4"/></symbol>
+    <symbol id="i-invoice" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 13l2 2 4-4"/><path d="M9 18h6"/></symbol>
+    <symbol id="i-vehicle" viewBox="0 0 24 24"><path d="M3 15l1.8-5.5A2 2 0 0 1 6.7 8h6.6a2 2 0 0 1 1.9 1.5L17 15"/><path d="M2.5 15h15v3h-15z"/><circle cx="6.5" cy="18.5" r="1.7"/><circle cx="13.5" cy="18.5" r="1.7"/><circle cx="19" cy="7" r="3"/><path d="M19 5.7v2.6M18 6.6h2"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M4 11a8 8 0 0 1 14-4.5L20 8"/><path d="M20 3v5h-5"/><path d="M20 13a8 8 0 0 1-14 4.5L4 16"/><path d="M4 21v-5h5"/></symbol>
+    <symbol id="i-wheel" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 10V3.2M10.3 13.2l-6 3.4M13.7 13.2l6 3.4"/></symbol>
+    <symbol id="i-badge" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-4 3-6 7-6s7 2 7 6"/><path d="M9.5 16.6l-.5 4M14.5 16.6l.5 4"/></symbol>
+    <symbol id="i-phone2" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M12 7.5v5M9.5 11l2.5 2.5L14.5 11"/><path d="M9 17h6"/></symbol>
+  </defs>
+</svg>
+<div class="page">
   <div class="hazard"></div>
   <img class="logo" src="../../public/fleetotg-logo.png" alt="Fleet OTG, your fleet maintenance manager">
 
-  <div class="kicker">Your Fleet Maintenance Manager</div>
-  <h1 class="cond">Know what you're spending on your fleet's maintenance, <em>and why.</em></h1>
-  <p class="lead">Fleet OTG replaces spreadsheets, phone calls and chat approvals with one job card for every repair. Here is what goes wrong, and how it is fixed.</p>
+  <div class="hero">
+    <div class="hero-text">
+      <div class="kicker">Your Fleet Maintenance Manager</div>
+      <h1 class="cond">Know what you're spending on your fleet's maintenance, <em>and why.</em></h1>
+    </div>
+    <svg class="hero-art" viewBox="0 0 320 200" aria-hidden="true">
+      <!-- dashboard card -->
+      <g transform="rotate(-4 120 100)">
+        <rect x="12" y="26" width="196" height="132" rx="3" fill="#20262c" stroke="#ffffff" stroke-opacity=".18"/>
+        <rect x="12" y="26" width="196" height="16" fill="#15191d"/>
+        <circle cx="24" cy="34" r="2.6" fill="#c2410c"/><circle cx="32" cy="34" r="2.6" fill="#ffc20e"/><circle cx="40" cy="34" r="2.6" fill="#8a949b"/>
+        <text x="150" y="37" font-family="Arial" font-size="7" fill="#aab3b9" letter-spacing="1">FLEET COST</text>
+        <rect x="22" y="50" width="52" height="30" fill="#2a3138"/><rect x="82" y="50" width="52" height="30" fill="#2a3138"/><rect x="142" y="50" width="56" height="30" fill="#2a3138"/>
+        <text x="28" y="62" font-family="Arial" font-size="6" fill="#aab3b9">VEHICLES</text><text x="28" y="75" font-family="Arial" font-size="12" font-weight="700" fill="#fff">48</text>
+        <text x="88" y="62" font-family="Arial" font-size="6" fill="#aab3b9">OPEN JOBS</text><text x="88" y="75" font-family="Arial" font-size="12" font-weight="700" fill="#ffc20e">7</text>
+        <text x="148" y="62" font-family="Arial" font-size="6" fill="#aab3b9">DUE SOON</text><text x="148" y="75" font-family="Arial" font-size="12" font-weight="700" fill="#fff">5</text>
+        <g>
+          <rect x="24" y="118" width="14" height="30" fill="#c2410c"/><rect x="44" y="108" width="14" height="40" fill="#c2410c"/><rect x="64" y="124" width="14" height="24" fill="#c2410c"/>
+          <rect x="84" y="100" width="14" height="48" fill="#c2410c"/><rect x="104" y="114" width="14" height="34" fill="#c2410c"/><rect x="124" y="92" width="14" height="56" fill="#c2410c"/>
+          <rect x="144" y="104" width="14" height="44" fill="#c2410c"/><rect x="164" y="86" width="14" height="62" fill="#ffc20e"/>
+          <path d="M16 148H198" stroke="#ffffff" stroke-opacity=".25"/>
+        </g>
+        <text x="24" y="98" font-family="Arial" font-size="6.5" fill="#aab3b9" letter-spacing="1">COST PER VEHICLE</text>
+      </g>
+      <!-- approved stamp -->
+      <g transform="rotate(-14 62 170)">
+        <rect x="16" y="156" width="92" height="26" fill="none" stroke="#c2410c" stroke-width="3"/>
+        <text x="62" y="174" text-anchor="middle" font-family="Arial Narrow, Arial" font-size="15" font-weight="700" fill="#c2410c" letter-spacing="2">APPROVED</text>
+      </g>
+      <!-- wheel -->
+      <g transform="translate(240 112)">
+        <circle r="66" fill="#101316" stroke="#3a424a" stroke-width="2"/>
+        <circle r="62" fill="none" stroke="#2c343b" stroke-width="9" stroke-dasharray="7 5"/>
+        <circle r="46" fill="#1d2329" stroke="#ffc20e" stroke-width="3"/>
+        <circle r="36" fill="none" stroke="#ffc20e" stroke-opacity=".35" stroke-width="1"/>
+        <g stroke="#ffc20e" stroke-width="5" stroke-linecap="round"><line x1="0" y1="-12" x2="0" y2="-34"/><line x1="11.4" y1="-3.7" x2="32.3" y2="-10.5"/><line x1="7" y1="9.7" x2="20" y2="27.5"/><line x1="-7" y1="9.7" x2="-20" y2="27.5"/><line x1="-11.4" y1="-3.7" x2="-32.3" y2="-10.5"/></g>
+        <circle r="11" fill="#ffc20e"/><circle r="4" fill="#15191d"/>
+      </g>
+      <!-- cost tag -->
+      <g transform="translate(216 20)">
+        <rect width="100" height="30" fill="#ffc20e"/>
+        <text x="8" y="12" font-family="Arial" font-size="6" fill="#15191d" letter-spacing=".6">BRAKE PADS · LHR-1001</text>
+        <text x="8" y="25" font-family="Arial" font-size="9" font-weight="700" fill="#15191d">Checked, approved</text>
+      </g>
+    </svg>
+  </div>
+
+  <div class="journey">
+    <div class="cap">One job card, every step on record. <span style="color:#ff8a4d">Orange steps carry the person's name and the time.</span></div>
+    <div class="steps">
+      <div class="step">Requested</div><div class="step rec">Approved</div><div class="step rec">Quote approved</div><div class="step">Work done</div><div class="step rec">Invoice checked</div><div class="step">Closed</div>
+    </div>
+  </div>
 
   <div class="grid">
-    <div class="card"><span class="num">1</span><h3 class="cond">Every approval on record</h3><p class="pain"><b>Problem</b>Repairs get approved by chat or phone call, and nobody can say later who said yes.</p><p class="fix"><b>Fix</b>Job cards, quotations and invoices are approved with the person's name and the time. Only the administrator may decide on their own request, and it is recorded.</p></div>
-    <div class="card"><span class="num">2</span><h3 class="cond">One card per repair, even offline</h3><p class="pain"><b>Problem</b>History is scattered across spreadsheets, receipts and chats, and written up days later.</p><p class="fix"><b>Fix</b>One job card per repair, with every step logged. Fill the Excel form in at the workshop with no internet and upload it later.</p></div>
-    <div class="card"><span class="num">3</span><h3 class="cond">Workshops quote from a phone</h3><p class="pain"><b>Problem</b>Quotes arrive as phone calls and photos, then get lost or disputed.</p><p class="fix"><b>Fix</b>The workshop gets a one-time link on its own phone number and sends its estimate, recorded against the job card number.</p></div>
-    <div class="card"><span class="num">4</span><h3 class="cond">Invoices checked before payment</h3><p class="pain"><b>Problem</b>A workshop's invoice comes in higher than the price you agreed.</p><p class="fix"><b>Fix</b>Every invoice is checked against the approved quotation before payment, and whoever approved the card cannot check its invoice.</p></div>
-    <div class="card"><span class="num">5</span><h3 class="cond">Cost lands on the right vehicle</h3><p class="pain"><b>Problem</b>Nobody knows what each vehicle really costs, or who had it at the time.</p><p class="fix"><b>Fix</b>Spend is counted per vehicle and per period against its budget, and follows who held the vehicle.</p></div>
-    <div class="card"><span class="num">6</span><h3 class="cond">Repeat repairs are flagged</h3><p class="pain"><b>Problem</b>The same fault is paid for again and again.</p><p class="fix"><b>Fix</b>A fault coming back on the same vehicle is shown, so you can see what keeps failing and why.</p></div>
-    <div class="card"><span class="num">7</span><h3 class="cond">Drivers see their own vehicle</h3><p class="pain"><b>Problem</b>Drivers ask the office what their vehicle cost, and access would show them the whole fleet.</p><p class="fix"><b>Fix</b>A driver sees only the job cards of the vehicle they hold and what it has cost, and nothing else.</p></div>
-    <div class="card"><span class="num">8</span><h3 class="cond">A real person behind every action</h3><p class="pain"><b>Problem</b>Shared logins mean no action can be traced to anyone.</p><p class="fix"><b>Fix</b>Every login is tied to an employee code and a role, so each action traces back to a real person.</p></div>
+    <div class="card"><span class="ico" data-n="1"><svg><use href="#i-stamp"/></svg></span><h3 class="cond">Every approval on record</h3><p class="pain"><b>Problem</b>Repairs get approved by chat or phone call, and nobody can say later who said yes.</p><p class="fix"><b>Fix</b>Approvals carry the person's name and the time. Only the administrator may decide on their own request, and it is recorded.</p></div>
+    <div class="card"><span class="ico" data-n="2"><svg><use href="#i-card"/></svg></span><h3 class="cond">One card, even offline</h3><p class="pain"><b>Problem</b>History is scattered across spreadsheets and chats, and written up late.</p><p class="fix"><b>Fix</b>One job card per repair, every step logged. Fill the Excel form offline and upload it later.</p></div>
+    <div class="card"><span class="ico" data-n="3"><svg><use href="#i-phone"/></svg></span><h3 class="cond">Workshops quote from a phone</h3><p class="pain"><b>Problem</b>Quotes arrive as phone calls and photos, then get lost or disputed.</p><p class="fix"><b>Fix</b>The workshop gets a one-time link on its own phone and sends its estimate, recorded against the job card number.</p></div>
+    <div class="card"><span class="ico" data-n="4"><svg><use href="#i-invoice"/></svg></span><h3 class="cond">Invoices checked first</h3><p class="pain"><b>Problem</b>A workshop's invoice comes in higher than the price you agreed.</p><p class="fix"><b>Fix</b>Every invoice is checked against the approved quotation, and not by whoever approved the card.</p></div>
+    <div class="card"><span class="ico" data-n="5"><svg><use href="#i-vehicle"/></svg></span><h3 class="cond">Cost lands on the right vehicle</h3><p class="pain"><b>Problem</b>Nobody knows what each vehicle really costs, or who had it at the time.</p><p class="fix"><b>Fix</b>Spend is counted per vehicle and period against its budget, and follows who held it.</p></div>
+    <div class="card"><span class="ico" data-n="6"><svg><use href="#i-repeat"/></svg></span><h3 class="cond">Repeat repairs are flagged</h3><p class="pain"><b>Problem</b>The same fault is paid for again and again.</p><p class="fix"><b>Fix</b>A fault coming back on the same vehicle is shown, so you see what keeps failing.</p></div>
+    <div class="card"><span class="ico" data-n="7"><svg><use href="#i-wheel"/></svg></span><h3 class="cond">Drivers see their own vehicle</h3><p class="pain"><b>Problem</b>Drivers ask the office what their vehicle cost, and open access shows the whole fleet.</p><p class="fix"><b>Fix</b>A driver sees only the job cards of the vehicle they hold, and what it cost.</p></div>
+    <div class="card"><span class="ico" data-n="8"><svg><use href="#i-badge"/></svg></span><h3 class="cond">Every action has a name</h3><p class="pain"><b>Problem</b>Shared logins mean no action can be traced to anyone.</p><p class="fix"><b>Fix</b>Every login is tied to an employee code and a role, so each action traces to a person.</p></div>
   </div>
 
   <div class="soon">
     <span class="tag">Coming soon</span>
-    <h2 class="cond">Built to counter corruption: <em>invitations</em> that only reach the person they are meant for.</h2>
-    <p>Each person will receive their sign-in link by WhatsApp or SMS on their own phone number, sent by the system itself, so no administrator ever sees or handles the link. No borrowed logins, no one taking over someone else's account.</p>
+    <div>
+      <h2 class="cond">Built to counter corruption: <em>invitations</em> that only reach the person they are meant for.</h2>
+      <p>Each person will receive their sign-in link by WhatsApp or SMS on their own number, sent by the system itself, so no administrator ever handles it. No borrowed logins.</p>
+    </div>
+    <svg viewBox="0 0 24 24" fill="none" stroke="#ffc20e" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-phone2"/></svg>
   </div>
 
   <div class="foot">
