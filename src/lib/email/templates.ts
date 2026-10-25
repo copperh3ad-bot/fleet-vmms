@@ -42,7 +42,7 @@ const COPY: Record<string, Copy> = {
   recovery: {
     subject: "Reset your Fleet OTG password",
     heading: "Choose a new password",
-    lines: ["We received a request to reset the password for your Fleet OTG account.", "Press the button to choose a new one. Open it in the same browser you asked from."],
+    lines: ["We received a request to reset the password for your Fleet OTG account.", "Press the button to choose a new one. Open it on the device and browser you asked from."],
     button: "Choose a new password",
     ignore: "If you did not ask for this, ignore this email. Your password has not been changed.",
   },

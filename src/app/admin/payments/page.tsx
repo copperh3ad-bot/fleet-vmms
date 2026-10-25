@@ -29,7 +29,7 @@ async function Inner({ searchParams }: { searchParams: Promise<Record<string, st
       <nav className="flex gap-2" aria-label="Payment status">
         {[["pending", "To check"], ["confirmed", "Confirmed"], ["rejected", "Rejected"]].map(([k, l]) => <a key={k} href={`/admin/payments?view=${k}`} className={tab(view === k)}>{l}</a>)}
       </nav>
-      {claims.length === 0 && <p className="rounded-md border border-dashed border-zinc-300 bg-white p-6 text-sm text-zinc-500">Nothing here.</p>}
+      {claims.length === 0 && <p className="rounded-md border border-dashed border-zinc-300 bg-white p-6 text-sm text-zinc-500">No payments waiting.</p>}
       {claims.map((c) => {
         const expected = c.price_cents * c.months;
         const expectedPkr = c.billing_currency === "USD" && rate > 0 ? Math.round((expected / 100) * rate) : null;
@@ -37,7 +37,7 @@ async function Inner({ searchParams }: { searchParams: Promise<Record<string, st
           <Panel key={c.id} title={<a className="underline" href={`/admin/orgs/${c.tenant_id}`}>{c.org_name}</a>} sub={`Sent ${dmy(c.paid_on)} · filed ${dmy(c.created_at)}`}
             action={<Pill tone={c.status === "pending" ? "warn" : c.status === "confirmed" ? "ok" : "bad"}>{c.status}</Pill>}>
             <dl className="grid gap-4 text-sm sm:grid-cols-4">
-              <div><dt className="text-zinc-500">Says they sent</dt><dd className="mt-1 font-mono text-base">{formatPrice(Number(c.amount_minor), c.currency)}</dd></div>
+              <div><dt className="text-zinc-500">The customer says they sent</dt><dd className="mt-1 font-mono text-base">{formatPrice(Number(c.amount_minor), c.currency)}</dd></div>
               <div><dt className="text-zinc-500">For</dt><dd className="mt-1">{c.months} {c.months === 1 ? "month" : "months"}</dd></div>
               <div><dt className="text-zinc-500">Expected</dt><dd className="mt-1 font-mono">{formatPrice(expected, c.billing_currency)}{expectedPkr ? <span className="block font-sans text-xs text-zinc-500">about Rs {expectedPkr.toLocaleString("en-US")}</span> : null}</dd></div>
               <div><dt className="text-zinc-500">Bank reference</dt><dd className="mt-1 break-all">{c.bank_reference}<span className="block text-xs text-zinc-500">they should have written {c.reference_code}</span></dd></div>

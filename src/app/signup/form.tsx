@@ -22,7 +22,7 @@ export function SignupForm({ trialDays, countries }: { trialDays: number; countr
         <Select name="country" label="Country" state={state} blank="Choose" required options={countries} />
         <Select name="fleet_size" label="How many vehicles?" state={state} blank="Choose" options={SIZES} />
       </div>
-      <p className="-mt-2 text-xs text-zinc-500">Customers in Pakistan are invoiced with Pakistani sales tax where it applies. Customers elsewhere pay no tax through us.</p>
+      <p className="-mt-2 text-xs text-zinc-500">Customers in Pakistan are invoiced with Pakistani sales tax where it applies. Customers elsewhere are charged no tax by us.</p>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Password" name="password" state={state} required hint="At least 10 characters.">
           <input id="password" name="password" type="password" autoComplete="new-password" className={inputCls} aria-invalid={!!state.fields?.password} />

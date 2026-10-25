@@ -54,7 +54,7 @@ async function Inner() {
         <section className="mt-12 grid gap-6 text-sm md:grid-cols-2" aria-label="Common questions">
           <div><h3 className="font-semibold">What if we do not subscribe?</h3><p className="mt-1 text-zinc-600">After a short grace period the workspace locks. Nothing is deleted, and you can still sign in to export all your data.</p></div>
           <div><h3 className="font-semibold">Do you take cards?</h3><p className="mt-1 text-zinc-600">Not yet. Bank transfer works today; card payment will be added later.</p></div>
-          <div><h3 className="font-semibold">Can my team and my workshops join?</h3><p className="mt-1 text-zinc-600">Yes, at no extra cost. Your administrator gives them a company code, or invites them by email, and approves who gets in.</p></div>
+          <div><h3 className="font-semibold">Can my team and my workshops join?</h3><p className="mt-1 text-zinc-600">Yes, at no extra cost. Your administrator gives them a company code, or sends them an invitation link by WhatsApp or text message, and approves who gets in.</p></div>
           <div><h3 className="font-semibold">Already have a company code?</h3><p className="mt-1 text-zinc-600"><a href="/join" className="underline">Join your company</a>, or <a href="/join/workshop" className="underline">join as a workshop</a>.</p></div>
         </section>
       </div>

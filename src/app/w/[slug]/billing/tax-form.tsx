@@ -11,7 +11,7 @@ export function TaxProfileForm({ slug, profile, rules, countries }: { slug: stri
   const v = (k: keyof TaxProfile) => state.values?.[k] ?? (profile?.[k] as string | null | undefined) ?? "";
   return (
     <form action={action} noValidate className="space-y-4">
-      <Field label="Country" name="country" state={state} hint="Where your company is. Customers outside Pakistan are not charged tax through us.">
+      <Field label="Country" name="country" state={state} hint="Where your company is. Customers outside Pakistan are not charged tax by us.">
         <select key={v("country")} id="country" name="country" defaultValue={v("country")} className={inputCls} aria-invalid={!!state.fields?.country}>
           <option value="">Choose</option>
           {countries.map(([code, name]) => <option key={code} value={code}>{name}</option>)}

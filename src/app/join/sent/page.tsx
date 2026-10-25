@@ -20,7 +20,7 @@ async function Inner({ searchParams }: { searchParams: Promise<Record<string, st
         <ol className="mt-5 list-decimal space-y-1 pl-5 text-sm text-zinc-600">
           {!existing && <li>Open the confirmation link. Look in spam or junk too.</li>}
           <li>Sign in with your email and password.</li>
-          <li>When the administrator approves you, an invitation appears on the first page. Accept it and you are in. Until then you will see that your request is waiting.</li>
+          <li>When the administrator approves you, an invitation appears on your home page after you sign in. Accept it and you are in. Until then it shows that your request is waiting.</li>
         </ol>
         <p className="mt-6"><a href="/login" className="rounded-md bg-brand px-5 py-3 font-semibold text-white">Sign in</a></p>
         {!existing && (

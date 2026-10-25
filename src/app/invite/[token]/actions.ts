@@ -48,18 +48,18 @@ export async function createAccountAction(token: string, _prev: InviteFormState,
   if (!invite.email) return { error: "This invitation is not working. Ask for a new one." };
   const { data, error } = await supabase.auth.signUp({ email: invite.email, password });
   if (error) {
-    if (/registered|exists/i.test(error.message)) return { error: "An account with this email already exists. Sign in with it, and your invitation will be waiting on the first page." };
+    if (/registered|exists/i.test(error.message)) return { error: "An account with this email already exists. Sign in with it, and your invitation will be waiting on your home page." };
     return { error: "The account could not be created. Try again, or ask for a new invitation." };
   }
   // With email confirmation switched on there is no session yet: the person confirms by email, signs in, and accepts from the first page.
   if (!data.session || !data.user) {
-    return { notice: "Check your email and confirm your address, then sign in. Your invitation will be waiting on the first page." };
+    return { notice: "Check your email and confirm your address, then sign in. Your invitation will be waiting on your home page." };
   }
   let slug: string;
   try {
     slug = (await acceptInvitation(driver, { token }, { id: data.user.id, email: data.user.email, emailConfirmed: !!data.user.email_confirmed_at })).slug;
   } catch (e) {
-    if (e instanceof UserError) return { notice: `Your account is ready, but the invitation could not be accepted yet: ${e.message} Sign in and try again from the first page.` };
+    if (e instanceof UserError) return { notice: `Your account is ready, but the invitation could not be accepted yet: ${e.message} Sign in and try again from your home page.` };
     throw e;
   }
   redirect(`/w/${slug}`);

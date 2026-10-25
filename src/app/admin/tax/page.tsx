@@ -50,7 +50,7 @@ async function Inner() {
         <MiniForm action={saveScenarioAction} button="Save scenario"
           fields={[
             { name: "code", label: "Code", width: "w-32", placeholder: "AE_VAT" }, { name: "label", label: "Name", width: "w-56" }, { name: "priority", label: "Priority", width: "w-20", defaultValue: "50" },
-            { name: "countries", label: "Countries (codes; empty = everyone)", width: "w-56", placeholder: "AE, SA" }, { name: "sales_tax_mode", label: "none, authority or fixed", width: "w-40", defaultValue: "fixed" },
+            { name: "countries", label: "Countries (codes; empty = everyone)", width: "w-56", placeholder: "AE, SA" }, { name: "sales_tax_mode", label: "Tax type: none, authority or fixed", width: "w-40", defaultValue: "fixed" },
             { name: "sales_tax_pct", label: "Rate % (fixed)", width: "w-28" }, { name: "tax_name", label: "Tax name", width: "w-24", placeholder: "VAT" }, { name: "currency", label: "USD or PKR", width: "w-24", defaultValue: "USD" },
             { name: "withholding_allowed", label: "Withholding? (yes/no)", width: "w-32", defaultValue: "no" }, { name: "seller_registration", label: "Your registration here", width: "w-40" },
             { name: "document_title", label: "Invoice title", width: "w-40", defaultValue: "Tax invoice" }, { name: "note", label: "Note on the invoice", width: "w-72" }, { name: "active", label: "On? (yes/no)", width: "w-24", defaultValue: "yes" },
