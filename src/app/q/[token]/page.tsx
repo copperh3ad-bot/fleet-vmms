@@ -21,7 +21,7 @@ async function Inner({ params }: { params: Promise<{ token: string }> }) {
   const view = (await allowShared(getDriver(), `quote-view-ip:${await clientIp()}`, 60, 600)) ? await lookupQuoteLink(getDriver(), token) : null;
   const car = view ? [view.make, view.model, view.year].filter(Boolean).join(" ") : "";
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col bg-page text-zinc-900">
+    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-page text-zinc-900">
       <header className="bg-side px-5 py-5 text-white"><Logo height={40} /></header>
       <main className="flex flex-1 flex-col gap-5 p-5">
         {view ? (

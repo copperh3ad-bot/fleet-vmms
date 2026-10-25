@@ -12,7 +12,7 @@ export function MobileMenu({ bar, children }: { bar: ReactNode; children: ReactN
     <details className="group" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3">{bar}</summary>
       {/* a link to the page you are already on does not change the path, so close on the click too */}
-      <div className="space-y-4 px-3 pb-4" onClick={(e) => { if ((e.target as HTMLElement).closest("a")) setOpen(false); }}>{children}</div>
+      <div className="max-h-[calc(100dvh-4.5rem)] space-y-4 overflow-y-auto px-3 pb-4" onClick={(e) => { if ((e.target as HTMLElement).closest("a")) setOpen(false); }}>{children}</div>
     </details>
   );
 }
