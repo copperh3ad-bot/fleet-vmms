@@ -32,7 +32,7 @@ export function Landing({ offer }: { offer: Offer | null }) {
             <p className="mt-5 max-w-xl text-lg text-[#B6C6D0]">Maintenance for company fleets: job cards, approvals, workshops, budgets and servicing, in one place your whole team can use.</p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <a href="/signup" className="shine rounded-md bg-badge px-6 py-3 text-base font-semibold text-side hover:opacity-90">Start your {days}-day free trial</a>
-              <a href="/login" className="text-[#C9D5DC] underline">I already have an account</a>
+              <a href="/login" className="inline-block py-2 text-[#C9D5DC] underline">I already have an account</a>
             </div>
             <p className="mt-4 text-sm text-[#8EA3B0]">No card needed. Your data stays yours, and you can export it at any time.</p>
           </div>

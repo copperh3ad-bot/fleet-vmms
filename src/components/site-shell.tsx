@@ -8,19 +8,19 @@ export function SiteShell({ children, active }: { children: ReactNode; active?: 
     <div className="flex min-h-screen flex-col bg-page text-zinc-900">
       <header className="bg-side text-white">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-5 py-4">
-          <Link href="/" aria-label="Fleet OTG home"><Logo height={40} /></Link>
-          <nav className="ml-auto flex items-center gap-2 text-sm" aria-label="Account">
+          <Link href="/" aria-label="Fleet OTG home" className="shrink-0"><Logo height={40} /></Link>
+          <nav className="ml-auto flex items-center gap-1 whitespace-nowrap text-sm sm:gap-2" aria-label="Account">
             {active !== "about" && <a href="/about" className="hidden rounded-md px-3 py-2 sm:inline-block text-[#C9D5DC] hover:text-white">About</a>}
             {active !== "contact" && <a href="/contact" className="hidden rounded-md px-3 py-2 sm:inline-block text-[#C9D5DC] hover:text-white">Contact</a>}
-            {active !== "pricing" && <a href="/pricing" className="rounded-md px-3 py-2 text-[#C9D5DC] hover:text-white">Pricing</a>}
+            {active !== "pricing" && <a href="/pricing" className="hidden rounded-md px-3 py-2 min-[420px]:inline-block text-[#C9D5DC] hover:text-white">Pricing</a>}
             {active !== "login" && <a href="/login" className="rounded-md px-3 py-2 text-[#C9D5DC] hover:text-white">Sign in</a>}
-            {active !== "signup" && <a href="/signup" className="rounded-md bg-badge px-4 py-2 font-medium text-side hover:opacity-90">Start free trial</a>}
+            {active !== "signup" && <a href="/signup" className="rounded-md bg-badge px-4 py-2 font-medium text-side hover:opacity-90"><span className="sm:hidden">Free trial</span><span className="hidden sm:inline">Start free trial</span></a>}
           </nav>
         </div>
       </header>
       <main className="flex-1">{children}</main>
       <footer className="border-t border-zinc-200 bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-6 text-sm text-zinc-500">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-1 px-5 py-4 text-sm text-zinc-500 [&_a]:inline-block [&_a]:py-2">
           <span>Fleet OTG</span>
           <a href="/about" className="underline">About us</a>
           <a href="/contact" className="underline">Contact</a>
