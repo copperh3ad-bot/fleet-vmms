@@ -24,7 +24,7 @@ const verify = (t) => {
   return pl.exp * 1000 > Date.now() ? pl : null;
 };
 const publicUser = (u) => ({ id: u.id, aud: "authenticated", role: "authenticated", email: u.email, email_confirmed_at: u.confirmed ? u.confirmedAt : null, phone: "", confirmation_sent_at: u.createdAt,
-  app_metadata: { provider: "email", providers: ["email"] }, user_metadata: u.meta ?? {}, identities: [], created_at: u.createdAt, updated_at: u.createdAt, is_anonymous: false });
+  app_metadata: { provider: "email", providers: ["email"] }, user_metadata: u.meta ?? {}, identities: [{ identity_id: u.id, provider: "email" }], created_at: u.createdAt, updated_at: u.createdAt, is_anonymous: false });
 function session(u) {
   const now = Math.floor(Date.now() / 1000), exp = now + 3600;
   const rt = crypto.randomBytes(12).toString("hex"); refresh.set(rt, u.email);
@@ -61,7 +61,7 @@ http.createServer(async (req, res) => {
     if (!/^[^@\s]+@[^@\s]+$/.test(email)) return err(res, 422, "validation_failed", "Unable to validate email address: invalid format");
     if (String(b.password ?? "").length < 6) return err(res, 422, "weak_password", "Password should be at least 6 characters.");
     const old = users.get(email);
-    if (old) return send(res, 200, publicUser({ ...old, id: crypto.randomUUID(), confirmed: false }));      // like Supabase with email confirmation on: no error, no hint
+    if (old) return send(res, 200, { ...publicUser({ ...old, id: crypto.randomUUID(), confirmed: false }), identities: [] });      // like Supabase with email confirmation on: no error, but no identities and no email
     const u = { id: crypto.randomUUID(), email, password: b.password, meta: b.data ?? {}, confirmed: autoconfirm, confirmedAt: autoconfirm ? new Date().toISOString() : null, createdAt: new Date().toISOString() };
     users.set(email, u);
     return send(res, 200, autoconfirm ? session(u) : publicUser(u));

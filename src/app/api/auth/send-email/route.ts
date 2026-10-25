@@ -5,7 +5,7 @@
 import type { NextRequest } from "next/server";
 import { verifyWebhook } from "@/lib/email/webhook";
 import { buildMail, hookSchema } from "@/lib/email/templates";
-import { EmailNotConfigured, sendMail } from "@/lib/email/send";
+import { EmailNotConfigured, mailFailure, sendMail } from "@/lib/email/send";
 import { SITE_URL } from "@/lib/site";
 import { isLoginEmail } from "@/lib/auth/username";
 
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   try {
     await sendMail(buildMail(payload, { supabaseUrl, siteUrl: SITE_URL }));
   } catch (e) {
-    console.error(e instanceof EmailNotConfigured ? "send-email: mail service not configured" : "send-email: the mail service refused the message");
+    console.error(e instanceof EmailNotConfigured ? "send-email: mail service not configured" : `send-email: the mail service refused the message: ${mailFailure(e)}`);
     return fail(500, "The email could not be sent. Try again in a moment.");
   }
   return Response.json({}, { headers: { "Cache-Control": "no-store" } });

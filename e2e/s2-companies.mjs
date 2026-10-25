@@ -81,14 +81,15 @@ export async function companies(S) {
     await waitText(v, "do not match");
     check(sql(`select count(*) from public.tenants where name = 'Unconfirmed Co ${tag}'`) === "0", "a workspace was built before the email was confirmed");
   });
-  await step("signing up again with an address already in use says nothing about it", async () => {
+  await step("signing up again with an address already in use says so, and builds nothing", async () => {
     const v = await persona("dupe");
     await go(v, "/signup");
     await fill(v, "#org_name", "Second Try Co"); await fill(v, "#contact_name", "Sana Malik"); await fill(v, "#email", S.pk.email);
     await v.page.selectOption("#country", "PK"); await fill(v, "#password", PW); await fill(v, "#confirm", PW);
     await v.page.check("input[name=terms]");
     await press(v, /start my/i, { wait: 1500 });
-    check(v.page.url().includes("/signup/check-email"), `a customer's address gave a different answer: ${v.page.url()}`);
+    check(v.page.url().endsWith("/signup"), `a customer's address went on to ${v.page.url()}`);
+    check(has(await body(v), "already exists"), "the page did not say the account already exists");
     check(sql(`select count(*) from public.tenants where name = 'Second Try Co'`) === "0", "a second workspace was made");
   });
   await step("the confirmation email can be asked for again, with the same answer for any address", async () => {

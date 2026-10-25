@@ -55,5 +55,6 @@ export async function joinAction(kind: JoinKind, _prev: FormState, form: FormDat
     return { error: "We could not create your account. Try again in a moment.", values: keep(form) };
   }
   // The request is saved. A person who already has a login simply signs in; their request is waiting either way.
-  redirect(data?.session ? "/" : `/join/sent${error ? "?existing=1" : ""}`);
+  const existing = !!error || (Array.isArray(data?.user?.identities) && data.user.identities.length === 0);   // Supabase hides an existing login behind a success with no identities
+  redirect(data?.session ? "/" : `/join/sent${existing ? "?existing=1" : ""}`);
 }

@@ -53,6 +53,11 @@ export async function signUpAction(_prev: FormState, form: FormData): Promise<Fo
     if (/password/i.test(error.message)) return { error: "Fix the highlighted fields.", fields: { password: "Choose a stronger password" }, values: keep(form) };
     return { error: "We could not create your account. Try again in a moment.", values: keep(form) };
   }
+  // With email confirmation on, Supabase answers a sign-up for an address that already has a login with a success and an empty
+  // identities list (and sends no email) instead of an error. Say so, or the person waits for an email that never comes.
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    return { error: "An account with this email already exists. Sign in instead, or use Forgot your password.", values: keep(form) };
+  }
   // With email confirmation switched off there is already a session: go straight on. Otherwise the person confirms first.
   redirect(data.session ? "/setup" : "/signup/check-email");
 }

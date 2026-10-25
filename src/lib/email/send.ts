@@ -18,6 +18,20 @@ export async function sendMail(m: Mail): Promise<void> {
   if (!url || !from) throw new EmailNotConfigured();
   // For the browser test only: write the email to a file instead of sending it. Refused unless that is switched on explicitly.
   if (url.startsWith("file:") && process.env.ALLOW_FILE_MAILER === "1") { appendFileSync(url.slice(5), JSON.stringify({ from, ...m }) + "\n"); return; }
-  const transport = nodemailer.createTransport({ url, connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 10000 });
+  // Taken apart here, not handed over whole: Node prints a whole address (password included) in a warning when a library
+  // parses it the old way, and that line lands in the host's logs.
+  const u = new URL(url);
+  const port = Number(u.port) || (u.protocol === "smtps:" ? 465 : 587);
+  const transport = nodemailer.createTransport({
+    host: u.hostname, port, secure: u.protocol === "smtps:" || port === 465,
+    auth: u.username ? { user: decodeURIComponent(u.username), pass: decodeURIComponent(u.password) } : undefined,
+    connectionTimeout: 4000, greetingTimeout: 4000, socketTimeout: 4500,   // the sign-up hook gives up after 5 seconds
+  });
   try { await transport.sendMail({ from, to: m.to, subject: m.subject, text: m.text, html: m.html }); } finally { transport.close(); }
+}
+
+/** What went wrong, for the log: the library's code and the service's own reply, never the address or the password. */
+export function mailFailure(e: unknown): string {
+  const x = e as { code?: string; responseCode?: number; response?: string; command?: string };
+  return [x.code, x.responseCode, x.command, String(x.response ?? "").slice(0, 160)].filter(Boolean).join(" | ") || "unknown";
 }
