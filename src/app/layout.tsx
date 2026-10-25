@@ -7,8 +7,8 @@ import { SITE_URL } from "@/lib/site";
 const sans = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-plex-sans", display: "swap" });
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-plex-mono", display: "swap" });
 
-const TITLE = "Fleet OTG: Vehicle Management & Mobility";
-const DESCRIPTION = "Vehicle & asset maintenance management for fleets";
+const TITLE = "Fleet OTG: Your Fleet Maintenance Manager";
+const DESCRIPTION = "Job cards, approvals, workshops, budgets and servicing for company fleets, in one place";
 
 // What a shared link, a search result and a phone home screen show. The share picture is src/app/opengraph-image.png and the
 // phone icon src/app/apple-icon.png (Next adds their tags). A page that sets its own title and description gets its own preview.

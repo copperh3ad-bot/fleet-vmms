@@ -13,7 +13,7 @@ export const PRIVATE_PREFIXES = ["/w/", "/admin", "/o/", "/invite/", "/setup", "
 /** Title, description, and the matching link-preview tags for one page. The share picture comes from src/app/opengraph-image.png. */
 export function pageMeta(title: string, description: string): Metadata {
   // A page that sets its own preview tags replaces the root ones, picture included, so the picture is named here again.
-  const images = [{ url: "/opengraph-image.png", width: 1200, height: 630, alt: "Fleet OTG: vehicle management and mobility" }];
+  const images = [{ url: "/opengraph-image.png", width: 1200, height: 630, alt: "Fleet OTG: your fleet maintenance manager" }];
   return {
     title, description,
     openGraph: { type: "website", siteName: "Fleet OTG", locale: "en", title, description, url: "./", images },

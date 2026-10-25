@@ -1,4 +1,4 @@
-# Fleet OTG: Vehicle & Asset Maintenance Management System (SaaS)
+# Fleet OTG: Your Fleet Maintenance Manager (SaaS)
 
 ## Context
 Union Fabrics tracks vehicle maintenance in spreadsheets and follow-ups. ShapeVentures proposed a cloud VMMS (fleet records, digital maintenance requests and approvals, workshop quotations/work orders, invoice controls, cost and budget monitoring, insurance/compliance tracking, accidents/challans, vehicle custody, RBAC, audit trail, dashboards, reports). We are building it as a multi-tenant SaaS, Union Fabrics being tenant #1. Pricing is deliberately out of scope: only plan/limit hooks are built, no prices.

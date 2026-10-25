@@ -7,8 +7,8 @@ import { Landing } from "../landing";
 // The signed-out home page. The proxy rewrites "/" here when there is no login cookie, so a visitor gets a page built ahead of
 // time and served from the edge instead of one rebuilt, with a login check and a database read, on every visit. The address
 // the visitor and crawlers see stays "/", so the link tags below name "/" and not "/welcome".
-const TITLE = "Fleet OTG: Vehicle Management & Mobility";
-const DESCRIPTION = "Vehicle & asset maintenance management for fleets";
+const TITLE = "Fleet OTG: Your Fleet Maintenance Manager";
+const DESCRIPTION = "Job cards, approvals, workshops, budgets and servicing for company fleets, in one place";
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
   openGraph: { type: "website", siteName: "Fleet OTG", locale: "en", title: TITLE, description: DESCRIPTION, url: "/", images: [{ url: "/opengraph-image.png", width: 1200, height: 630 }] },

@@ -27,7 +27,7 @@ export function Landing({ offer }: { offer: Offer | null }) {
         <Hero3D />
         <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 md:grid-cols-[1fr_1.05fr] md:py-24">
           <div>
-            <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-[#C9D5DC]"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-badge" /> Vehicle management and mobility</p>
+            <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-[#C9D5DC]"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-badge" /> Your Fleet Maintenance Manager</p>
             <h1 className="mt-5 text-[40px] font-semibold leading-[1.08] md:text-5xl">Know what every vehicle costs, <span className="text-badge">and why.</span></h1>
             <p className="mt-5 max-w-xl text-lg text-[#B6C6D0]">Maintenance for company fleets: job cards, approvals, workshops, budgets and servicing, in one place your whole team can use.</p>
             <div className="mt-8 flex flex-wrap items-center gap-4">

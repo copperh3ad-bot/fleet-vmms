@@ -57,7 +57,7 @@ export const SUPPORTED_ACTIONS = Object.keys(COPY);
 export function buildMail(payload: HookPayload, o: { supabaseUrl: string; siteUrl: string }): Mail {
   const c = COPY[payload.email_data.email_action_type] ?? GENERIC;
   const link = verifyLink(o.supabaseUrl, payload.email_data);
-  const text = [c.heading, "", ...c.lines, "", `${c.button}: ${link}`, "", c.ignore, "", "Fleet OTG, vehicle management and mobility", o.siteUrl].join("\n");
+  const text = [c.heading, "", ...c.lines, "", `${c.button}: ${link}`, "", c.ignore, "", "Fleet OTG, your fleet maintenance manager", o.siteUrl].join("\n");
   const html = `<!doctype html><html lang="en"><body style="margin:0;background:#f3f5f6;font-family:Arial,Helvetica,sans-serif;color:#14202b">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f5f6;padding:24px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:10px;overflow:hidden">
@@ -69,7 +69,7 @@ ${c.lines.map((l) => `<p style="margin:0 0 12px;font-size:15px;line-height:1.5;c
 <p style="margin:0 0 12px;font-size:12px;line-height:1.5;color:#5b6b78">If the button does not work, copy this address into your browser:<br><span style="word-break:break-all">${esc(link)}</span></p>
 <p style="margin:0;font-size:12px;line-height:1.5;color:#5b6b78">${esc(c.ignore)}</p>
 </td></tr>
-<tr><td style="padding:14px 24px;background:#f8fafb;font-size:11px;color:#5b6b78">Fleet OTG, vehicle management and mobility · <a href="${esc(o.siteUrl)}" style="color:#5b6b78">${esc(o.siteUrl.replace(/^https?:\/\//, ""))}</a></td></tr>
+<tr><td style="padding:14px 24px;background:#f8fafb;font-size:11px;color:#5b6b78">Fleet OTG, your fleet maintenance manager · <a href="${esc(o.siteUrl)}" style="color:#5b6b78">${esc(o.siteUrl.replace(/^https?:\/\//, ""))}</a></td></tr>
 </table></td></tr></table></body></html>`;
   return { to: payload.user.email, subject: c.subject, text, html };
 }
