@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useSignedIn } from "@/components/auth-links";
 
 const LINKS: [string, string][] = [
   ["/login", "Sign in"], ["/", "Home"], ["/pricing", "Pricing"], ["/about", "About us"], ["/contact", "Contact us"],
@@ -11,6 +12,8 @@ const LINKS: [string, string][] = [
  *  changes, when Escape is pressed or when the screen is touched outside it. Wider screens show the links in the bar instead. */
 export function PublicMenu() {
   const path = usePathname();
+  const signedIn = useSignedIn();
+  const links = signedIn ? [["/", "Open workspace"] as [string, string], ...LINKS.slice(2)] : LINKS;
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => setOpen(false), [path]);
@@ -33,7 +36,7 @@ export function PublicMenu() {
       </button>
       {open && (
         <nav id="public-menu" aria-label="Site" className="absolute right-0 top-12 z-20 w-64 rounded-xl border border-white/10 bg-[#14293a] p-2 shadow-2xl">
-          {LINKS.map(([href, label]) => (
+          {links.map(([href, label]) => (
             <a key={href} href={href} aria-current={path === href ? "page" : undefined}
               className={`block rounded-lg px-3 py-3 text-sm ${path === href ? "bg-white/10 font-medium text-white" : "text-[#C9D5DC] hover:bg-white/5 hover:text-white"}`}>{label}</a>
           ))}

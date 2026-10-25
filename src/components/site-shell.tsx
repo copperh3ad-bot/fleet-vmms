@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/brand";
+import { HeaderAuth } from "@/components/auth-links";
 import { PublicMenu } from "@/components/public-menu";
 
 type Page = "signup" | "login" | "pricing" | "join" | "about" | "contact";
@@ -28,9 +29,7 @@ export function SiteShell({ children, active }: { children: ReactNode; active?: 
             {item("about", "/about", "About")}
             {item("contact", "/contact", "Contact")}
             {item("pricing", "/pricing", "Pricing")}
-            <a href="/login" aria-current={active === "login" ? "page" : undefined}
-              className={`hidden rounded-md px-3 py-2 sm:inline-block ${active === "login" ? "bg-white/10 text-white" : "text-[#C9D5DC] hover:text-white"}`}>Sign in</a>
-            {active !== "signup" && <a href="/signup" className="rounded-md bg-badge px-4 py-2 font-medium text-side hover:opacity-90"><span className="sm:hidden">Free trial</span><span className="hidden sm:inline">Start free trial</span></a>}
+            <HeaderAuth active={active} />
             <PublicMenu />
           </nav>
         </div>

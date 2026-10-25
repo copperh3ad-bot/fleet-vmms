@@ -30,6 +30,16 @@ export async function quality(S) {
     check(!(await menu.evaluate((d) => d.open)), "the menu stayed open after a link to the same page");
   });
 
+  await step("a signed-in person on a public page sees Open workspace, not Sign in and Start free trial", async () => {
+    await go(S.pk, "/pricing");
+    const open = S.pk.page.getByRole("link", { name: "Open workspace" }).first();
+    await open.waitFor({ timeout: 5000 });
+    check((await S.pk.page.getByRole("link", { name: "Start free trial" }).count()) === 0, "Start free trial is still shown to a signed-in person");
+    check((await S.pk.page.locator("header").getByRole("link", { name: "Sign in" }).count()) === 0, "Sign in is still shown to a signed-in person");
+    await open.click();
+    await S.pk.page.waitForURL("**/w/**");
+  });
+
   for (const p of ["", "/vehicles", "/policy", "/billing", "/users", "/job-cards/new"]) {
     await step(`${base}${p || "/"}: accessibility check`, async () => {
       await go(S.pk, `${base}${p}`);

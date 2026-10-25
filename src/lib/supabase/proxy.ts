@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { guardDecision } from "@/lib/auth/routing";
 
 /** Refreshes the session cookie and sends signed-out visitors to /login. Only the two public paths are open. */
-export async function updateSession(request: NextRequest) {
+async function session(request: NextRequest): Promise<{ res: NextResponse; signedIn: boolean }> {
   let response = NextResponse.next({ request });
   const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
     cookies: {
@@ -23,14 +23,27 @@ export async function updateSession(request: NextRequest) {
   if (!data?.claims && request.nextUrl.pathname === "/") {
     const url = request.nextUrl.clone();
     url.pathname = "/welcome";
-    return NextResponse.rewrite(url);
+    return { res: NextResponse.rewrite(url), signedIn: false };
   }
   const decision = guardDecision(request.nextUrl.pathname, !!data?.claims);
   if (decision.action === "redirect") {
     const url = request.nextUrl.clone();
     url.pathname = decision.to;
     url.search = "";
-    return NextResponse.redirect(url);
+    return { res: NextResponse.redirect(url), signedIn: false };
   }
-  return response;
+  return { res: response, signedIn: !!data?.claims };
+}
+
+/** A cookie a script may read that says only "someone is signed in", so the prebuilt public pages can swap Sign in for Open
+ *  workspace without asking the server who is looking. It grants nothing: every page and action still checks the real login.
+ *  Written only when it differs from what the browser already has, and corrected on the next visit if the login ends. */
+export const SIGNED_IN_FLAG = "fleetotg_in";
+
+export async function updateSession(request: NextRequest) {
+  const { res, signedIn } = await session(request);
+  const has = request.cookies.get(SIGNED_IN_FLAG)?.value === "1";
+  if (signedIn && !has) res.cookies.set(SIGNED_IN_FLAG, "1", { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 30, secure: request.nextUrl.protocol === "https:" });
+  else if (!signedIn && request.cookies.has(SIGNED_IN_FLAG)) res.cookies.set(SIGNED_IN_FLAG, "", { path: "/", maxAge: 0 });
+  return res;
 }
