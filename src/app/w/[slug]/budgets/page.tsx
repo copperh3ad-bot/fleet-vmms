@@ -23,7 +23,7 @@ const long = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("e
 async function Inner({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug } = await params;
   const sp = await searchParams;
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { fullScope: true });
   const driver = getDriver();
   const perms = await permissionsOf(driver, m);
   const manage = perms.has("budget.manage");

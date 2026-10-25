@@ -28,7 +28,7 @@ const minor = (v: string, cur: string) => formatPrice(Number(v), cur);
 
 async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const m = await requireMembership(slug, { allowLocked: true });   // this is where a locked workspace lands
+  const m = await requireMembership(slug, { allowLocked: true, fullScope: true });   // this is where a locked workspace lands
   if (m.role === "vendor") forbidden();                            // a workshop is an outside party: it does not see the company's subscription, price or payment reference
   const driver = getDriver();
   const perms = await permissionsOf(driver, m);

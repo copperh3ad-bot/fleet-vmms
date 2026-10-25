@@ -16,7 +16,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const { slug } = await params;
   const sp = await searchParams;
   const status = typeof sp.status === "string" && LABEL[sp.status] ? sp.status : "submitted";
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { fullScope: true });
   const rows = await listInvoices(getDriver(), m, { status });
   const chip = (on: boolean) => `rounded-full border px-4 py-1.5 text-sm ${on ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"}`;
   return (

@@ -19,7 +19,7 @@ const cell = (n: number | null) => (n === null ? "–" : money(n));
 
 async function Inner({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { fullScope: true });
   const driver = getDriver();
   const inv = await getInvoiceReview(driver, m, id);
   if (!inv) notFound();

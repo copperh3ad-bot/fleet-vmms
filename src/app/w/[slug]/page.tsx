@@ -9,6 +9,7 @@ import { getOnboarding, onboardingCookie } from "@/lib/dashboard/onboarding";
 import { GetStarted, GetStartedShow } from "./get-started";
 import { cookies } from "next/headers";
 import { Kpi, Panel, Pill, Plate, btn, money } from "@/components/ui";
+import { StatusBadge } from "./job-cards/status";
 import { DOC_LABEL } from "@/lib/compliance/schemas";
 import { REASON_CATEGORY, dayMonth, monthShort, plural } from "@/lib/labels";
 
@@ -79,6 +80,7 @@ async function Workspace({ params }: { params: Promise<{ slug: string }> }) {
           </ul>
         </Panel>
       )}
+      {d?.expenses && <Expenses e={d.expenses} to={to} />}
       {start && unfinished && hidden && <GetStartedShow slug={slug} />}
     </main>
   );
@@ -236,3 +238,47 @@ const I = {
   wrench: ico("M14.5 6.5a4 4 0 00-5.3 5.2L4 17l3 3 5.3-5.2a4 4 0 005.2-5.3l-2.6 2.6-2.4-.6-.6-2.4z"),
   doc: ico("M7 3h7l4 4v14H7zM14 3v4h4M10 13h5M10 17h5"),
 };
+
+/** For someone limited to their own vehicle: what it has cost, month by month so far, and the latest job cards against it. */
+function Expenses({ e, to }: { e: NonNullable<Dashboard["expenses"]>; to: (h: string) => string }) {
+  const cur = e.currency ? `${e.currency} ` : "";
+  return (
+    <section aria-labelledby="exp" className="space-y-3">
+      <h2 id="exp" className="text-sm font-semibold">What your vehicle has cost</h2>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Kpi label="This month" value={`${cur}${money(e.monthSpend)}`} />
+        <Kpi label="This year" value={`${cur}${money(e.yearSpend)}`} />
+        <Kpi label="All time" value={`${cur}${money(e.totalSpend)}`} />
+        <Kpi label="Job cards open" value={String(e.openCards)} />
+      </div>
+      {e.byVehicle.length === 0 ? <p className="rounded-lg border border-dashed border-zinc-300 bg-white p-4 text-sm text-zinc-600">No repairs have been charged to your vehicle yet.</p> : (
+        <Panel title="By vehicle" flush>
+          <table className="w-full text-left text-sm">
+            <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Vehicle</th><th className="text-right">This month</th><th className="text-right">This year</th><th className="text-right">All time</th><th className="px-5 text-right">Jobs</th></tr></thead>
+            <tbody className="divide-y divide-zinc-100">
+              {e.byVehicle.map((v) => (
+                <tr key={v.vehicle_id}>
+                  <td className="px-5 py-3"><Plate>{v.registration_no}</Plate> <span className="text-zinc-500">{v.label}</span></td>
+                  <td className="text-right font-mono">{money(v.month)}</td><td className="text-right font-mono">{money(v.year)}</td><td className="text-right font-mono">{money(v.total)}</td><td className="px-5 text-right">{v.jobs}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Panel>
+      )}
+      {e.recent.length > 0 && (
+        <Panel title="Latest job cards" action={<a className="text-sm text-brand hover:underline" href={to("job-cards")}>See all</a>}>
+          <ul className="divide-y divide-zinc-100 text-sm">
+            {e.recent.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-3 py-2.5">
+                <a className="font-medium text-brand hover:underline" href={to(`job-cards/${r.id}`)}>{r.job_no}</a><Plate>{r.registration_no}</Plate>
+                <span className="text-zinc-500">{dayMonth(r.created_at)}</span>
+                <span className="ml-auto flex items-center gap-3"><StatusBadge status={r.status} /><span className="w-24 text-right font-mono">{money(r.cost)}</span></span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
+    </section>
+  );
+}

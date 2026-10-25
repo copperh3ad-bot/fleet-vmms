@@ -310,3 +310,7 @@
 ## 2026-10-25: dashboard polish and a get-started walk-through (ADR-028)
 - Dashboard: welcome band, icons on number cards, gradient charts, and wording that made no sense with no data fixed (currency on spend, no empty buttons or bars).
 - New companies see a nine-step "Get started" list on the dashboard; each step is marked done from the company's own data and shows what it will light up. Per-role steps; hidden per person with a cookie; no migration. Tests: 3 new unit tests, a new browser step (put away, remembered, brought back); browser test 93 passed, unit 621 passed (the one failure is the old timezone-dependent ledger test, only between 00:00 and 05:00 Pakistan time).
+
+## 2026-10-25: own-vehicle portal, optional costs, administrator approval (ADR-029)
+- A person limited to their own vehicle sees only the dashboard (with what their vehicle has cost) and the job cards of their vehicle; all other pages refuse. Job card costs are optional for the person raising the card. The administrator may approve a card they raised (tenant migration 0020, NOT yet applied live: run scripts/migrate-tenants.mts).
+- Also this day: home page built ahead of time, public-site menus and footer, signed-in visitors see Open workspace, new logo and tagline, wording pass, sign-up says when an email already has an account, mail password kept out of logs.

@@ -244,6 +244,24 @@ describe("dashboard", () => {
     expect((await getDashboard(d, auditor())).health!.fleetBudget).toMatchObject({ budget: 10000 });
   });
 
+  it("someone limited to their own vehicle sees only what their own vehicle has cost, and a card with no costs is fine", async () => {
+    const mine = await jc.createJobCard(d, driver(), { vehicle_id: veh1, reason_code_id: reason, cause_text: "Wipers streak, cost not known yet", lines: [] }, true);
+    const before = (await getDashboard(d, driver2())).expenses!.totalSpend;
+    const theirs = await jc.createJobCard(d, driver2(), { vehicle_id: veh2, reason_code_id: reason, cause_text: "Horn weak, another driver's car", lines: [{ kind: "part", description: "Horn", qty: "2", unit_cost: "777" }] }, true);
+    const a = (await getDashboard(d, driver())).expenses!;
+    expect(a.byVehicle.map((v) => v.registration_no)).toEqual(["BKL-245"]);
+    expect(a.recent.map((r) => r.registration_no)).toEqual(a.recent.map(() => "BKL-245"));
+    expect(a.recent.find((r) => r.job_no === mine.job_no)).toMatchObject({ cost: 0 });   // no cost entered: the card still counts, at nothing yet
+    expect(a.recent.map((r) => r.id)).not.toContain(theirs.id);
+    expect(a.totalSpend).toBe(a.byVehicle.reduce((s, v) => s + v.total, 0));
+    const b = (await getDashboard(d, driver2())).expenses!;
+    expect(b.byVehicle.map((v) => v.registration_no)).toEqual(["BKL-300"]);
+    expect(b.totalSpend).toBe(before + 1554);                         // 2 x 777, charged to the holder of that car
+    expect(b.monthSpend).toBe(b.totalSpend);
+    expect((await getDashboard(d, mgr())).expenses).toBeNull();      // a manager sees the whole fleet, not this panel
+    expect((await getDashboard(d, auditor())).expenses).toBeNull();
+  });
+
   it("another workspace sees an empty dashboard", async () => {
     const other = await provisionTenant(d, { name: "Third Co", slug: "third", ownerUserId: U(5), ownerName: "T" }, tenantMigrations(), { transform: stripExt });
     const o = await getDashboard(d, { ...other, userId: U(80), role: "fleet_manager", vehicleScope: "all" });

@@ -143,7 +143,7 @@ export function JobCardWizard({ slug, vehicles, reasons, initial }: Props) {
           <input type="hidden" name="priority" value={priority} />
           <div><label htmlFor="m_needed" className={lbl}>Needed by (optional)</label><input id="m_needed" name="needed_by" type="date" defaultValue={v0.needed_by ?? ""} className={big} /></div>
           <div>
-            <p className={lbl}>Work needed (a rough estimate is fine)</p>
+            <p className={lbl}>Work needed (costs are optional)</p>
             <div className="space-y-3">
               {lines.map((l, i) => (
                 <div key={i} className="space-y-2 rounded-lg border border-zinc-200 p-3">
@@ -154,7 +154,7 @@ export function JobCardWizard({ slug, vehicles, reasons, initial }: Props) {
                   </div>
                   <div className="grid grid-cols-[5rem_1fr_auto] items-center gap-2">
                     <input name="line_qty" aria-label="Quantity" inputMode="decimal" className={`${big} font-mono`} value={l.qty} onChange={(e) => setLine(i, { qty: e.target.value })} />
-                    <input name="line_unit_cost" aria-label="Unit cost" inputMode="decimal" placeholder="Cost each (PKR)" className={`${big} font-mono`} value={l.unit_cost} onChange={(e) => setLine(i, { unit_cost: e.target.value })} />
+                    <input name="line_unit_cost" aria-label="Unit cost" inputMode="decimal" placeholder="Cost each, if you know it" className={`${big} font-mono`} value={l.unit_cost} onChange={(e) => setLine(i, { unit_cost: e.target.value })} />
                     <button type="button" className="text-sm text-zinc-500 underline" onClick={() => setLines((ls) => (ls.length > 1 ? ls.filter((_, j) => j !== i) : [{ kind: "service", description: "", qty: "1", unit_cost: "" }]))}>Remove</button>
                   </div>
                   {err(`lines.${i}.description`) && <p role="alert" className="text-sm text-red-700">{err(`lines.${i}.description`)}</p>}
@@ -163,7 +163,7 @@ export function JobCardWizard({ slug, vehicles, reasons, initial }: Props) {
             </div>
             <div className="mt-3 flex items-center justify-between">
               <button type="button" onClick={() => setLines((ls) => [...ls, { kind: "service", description: "", qty: "1", unit_cost: "" }])} className={`${btn} h-11`}>Add line</button>
-              <p className="text-sm text-zinc-600">Estimate <span className="ml-1 font-mono text-lg font-semibold text-zinc-900">PKR {money(estimate)}</span></p>
+              <p className="text-sm text-zinc-600">{estimate > 0 ? <>Estimate <span className="ml-1 font-mono text-lg font-semibold text-zinc-900">PKR {money(estimate)}</span></> : "No costs yet. That is fine: the workshop will quote."}</p>
             </div>
           </div>
           <div><label htmlFor="m_desc" className={lbl}>Extra details (optional)</label><textarea id="m_desc" name="description" rows={2} defaultValue={v0.description ?? ""} className={`${inputCls} h-auto py-3 text-base`} /></div>
@@ -178,7 +178,7 @@ export function JobCardWizard({ slug, vehicles, reasons, initial }: Props) {
             <div className="flex justify-between gap-3 p-3"><dt className="text-zinc-500">Reason</dt><dd className="text-right">{reasonLabel ?? "—"}</dd></div>
             <div className="p-3"><dt className="mb-1 text-zinc-500">Problem</dt><dd className="whitespace-pre-wrap">{cause || "—"}</dd></div>
             <div className="flex justify-between gap-3 p-3"><dt className="text-zinc-500">Priority</dt><dd className="capitalize">{priority}</dd></div>
-            <div className="flex justify-between gap-3 p-3"><dt className="text-zinc-500">Estimate</dt><dd className="font-mono">PKR {money(estimate)}</dd></div>
+            <div className="flex justify-between gap-3 p-3"><dt className="text-zinc-500">Estimate</dt><dd className="font-mono">{estimate > 0 ? `PKR ${money(estimate)}` : "Not known yet"}</dd></div>
           </dl>
           <p className="text-sm text-zinc-500">Goes to a Fleet Manager for approval. You can&apos;t approve your own job card.</p>
           <Notice state={state} />

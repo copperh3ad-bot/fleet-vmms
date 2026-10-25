@@ -16,7 +16,7 @@ export default function AccidentPage({ params }: PageProps<"/w/[slug]/accidents/
 
 async function Inner({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { fullScope: true });
   const driver = getDriver();
   const [a, perms] = await Promise.all([getAccident(driver, m, id), permissionsOf(driver, m)]);
   if (!a) notFound();

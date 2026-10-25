@@ -27,7 +27,7 @@ const FLAGS = [["flag_jobs_90d", "Many jobs: more than this many in 90 days"], [
 async function Inner({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug } = await params;
   const sp = await searchParams;
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { fullScope: true });
   const driver = getDriver();
   const [settings, rules, perms, impact] = await Promise.all([getSettings(driver, m), listServiceRules(driver, m), permissionsOf(driver, m), rulesImpact(driver, m)]);
   const manageRules = perms.has("service.manage");

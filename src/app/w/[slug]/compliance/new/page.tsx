@@ -12,7 +12,7 @@ export default function NewDocumentPage({ params, searchParams }: PageProps<"/w/
 async function Inner({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug } = await params;
   const sp = await searchParams;
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { fullScope: true });
   const vehicles = (await listVehicles(getDriver(), m)).filter((v) => v.status !== "disposed");
   const initial: Record<string, string> = {};
   if (typeof sp.vehicle === "string") initial.vehicle_id = sp.vehicle;

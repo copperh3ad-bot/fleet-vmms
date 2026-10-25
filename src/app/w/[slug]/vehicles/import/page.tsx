@@ -11,7 +11,7 @@ export default function ImportPage({ params }: PageProps<"/w/[slug]/vehicles/imp
 
 async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { fullScope: true });
   await authorized(getDriver(), m, "vehicle.write", async () => {}); // same gate as the import itself
   const example = [VEHICLE_CSV_COLUMNS.join(","), "BKL-245,Isuzu,NPR,2021,truck,diesel,48200,E-001,2026-01-01,2026-09-01,47000"].join("\n");
   return (

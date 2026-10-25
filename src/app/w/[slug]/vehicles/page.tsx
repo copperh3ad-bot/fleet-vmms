@@ -32,7 +32,7 @@ async function Vehicles({ params, searchParams }: { params: Promise<{ slug: stri
   const { slug } = await params;
   const sp = await searchParams;
   const q = one(sp.q).slice(0, 80), filter = one(sp.filter), page = Number(one(sp.page)) || 1;
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { fullScope: true });
   const driver = getDriver();
   const [b, perms, plan] = await Promise.all([getBoard(driver, m, { q: q || undefined, filter, page }), permissionsOf(driver, m), planUsage(driver, m)]);
   const canWrite = perms.has("vehicle.write");

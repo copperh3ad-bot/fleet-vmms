@@ -20,7 +20,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const { slug } = await params;
   const sp = await searchParams;
   const months = [3, 6, 12, 24].includes(Number(sp.months)) ? Number(sp.months) : 12;
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { fullScope: true });
   const driver = getDriver();
   const [r, flags] = await Promise.all([costOverview(driver, m, months), getFlags(driver, m)]);
   const sel = "h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm";

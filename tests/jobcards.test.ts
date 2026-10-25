@@ -153,6 +153,18 @@ describe("approval", () => {
     expect(await statusOf(id)).toBe("submitted");
   });
 
+  it("the administrator may approve a job card they raised themselves, and it is recorded", async () => {
+    const { id } = await jc.createJobCard(d, owner(), card(), true);
+    await jc.transitionJobCard(d, owner(), id, "approved");
+    expect(await statusOf(id)).toBe("approved");
+    const c = (await jc.getJobCard(d, owner(), id))!;
+    expect(c.approver_name).toBeTruthy();
+    expect((await events(id)).at(-1)).toEqual({ from_status: "submitted", to_status: "approved" });
+    // the exception is for the administrator only: a manager still cannot approve their own card
+    const mine = await jc.createJobCard(d, mgr(), card(), true);
+    await expect(jc.transitionJobCard(d, mgr(), mine.id, "approved")).rejects.toThrow(/segregation/i);
+  });
+
   it("a role without jobcard.approve cannot approve even by hand", async () => {
     const id = await submitted();
     await expect(raw(finance(), (q) => q.query("update job_cards set status = 'approved', approved_by = $2 where id = $1", [id, emp[14]]))).rejects.toThrow(/may not approve/i);
@@ -257,7 +269,7 @@ describe("vendor assignment", () => {
 describe("permissions", () => {
   // create = jobcard.create, decide = jobcard.approve, read = read_all or read_own
   const roles: Record<string, { create: boolean; decide: boolean; read: boolean }> = {
-    tenant_admin: { create: true, decide: false, read: true },
+    tenant_admin: { create: true, decide: true, read: true },
     fleet_manager: { create: true, decide: true, read: true },
     finance: { create: false, decide: false, read: true },
     requester: { create: true, decide: false, read: true },

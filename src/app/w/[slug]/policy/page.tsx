@@ -20,7 +20,7 @@ const day = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleD
 
 async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { fullScope: true });
   const driver = getDriver();
   const [perms, versions, settings, impact] = await Promise.all([
     permissionsOf(driver, m), supabaseBlobStore().then((s) => listPolicies(driver, s, m)), getSettings(driver, m), getPolicyImpact(driver, m)]);

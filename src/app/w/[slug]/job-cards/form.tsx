@@ -162,7 +162,7 @@ export function JobCardForm({ slug, id, currency = "PKR", vehicles, reasons, ser
           <Panel title="Work needed" sub="Estimates only. The workshop's quote replaces them." flush>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Type</th><th>Description</th><th>Service tag</th><th>Qty</th><th>Unit cost ({currency})</th><th className="px-5 text-right">Total</th></tr></thead>
+                <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Type</th><th>Description</th><th>Service tag</th><th>Qty</th><th>Unit cost ({currency}, if known)</th><th className="px-5 text-right">Total</th></tr></thead>
                 <tbody>
                   {lines.map((l, i) => (
                     <tr key={i} className="border-t border-zinc-100 align-top">
@@ -183,7 +183,7 @@ export function JobCardForm({ slug, id, currency = "PKR", vehicles, reasons, ser
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 px-5 py-4">
               <button type="button" onClick={() => setLines((ls) => [...ls, blankLine()])} className={btn}>Add line</button>
-              <p className="text-sm text-zinc-600">Estimated total <span className="ml-2 font-mono text-[22px] font-semibold text-zinc-900">{currency} {money(estimate)}</span></p>
+              <p className="text-sm text-zinc-600">{estimate > 0 ? <>Estimated total <span className="ml-2 font-mono text-[22px] font-semibold text-zinc-900">{currency} {money(estimate)}</span></> : "No costs entered. That is fine: the workshop's quotation and invoice will give the real cost."}</p>
             </div>
           </Panel>
 

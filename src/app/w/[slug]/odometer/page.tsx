@@ -13,7 +13,7 @@ const monthName = (iso: string) => new Date(iso + "T00:00:00Z").toLocaleString("
 
 async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { fullScope: true });
   const cycles = await listCycles(getDriver(), m);
   const next = new Date(); const defaultPeriod = `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}`;
   return (

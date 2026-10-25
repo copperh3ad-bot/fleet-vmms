@@ -14,7 +14,7 @@ export default function CertificatePage({ params }: PageProps<"/w/[slug]/billing
 
 async function Inner({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
-  const m = await requireMembership(slug, { allowLocked: true });
+  const m = await requireMembership(slug, { allowLocked: true, fullScope: true });
   const driver = getDriver();
   const [inv, cert] = await Promise.all([getInvoice(driver, m, id), getCertificateForInvoice(driver, m, id)]);
   if (!inv) notFound();

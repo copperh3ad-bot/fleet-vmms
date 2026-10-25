@@ -18,7 +18,7 @@ const mil = (n: number) => (n >= 1_000_000 ? `PKR ${(n / 1_000_000).toFixed(2)} 
 async function Inner({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug } = await params;
   const sp = await searchParams;
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { fullScope: true });
   const r = await breakingReport(getDriver(), m, { days: Number(sp.days), group: typeof sp.group === "string" ? sp.group : undefined });
   const to = (p: string) => `/w/${slug}/${p}`;
   const avg = r.jobs ? r.cost / r.jobs : 0;

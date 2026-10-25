@@ -111,9 +111,9 @@ export async function workspace(S) {
     check(has(await body(o), "Brakes are squealing"), "the job card does not show what was typed");
   });
 
-  await step("an administrator cannot approve a job card they raised themselves", async () => {
+  await step("an administrator is offered Approve on a job card they raised themselves (and it is left waiting)", async () => {
     await go(o, S.jobUrl);
-    check(await o.page.getByRole("button", { name: /approve/i }).count() === 0, "an Approve button is offered to the person who raised it");
+    check(await o.page.getByRole("button", { name: /approve/i }).count() > 0, "no Approve button is offered to the administrator who raised the card");
     check(has(await body(o), "Awaiting approval"), "the job card is not shown as awaiting approval");
   });
 

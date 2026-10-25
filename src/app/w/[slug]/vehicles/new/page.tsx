@@ -12,7 +12,7 @@ export default function NewVehiclePage({ params, searchParams }: PageProps<"/w/[
 async function Inner({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug } = await params;
   const sp = await searchParams;
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { fullScope: true });
   const [employees, serviceTypes] = await Promise.all([listEmployeeOptions(getDriver(), m), listServiceTypes(getDriver(), m)]);
   const added = typeof sp.added === "string" ? sp.added.slice(0, 20) : "";
   const note = typeof sp.note === "string" ? sp.note.slice(0, 300) : "";

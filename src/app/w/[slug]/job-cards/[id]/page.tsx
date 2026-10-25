@@ -31,7 +31,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
   if (!c) notFound();
   const to = (p: string) => `/w/${slug}/${p}`;
 
-  const canDecide = c.status === "submitted" && perms.has("jobcard.approve") && !c.requester_is_me;
+  const canDecide = c.status === "submitted" && perms.has("jobcard.approve") && (!c.requester_is_me || m.role === "tenant_admin");   // the administrator may approve a card they raised
   const canAssign = c.status === "approved" && perms.has("jobcard.assign_vendor");
   const canEdit = c.mine && perms.has("jobcard.create") && ["draft", "returned_for_edit"].includes(c.status);
   const commercial = perms.has("jobcard.read_all") && !["draft", "submitted", "returned_for_edit", "rejected", "cancelled", "approved"].includes(c.status);
@@ -179,7 +179,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
               <DecisionForm slug={slug} id={id} requester={c.requester_name} reasons={reasons} currentReasonId={c.reason_code_id} vendors={ctx.vendors} canAssign={perms.has("jobcard.assign_vendor")} />
             </Panel>
           )}
-          {c.status === "submitted" && c.requester_is_me && <p role="status" className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-600">{perms.has("jobcard.approve") ? "You raised this card, so someone else has to approve it." : "Waiting for a manager to approve."}</p>}
+          {c.status === "submitted" && c.requester_is_me && !canDecide && <p role="status" className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-600">{perms.has("jobcard.approve") ? "You raised this card, so someone else has to approve it." : "Waiting for a manager to approve."}</p>}
           {canAssign && <Panel title="Choose a workshop"><VendorPanel slug={slug} id={id} vendors={assignable} /></Panel>}
           {canEdit && (
             <Panel title="Your next step">

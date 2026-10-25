@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { redirect } from "next/navigation";
+import { forbidden, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getDriver } from "@/lib/db";
@@ -38,11 +38,17 @@ export async function requireUser() {
  * asked for. Only the billing page, the layout around it and the data export pass allowLocked. Every server action starts
  * here too (runAction), so a locked organization cannot change anything.
  */
-export async function requireMembership(slug: string, opts: { allowLocked?: boolean } = {}): Promise<Membership> {
+/**
+ * `fullScope` marks a page that is not for someone limited to their own vehicle (vehicle_scope "own"): they get the dashboard, the
+ * job cards of their own vehicle and their notices, and every other page answers "not allowed", even by typing its address.
+ * Workshops (role vendor) have their own pages and are not affected.
+ */
+export async function requireMembership(slug: string, opts: { allowLocked?: boolean; fullScope?: boolean } = {}): Promise<Membership> {
   const user = await requireUser();
   const { m, billing } = await membershipOf(slug, user.id);
   if (!m || !billing) redirect("/");
   if (!billing.full && !opts.allowLocked) redirect(`/w/${encodeURIComponent(slug)}/billing`);
+  if (opts.fullScope && m.vehicleScope === "own" && m.role !== "vendor") forbidden();
   return { ...m, billing };
 }
 

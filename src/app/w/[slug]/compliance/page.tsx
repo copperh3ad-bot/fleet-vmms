@@ -25,7 +25,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const sp = await searchParams;
   const one = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string).slice(0, 80) : "");
   const [q, status, type] = [one("q"), one("status"), one("type")];
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { fullScope: true });
   const driver = getDriver();
   const perms = await permissionsOf(driver, m);
   const manage = perms.has("compliance.manage");

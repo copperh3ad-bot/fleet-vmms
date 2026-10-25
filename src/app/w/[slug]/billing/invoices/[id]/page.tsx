@@ -16,7 +16,7 @@ const dmy = (s: string) => new Date(s).toLocaleDateString("en-GB", { day: "numer
 
 async function Inner({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
-  const m = await requireMembership(slug, { allowLocked: true });   // an invoice is a record you may always open
+  const m = await requireMembership(slug, { allowLocked: true, fullScope: true });   // an invoice is a record you may always open
   const driver = getDriver();
   const [inv, settings] = await Promise.all([getInvoice(driver, m, id), loadPlatformSettings(driver)]);
   if (!inv) notFound();

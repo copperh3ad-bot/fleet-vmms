@@ -73,7 +73,10 @@ export async function people(S) {
   });
   await step("the requester sees only what the role needs", async () => {
     const t = await body(S.staff);
-    for (const w of ["Job cards", "Vehicles"]) check(has(t, w), `no "${w}"`);
+    check(has(t, "Job cards"), `no "Job cards"`);
+    check(has(t, "What your vehicle has cost"), "the dashboard has no costs for the person's own vehicle");
+    const nav = (await S.staff.page.locator('nav[aria-label="Workspace"]').allInnerTexts()).join(" ");
+    for (const w of ["Vehicles", "Maintenance policy", "Budgets", "Compliance", "Reports", "Odometer"]) check(!has(nav, w), `a person limited to their own vehicle sees "${w}" in the navigation`);
     for (const w of ["Users and roles", "Service rules", "Billing"]) if (has(t, w)) finding("access", `a requester sees "${w}" in the navigation`);
     await go(S.staff, `${base}/users`);
     check(has(await body(S.staff), "do not have access") || !new URL(S.staff.page.url()).pathname.endsWith("/users"), "a requester opened the Users page");
@@ -82,12 +85,13 @@ export async function people(S) {
     await go(S.staff, `/admin`);
     check(!new URL(S.staff.page.url()).pathname.startsWith("/admin"), "a requester reached the operator pages");
   });
-  await step("the requester can read the policy but not change it", async () => {
-    await go(S.staff, `${base}/policy`);
-    const t = await body(S.staff);
-    check(has(t, "Fleet maintenance policy 2027"), "the current policy is not shown");
-    check(await S.staff.page.locator("#policy-file").count() === 0, "an upload box is offered to a requester");
-    check(!has(t, "Read this policy"), "the reading tool is offered to a requester");
+  await step("a person limited to their own vehicle cannot open the vehicle list or the policy by typing the address", async () => {
+    for (const p of ["/vehicles", "/policy", "/reports", "/budgets", "/compliance", "/odometer"]) {
+      await go(S.staff, `${base}${p}`);
+      const t = await body(S.staff);
+      check(has(t, "do not have access") || has(t, "not allowed") || !new URL(S.staff.page.url()).pathname.endsWith(p), `${p} opened for a person limited to their own vehicle`);
+      check(!has(t, "Fleet maintenance policy 2027"), `${p} showed the company policy`);
+    }
   });
 
   S.mgr = await persona("manager", { email: `manager.${tag}@example.com`, password: PW });

@@ -19,7 +19,7 @@ const TABS = [["review", "Needs review"], ["held", "Held for checking"], ["pendi
 async function Inner({ params, searchParams }: { params: Promise<{ slug: string; id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug, id } = await params;
   const sp = await searchParams;
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { fullScope: true });
   const d = await getCycle(getDriver(), m, id);
   if (!d) notFound();
   const open = d.cycle.status === "open";

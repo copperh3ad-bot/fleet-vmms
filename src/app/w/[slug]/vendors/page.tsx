@@ -11,7 +11,7 @@ export default function VendorsPage({ params }: PageProps<"/w/[slug]/vendors">) 
 
 async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { fullScope: true });
   const rows = await listVendors(getDriver(), m);
   return (
     <main className="space-y-5 p-6 text-zinc-900">

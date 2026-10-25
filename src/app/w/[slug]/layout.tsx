@@ -70,10 +70,13 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
     { href: to("/employees"), label: "Employees", show: has("employee.manage") },
     { href: to("/vehicles/new"), label: "Add a vehicle", show: has("vehicle.write") },
   ];
+  // Someone limited to their own vehicle gets the dashboard and the job cards, nothing else (the pages say no as well).
+  const ownOnly = m.vehicleScope === "own";
+  const keep = (i: Item) => i.show && (!ownOnly || i.label === "Dashboard" || i.label === "Job cards");
   const groups: { title?: string; items: Item[] }[] = [
-    { items: main.filter((i) => i.show) },
-    { title: "Analysis and money", items: money.filter((i) => i.show) },
-    { title: "Admin", items: admin.filter((i) => i.show) },
+    { items: main.filter(keep) },
+    { title: "Analysis and money", items: money.filter(keep) },
+    { title: "Admin", items: admin.filter(keep) },
   ].filter((g) => g.items.length);
   const notices = sees || has("quotation.submit", "invoice.verify", "compliance.manage");
 

@@ -15,7 +15,14 @@ export type Health = {
   pipeline: { status: string; count: number }[];
 };
 export type MyVehicle = { id: string; registration_no: string; label: string; pm_worst: string | null; docs_expired: number; docs_due: number };
-export type Dashboard = { actions: ActionItem[]; health: Health | null; myVehicles: MyVehicle[] };
+/** What the vehicles a person holds have cost, for someone limited to their own vehicle. Only job cards raised while they were the
+ *  holder count, the same rule that decides which cards they may open. Money is in the workspace currency. */
+export type MyExpenses = {
+  currency: string; monthSpend: number; yearSpend: number; totalSpend: number; openCards: number;
+  byVehicle: { vehicle_id: string; registration_no: string; label: string; month: number; year: number; total: number; jobs: number }[];
+  recent: { id: string; job_no: string; registration_no: string; status: string; created_at: string; cost: number }[];
+};
+export type Dashboard = { actions: ActionItem[]; health: Health | null; myVehicles: MyVehicle[]; expenses: MyExpenses | null };
 
 const ALL = ["jobcard.approve", "quotation.approve", "jobcard.assign_vendor", "invoice.verify", "odometer.review", "jobcard.create",
   "compliance.manage", "report.view", "vehicle.read", "jobcard.read_all", "jobcard.read_own"];
@@ -31,7 +38,8 @@ export function getDashboard(driver: Driver, m: Membership): Promise<Dashboard> 
       if (count > 0) actions.push({ key, label, count, href: `job-cards?status=${hrefStatus}`, samples: rows.map((r) => ({ text: `${r.job_no} · ${r.registration_no}${r.priority === "urgent" || r.priority === "high" ? ` · ${r.priority}` : ""}`, href: `job-cards/${r.id}` })) });
     };
     // a card the member raised cannot be decided by them, so it is not "waiting for you"
-    const notMine = "jc.requested_by is distinct from actor_employee($1)";
+    // (the administrator may approve a card they raised themselves, so for them every submitted card is waiting)
+    const notMine = m.role === "tenant_admin" ? "true and $1::text is not null" : "jc.requested_by is distinct from actor_employee($1)";
 
     if (held.has("jobcard.approve")) await cards("approve", "Job cards waiting for your approval", `jc.status = 'submitted' and ${notMine}`, "submitted", [m.userId]);
     if (held.has("quotation.approve")) await cards("quotes", "Quotations to decide", `jc.status = 'quotation_received' and ${notMine}`, "quotation_received", [m.userId]);
@@ -98,7 +106,33 @@ export function getDashboard(driver: Driver, m: Membership): Promise<Dashboard> 
            from vehicles v join vehicle_custody c on c.vehicle_id = v.id and c.to_date is null join employees e on e.id = c.employee_id
           where e.user_id = $1 and v.status in ('active','in_workshop') order by v.registration_no limit 10`, [m.userId])).rows;
     }
-    return { actions, health, myVehicles };
+    // Someone limited to their own vehicle also sees what it has cost them. Nobody else's figures reach this query: it filters on the
+    // signed-in person's own employee record, not on anything the page sends.
+    let expenses: MyExpenses | null = null;
+    if (m.vehicleScope === "own") {
+      const mine = "c.custodian_id = actor_employee($1)";
+      const byVehicle = (await q.query<{ vehicle_id: string; registration_no: string; label: string; month: string; year: string; total: string; jobs: number }>(
+        `select v.id as vehicle_id, v.registration_no, concat_ws(' ', v.make, v.model) as label,
+                coalesce(sum(c.cost) filter (where c.created_at >= date_trunc('month', now())), 0)::text as month,
+                coalesce(sum(c.cost) filter (where c.created_at >= date_trunc('year', now())), 0)::text as year,
+                coalesce(sum(c.cost), 0)::text as total, count(*)::int as jobs
+           from v_vehicle_job_cost c join vehicles v on v.id = c.vehicle_id where ${mine}
+          group by v.id, v.registration_no, v.make, v.model order by v.registration_no`, [m.userId])).rows;
+      const recent = (await q.query<{ id: string; job_no: string; registration_no: string; status: string; created_at: string; cost: string }>(
+        `select jc.id, jc.job_no, v.registration_no, jc.status, jc.created_at::date::text as created_at, c.cost::text as cost
+           from v_vehicle_job_cost c join job_cards jc on jc.id = c.job_card_id join vehicles v on v.id = c.vehicle_id
+          where ${mine} order by jc.created_at desc limit 6`, [m.userId])).rows;
+      const open = (await q.query<{ c: number }>(
+        `select count(*)::int c from job_cards jc where jc.custodian_id = actor_employee($1) and jc.status not in ('draft','closed','cancelled','rejected')`, [m.userId])).rows[0].c;
+      const currency = (await q.query<{ currency: string }>("select currency from public.tenants where id = $1", [m.tenantId])).rows[0]?.currency ?? "";
+      expenses = {
+        currency, monthSpend: byVehicle.reduce((a, r) => a + Number(r.month), 0), yearSpend: byVehicle.reduce((a, r) => a + Number(r.year), 0),
+        totalSpend: byVehicle.reduce((a, r) => a + Number(r.total), 0), openCards: open,
+        byVehicle: byVehicle.map((r) => ({ ...r, month: Number(r.month), year: Number(r.year), total: Number(r.total) })),
+        recent: recent.map((r) => ({ ...r, cost: Number(r.cost) })),
+      };
+    }
+    return { actions, health, myVehicles, expenses };
   });
 }
 

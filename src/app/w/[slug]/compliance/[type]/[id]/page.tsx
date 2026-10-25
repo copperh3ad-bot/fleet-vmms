@@ -17,7 +17,7 @@ export default function DocumentPage({ params }: PageProps<"/w/[slug]/compliance
 
 async function Inner({ params }: { params: Promise<{ slug: string; type: string; id: string }> }) {
   const { slug, type, id } = await params;
-  const m = await requireMembership(slug);
+  const m = await requireMembership(slug, { fullScope: true });
   const driver = getDriver();
   const [doc, perms] = await Promise.all([getDocument(driver, m, type, id), permissionsOf(driver, m)]);
   if (!doc) notFound();
