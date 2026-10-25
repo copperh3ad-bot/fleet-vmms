@@ -19,6 +19,12 @@ export async function updateSession(request: NextRequest) {
   // Supabase on every request. This only decides who is sent to the sign-in page; every page and action that shows or
   // changes data still asks Supabase who the person is (requireUser), so a revoked login stops there.
   const { data } = await supabase.auth.getClaims();
+  // A signed-out visitor to the home page gets the prebuilt landing page; the address stays "/".
+  if (!data?.claims && request.nextUrl.pathname === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/welcome";
+    return NextResponse.rewrite(url);
+  }
   const decision = guardDecision(request.nextUrl.pathname, !!data?.claims);
   if (decision.action === "redirect") {
     const url = request.nextUrl.clone();
