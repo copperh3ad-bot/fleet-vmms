@@ -23,6 +23,9 @@ export const PLATFORM_SETTINGS: SettingDef[] = [
 
   // ---- Tax invoices for customers in Pakistan (ADR-017). Nothing is taxed until a seller registration number is set here. ----
   { key: "seller_legal_name", label: "Seller: name on tax invoices", hint: "The name of the person or company that receives the money and issues the invoice, exactly as registered. For an individual, the full name as on the CNIC.", max: 160 },
+  { key: "legal_address", label: "Legal: registered address", hint: "The postal address of the company or person that runs Fleet OTG. Printed in the Terms and the Privacy policy. The legal name is the 'Seller: name on tax invoices' setting.", max: 240 },
+  { key: "legal_registration", label: "Legal: registration number", hint: "Company or business registration number, if there is one. Printed in the Terms. Optional.", max: 60 },
+  { key: "legal_jurisdiction", label: "Legal: governing law and courts", hint: "The law that governs the Terms and the courts that hear disputes, as your lawyer words it. For example: the laws of Pakistan, and the courts of Lahore.", max: 200 },
   { key: "seller_ntn", label: "Seller: NTN", hint: "National Tax Number of the seller, printed on every tax invoice.", max: 20 },
   { key: "seller_tax_reg", label: "Seller: sales tax registration number", hint: "The number the seller is registered under for sales tax on services (STRN or the province's own number). Sales tax is only charged on an invoice when this is filled in.", max: 30 },
   { key: "seller_pseb_no", label: "Seller: PSEB registration number", hint: "Pakistan Software Export Board registration, printed on tax invoices. Optional.", max: 40 },

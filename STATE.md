@@ -325,3 +325,6 @@
 - Operator settings gain Billing email and Sales email beside Support email; app emails carry a Reply-To (EMAIL_REPLY_TO).
 - ADR-031: JSON-LD (Organization, WebSite, SoftwareApplication, FAQPage, breadcrumbs), one FAQ source for page and markup, a static /features page, /llms.txt, AI search crawlers named in robots.txt, /q/ added to private prefixes. No price, rating or customer claim is put in markup.
 - Open for the owner: add the site to Google Search Console and Bing Webmaster (submit /sitemap.xml); the share picture still has the old colours; real customer quotes or numbers would help most once they exist.
+
+## 2026-10-28: Terms and Privacy drafts (ADR-032)
+- Full balanced drafts for customers and owner; who "we" are, the address and the governing law come from Settings (placeholders show until entered). Draft notice stays until a lawyer reviews.

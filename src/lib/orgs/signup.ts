@@ -11,7 +11,7 @@ import { insertOrganization, type NewOrganization, type OrgKind } from "./provis
 import { isCountryCode } from "./countries";
 
 /** Shown with the terms the person accepted. Change it when the terms change. */
-export const TERMS_VERSION = "2026-10-23-draft";
+export const TERMS_VERSION = "2026-10-28-draft";
 export const FLEET_SIZES = ["1-5", "6-20", "21-50", "51-200", "200+"] as const;
 
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);

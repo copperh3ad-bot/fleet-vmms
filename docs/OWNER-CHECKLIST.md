@@ -11,7 +11,7 @@ Saved 2026-10-25. Things that need the owner's hands, accounts, money or decisio
 - [ ] **Set SPF, DKIM and DMARC** for the sending domain, so sign-up and reset emails do not land in spam.
 - [ ] **Supabase redirect URLs:** add `https://www.fleetotg.com/**` and `https://fleetotg.com/**`, and set the Site URL to `https://www.fleetotg.com`.
 - [ ] **Fill the live settings** (operator Settings page): `bank_details` (you type these; they stay empty until you do), `seller_tax_reg`, `pkr_per_usd`, `support_email`, the tax authorities. Do not put a CNIC or a home address in any setting a customer can see.
-- [ ] **Real Terms and Privacy text.** 15 placeholders are marked in the pages; they need your lawyer's wording.
+- [ ] **Terms and Privacy.** Full drafts are in place (ADR-032). In /admin/settings fill in **Seller: name on tax invoices**, **Legal: registered address**, **Legal: governing law and courts** (and the registration number if you have one) so the `[placeholders]` disappear. Then have a lawyer review both pages, confirm the commitments listed in ADR-032, and remove the draft notice in `src/components/legal.tsx`.
 - [ ] **Add an uptime monitor** for `https://www.fleetotg.com/api/health` (UptimeRobot or similar, free).
 
 ## WhatsApp / SMS invitation sending (the counter-corruption feature, to build later)
