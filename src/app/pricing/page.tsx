@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { SiteShell } from "@/components/site-shell";
 import { getDriver } from "@/lib/db";
 import { loadOffer } from "@/lib/billing/offer";
+import { loadPlatformSettings } from "@/lib/billing/settings";
 
 export const metadata = pageMeta("Pricing · Fleet OTG", "One plan with everything included, priced about the same as one month's wage of an unskilled labourer. Free trial, pay by bank transfer.");
 
@@ -20,7 +21,8 @@ const STEPS: [string, string][] = [
 
 async function Inner() {
   await connection();
-  const offer = await loadOffer(getDriver()).catch(() => null);
+  const [offer, settings] = await Promise.all([loadOffer(getDriver()).catch(() => null), loadPlatformSettings(getDriver()).catch(() => ({} as Record<string, string>))]);
+  const sales = settings.sales_email?.trim();
   return (
     <SiteShell active="pricing">
       <div className="mx-auto max-w-5xl px-5 py-12">
@@ -35,6 +37,7 @@ async function Inner() {
                 <p className="mt-2"><span className="text-3xl font-semibold leading-tight">{offer.headline}</span> <span className="block text-zinc-500">{offer.per}</span></p>
                 <ul className="mt-4 space-y-2 text-sm text-zinc-700">{offer.points.map((p) => <li key={p} className="flex gap-2"><span aria-hidden className="text-brand">✓</span>{p}</li>)}</ul>
                 <a href="/signup" className="mt-6 block rounded-md bg-brand py-3 text-center font-semibold text-white hover:opacity-90">Start your {offer.trialDays}-day free trial</a>
+                {sales && <p className="mt-3 text-center text-sm text-zinc-600">Questions first? Talk to sales: <a href={`mailto:${sales}`} className="font-medium text-brand underline">{sales}</a></p>}
               </>
             ) : <p className="mt-3 text-sm text-zinc-600">Pricing is not published yet. Please check back soon.</p>}
           </section>

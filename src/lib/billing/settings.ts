@@ -17,7 +17,9 @@ export const PLATFORM_SETTINGS: SettingDef[] = [
   { key: "fx_side", label: "Which rate converts the price", hint: "Type buying, selling or average: the interbank buying rate, the selling rate, or the middle of the two. Ask your accountant which the tax authority expects. If empty, buying is used.", max: 8, oneOf: ["buying", "selling", "average"] },
   { key: "fx_forexpk_consent", label: "Automatic rates from forex.pk: written consent", hint: "forex.pk's terms of use do not allow commercial use of its pages without its prior written consent. Fetching its rates automatically stays OFF until you write here who gave consent and when (for example: email from forex.pk, 12 Nov 2026). Leave empty to enter rates by hand.", max: 200 },
   { key: "company_details", label: "Seller details on invoices", hint: "Your company name, address and tax number as they should appear on an invoice. One item per line.", multiline: true, max: 600 },
-  { key: "support_email", label: "Support email", hint: "Shown to customers who need help with billing.", max: 120 },
+  { key: "support_email", label: "Support email", hint: "Shown on the Contact page for help with an account or a question. For example support@yourdomain.", max: 120 },
+  { key: "billing_email", label: "Billing email", hint: "Shown on the customer's Billing page for payment questions. If empty, the support email is shown there instead.", max: 120 },
+  { key: "sales_email", label: "Sales email", hint: "Shown on the Pricing and Contact pages for people who want to talk to someone before they sign up.", max: 120 },
 
   // ---- Tax invoices for customers in Pakistan (ADR-017). Nothing is taxed until a seller registration number is set here. ----
   { key: "seller_legal_name", label: "Seller: name on tax invoices", hint: "The name of the person or company that receives the money and issues the invoice, exactly as registered. For an individual, the full name as on the CNIC.", max: 160 },
@@ -47,7 +49,7 @@ export function checkPlatformSetting(key: string, raw: string): string {
   if (def.numeric && v !== "") {
     if (!/^\d{1,6}(\.\d{1,4})?$/.test(v) || Number(v) <= 0 || Number(v) > 100000) throw new UserError("Enter a number like 280.5.", { [key]: "Enter a number like 280.5" });
   }
-  if (key === "support_email" && v !== "" && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) throw new UserError("Enter a valid email address.", { [key]: "Enter a valid email address" });
+  if (/_email$/.test(key) && v !== "" && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) throw new UserError("Enter a valid email address.", { [key]: "Enter a valid email address" });
   return v;
 }
 

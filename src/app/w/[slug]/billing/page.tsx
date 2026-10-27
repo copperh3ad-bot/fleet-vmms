@@ -38,6 +38,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const [settings, claims, invoices, taxView, quote] = admin
     ? await Promise.all([loadPlatformSettings(driver), listClaims(driver, m), listInvoices(driver, m), getTaxProfile(driver, m), quoteTax(driver, m, a.priceCents, a.currency, 1)])
     : [{} as Record<string, string>, [], [], null, null];
+  const askEmail = settings.billing_email?.trim() || settings.support_email?.trim();   // the billing mailbox if there is one, else general support
   const rate = Number(settings.pkr_per_usd);
   const usd = a.priceCents / 100;
   // The rupee hint is for customers in Pakistan (or not yet known) who have no tax quote above; a customer abroad pays in dollars and is not shown rupees.
@@ -99,9 +100,9 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
                 </ol>
                 <pre className="whitespace-pre-wrap rounded-md border border-zinc-200 bg-zinc-50 p-3 font-mono text-[13px] leading-6">{settings.bank_details}</pre>
                 {settings.payment_note && <p className="whitespace-pre-wrap text-zinc-600">{settings.payment_note}</p>}
-                {settings.support_email && <p className="text-zinc-500">Questions about billing: <a className="underline" href={`mailto:${settings.support_email}`}>{settings.support_email}</a></p>}
+                {askEmail && <p className="text-zinc-500">Questions about billing: <a className="underline" href={`mailto:${askEmail}`}>{askEmail}</a></p>}
               </div>
-            ) : <p className="text-sm text-zinc-600">Payment details have not been set up yet. {settings.support_email ? <>Write to <a className="underline" href={`mailto:${settings.support_email}`}>{settings.support_email}</a>.</> : "Please contact support."}</p>}
+            ) : <p className="text-sm text-zinc-600">Payment details have not been set up yet. {askEmail ? <>Write to <a className="underline" href={`mailto:${askEmail}`}>{askEmail}</a>.</> : "Please contact support."}</p>}
           </Panel>
 
           <Panel title="I have paid" sub={waiting ? undefined : "Tell us about your transfer so we can confirm it."}>

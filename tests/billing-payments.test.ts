@@ -246,6 +246,10 @@ describe("what the operator edits", () => {
     expect(() => checkPlatformSetting("pkr_per_usd", "abc")).toThrow(/number/);
     expect(() => checkPlatformSetting("pkr_per_usd", "0")).toThrow(/number/);
     expect(() => checkPlatformSetting("support_email", "not an email")).toThrow(/valid email/);
+    expect(() => checkPlatformSetting("billing_email", "not an email")).toThrow(/valid email/);
+    expect(() => checkPlatformSetting("sales_email", "not an email")).toThrow(/valid email/);
+    expect(checkPlatformSetting("billing_email", " finance@fleetotg.com ")).toBe("finance@fleetotg.com");
+    expect(checkPlatformSetting("sales_email", "")).toBe("");
     expect(() => checkPlatformSetting("bank_details", "x".repeat(801))).toThrow(/too long/);
     expect(checkPlatformSetting("pkr_per_usd", " 280.5 ")).toBe("280.5");
     await savePlatformSetting(control, OP, "bank_details", "HBL\r\nAccount 123\n");

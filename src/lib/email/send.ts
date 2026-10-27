@@ -2,6 +2,7 @@
 // Amazon SES, Brevo, Postmark, a hosting mailbox), so changing service is changing two settings, not code:
 //   SMTP_URL    smtps://user:password@smtp.example.com:465   (a secret: set it in Netlify, never in the repository)
 //   EMAIL_FROM  Fleet OTG <noreply@fleetotg.com>             (an address the service has verified)
+//   EMAIL_REPLY_TO  support@fleetotg.com                     (optional: where a reply goes, since nobody reads the noreply box)
 // Nothing here logs an address, a link or a password.
 import nodemailer from "nodemailer";
 import { appendFileSync } from "node:fs";
@@ -27,7 +28,7 @@ export async function sendMail(m: Mail): Promise<void> {
     auth: u.username ? { user: decodeURIComponent(u.username), pass: decodeURIComponent(u.password) } : undefined,
     connectionTimeout: 4000, greetingTimeout: 4000, socketTimeout: 4500,   // the sign-up hook gives up after 5 seconds
   });
-  try { await transport.sendMail({ from, to: m.to, subject: m.subject, text: m.text, html: m.html }); } finally { transport.close(); }
+  try { await transport.sendMail({ from, replyTo: process.env.EMAIL_REPLY_TO || undefined, to: m.to, subject: m.subject, text: m.text, html: m.html }); } finally { transport.close(); }
 }
 
 /** What went wrong, for the log: the library's code and the service's own reply, never the address or the password. */
