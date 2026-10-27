@@ -160,3 +160,19 @@ describe("the endpoint", () => {
     expect(existsSync(outbox)).toBe(false);
   });
 });
+
+describe("the hook answers inside Supabase's 5 seconds, even after the site has been idle", () => {
+  const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
+  it("is served by a small function that does not load the page server", () => {
+    const fn = read("netlify/functions/send-email.mts");
+    expect(fn).toContain('path: "/api/auth/send-email"');
+    expect(fn).toContain("../../src/lib/email/hook");
+    expect(fn).not.toMatch(/from "next|@\/app|pg-driver|db\/tenant/);
+  });
+  it("the shared hook code pulls in nothing heavy, so the function wakes fast", () => {
+    for (const f of ["hook", "send", "templates", "webhook"]) expect(read(`src/lib/email/${f}.ts`)).not.toMatch(/from "next\/|from "@\/|pg-driver|@supabase|lib\/supabase/);
+  });
+  it("the page route and the function run the same code", () => {
+    expect(read("src/app/api/auth/send-email/route.ts")).toContain("handleSendEmailHook");
+  });
+});
