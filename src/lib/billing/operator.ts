@@ -15,7 +15,7 @@ export const isOperator = (driver: Driver, userId: string): Promise<boolean> =>
   withPlatform(driver, async (q) => (await q.query("select 1 from public.platform_admins where user_id = $1", [userId])).rows.length > 0);
 
 /** Runs fn as the operator, or refuses. The actor is set first so triggers write the right name in the audit log. */
-async function asOperator<T>(driver: Driver, operatorId: string, fn: (q: Queryable) => Promise<T>): Promise<T> {
+export async function asOperator<T>(driver: Driver, operatorId: string, fn: (q: Queryable) => Promise<T>): Promise<T> {
   return withPlatform(driver, async (q) => {
     if ((await q.query("select 1 from public.platform_admins where user_id = $1", [operatorId])).rows.length === 0) throw new UserError("Not allowed.");
     await q.query("select set_config('app.user_id', $1, true)", [operatorId]);

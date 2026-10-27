@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { SiteShell } from "@/components/site-shell";
 import { getDriver } from "@/lib/db";
 import { loadOffer } from "@/lib/billing/offer";
+import { loadProOffer, proMinJobCards } from "@/lib/billing/plans";
 import { loadPlatformSettings } from "@/lib/billing/settings";
 import { JsonLd } from "@/components/json-ld";
 import { PRICING_FAQ } from "@/lib/faq";
@@ -24,19 +25,21 @@ const STEPS: [string, string][] = [
 
 async function Inner() {
   await connection();
-  const [offer, settings] = await Promise.all([loadOffer(getDriver()).catch(() => null), loadPlatformSettings(getDriver()).catch(() => ({} as Record<string, string>))]);
+  const [offer, settings, pro] = await Promise.all([loadOffer(getDriver()).catch(() => null), loadPlatformSettings(getDriver()).catch(() => ({} as Record<string, string>)), loadProOffer(getDriver()).catch(() => null)]);
   const sales = settings.sales_email?.trim();
+  const proMin = await proMinJobCards(getDriver()).catch(() => 20);
   return (
     <SiteShell active="pricing">
       <JsonLd data={breadcrumbLd([["Fleet OTG", "/"], ["Pricing", "/pricing"]])} />
       <JsonLd data={faqLd(PRICING_FAQ)} />
       <div className="mx-auto max-w-5xl px-5 py-12">
-        <h1 className="text-3xl font-semibold">One plan, one price</h1>
-        <p className="mt-2 max-w-2xl text-zinc-600">Everything in Fleet OTG for your whole company. No per-user charges and no extras to switch on.</p>
+        <h1 className="text-3xl font-semibold">Basic, and Pro for larger fleets</h1>
+        <p className="mt-2 max-w-2xl text-zinc-600">Everything in Fleet OTG for your whole company, with no per-user charges. Basic has every feature and is what every company starts on. Pro, coming in the second phase, adds the AI that reads your workshops&apos; estimates and invoices for you.</p>
 
         <div className="mt-8 grid gap-6 md:grid-cols-[1fr_1.3fr]">
+          <div className="space-y-6">
           <section className="rounded-xl border border-zinc-200 bg-white p-6" aria-labelledby="plan">
-            <h2 id="plan" className="text-sm font-medium text-zinc-500">Standard plan</h2>
+            <h2 id="plan" className="text-sm font-medium text-zinc-500">Basic plan</h2>
             {offer ? (
               <>
                 <p className="mt-2"><span className="text-3xl font-semibold leading-tight">{offer.headline}</span> <span className="block text-zinc-500">{offer.per}</span></p>
@@ -46,6 +49,23 @@ async function Inner() {
               </>
             ) : <p className="mt-3 text-sm text-zinc-600">Pricing is not published yet. Please check back soon.</p>}
           </section>
+
+          {pro && (
+            <section className="rounded-xl border-2 border-brand bg-white p-6" aria-labelledby="pro">
+              <h2 id="pro" className="text-sm font-medium text-brand">Pro plan</h2>
+              {pro.priced ? (
+                <div className="mt-2">
+                  <p className="text-sm text-zinc-500">Priced by the size of your fleet, {pro.per}</p>
+                  <table className="mt-2 w-full text-left text-sm"><tbody>{pro.bands.map((b) => <tr key={b.label} className="border-t border-zinc-100"><td className="py-2">{b.label}</td><td className="py-2 text-right text-lg font-semibold">{b.amount}</td></tr>)}</tbody></table>
+                </div>
+              ) : (
+                <p className="mt-2 text-lg font-semibold">Coming in the second phase</p>
+              )}
+              <ul className="mt-4 space-y-2 text-sm text-zinc-700">{pro.points.map((p) => <li key={p} className="flex gap-2"><span aria-hidden className="text-brand">✓</span>{p}</li>)}</ul>
+              <p className="mt-5 text-sm text-zinc-600">Pro is offered as an upgrade to companies that enter more than {proMin} job cards a day. {pro.priced ? <>To add it to your company, <a href="/contact" className="font-medium text-brand underline">contact us</a>.</> : <>Want to hear when it opens? <a href="/contact" className="font-medium text-brand underline">Tell us</a>.</>}</p>
+            </section>
+          )}
+          </div>
 
           <section aria-labelledby="pay">
             <h2 id="pay" className="text-xl font-semibold">How paying works</h2>

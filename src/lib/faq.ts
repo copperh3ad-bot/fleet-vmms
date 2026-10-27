@@ -19,6 +19,7 @@ export const HOME_FAQ: Faq[] = [
 ];
 
 export const PRICING_FAQ: Faq[] = [
+  { q: "What is the difference between Basic and Pro?", a: "Basic has every feature of Fleet OTG and is where every company starts. Pro, coming in a second phase as an upgrade for companies that enter a lot of job cards every day, is Basic plus AI that reads the estimates and invoices your workshops email and fills in the form for your staff to check. A person always checks and saves, the AI is off until your administrator switches it on, and your records are never used to train AI." },
   { q: "What if we do not subscribe?", a: "After a short grace period the workspace locks. Nothing is deleted, and you can still sign in to export all your data." },
   { q: "Do you take cards?", a: "Not yet. Bank transfer works today; card payment will be added later." },
   { q: "Can my team join, and what about my workshops?", a: "Your team can join at no extra cost: your administrator gives them a company code, or sends an invitation link by WhatsApp or text message, and approves who gets in. Workshops never sign up: you add each one yourself, and it sends its estimates and invoices through a link or by replying to an email." },

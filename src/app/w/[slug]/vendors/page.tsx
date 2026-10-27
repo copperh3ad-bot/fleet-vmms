@@ -8,6 +8,7 @@ import { permissionsOf } from "@/lib/auth/can";
 import { aiConfigured } from "@/lib/ai/claude";
 import { aiDocumentsEnabled } from "@/lib/ai/service";
 import { AiDocumentsPanel } from "./ai-panel";
+import { tenantPlan } from "@/lib/billing/plans";
 
 export default function VendorsPage({ params }: PageProps<"/w/[slug]/vendors">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} /></Suspense>;
@@ -19,7 +20,8 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const rows = await listVendors(getDriver(), m);
   // Only an administrator sees the switch, and only where the service has AI set up (ADR-034).
   const showAi = aiConfigured() && (await permissionsOf(getDriver(), m)).has("admin.users");
-  const aiOn = showAi ? await aiDocumentsEnabled(getDriver(), m.tenantId) : false;
+  const plan = showAi ? await tenantPlan(getDriver(), m.tenantId) : null;
+  const aiOn = showAi && plan?.aiDocuments ? await aiDocumentsEnabled(getDriver(), m.tenantId) : false;
   return (
     <main className="space-y-5 p-6 text-zinc-900">
       <PageHeader title="Vendors" sub={`${rows.length} workshops and suppliers`} />
@@ -46,7 +48,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
         </Panel>
         <div className="space-y-5">
           <Panel title="Add a vendor"><VendorForm slug={slug} /></Panel>
-          {showAi && <Panel title="Reading workshop documents with AI"><AiDocumentsPanel slug={slug} on={aiOn} /></Panel>}
+          {showAi && <Panel title="Reading workshop documents with AI">{plan?.aiDocuments ? <AiDocumentsPanel slug={slug} on={aiOn} trialReads={plan.aiTrialReads} /> : <p className="text-sm">This is part of the <strong>Pro</strong> plan: the AI reads the estimates and invoices your workshops email and fills in the form for your staff to check. Your plan is {plan?.name ?? "Basic"}. <a className="underline" href={`/w/${slug}/billing`}>See Billing</a> to change plan.</p>}</Panel>}
         </div>
       </div>
     </main>

@@ -138,7 +138,7 @@ export async function people(S) {
 
   // ---------- workshop: added by the organization, never signs up (ADR-033)
   await step("the organization adds its own workshop, which never signs up", async () => {
-    sql(`insert into "${schemaOf(slug)}".vendors(name, phone, email, status) values ('Speedy Auto ${tag}', '0300 1234567', 'shop.${tag}@example.com', 'active')`);
+    sql(`begin; set local search_path = "${schemaOf(slug)}", public; select set_config('app.user_id', '00000000-0000-0000-0000-000000000001', true); insert into vendors(name, phone, email, status) values ('Speedy Auto ${tag}', '0300 1234567', 'shop.${tag}@example.com', 'active'); commit;`);
     await go(o, `${base}/vendors`);
     check(has(await body(o), `Speedy Auto ${tag}`), "the workshop is not on the Vendors page");
   });

@@ -83,7 +83,7 @@ export async function billing(S) {
     await pk.page.getByRole("link", { name: /^INV-/ }).first().click();
     await pk.page.waitForLoadState("networkidle");
     const t = await body(pk);
-    for (const w of ["Tax invoice", "Test Seller", "1111111-1", "PRA-0001", "Lahore Fleet Pvt Ltd", "1234567-8", "Punjab 16%", "Rs 41,720.00", "Rs 6,675.20", "Rs 48,395.20"]) check(t.includes(w), `the invoice lacks "${w}"`);
+    for (const w of ["Tax invoice", "Test Seller", "1111111-1", "PRA-0001", "Lahore Fleet Pvt Ltd", "1234567-8", "Punjab 16%", "Rs 41,720.00", "Rs 6,675.20", "Rs 48,395.20"]) check(has(t, w), `the invoice lacks "${w}"`);
     S.pkInvoice = new URL(pk.page.url()).pathname;
     check(sql("select count(*) from public.acct_journals where source_kind = 'invoice'") >= "1", "no ledger entry");
   });

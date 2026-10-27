@@ -29,6 +29,7 @@ async function Shell({ children }: { children: ReactNode }) {
             <NavLink href="/admin/messages" label={unread ? `Messages (${unread})` : "Messages"} />
             <NavLink href="/admin/tax" label="Tax" />
             <NavLink href="/admin/accounting" label="Accounting" />
+            <NavLink href="/admin/plans" label="Plans" />
             <NavLink href="/admin/rates" label="Rates" />
             <NavLink href="/admin/settings" label="Settings" />
           </nav>

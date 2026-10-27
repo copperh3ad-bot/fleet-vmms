@@ -8,6 +8,7 @@ import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { UserError } from "@/lib/master/service";
 import { confirmClaim, deleteOrganization, extendTrial, proofLink, recordManualPayment, rejectClaim, setComped, setSuspended } from "@/lib/billing/operator";
 import { savePlatformSetting } from "@/lib/billing/settings";
+import { setOrgPlan, setPlanPrice, setProBands } from "@/lib/billing/plans";
 import { markContactHandled } from "@/lib/contact";
 import { recordCertificate, saveTaxRule, setOrgCountry, setOrgWithholding } from "@/lib/billing/tax-data";
 import { saveScenario } from "@/lib/billing/tax-scenarios";
@@ -144,4 +145,20 @@ export async function issueCertificateForCustomerAction(invoiceId: string, _p: F
 
 export async function voidCertificateAction(id: string, _p: FormState, f: FormData): Promise<FormState> {
   return run(async (op) => { await voidCertificate(getDriver(), op, id, text(f, "reason")); return "Voided."; });
+}
+
+/** The owner prices Basic (ADR-035). The price lives in the plans table; nothing here knows a number. */
+export async function setPlanPriceAction(key: string, _p: FormState, f: FormData): Promise<FormState> {
+  return run(async (op) => { await setPlanPrice(getDriver(), op, key, { price: text(f, "price"), currency: text(f, "currency"), trialDays: text(f, "trial_days") }); return "Saved."; });
+}
+
+/** The owner moves one organization to Basic or Pro, for a test, a gift or a correction. */
+export async function setOrgPlanAction(tenantId: string, key: string): Promise<FormState> {
+  return run(async (op) => { await setOrgPlan(getDriver(), op, tenantId, key); return key === "pro" ? "Moved to Pro." : "Moved to Basic."; });
+}
+
+/** The owner sets Pro's fleet-size bands, or empties them to take Pro off sale (ADR-035). Every number comes from the form. */
+export async function setProBandsAction(_p: FormState, f: FormData): Promise<FormState> {
+  const rows = Array.from({ length: 5 }, (_, i) => ({ upTo: text(f, `up_to_${i}`), price: text(f, `price_${i}`), reads: text(f, `reads_${i}`) }));
+  return run(async (op) => { await setProBands(getDriver(), op, rows, text(f, "currency") || "USD"); return rows.some((r) => r.price.trim() || r.upTo.trim() || r.reads.trim()) ? "Pro bands saved." : "Pro is off sale."; });
 }

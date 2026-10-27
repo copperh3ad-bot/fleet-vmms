@@ -216,6 +216,7 @@ describe("who may use it, and when", () => {
     await raw(owner(), (q) => q.query("update vendors set phone = '0300 1234567', email = 'office@quickfix.example' where id = $1", [vA]));
     await withPlatform(d, async (q) => {
       for (const [n, role] of [[11, "requester"], [12, "fleet_manager"], [13, "fleet_manager"]] as const) await q.query("insert into public.tenant_memberships(user_id, tenant_id, role) values ($1, $2, $3)", [U(n), t.tenantId, role]);
+      await q.query("update public.org_billing set plan_key = 'pro' where tenant_id = $1", [t.tenantId]);      // reading with AI is a Pro feature (ADR-035)
     });
     const emp11 = await raw(owner(), async (q) => (await q.query<{ id: string }>("select id from employees where user_id = $1", [U(11)])).rows[0].id);
     veh = (await master.addVehicle(d, owner(), { registration_no: "AIR-245", employee_id: emp11, holding_since: "2026-01-01" })).id;
@@ -237,6 +238,30 @@ describe("who may use it, and when", () => {
     await setAiDocuments(d, owner(), false);
     expect(await aiDocumentsEnabled(d, t.tenantId)).toBe(false);
     await setAiDocuments(d, owner(), true);
+  });
+  it("is part of Pro: an organization on Basic is refused on the server, whatever the page shows, and gets nothing sent to the AI", async () => {
+    const { job, email } = await assignedWithEmail();
+    const set = (plan: string, status = "active") => withPlatform(d, (q) => q.query("update public.org_billing set plan_key = $2, status = $3 where tenant_id = $1", [t.tenantId, plan, status]));
+    await set("standard");
+    const before = calls;
+    await expect(readEmailDocument(d, store, mgr(), { jobId: job, kind: "quotation", emailId: email }, model(good()))).rejects.toThrow(/part of the Pro plan/);
+    expect(calls).toBe(before);                                                              // no call, no cost, no document leaves
+    await set("pro");
+  });
+  it("a trial on Pro includes a few readings in all, then asks for payment; paying lifts the cap", async () => {
+    const set = (status: string) => withPlatform(d, (q) => q.query("update public.org_billing set status = $2 where tenant_id = $1", [t.tenantId, status]));
+    await raw(owner(), (q) => q.query("delete from ai_actions"));
+    await set("trialing");
+    const used = async () => Number(await raw(owner(), async (q) => (await q.query<{ n: string }>("select count(*)::text n from ai_actions where status <> 'failed'")).rows[0].n));
+    const { job, email } = await assignedWithEmail();
+    for (let i = 0; i < 10; i++) await readEmailDocument(d, store, mgr(), { jobId: job, kind: "quotation", emailId: email }, model(good()));
+    expect(await used()).toBe(10);
+    const before = calls;
+    await expect(readEmailDocument(d, store, mgr(), { jobId: job, kind: "quotation", emailId: email }, model(good()))).rejects.toThrow(/10 readings with AI and they are used up/);
+    expect(calls).toBe(before);
+    await set("active");
+    await expect(readEmailDocument(d, store, mgr(), { jobId: job, kind: "quotation", emailId: email }, model(good()))).resolves.toMatchObject({ status: "ok" });
+    await raw(owner(), (q) => q.query("delete from ai_actions"));
   });
   it("is refused for people who may not enter these figures, for another job's email, and when the reply brought no file", async () => {
     const { job, email } = await assignedWithEmail();

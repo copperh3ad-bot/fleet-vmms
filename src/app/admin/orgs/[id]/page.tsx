@@ -7,7 +7,7 @@ import { getOrgTax } from "@/lib/billing/tax-data";
 import { formatPrice } from "@/lib/billing/offer";
 import { paymentReference } from "@/lib/billing/payments";
 import { PageHeader, Panel, Pill } from "@/components/ui";
-import { deleteOrganizationAction, extendTrialAction, manualPaymentAction, setCompedAction, setCountryAction, setOrgWithholdingAction, setSuspendedAction } from "../../actions";
+import { deleteOrganizationAction, extendTrialAction, manualPaymentAction, setCompedAction, setCountryAction, setOrgPlanAction, setOrgWithholdingAction, setSuspendedAction } from "../../actions";
 import { MiniForm, ToggleButton } from "../../forms";
 
 export default function OrgPage({ params }: PageProps<"/admin/orgs/[id]">) {
@@ -33,6 +33,7 @@ async function Inner({ params }: { params: Promise<{ id: string }> }) {
           <div><dt className="text-zinc-500">Billing</dt><dd className="mt-1">{b ? `${b.status}${b.comped ? " (no charge)" : ""}${b.suspended ? ", locked by you" : ""}` : "none"}</dd></div>
           <div><dt className="text-zinc-500">Trial ends</dt><dd className="mt-1">{dmy(b?.trial_ends_at ?? null)}</dd></div>
           <div><dt className="text-zinc-500">Paid until</dt><dd className="mt-1">{dmy(b?.current_period_end ?? null)}</dd></div>
+          <div><dt className="text-zinc-500">Plan</dt><dd className="mt-1">{b?.plan_key === "pro" ? "Pro" : b?.plan_key === "standard" ? "Basic" : b?.plan_key ?? "—"}</dd></div>
           <div><dt className="text-zinc-500">Price</dt><dd className="mt-1">{b ? `${formatPrice(b.price_cents, b.currency)} a month` : "—"}</dd></div>
           <div><dt className="text-zinc-500">Payment reference</dt><dd className="mt-1 font-mono">{paymentReference(o.id)}</dd></div>
           <div><dt className="text-zinc-500">People</dt><dd className="mt-1">{o.members}</dd></div>
@@ -71,6 +72,7 @@ async function Inner({ params }: { params: Promise<{ id: string }> }) {
             <div className="flex flex-wrap gap-3">
               <ToggleButton action={setSuspendedAction.bind(null, o.id, !b.suspended)} label={b.suspended ? "Unlock this organization" : "Lock this organization"} />
               <ToggleButton action={setCompedAction.bind(null, o.id, !b.comped)} label={b.comped ? "Start billing it again" : "Waive billing (no charge)"} />
+              <ToggleButton action={setOrgPlanAction.bind(null, o.id, b.plan_key === "pro" ? "standard" : "pro")} label={b.plan_key === "pro" ? "Move to Basic" : "Move to Pro"} />
             </div>
             {b.status === "trialing" && <MiniForm action={extendTrialAction.bind(null, o.id)} fields={[{ name: "days", label: "Extra trial days", type: "number", defaultValue: "3", width: "w-28" }]} button="Extend the trial" />}
             <div>

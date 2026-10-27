@@ -9,11 +9,11 @@ import { UserError } from "@/lib/master/service";
 import type { ReadableStore } from "@/lib/master/policy-reading";
 import { allowShared } from "@/lib/rate-limit";
 import { aiConfigured, readDocument, type ApprovedLine, type CreateMessage } from "./claude";
+import { tenantPlan } from "@/lib/billing/plans";
 import { sameAsDraft, type Draft } from "./document";
 
 const PERMS = ["jobcard.assign_vendor", "quotation.approve", "invoice.verify"];
-export const AI_READS_PER_ORG_PER_DAY = 60;
-export const AI_READS_PER_PERSON_PER_HOUR = 20;
+export const AI_READS_PER_PERSON_PER_HOUR = 20;   // the per-day limit for an organization comes from its plan (ADR-035)
 const HOUR = 3600, DAY = 86_400;
 
 /** Is the AI allowed to read this organization's documents? Off until its administrator says so. */
@@ -21,9 +21,9 @@ export async function aiDocumentsEnabled(driver: Driver, tenantId: string): Prom
   return withPlatform(driver, async (q) => (await q.query<{ on: boolean }>("select ai_documents_enabled as on from public.tenants where id = $1", [tenantId])).rows[0]?.on === true);
 }
 
-/** Everything the page needs to decide whether to offer the button: the server has it, the organization allows it, and there is a file to read. */
+/** Everything the page needs to decide whether to offer the button: the server has it, the organization's plan includes it, and its administrator has switched it on. */
 export async function aiOffered(driver: Driver, m: Membership): Promise<boolean> {
-  return aiConfigured() && (await aiDocumentsEnabled(driver, m.tenantId));
+  return aiConfigured() && (await tenantPlan(driver, m.tenantId)).aiDocuments && (await aiDocumentsEnabled(driver, m.tenantId));
 }
 
 /** The organization's administrator switches the AI's reading of workshop documents on or off. Switching on records who and when. */
@@ -62,8 +62,15 @@ export async function readEmailDocument(driver: Driver, store: ReadableStore, m:
       : [];
     return { jobNo: e.job_no, files: files.map((f) => ({ path: f.storage_path, name: f.file_name, mime: f.mime_type ?? "" })), approved };
   });
+  // Reading with AI is a Pro feature (ADR-035). The plan is checked here, on the server, every time, so hiding a button is never the only guard.
+  const plan = await tenantPlan(driver, m.tenantId);
+  if (!plan.aiDocuments) throw new UserError("Reading documents with AI is part of the Pro plan. Type the figures in from the file, or ask your administrator about upgrading in Billing.");
   if (!(await aiDocumentsEnabled(driver, m.tenantId))) throw new UserError("Your administrator has not switched on reading workshop documents with AI. Type the figures in from the file.");
-  const [orgOk, personOk] = await Promise.all([allowShared(driver, `ai-read-org:${m.tenantId}`, AI_READS_PER_ORG_PER_DAY, DAY), allowShared(driver, `ai-read-user:${m.userId}`, AI_READS_PER_PERSON_PER_HOUR, HOUR)]);
+  if (plan.aiTrialReads !== null) {   // a trial on Pro tastes it: a few readings in all, until the first payment lifts the cap
+    const used = await authorizedAny(driver, m, PERMS, async (q) => Number((await q.query<{ n: string }>("select count(*)::text n from ai_actions where status <> 'failed'")).rows[0].n));
+    if (used >= plan.aiTrialReads) throw new UserError(`Your trial includes ${plan.aiTrialReads} readings with AI and they are used up. Pay for Pro in Billing to keep going, or type the figures in from the file.`);
+  }
+  const [orgOk, personOk] = await Promise.all([allowShared(driver, `ai-read-org:${m.tenantId}`, plan.aiPerDay, DAY), allowShared(driver, `ai-read-user:${m.userId}`, AI_READS_PER_PERSON_PER_HOUR, HOUR)]);
   if (!orgOk || !personOk) throw new UserError("The limit for reading documents with AI has been reached for now. Type the figures in from the file, or try again later.");
 
   const files = [];

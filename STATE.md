@@ -338,3 +338,8 @@
 - Drafts only, a person approves. Staff press a button on the entry page; Claude Haiku 5.5 (cheapest that reads PDFs and photos, AI_MODEL to change) reads the emailed file with prompt caching on, returns a checked draft that fills the form; the history says read by AI and checked by <name>.
 - Off until an organization's administrator switches it on (Vendors page, recorded who/when); no key, no feature; AI_DOCUMENT_READING=off stops it everywhere. Every use logged in ai_actions with tokens, cache use and whether the draft was saved unchanged or corrected.
 - Needs before use: platform 0013, tenant 0024 and 0025 on live; ANTHROPIC_API_KEY in Netlify. Not started: auto-approval, chasing, triage, briefings.
+
+## 2026-10-28: Basic and Pro plans (ADR-035), workshop scoring design (ADR-036)
+- Basic = existing plan renamed (same price). Pro = Basic + AI, priced in fleet-size bands entered by the owner in Admin, Plans (no amounts in code; a test enforces it); each band sets the AI readings per day. Reading with AI is gated by plan on the server; a Pro trial gets 10 readings.
+- Rollout: Phase 1 Basic only; Phase 2 Pro offered as an upgrade to organizations entering more than 20 job cards a day (30-day average; setting). Pricing page says Pro is coming until the owner sets bands.
+- Not built: moving plans by payment in Billing (step 2), vendor scorecard and AI workshop recommendation (ADR-036, needs owner decisions listed there).
