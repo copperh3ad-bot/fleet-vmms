@@ -6,6 +6,7 @@ import { allowShared } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
 import { DEAD_QUOTE_LINK, lookupWorkshopLink } from "@/lib/vendorflow/link";
 import { EstimateForm } from "./form";
+import { sendEstimateAction, sendInvoiceAction } from "./actions";
 import { InvoiceForm } from "./invoice-form";
 import { Logo } from "@/components/brand";
 
@@ -40,7 +41,7 @@ async function Inner({ params }: { params: Promise<{ token: string }> }) {
               {link?.kind === "quotation" && link.view.needed_by && <p className="text-sm text-zinc-500">Needed by {new Date(link.view.needed_by).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}</p>}
               {invoice && <p className="text-sm text-zinc-500">Work order <span className="font-mono">{invoice.wo_no}</span></p>}
             </div>
-            {invoice ? <InvoiceForm token={token} currency={view.currency} approved={invoice.lines} /> : <EstimateForm token={token} currency={view.currency} />}
+            {invoice ? <InvoiceForm submit={sendInvoiceAction.bind(null, token)} currency={view.currency} approved={invoice.lines} /> : <EstimateForm submit={sendEstimateAction.bind(null, token)} currency={view.currency} />}
           </>
         ) : (
           <p role="status" className="rounded-xl border border-zinc-200 bg-white p-5 text-base">{DEAD_QUOTE_LINK}</p>

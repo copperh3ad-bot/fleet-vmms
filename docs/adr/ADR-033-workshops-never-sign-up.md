@@ -18,16 +18,29 @@ Status: accepted, 2026-10-28. Extends ADR-030 (the estimate link). Retires the w
    to fix rather than that the link is dead. An estimate link cannot send an invoice and the reverse.
 4. **Sending the link.** By phone: the sender's own WhatsApp or messages app opens with the text ready (the link is never shown). By email: the server
    sends it to the address on the Vendors page, so the link reaches only the address the organization entered.
-5. **Replying by email (phase 2).** Each email carries a unique reply address on a subdomain (`reply.fleetotg.com`), received by Resend. A signed webhook
-   hands the message to the app, which files the message and its attachments on the job card as *received by email, needs entering*, and tells the
-   people who handle it. **Staff enter the figures**; nothing is read out of a PDF automatically, because a misread amount on an invoice is worse than a
-   minute of typing. Decided by the owner on 2026-10-28: file it, staff enter the figures; straight onto the job card, flagged for review.
+5. **Replying by email.** Each emailed request carries a unique reply address, `w-<24 hex>@reply.fleetotg.com` (a subdomain, so the root's Zoho mail
+   is untouched), set as the email's Reply-To. Only the SHA-256 of the code is stored (`quotation_links.reply_code_hash`, routed by the control plane
+   as kind `reply`). Resend receives the reply and calls `POST /api/inbound/email`, signed with Svix (same scheme as ADR-024, `svix-*` headers). The
+   route fetches the message and its attachments from Resend's receiving API, keeps only photos and PDFs up to 4 MB (at most 6 per reply, 12 per job
+   card), saves them in the organization's own storage folder and on the job card's files, and files the message in `workshop_emails` as *received by
+   email, needs entering*, telling the people who decide on estimates or check invoices. It runs as the `inbound_mail` role: no table access, only
+   three SECURITY DEFINER functions. A reply is accepted only while the request is open (job in the right stage, link not revoked or expired) and at most
+   5 times; a repeated delivery of the same message id files nothing twice; a reply from an address other than the one on the Vendors page is filed but
+   marked so staff check before they trust it. A newer emailed request replaces the older reply address.
+6. **Staff enter the figures.** Nothing is read out of a PDF automatically, because a misread amount on an invoice is worse than a minute of typing.
+   The job card shows the reply with an "Enter the estimate/invoice" button that opens the same form the workshop's link shows
+   (`/w/<slug>/job-cards/<id>/enter/<kind>`). It ends in the same database function as the link, so the job card moves identically, and the history
+   names the person who typed it in. Decided by the owner on 2026-10-28: file it, staff enter the figures; straight onto the job card, flagged for review.
+7. **Saving the emailed files needs the service key**, because nobody is signed in when a reply arrives. `putInboundFile` in `src/lib/supabase/admin.ts`
+   is the fourth and only new use of the key (it adds a file inside one organization's folder; it never reads, lists, overwrites or deletes), reached
+   only through `src/lib/admin/service.ts`.
 
 ## Why
 Workshops are small businesses that will not keep another login. A link on a phone, or an email they can answer, is what they will actually use,
 and it keeps every estimate and invoice recorded against a job card number with no account to manage or to leak.
 
 ## Consequences
-- Rule 5 (CLAUDE.md) lists the invoice link with the estimate link; phase 2 adds the signed inbound-email webhook.
-- Existing workshop logins and the vendor portal are removed in phase 3 (a migration is not needed: the data stays; only the pages and the join flow go).
-- The Privacy policy lists Resend as the provider of inbound email once phase 2 is live.
+- Rule 5 (CLAUDE.md) lists the invoice link with the estimate link and adds the signed inbound-email webhook.
+- Existing workshop logins and the vendor portal are removed in a later step (no data migration: the data stays; only the pages and the join flow go).
+- The Privacy policy lists Resend as the provider of inbound email and says replies are stored.
+- Set-up the owner does once: docs/OPERATIONS.md, "Workshop email replies".

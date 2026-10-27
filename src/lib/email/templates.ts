@@ -14,7 +14,7 @@ export const hookSchema = z.object({
 });
 export type HookPayload = z.output<typeof hookSchema>;
 
-export type Mail = { to: string; subject: string; text: string; html: string };
+export type Mail = { to: string; subject: string; text: string; html: string; /** where a reply goes, if not the site-wide address */ replyTo?: string };
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 

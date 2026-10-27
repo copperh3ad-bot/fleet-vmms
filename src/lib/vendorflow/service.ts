@@ -8,6 +8,7 @@ import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
 import { lineSchema } from "@/lib/jobcards/schemas";
 import { friendly, notifyAfter } from "@/lib/jobcards/service";
+import { inboundConfigured, newReplyCode, replyCodeHash } from "./inbound";
 import { notify } from "@/lib/notify";
 import { normalizePhone } from "@/lib/phone";
 import { hashToken, newToken } from "@/lib/odometer/link";
@@ -93,7 +94,7 @@ export function decideQuotation(driver: Driver, m: Membership, quotationId: stri
 }
 
 export type WorkshopLinkKind = "quotation" | "invoice";
-export type NewQuoteLink = { kind: WorkshopLinkKind; token: string; expires_at: string; job_no: string; vendor_name: string; vendor_email: string | null; phone: { e164: string; digits: string; display: string } };
+export type NewQuoteLink = { kind: WorkshopLinkKind; token: string; replyCode: string | null; expires_at: string; job_no: string; vendor_name: string; vendor_email: string | null; phone: { e164: string; digits: string; display: string } };
 const QUOTE_LINK_HOURS = 168;
 const QUOTE_LINK_PERMS = ["jobcard.assign_vendor", "quotation.approve"];
 const INVOICE_LINK_PERMS = ["jobcard.assign_vendor", "quotation.approve", "invoice.verify"];
@@ -105,7 +106,7 @@ const LINK_STATUSES: Record<WorkshopLinkKind, string[]> = { quotation: ["vendor_
  * `quotation` asks for the estimate; `invoice` asks for the invoice against the approved estimate. Any earlier unused link of the same
  * kind on this job card stops working. Workshops never sign up, so these links are how they send anything.
  */
-export async function createWorkshopLink(driver: Driver, m: Membership, jobId: string, kind: WorkshopLinkKind): Promise<NewQuoteLink> {
+export async function createWorkshopLink(driver: Driver, m: Membership, jobId: string, kind: WorkshopLinkKind, opts: { withReply?: boolean } = {}): Promise<NewQuoteLink> {
   const perms = kind === "quotation" ? QUOTE_LINK_PERMS : INVOICE_LINK_PERMS;
   const made = await authorizedAny(driver, m, perms, async (q) => {
     const j = (await q.query<{ job_no: string; status: string; vendor_id: string | null; vendor_name: string | null; phone: string | null; email: string | null }>(
@@ -118,15 +119,19 @@ export async function createWorkshopLink(driver: Driver, m: Membership, jobId: s
     if (!phone.ok && !j.email) throw new UserError(`${j.vendor_name} has no mobile number or email a message can reach. Add one under Vendors first.`);
     await q.query("update public.quotation_links set revoked_at = now() where tenant_id = $1 and job_card_id = $2 and kind = $3 and used_at is null and revoked_at is null", [m.tenantId, jobId, kind]);
     const token = newToken();
+    const replyCode = opts.withReply && inboundConfigured() ? newReplyCode() : null;     // only an emailed request can be answered by replying
     const exp = (await q.query<{ e: string }>(
-      `insert into public.quotation_links(token_hash, tenant_id, job_card_id, vendor_id, created_by, expires_at, kind)
-       values ($1, $2, $3, $4, $5, now() + ($6 || ' hours')::interval, $7) returning expires_at::text as e`,
-      [hashToken(token), m.tenantId, jobId, j.vendor_id, m.userId, String(QUOTE_LINK_HOURS), kind])).rows[0].e;
-    return { kind, token, expires_at: exp, job_no: j.job_no, vendor_name: j.vendor_name ?? "", vendor_email: j.email,
+      `insert into public.quotation_links(token_hash, tenant_id, job_card_id, vendor_id, created_by, expires_at, kind, reply_code_hash)
+       values ($1, $2, $3, $4, $5, now() + ($6 || ' hours')::interval, $7, $8) returning expires_at::text as e`,
+      [hashToken(token), m.tenantId, jobId, j.vendor_id, m.userId, String(QUOTE_LINK_HOURS), kind, replyCode ? replyCodeHash(replyCode) : null])).rows[0].e;
+    return { kind, token, replyCode, expires_at: exp, job_no: j.job_no, vendor_name: j.vendor_name ?? "", vendor_email: j.email,
              phone: phone.ok ? { e164: phone.e164, digits: phone.digits, display: phone.display } : { e164: "", digits: "", display: "" } };
   });
   // The control plane learns which organization the link belongs to; without that it would not open.
-  try { await routeToken(driver, kind, m.tenantId, hashToken(made.token), made.expires_at); }
+  try {
+    await routeToken(driver, kind, m.tenantId, hashToken(made.token), made.expires_at);
+    if (made.replyCode) await routeToken(driver, "reply", m.tenantId, replyCodeHash(made.replyCode), made.expires_at);
+  }
   catch {
     await authorizedAny(driver, m, perms, (q) => q.query("update public.quotation_links set revoked_at = now() where token_hash = $1", [hashToken(made.token)])).catch(() => undefined);
     throw new UserError("The link could not be created. Try again.");
@@ -136,6 +141,24 @@ export async function createWorkshopLink(driver: Driver, m: Membership, jobId: s
 
 /** The estimate link (ADR-030). */
 export const createQuoteLink = (driver: Driver, m: Membership, jobId: string) => createWorkshopLink(driver, m, jobId, "quotation");
+
+// ============================ A workshop's email reply (ADR-033) ============================
+
+export type WorkshopEmailRow = { id: string; kind: WorkshopLinkKind; from_address: string; sender_matches: boolean; subject: string | null; body_text: string | null; file_count: number; status: string; received_at: string };
+const EMAIL_PERMS = ["jobcard.assign_vendor", "quotation.approve", "invoice.verify"];
+
+/** The replies that came in for one job card, newest first, for the people who handle estimates and invoices. */
+export function listWorkshopEmails(driver: Driver, m: Membership, jobId: string): Promise<WorkshopEmailRow[]> {
+  return authorizedAny(driver, m, EMAIL_PERMS, async (q) => (await q.query<WorkshopEmailRow>(
+    "select id, kind, from_address, sender_matches, subject, body_text, file_count, status, received_at::text from workshop_emails where job_card_id = $1 order by received_at desc, id", [jobId])).rows);
+}
+
+/** Staff say a reply has been dealt with: its figures were entered, or it needs nothing. */
+export function setWorkshopEmailStatus(driver: Driver, m: Membership, emailId: string, status: "entered" | "dismissed"): Promise<void> {
+  return authorizedAny(driver, m, EMAIL_PERMS, async (q) => {
+    await q.query("update workshop_emails set status = $2, handled_by = $3, handled_at = now() where id = $1 and status = 'new'", [emailId, status, m.userId]);
+  });
+}
 
 export type QuotationRow = { id: string; status: string; amount: string; created_at: string; valid_until: string | null; days_needed: number | null; warranty_months: number | null;
   job_card_id: string; job_no: string; job_status: string; vendor_name: string; registration_no: string };

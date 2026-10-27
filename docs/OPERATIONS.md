@@ -107,3 +107,18 @@ The site publishes structured data, `/llms.txt`, a Features page and a `robots.t
 3. **Check the markup** with Google's Rich Results Test on the home and pricing pages, and fix anything it reports.
 4. **Keep the words true.** The FAQ on the home page is `src/lib/faq.ts`; change it there and the page and the markup change together. Never put the price in it.
 5. To keep a crawler out of AI training, move its name in `src/app/robots.ts` from the answer list to a `disallow: "/"` rule.
+
+## Workshop email replies (ADR-033)
+Workshops never sign up. An organization emails a workshop a one-time link; the email can also be answered by replying with the estimate or invoice attached. Replies are received by Resend and filed on the job card; staff then type the figures in. Nothing works by email reply until you do all of this once (the one-time links work without it):
+1. **Resend: add a receiving domain.** Resend, Domains, add `reply.fleetotg.com` (a subdomain, so your root domain's Zoho mail is not touched). It shows an MX record for receiving.
+2. **Spaceship DNS:** add that MX record on the host `reply`. Do not change the MX records on `@`.
+3. **Resend: add a webhook.** Webhooks, Add, address `https://www.fleetotg.com/api/inbound/email`, event `email.received`. Copy its signing secret (it starts `whsec_`).
+4. **Netlify variables** (secret ones as secrets, then redeploy):
+   - `INBOUND_REPLY_DOMAIN` = `reply.fleetotg.com`
+   - `RESEND_WEBHOOK_SECRET` = the signing secret from step 3
+   - `RESEND_API_KEY` = a Resend API key with **full access** (a sending-only key cannot read received mail). Make a separate key for this, and never paste it in chat.
+   - `SUPABASE_SERVICE_ROLE_KEY` must already be set (it is used to save the files the email brought).
+5. **Test:** on a job card waiting for an estimate, press "Email the link" to a workshop whose email on the Vendors page is yours, reply from that address with a PDF attached, and check the job card shows "Received by email, needs entering" with the file among its files.
+6. **If replies do not arrive:** Resend, Emails, Receiving shows what it got; Resend, Webhooks shows the delivery attempts; Netlify, Logs, Functions shows `inbound-email:` lines (they never contain an address or text).
+Until steps 1 to 4 are done, the emails the app sends simply leave out the "or reply to this email" sentence.
+

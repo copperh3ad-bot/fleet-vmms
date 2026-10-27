@@ -1,7 +1,9 @@
 "use client";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { sendEstimateAction, type QuoteFormState } from "./actions";
+import type { QuoteFormState } from "./actions";
+
+export type FormSubmit = (prev: QuoteFormState, form: FormData) => Promise<QuoteFormState>;
 
 function Go() {
   const { pending } = useFormStatus();
@@ -11,10 +13,10 @@ function Go() {
 const field = "h-12 w-full rounded-xl border border-zinc-300 bg-white px-3 text-base text-zinc-900";
 const KINDS: [string, string][] = [["part", "Part"], ["labour", "Labour"], ["service", "Service"], ["other", "Other"]];
 
-export function EstimateForm({ token, currency }: { token: string; currency: string }) {
-  const [state, action] = useActionState<QuoteFormState, FormData>(sendEstimateAction.bind(null, token), {});
+export function EstimateForm({ submit, currency, doneText = "Thank you. Your estimate was sent to the fleet office." }: { submit: FormSubmit; currency: string; doneText?: string }) {
+  const [state, action] = useActionState<QuoteFormState, FormData>(submit, {});
   const [rows, setRows] = useState(1);
-  if (state.done) return <p role="status" className="rounded-xl border border-green-200 bg-green-50 p-5 text-lg text-green-900">Thank you. Your estimate was sent to the fleet office.</p>;
+  if (state.done) return <p role="status" className="rounded-xl border border-green-200 bg-green-50 p-5 text-lg text-green-900">{doneText}</p>;
   return (
     <form action={action} className="flex flex-col gap-5" noValidate>
       <input type="hidden" name="count" value={rows} />

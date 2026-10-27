@@ -5,11 +5,11 @@ import { allowShared } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
 import { hashToken } from "@/lib/odometer/link";
 import { DEAD_QUOTE_LINK, submitViaInvoiceLink, submitViaQuoteLink } from "@/lib/vendorflow/link";
+import { estimateFromForm, invoiceFromForm } from "@/lib/vendorflow/form";
 
 export type QuoteFormState = { error?: string; done?: boolean };
 
 const TEN_MIN = 600;
-const text = (f: FormData, k: string) => String(f.get(k) ?? "");
 
 export async function sendEstimateAction(token: string, _prev: QuoteFormState, form: FormData): Promise<QuoteFormState> {
   const driver = getDriver();
@@ -18,18 +18,7 @@ export async function sendEstimateAction(token: string, _prev: QuoteFormState, f
     allowShared(driver, `quote-send-token:${hashToken(token)}`, 10, TEN_MIN),
   ]);
   if (!ipOk || !tokenOk) return { error: "Too many tries. Wait a few minutes and try again." };
-  const count = Math.min(Number(text(form, "count")) || 0, 50);
-  const lines = [];
-  for (let i = 0; i < count; i++) {
-    const description = text(form, `description_${i}`).trim();
-    const qty = text(form, `qty_${i}`).trim();
-    const unit = text(form, `unit_cost_${i}`).trim();
-    if (!description && !qty && !unit) continue;
-    lines.push({ kind: text(form, `kind_${i}`) || "service", description, qty, unit_cost: unit });
-  }
-  const r = await submitViaQuoteLink(driver, token, {
-    details: text(form, "details"), days_needed: text(form, "days_needed"), valid_until: text(form, "valid_until"), warranty_months: text(form, "warranty_months"), lines,
-  });
+  const r = await submitViaQuoteLink(driver, token, estimateFromForm(form));
   if (r.ok) return { done: true };
   if (r.reason === "bad_input") return { error: r.message };
   return { error: DEAD_QUOTE_LINK };
@@ -43,16 +32,7 @@ export async function sendInvoiceAction(token: string, _prev: QuoteFormState, fo
     allowShared(driver, `invoice-send-token:${hashToken(token)}`, 10, TEN_MIN),
   ]);
   if (!ipOk || !tokenOk) return { error: "Too many tries. Wait a few minutes and try again." };
-  const count = Math.min(Number(text(form, "count")) || 0, 50);
-  const lines = [];
-  for (let i = 0; i < count; i++) {
-    const description = text(form, `description_${i}`).trim();
-    const qty = text(form, `qty_${i}`).trim();
-    const unit = text(form, `unit_cost_${i}`).trim();
-    if (!description && !qty && !unit) continue;
-    lines.push({ kind: text(form, `kind_${i}`) || "service", description, qty, unit_cost: unit, quotation_line_id: text(form, `qlid_${i}`) });
-  }
-  const r = await submitViaInvoiceLink(driver, token, { invoice_no: text(form, "invoice_no"), invoice_date: text(form, "invoice_date"), tax_amount: text(form, "tax_amount"), lines });
+  const r = await submitViaInvoiceLink(driver, token, invoiceFromForm(form));
   if (r.ok) return { done: true };
   if (r.reason === "bad_input") return { error: r.message };
   return { error: DEAD_QUOTE_LINK };

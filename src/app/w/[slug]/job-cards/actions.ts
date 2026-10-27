@@ -8,9 +8,12 @@ import { ForbiddenError } from "@/lib/auth/can";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { addJobCardAttachment, removeJobCardAttachment } from "@/lib/jobcards/attachments";
 import { UserError } from "@/lib/master/service";
-import { createWorkshopLink, decideQuotation, type WorkshopLinkKind } from "@/lib/vendorflow/service";
+import { createWorkshopLink, decideQuotation, setWorkshopEmailStatus, type WorkshopLinkKind } from "@/lib/vendorflow/service";
+import { enterForWorkshop } from "@/lib/vendorflow/entry";
+import { estimateFromForm, invoiceFromForm } from "@/lib/vendorflow/form";
 import { emailConfigured, sendMail } from "@/lib/email/send";
 import { buildWorkshopMail } from "@/lib/email/workshop";
+import { replyAddress } from "@/lib/vendorflow/inbound";
 import { SITE_URL } from "@/lib/site";
 import { origin } from "@/lib/origin";
 import { runAction, str, typed, type FormState } from "../actions-util";
@@ -156,15 +159,35 @@ export async function emailWorkshopLinkAction(slug: string, jobId: string, kind:
   const base = await origin();
   const state = await runAction(slug, async (m) => {
     if (!emailConfigured()) throw new UserError("Email is not set up on this server yet. Send the link by phone instead.");
-    const l = await createWorkshopLink(getDriver(), m, jobId, kind);
+    const l = await createWorkshopLink(getDriver(), m, jobId, kind, { withReply: true });
     if (!l.vendor_email) throw new UserError(`${l.vendor_name} has no email address. Add it under Vendors, or send the link by phone.`);
     try {
-      await sendMail(buildWorkshopMail({ to: l.vendor_email, kind, vendorName: l.vendor_name, orgName: m.tenantName || "A Fleet OTG customer", jobNo: l.job_no, url: `${base}/q/${l.token}`, siteUrl: SITE_URL }));
+      await sendMail(buildWorkshopMail({ to: l.vendor_email, kind, vendorName: l.vendor_name, orgName: m.tenantName || "A Fleet OTG customer", jobNo: l.job_no, url: `${base}/q/${l.token}`, siteUrl: SITE_URL, replyTo: l.replyCode ? replyAddress(l.replyCode) : undefined }));
     } catch {
       throw new UserError("The email could not be sent. Try again, or send the link by phone.");
     }
     return `Email sent to ${l.vendor_name}.`;
   });
+  if (state.ok) refresh();
+  return state;
+}
+
+/**
+ * Staff type in the figures from a workshop's emailed reply (ADR-033). The form is the one the workshop's own link shows, and it ends in the same
+ * database step, so the job card moves exactly as it would have; the history names the person who typed it in.
+ */
+export async function enterForWorkshopAction(slug: string, jobId: string, kind: WorkshopLinkKind, emailId: string, _prev: { error?: string; done?: boolean }, form: FormData): Promise<{ error?: string; done?: boolean }> {
+  const state = await runAction(slug, async (m) => {
+    await enterForWorkshop(getDriver(), m, jobId, kind, kind === "quotation" ? estimateFromForm(form) : invoiceFromForm(form), emailId || undefined);
+    return "Saved.";
+  });
+  if (state.ok) { refresh(); return { done: true }; }
+  return { error: state.error ?? "Could not save. Check the lines." };
+}
+
+/** Says a workshop's emailed reply needs nothing more (or has been dealt with). */
+export async function workshopEmailStatusAction(slug: string, emailId: string, status: "entered" | "dismissed", _prev: FormState): Promise<FormState> {
+  const state = await runAction(slug, async (m) => { await setWorkshopEmailStatus(getDriver(), m, emailId, status); return "Done."; });
   if (state.ok) refresh();
   return state;
 }

@@ -77,14 +77,15 @@ function badInput(error: { issues: { path: PropertyKey[]; message: string }[] },
 }
 
 /** Accepts one estimate. The database function marks the link used and saves the estimate in one step, so a failure burns nothing. */
-export async function submitViaQuoteLink(driver: Driver, token: string, input: unknown): Promise<LinkResult> {
+/** `comment` is only ever set by the signed-in staff route (ADR-033), so the history names the person who typed an emailed estimate in. The public form cannot set it. */
+export async function submitViaQuoteLink(driver: Driver, token: string, input: unknown, opts: { comment?: string } = {}): Promise<LinkResult> {
   const parsed = quotationSchema.safeParse(input);
   if (!parsed.success) return badInput(parsed.error, "Check the estimate.");
   const link = await resolve(driver, token, "quotation");
   if (!link) return { ok: false, reason: "invalid" };
   try {
     await withLinkContext(driver, link.schema, async (q) => {
-      await q.query("select submit_quotation_via_link($1, $2, $3::jsonb, $4)", [link.jobId, link.vendorId, JSON.stringify(parsed.data), hashToken(token)]);
+      await q.query("select submit_quotation_via_link($1, $2, $3::jsonb, $4)", [link.jobId, link.vendorId, JSON.stringify({ ...parsed.data, comment: opts.comment }), hashToken(token)]);
     }, "quotation_link");
     return { ok: true };
   } catch (e) {
@@ -95,14 +96,14 @@ export async function submitViaQuoteLink(driver: Driver, token: string, input: u
 }
 
 /** Accepts one invoice against the approved quotation, the same way. Sending it also records the work as done, since the workshop is not a user. */
-export async function submitViaInvoiceLink(driver: Driver, token: string, input: unknown): Promise<LinkResult> {
+export async function submitViaInvoiceLink(driver: Driver, token: string, input: unknown, opts: { comment?: string } = {}): Promise<LinkResult> {
   const parsed = invoiceSchema.safeParse(input);
   if (!parsed.success) return badInput(parsed.error, "Check the invoice.");
   const link = await resolve(driver, token, "invoice");
   if (!link) return { ok: false, reason: "invalid" };
   try {
     await withLinkContext(driver, link.schema, async (q) => {
-      await q.query("select submit_invoice_via_link($1, $2, $3::jsonb, $4)", [link.jobId, link.vendorId, JSON.stringify(parsed.data), hashToken(token)]);
+      await q.query("select submit_invoice_via_link($1, $2, $3::jsonb, $4)", [link.jobId, link.vendorId, JSON.stringify({ ...parsed.data, comment: opts.comment }), hashToken(token)]);
     }, "quotation_link");
     return { ok: true };
   } catch (e) {

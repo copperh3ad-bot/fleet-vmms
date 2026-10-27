@@ -328,3 +328,8 @@
 
 ## 2026-10-28: Terms and Privacy drafts (ADR-032)
 - Full balanced drafts for customers and owner; who "we" are, the address and the governing law come from Settings (placeholders show until entered). Draft notice stays until a lawyer reviews.
+
+## 2026-10-28: workshops never sign up (ADR-033)
+- Invoice link beside the estimate link; both can be sent by phone (WhatsApp, text) or emailed to the workshop. Sending an invoice records the work as done.
+- Email replies: unique reply address per emailed request, Resend inbound webhook (/api/inbound/email), files saved on the job card, flagged "received by email, needs entering"; staff type the figures in with the same form (history names them).
+- Needs, before deploy: platform 0012, control 0014, tenant 0023 and 0024 run on live. Owner set-up in docs/OPERATIONS.md ("Workshop email replies"). Open: retire the workshop sign-up pages and vendor portal.

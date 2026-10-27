@@ -33,7 +33,7 @@ begin
                 coalesce(nullif(l->>'qty', '')::numeric, 1), coalesce(nullif(l->>'unit_cost', '')::numeric, 0));
         n := n + 1;
       end loop;
-      perform transition_job_card(p_job, 'quotation_received', null, 'Estimate sent by the workshop through a link');
+      perform transition_job_card(p_job, 'quotation_received', null, coalesce(nullif(left(p->>'comment', 200), ''), 'Estimate sent by the workshop through a link'));
       insert into notifications(user_id, kind, payload)
         select distinct m.user_id, 'quotation.received', jsonb_build_object('job_card_id', p_job, 'job_no', jc.job_no, 'to', 'quotation_received')
           from public.tenant_memberships m
@@ -62,6 +62,8 @@ begin
     $b$
   $f$, s);
 
+  -- A `comment` in the payload replaces the default history line; only the signed-in staff route sets it (the public form never does, and the
+  -- schema in the app drops unknown fields), so staff who type in a workshop's emailed figures are named instead of the workshop.
   -- Marks the link used and saves the invoice in one step, so a refused invoice never burns a link. The workshop is not a user, so it cannot press
   -- "start" and "complete"; sending its invoice records the work as done (and says so in the job card's history) and then moves the job card to
   -- "invoiced", exactly where the signed-in route would end up. The people who check invoices are told.
@@ -94,11 +96,11 @@ begin
 
       if wo.status = 'issued' then
         update work_orders set status = 'in_progress' where id = wo.id;
-        perform transition_job_card(p_job, 'in_progress', null, 'Work recorded as started when the workshop sent its invoice');
+        perform transition_job_card(p_job, 'in_progress', null, coalesce(nullif(left(p->>'comment', 200), ''), 'Work recorded as started when the workshop sent its invoice'));
       end if;
       if wo.status in ('issued', 'in_progress') then
         update work_orders set status = 'completed', completed_at = now() where id = wo.id;
-        perform transition_job_card(p_job, 'completed', null, 'Work recorded as done when the workshop sent its invoice');
+        perform transition_job_card(p_job, 'completed', null, coalesce(nullif(left(p->>'comment', 200), ''), 'Work recorded as done when the workshop sent its invoice'));
       end if;
 
       total := (select coalesce(sum(coalesce(nullif(e->>'qty', '')::numeric, 1) * coalesce(nullif(e->>'unit_cost', '')::numeric, 0)), 0)
@@ -112,7 +114,7 @@ begin
         values (iid, nullif(l->>'quotation_line_id', '')::uuid, coalesce(nullif(l->>'kind', ''), 'service'), left(l->>'description', 300),
                 coalesce(nullif(l->>'qty', '')::numeric, 1), coalesce(nullif(l->>'unit_cost', '')::numeric, 0));
       end loop;
-      perform transition_job_card(p_job, 'invoiced', null, 'Invoice sent by the workshop through a link');
+      perform transition_job_card(p_job, 'invoiced', null, coalesce(nullif(left(p->>'comment', 200), ''), 'Invoice sent by the workshop through a link'));
       insert into notifications(user_id, kind, payload)
         select distinct m.user_id, 'invoice.submitted', jsonb_build_object('job_card_id', p_job, 'job_no', jc.job_no, 'to', 'invoiced')
           from public.tenant_memberships m

@@ -20,6 +20,7 @@ const TEXT: Record<string, string> = {
   "quotation.rejected": "quotation was rejected. You can send a new one",
   "work.completed": "work is done",
   "invoice.submitted": "has an invoice to check",
+  "workshop.email": "a workshop replied by email. Open the job card to enter the figures",
   "invoice.verified": "invoice was checked",
   "invoice.returned": "invoice was returned to you",
   "document.expiring": "expires soon",

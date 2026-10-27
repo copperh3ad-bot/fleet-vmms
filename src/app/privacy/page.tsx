@@ -36,6 +36,7 @@ async function Privacy() {
         <li><strong>Records people enter into a workspace:</strong> employee and driver names, codes, roles, phone numbers and sign-in names; vehicle details and who held a vehicle and when; workshop and supplier contacts; job cards, quotations, invoices, odometer readings, accidents and fines; documents and photographs attached to them; and a history of who changed what and when.</li>
         <li><strong>One-time links:</strong> when your administrator sends an invitation, an odometer link or a workshop estimate link, we store a protected fingerprint of the link (not the link itself), who it is for, and when it was used. The phone number a link is meant for is the one your administrator entered; the link is sent from your administrator&apos;s own phone, not by us.</li>
         <li><strong>Payment records:</strong> the bank transfers you tell us about, the reference, amount, date, any receipt or transfer number you upload, our invoices, and any tax withholding certificate.</li>
+        <li><strong>Replies from workshops:</strong> when a workshop replies to an email an organization sent it, we keep the sender's address, the subject, the text it wrote and any photos or PDFs attached, on that organization's job card, so staff can enter the figures.</li>
         <li><strong>Messages to us:</strong> what you write in the Contact form (name, email, company, topic, message) and in emails to our support addresses.</li>
         <li><strong>Technical data:</strong> your internet address and the pages you ask for are seen by our hosting provider when you use the site, and may appear in its security and error logs. To slow down abuse we count attempts per address; the counter is kept in scrambled (hashed) form and for a short time only.</li>
       </ul>
@@ -55,7 +56,7 @@ async function Privacy() {
       <ul>
         <li><strong>Supabase</strong>: database, sign-in and file storage. The database and files for the live service are in Tokyo, Japan.</li>
         <li><strong>Netlify</strong>: hosts the website and runs its server code; may keep technical logs.</li>
-        <li><strong>Resend</strong>: sends the sign-up confirmation and password-reset emails. It sees the recipient&apos;s email address and the text of the message.</li>
+        <li><strong>Resend</strong>: sends the sign-up confirmation and password-reset emails, and the emails an organization sends its workshops, and receives the replies workshops send to them. It sees the sender&apos;s and recipient&apos;s email addresses and the text and attachments of the message.</li>
         <li><strong>Zoho Mail</strong>: our mailboxes. It handles the emails you send to our support, sales and billing addresses and our replies.</li>
       </ul>
       <p>We also share information when the law requires it, with a court or authority acting lawfully, or to protect our rights or others&apos; safety, and with a successor if the business is sold, on terms that keep this policy. Within your organization, only the people your administrator has given access can see your records. Our staff do not open an organization&apos;s records except to fix a problem you report, and then only as much as is needed.</p>

@@ -1,7 +1,8 @@
 "use client";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { sendInvoiceAction, type QuoteFormState } from "./actions";
+import type { QuoteFormState } from "./actions";
+import type { FormSubmit } from "./form";
 
 function Go() {
   const { pending } = useFormStatus();
@@ -13,11 +14,11 @@ const KINDS: [string, string][] = [["part", "Part"], ["labour", "Labour"], ["ser
 type Approved = { id: string; kind: string; description: string; qty: string; unit_cost: string };
 
 /** The invoice, started from the lines of the approved estimate so the workshop bills against them. Extra lines are allowed and are shown to the fleet office as not in the estimate. */
-export function InvoiceForm({ token, currency, approved }: { token: string; currency: string; approved: Approved[] }) {
-  const [state, action] = useActionState<QuoteFormState, FormData>(sendInvoiceAction.bind(null, token), {});
+export function InvoiceForm({ submit, currency, approved, doneText = "Thank you. Your invoice was sent to the fleet office." }: { submit: FormSubmit; currency: string; approved: Approved[]; doneText?: string }) {
+  const [state, action] = useActionState<QuoteFormState, FormData>(submit, {});
   const [extra, setExtra] = useState(0);
   const rows = approved.length + extra;
-  if (state.done) return <p role="status" className="rounded-xl border border-green-200 bg-green-50 p-5 text-lg text-green-900">Thank you. Your invoice was sent to the fleet office.</p>;
+  if (state.done) return <p role="status" className="rounded-xl border border-green-200 bg-green-50 p-5 text-lg text-green-900">{doneText}</p>;
   return (
     <form action={action} className="flex flex-col gap-5" noValidate>
       <input type="hidden" name="count" value={rows} />

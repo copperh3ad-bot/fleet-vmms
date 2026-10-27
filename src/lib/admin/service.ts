@@ -12,7 +12,7 @@ import { fieldErrors } from "@/lib/master/schemas";
 import { checkRecoveryCode, checkUsername, deleteLoginName, hashRecoveryCode, loginNameByUserId, loginNameByUsername, loginNamesFor, newLoginEmail, recordLoginName, setRecoveryHash, usernameTaken, verifyRecoveryCode } from "@/lib/auth/login-names";
 import { allowShared } from "@/lib/rate-limit";
 import { normalizePhone } from "@/lib/phone";
-import { authAdminConfigured, createLoginUser, deleteLoginUser, setLoginPassword } from "@/lib/supabase/admin";
+import { authAdminConfigured, createLoginUser, deleteLoginUser, putInboundFile, setLoginPassword } from "@/lib/supabase/admin";
 
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
 export const INVITE_DAYS = 7;
@@ -530,3 +530,6 @@ export async function replaceLogin(driver: Driver, m: Membership, userId: string
   for (const o of gone.olds) await untrack(driver, m.tenantId, o.id, o.token_hash);
   return { username: ln.username, employee_no: gone.employee_no };
 }
+
+/** The one way the rest of the app saves a file that arrived with no one signed in (a workshop's email, ADR-033). Everything else about the service key stays in supabase/admin.ts. */
+export const storeInboundFile = putInboundFile;

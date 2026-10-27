@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { QuoteLink } from "./quote-link";
+import { WorkshopEmails } from "./workshop-emails";
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
@@ -8,7 +9,7 @@ import { getJobCard, getReviewContext, listActiveVendors, listReasonCodes } from
 import { STATUS_LABEL, StatusBadge, Stepper } from "../status";
 import { listJobCardAttachments } from "@/lib/jobcards/attachments";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
-import { getJobFlow } from "@/lib/vendorflow/service";
+import { getJobFlow, listWorkshopEmails } from "@/lib/vendorflow/service";
 import { Panel, Pill, Plate, btn, money } from "@/components/ui";
 import { ClosePanel, DraftPanel, VendorPanel } from "./panel";
 import { DecisionForm } from "./decision";
@@ -38,6 +39,8 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
   const canEdit = c.mine && perms.has("jobcard.create") && ["draft", "returned_for_edit"].includes(c.status);
   const commercial = perms.has("jobcard.read_all") && !["draft", "submitted", "returned_for_edit", "rejected", "cancelled", "approved"].includes(c.status);
   const flow = commercial ? await getJobFlow(driver, m, id) : null;
+  const canHandleEmails = perms.has("jobcard.assign_vendor") || perms.has("quotation.approve") || perms.has("invoice.verify");
+  const workshopEmails = commercial && canHandleEmails ? await listWorkshopEmails(driver, m, id) : [];
   const canDecideQuote = c.status === "quotation_received" && perms.has("quotation.approve") && (!c.requester_is_me || m.role === "tenant_admin");
   const canClose = c.status === "invoice_verified" && perms.has("invoice.verify");
   const [files, ctx, reasons, assignable] = await Promise.all([
@@ -141,6 +144,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
           {flow && (
             <Panel title="Quotation, work order and invoice">
               {c.status === "vendor_assigned" && <p className="mb-3 text-sm text-zinc-600">Waiting for {c.vendor_name} to send a quotation.</p>}
+              <WorkshopEmails slug={slug} jobId={id} emails={workshopEmails} />
               {c.status === "vendor_assigned" && c.vendor_name && (perms.has("jobcard.assign_vendor") || perms.has("quotation.approve")) && <QuoteLink slug={slug} jobId={id} vendor={c.vendor_name} kind="quotation" />}
               {["quotation_approved", "in_progress", "completed"].includes(c.status) && c.vendor_name && (perms.has("jobcard.assign_vendor") || perms.has("quotation.approve") || perms.has("invoice.verify")) && <QuoteLink slug={slug} jobId={id} vendor={c.vendor_name} kind="invoice" />}
               {flow.quotations.map((qt) => (

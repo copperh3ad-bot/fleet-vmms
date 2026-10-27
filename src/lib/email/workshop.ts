@@ -7,8 +7,8 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 
 export type WorkshopMailInput = {
   to: string; kind: "quotation" | "invoice"; vendorName: string; orgName: string; jobNo: string; url: string; siteUrl: string;
-  /** when set, the workshop may also answer by replying to this email with the document attached */
-  canReply?: boolean;
+  /** when set, the workshop may also answer by replying to this email with the document attached, and the reply goes to this address */
+  replyTo?: string;
 };
 
 export function buildWorkshopMail(i: WorkshopMailInput): Mail {
@@ -17,7 +17,7 @@ export function buildWorkshopMail(i: WorkshopMailInput): Mail {
   const lines = [
     `${i.orgName} would like your ${what} for job card ${i.jobNo}.`,
     `Press the button and fill in the form. You do not need an account. The link works once and stops working after 7 days.`,
-    ...(i.canReply ? [`Or reply to this email with your ${what} attached (a PDF or a photo), and it is saved against the same job card.`] : []),
+    ...(i.replyTo ? [`Or reply to this email with your ${what} attached (a PDF or a photo), and it is saved against the same job card.`] : []),
   ];
   const button = `Send my ${what}`;
   const text = [`Hello ${i.vendorName},`, "", ...lines, "", `${button}: ${i.url}`, "", "If you were not expecting this, you can ignore it. Nothing happens unless you use the link.", "", "Fleet OTG", i.siteUrl].join("\n");
@@ -35,5 +35,5 @@ ${lines.map((l) => `<p style="margin:0 0 12px;font-size:15px;line-height:1.5;col
 </td></tr>
 <tr><td style="padding:14px 24px;background:#f8fafb;font-size:11px;color:#5b6b78">Sent through Fleet OTG for ${esc(i.orgName)} · <a href="${esc(i.siteUrl)}" style="color:#5b6b78">${esc(i.siteUrl.replace(/^https?:\/\//, ""))}</a></td></tr>
 </table></td></tr></table></body></html>`;
-  return { to: i.to, subject, text, html };
+  return { to: i.to, subject, text, html, replyTo: i.replyTo };
 }

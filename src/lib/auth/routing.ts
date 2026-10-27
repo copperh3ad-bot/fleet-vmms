@@ -1,10 +1,10 @@
 /**
  * Open without signing in, and nothing else (CLAUDE.md rule 5, ADR-014): the landing page and sign-up (which only record a
  * waiting row and ask Supabase for a login), the two legal pages (static text), the confirmation return (which only turns
- * a code from Supabase into a session), the About us page (static text, ADR-020), the crawler files robots.txt, sitemap.xml, llms.txt and security.txt (static, ADR-023, ADR-031), the Features page (static text, ADR-031), the email hook Supabase calls (signed, ADR-024), the Contact us form (one stored row per message, limited, ADR-021), sign-in, asking for a password-reset email (ADR-019) and the health check. The page
+ * a code from Supabase into a session), the About us page (static text, ADR-020), the crawler files robots.txt, sitemap.xml, llms.txt and security.txt (static, ADR-023, ADR-031), the Features page (static text, ADR-031), the email hook Supabase calls (signed, ADR-024), the inbound-email webhook Resend calls with a workshop's reply (signed, ADR-033), the Contact us form (one stored row per message, limited, ADR-021), sign-in, asking for a password-reset email (ADR-019) and the health check. The page
  * for choosing the new password is not here: it is reached only through the signed-in session the emailed link creates. Pages behind them check the person themselves.
  */
-export const PUBLIC_PATHS = ["/", "/login", "/forgot-password", "/api/health", "/signup", "/signup/check-email", "/pricing", "/features", "/about", "/contact", "/join", "/join/workshop", "/join/sent", "/terms", "/privacy", "/auth/callback", "/robots.txt", "/sitemap.xml", "/llms.txt", "/.well-known/security.txt", "/api/auth/send-email"];
+export const PUBLIC_PATHS = ["/", "/login", "/forgot-password", "/api/health", "/signup", "/signup/check-email", "/pricing", "/features", "/about", "/contact", "/join", "/join/workshop", "/join/sent", "/terms", "/privacy", "/auth/callback", "/robots.txt", "/sitemap.xml", "/llms.txt", "/.well-known/security.txt", "/api/auth/send-email", "/api/inbound/email"];
 
 /** The driver odometer link (ADR-006): exactly one path segment, shaped like a 32-byte base64url token. */
 export const ODOMETER_LINK_PATH = /^\/o\/[A-Za-z0-9_-]{43}$/;
