@@ -35,7 +35,7 @@ async function Privacy() {
         <li><strong>Sign-up and account details:</strong> organization name, your name, email address, phone number (optional), country, fleet size, the version of the terms you accepted, and your sign-in details. Your password is not readable by us; it is held in protected form by our sign-in provider.</li>
         <li><strong>Records people enter into a workspace:</strong> employee and driver names, codes, roles, phone numbers and sign-in names; vehicle details and who held a vehicle and when; workshop and supplier contacts; job cards, quotations, invoices, odometer readings, accidents and fines; documents and photographs attached to them; and a history of who changed what and when.</li>
         <li><strong>One-time links:</strong> when your administrator sends an invitation, an odometer link or a workshop estimate link, we store a protected fingerprint of the link (not the link itself), who it is for, and when it was used. The phone number a link is meant for is the one your administrator entered; the link is sent from your administrator&apos;s own phone, not by us.</li>
-        <li><strong>Payment records:</strong> the bank transfers you tell us about, the reference, amount, date, any receipt or transfer number you upload, our invoices, and any tax withholding certificate.</li>
+        <li><strong>Payment records:</strong> the payments you tell us about, the reference, amount, date, any receipt or reference you upload, and our invoices.</li>
         <li><strong>Replies from workshops:</strong> when a workshop replies to an email an organization sent it, we keep the sender's address, the subject, the text it wrote and any photos or PDFs attached, on that organization's job card, so staff can enter the figures.</li>
         <li><strong>Messages to us:</strong> what you write in the Contact form (name, email, company, topic, message), in emails to our support addresses and in the live chat.</li>
         <li><strong>Technical data:</strong> your internet address and the pages you ask for are seen by our hosting provider when you use the site, and may appear in its security and error logs. To slow down abuse we count attempts per address; the counter is kept in scrambled (hashed) form and for a short time only.</li>
@@ -45,7 +45,7 @@ async function Privacy() {
       <h2>3. Why we use it, and on what basis</h2>
       <ul>
         <li>To provide the service you or your organization signed up for, including sign-in, workspaces, links, notifications and support. <em>(To perform our agreement with you.)</em></li>
-        <li>To bill you, confirm payments, issue invoices and meet tax and accounting rules. <em>(To perform our agreement and to meet legal duties.)</em></li>
+        <li>To bill you, confirm payments, issue invoices and meet our legal duties. <em>(To perform our agreement and to meet legal duties.)</em></li>
         <li>To keep the service secure, prevent abuse and fix faults, including the record of who changed what. <em>(Our legitimate interest in running a safe service, and yours.)</em></li>
         <li>To answer your messages and to tell your administrator about your account, a change to the terms, or a problem. <em>(To perform our agreement and our legitimate interest.)</em></li>
       </ul>
@@ -73,7 +73,7 @@ async function Privacy() {
       <ul>
         <li><strong>Sign-up and account details</strong> while your organization has a workspace.</li>
         <li><strong>Fleet records</strong> while your workspace is active. After it locks we keep them for {LOCK_RETENTION_DAYS} days, and may delete them afterwards, or sooner if you ask. Copies may remain in our providers&apos; backups for a limited time.</li>
-        <li><strong>Payment records, invoices and withholding certificates</strong> for as long as tax and accounting law requires.</li>
+        <li><strong>Payment records and invoices</strong> for as long as the law requires.</li>
         <li><strong>The record of who changed what</strong> while it is needed for security and accountability, and as long as the records it relates to are kept.</li>
         <li><strong>Contact messages</strong> until they are handled, and handled messages for up to a year.</li>
         <li><strong>Attempt counters</strong> for about an hour.</li>

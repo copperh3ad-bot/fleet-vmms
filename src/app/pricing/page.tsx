@@ -10,7 +10,7 @@ import { JsonLd } from "@/components/json-ld";
 import { PRICING_FAQ } from "@/lib/faq";
 import { breadcrumbLd, faqLd } from "@/lib/seo";
 
-export const metadata = pageMeta("Pricing · Fleet OTG", "One plan with everything included, priced about the same as one month's wage of an unskilled labourer. Free trial, pay by bank transfer.");
+export const metadata = pageMeta("Pricing · Fleet OTG", "One plan with everything included, priced about the same as one month's wage of an unskilled labourer. Free trial, no card needed.");
 
 export default function PricingPage() {
   return <Suspense fallback={<SiteShell active="pricing"><p className="p-6 text-sm text-zinc-500">Loading</p></SiteShell>}><Inner /></Suspense>;
@@ -18,9 +18,9 @@ export default function PricingPage() {
 
 const STEPS: [string, string][] = [
   ["Start the trial", "Sign up with your company and email. Every feature is open, and no card is needed."],
-  ["Choose to continue", "Before the trial ends, open Billing inside your workspace. It shows the price, our bank account and a payment reference that is yours alone."],
-  ["Pay by bank transfer", "Transfer the amount and put your reference in the transfer note. Then press \"I have paid\" and add the receipt or the transfer number."],
-  ["We confirm and invoice", "We check the payment against our bank, confirm it, and your invoice appears in Billing. Your workspace stays open the whole time."],
+  ["Choose to continue", "Before the trial ends, open Billing inside your workspace. It shows the price and how to pay."],
+  ["Pay", "Follow the payment steps in Billing, then press \"I have paid\" and add your receipt or reference."],
+  ["We confirm and invoice", "We check and confirm your payment, and your invoice appears in Billing. Your workspace stays open the whole time."],
 ];
 
 async function Inner() {

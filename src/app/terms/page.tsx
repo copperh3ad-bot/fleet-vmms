@@ -41,12 +41,11 @@ async function Terms() {
       <h2>4. Free trial</h2>
       <p>A new organization gets a free trial with every feature, for the length of time shown when you sign up. No payment details are taken. When the trial ends the workspace locks until you subscribe. Nothing is deleted when it locks (see section 7).</p>
 
-      <h2>5. Price, tax and payment</h2>
+      <h2>5. Price and payment</h2>
       <ul>
-        <li>The subscription price is shown on our pricing page and on the Billing page of your workspace. It is per organization, not per person, and includes every feature. We set prices in US dollars. Where an amount is shown or accepted in another currency, the exchange rate used is shown on the Billing page and on the invoice.</li>
+        <li>The subscription price is shown on our pricing page and on the Billing page of your workspace. It is per organization, not per person, and includes every feature. </li>
         <li>We may change the price. A change applies to the next period you pay for, and we will tell your administrator by email at least 30 days before it applies. If you do not accept it, you can stop before it takes effect.</li>
-        <li>For organizations in Pakistan we add the sales tax that applies and show it on the invoice. For organizations elsewhere we do not charge Pakistani tax. Any tax, duty or levy that applies to you in your own country is yours to pay. If the law requires you to withhold tax from a payment to us, withhold only what the law requires and send us the withholding certificate.</li>
-        <li>For now you pay by direct bank transfer to the account shown on your Billing page, using the payment reference shown there, and you send us the receipt. A payment counts once we have confirmed it against our bank. We then issue the invoice, which appears in your workspace.</li>
+        <li>You pay as shown on your Billing page, using the payment reference shown there. A payment counts once we have confirmed it. We then issue the invoice, which appears in your workspace.</li>
         <li>Fees are charged for the period you subscribe for and are not refunded when you stop part-way through it, except where we made a billing error or the law requires a refund. Stopping takes effect at the end of the period you have paid for.</li>
         <li>If a payment is not made by the end of the period, the workspace locks as described in section 7.</li>
       </ul>

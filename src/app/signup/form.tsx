@@ -6,6 +6,9 @@ import { signUpAction } from "./actions";
 
 const SIZES: [string, string][] = [["1-5", "1 to 5 vehicles"], ["6-20", "6 to 20 vehicles"], ["21-50", "21 to 50 vehicles"], ["51-200", "51 to 200 vehicles"], ["200+", "More than 200"]];
 
+/** Pakistan only for now. Set to false to show the country picker again; the foreign-customer flows are still in the code. */
+const PAKISTAN_ONLY = true;
+
 /** `countries` is made on the server and passed in: the browser's own list of names can differ from the server's, which breaks hydration. */
 export function SignupForm({ trialDays, countries }: { trialDays: number; countries: [string, string][] }) {
   const [state, action, pending] = useActionState<FormState, FormData>(signUpAction, {});
@@ -18,11 +21,10 @@ export function SignupForm({ trialDays, countries }: { trialDays: number; countr
         <Input name="phone" label="Phone (optional)" state={state} inputMode="tel" autoComplete="tel" />
       </div>
       <Input name="email" label="Work email" type="email" state={state} required autoComplete="email" hint="We send a confirmation link here. You sign in with this address." />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Select name="country" label="Country" state={state} blank="Choose" required options={countries} />
+      <div className={PAKISTAN_ONLY ? "" : "grid gap-4 sm:grid-cols-2"}>
+        {PAKISTAN_ONLY ? <input type="hidden" name="country" value="PK" /> : <Select name="country" label="Country" state={state} blank="Choose" required options={countries} />}
         <Select name="fleet_size" label="How many vehicles?" state={state} blank="Choose" options={SIZES} />
       </div>
-      <p className="-mt-2 text-xs text-zinc-500">Customers in Pakistan are invoiced with Pakistani sales tax where it applies. Customers elsewhere are charged no tax by us.</p>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Password" name="password" state={state} required hint="At least 10 characters.">
           <input id="password" name="password" type="password" autoComplete="new-password" className={inputCls} aria-invalid={!!state.fields?.password} />

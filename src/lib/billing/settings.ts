@@ -12,7 +12,7 @@ export type SettingDef = {
 };
 
 export const PLATFORM_SETTINGS: SettingDef[] = [
-  { key: "bank_details", label: "Bank account for payments", hint: "Shown to customers on their billing page: bank, account title, account number or IBAN, branch. One item per line.", multiline: true, max: 800 },
+  { key: "bank_details", label: "Bank account for payments", hint: "Bank, account title, account number or IBAN, branch. One item per line. Never shown on a screen: a customer gets it only in the bill emailed when they press Request bill.", multiline: true, max: 800 },
   { key: "payment_note", label: "Payment instructions", hint: "Anything customers should know when they pay, for example how long a confirmation takes.", multiline: true, max: 600 },
   { key: "pkr_per_usd", label: "PKR per USD (fallback)", hint: "Used when there is no dated rate for the day a customer paid (see the Rates page), and for the amount shown before a customer pays if no rate has been fetched or entered. Leave empty to show dollars only.", max: 12, numeric: true },
   { key: "fx_side", label: "Which rate converts the price", hint: "Type buying, selling or average: the interbank buying rate, the selling rate, or the middle of the two. Ask your accountant which the tax authority expects. If empty, buying is used.", max: 8, oneOf: ["buying", "selling", "average"] },

@@ -30,7 +30,7 @@ export function offerFrom(plan: { key: string; limits: Record<string, number | u
       l.max_users ? `Up to ${l.max_users} users` : "Any number of users",
       "Your data kept apart from every other company's",
       plan.trial_days > 0 ? `${plan.trial_days}-day free trial, no card needed` : "No trial",
-      "Pay by bank transfer, cancel any time",
+      "Cancel any time",
     ],
   };
 }

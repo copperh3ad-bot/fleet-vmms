@@ -5,6 +5,8 @@ import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { submitClaim } from "@/lib/billing/payments";
 import { saveTaxProfile } from "@/lib/billing/tax-data";
 import { issueCertificate } from "@/lib/billing/certificates";
+import { requireUser } from "@/lib/auth/session";
+import { requestBill } from "@/lib/billing/request-details";
 import { runAction, str, typed, type FormState } from "../actions-util";
 
 /** "I have paid": the transfer details and the receipt. Allowed while the workspace is locked, because that is when it is needed. */
@@ -39,4 +41,10 @@ export async function issueCertificateAction(slug: string, invoiceId: string, _p
   }, { allowLocked: true });
   if (state.ok) { refresh(); return state; }
   return { ...state, values: typed(form) };
+}
+
+/** "Request bill": the bill, with the bank details, is emailed to the administrator; they never appear on a screen. Allowed while locked. */
+export async function requestBillAction(slug: string, _prev: FormState, _form: FormData): Promise<FormState> {
+  const user = await requireUser();
+  return runAction(slug, (m) => requestBill(getDriver(), m, user.email ?? ""), { allowLocked: true });
 }

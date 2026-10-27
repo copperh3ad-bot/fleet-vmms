@@ -11,6 +11,10 @@ import { checkPlatformSetting, loadPlatformSettings, savePlatformSetting } from 
 import { advanceProvisioning, type ProvisionDeps } from "@/lib/orgs/provision";
 import { claimSignup, parseSignup, recordSignup } from "@/lib/orgs/signup";
 import type { BlobStore } from "@/lib/jobcards/attachments";
+import { requestBill } from "@/lib/billing/request-details";
+import { mkdtempSync, readFileSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { farm, newControl, platformMigrations, stripExt, tenantMigrations } from "./helpers";
 
 const U = (n: number) => `00000000-0000-0000-0000-00000000${String(n).padStart(4, "0")}`;
@@ -259,5 +263,36 @@ describe("what the operator edits", () => {
     expect((await loadPlatformSettings(control)).pkr_per_usd).toBeUndefined();
     const log = await control.transaction(async (q) => (await q.query<{ actor_id: string }>("select actor_id from public.platform_audit_log where table_name = 'platform_settings' order by id desc limit 1")).rows[0]);
     expect(log.actor_id).toBe(OP);
+  });
+});
+
+describe("the customer requests a bill", () => {
+  it("only the administrator; the bill with the bank details goes to the asker, a copy without them to the Billing mailbox; limited; nothing without bank details", async () => {
+    const out = join(mkdtempSync(join(tmpdir(), "mail-")), "out.jsonl");
+    const saved = { u: process.env.SMTP_URL, f: process.env.EMAIL_FROM, a: process.env.ALLOW_FILE_MAILER };
+    process.env.SMTP_URL = `file:${out}`; process.env.EMAIL_FROM = "Fleet OTG <noreply@example.com>"; process.env.ALLOW_FILE_MAILER = "1";
+    try {
+      const admin = { ...a.admin, tenantName: "Alpha Fleet", billing: await loadAccess(control, a.tenantId) };
+      await expect(requestBill(router, { ...a.requester, billing: admin.billing }, "r@example.com")).rejects.toBeInstanceOf(ForbiddenError);
+      await savePlatformSetting(control, OP, "bank_details", "");
+      await expect(requestBill(router, admin, "owner1@example.com")).rejects.toThrow(/cannot send a bill/);   // no bank details entered yet
+      expect(existsSync(out)).toBe(false);
+      await savePlatformSetting(control, OP, "bank_details", "HBL\nTitle: Test Seller\nIBAN: PK00TEST");
+      await savePlatformSetting(control, OP, "billing_email", "billing@example.com");
+      await requestBill(router, admin, "owner1@example.com");
+      const [bill, copy] = readFileSync(out, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+      expect(bill).toMatchObject({ to: "owner1@example.com", replyTo: "billing@example.com" });
+      expect(bill.subject).toMatch(/^Your Fleet OTG bill BILL-/);
+      expect(bill.text).toContain(paymentReference(a.tenantId));
+      expect(bill.text).toContain("IBAN: PK00TEST");
+      expect(bill.html).toContain("Alpha Fleet");
+      expect(copy).toMatchObject({ to: "billing@example.com", replyTo: "owner1@example.com" });
+      expect(copy.text).not.toContain("PK00TEST");
+      await requestBill(router, admin, "owner1@example.com");
+      await requestBill(router, admin, "owner1@example.com");
+      await expect(requestBill(router, admin, "owner1@example.com")).rejects.toThrow(/sent a moment ago/);
+    } finally {
+      for (const [k, v] of [["SMTP_URL", saved.u], ["EMAIL_FROM", saved.f], ["ALLOW_FILE_MAILER", saved.a]] as const) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+    }
   });
 });

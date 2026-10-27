@@ -49,7 +49,7 @@ describe("what the pages say matches what the service does", () => {
     for (const src of [terms, privacy]) expect(src).not.toMatch(/\$\s?\d|USD\s?\d|Rs\.?\s?\d|PKR\s?\d/i);
   });
   it("covers what a customer and the owner each need: ownership and export for you, limits and payment for us", () => {
-    for (const t of ["belong to you", "export your data", "as is", "limited to the fees", "Governing law", "withhold"]) expect(terms.toLowerCase()).toContain(t.toLowerCase());
+    for (const t of ["belong to you", "export your data", "as is", "limited to the fees", "Governing law"]) expect(terms.toLowerCase()).toContain(t.toLowerCase());
     for (const t of ["Two roles", "do not sell personal information", "Your choices and rights", "Cookies", "Children"]) expect(privacy).toContain(t);
   });
   it("links the two pages to each other", () => {

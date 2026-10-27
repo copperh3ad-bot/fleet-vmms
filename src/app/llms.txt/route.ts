@@ -33,7 +33,7 @@ export function GET() {
     ...links,
     "",
     "## Notes",
-    "- Payment is by bank transfer. The current price is on the pricing page.",
+    "- The current price is on the pricing page.",
     "- Pages under /w/, /admin, /o/, /q/ and /invite/ are private and need a sign-in or a one-time link.",
     "",
   ].join("\n");

@@ -10,7 +10,7 @@ import { listClaims, listInvoices, paymentReference, BILLING_PERMISSION } from "
 import { loadPlatformSettings } from "@/lib/billing/settings";
 import { getTaxProfile, quoteTax } from "@/lib/billing/tax-data";
 import { fmtMinor } from "@/lib/billing/tax";
-import { ClaimForm } from "./forms";
+import { ClaimForm, RequestBillForm } from "./forms";
 import { countryOptions } from "@/lib/orgs/countries";
 import { TaxProfileForm } from "./tax-form";
 
@@ -38,7 +38,6 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const [settings, claims, invoices, taxView, quote] = admin
     ? await Promise.all([loadPlatformSettings(driver), listClaims(driver, m), listInvoices(driver, m), getTaxProfile(driver, m), quoteTax(driver, m, a.priceCents, a.currency, 1)])
     : [{} as Record<string, string>, [], [], null, null];
-  const askEmail = settings.billing_email?.trim() || settings.support_email?.trim();   // the billing mailbox if there is one, else general support
   const rate = Number(settings.pkr_per_usd);
   const usd = a.priceCents / 100;
   // The rupee hint is for customers in Pakistan (or not yet known) who have no tax quote above; a customer abroad pays in dollars and is not shown rupees.
@@ -65,44 +64,13 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
         <Panel title="Paying"><p className="text-sm text-zinc-600">Ask your workspace administrator to pay the subscription. They will see how on this page.</p></Panel>
       ) : (
         <div className="grid gap-5 xl:grid-cols-[1fr_1.2fr]">
-          <Panel title="How to pay" sub="By direct bank transfer">
-            {settings.bank_details ? (
-              <div className="space-y-4 text-sm">
-                {quote && (() => {
-                  const r = quote.result, sn = quote.snapshot, ccy = sn.currency ?? "PKR", none = sn.scenario?.mode === "none", kept = r.whtIncomeMinor + r.whtSalesMinor;
-                  return (
-                    <div className="rounded-md border border-sky-200 bg-sky-50 p-3" aria-label="Amount to send">
-                      <p className="font-medium">Amount to send for one month</p>
-                      {none ? (
-                        <p className="mt-2">{fmtMinor(r.totalMinor, ccy)}. {sn.scenario?.note ?? "No tax is charged."}</p>
-                      ) : (
-                        <dl className="mt-2 space-y-1">
-                          <div className="flex justify-between gap-4"><dt>{formatPrice(a.priceCents, a.currency)}{sn.fx ? ` at Rs ${sn.fx.rate} to the dollar (${sn.fx.source === "settings" ? "our current rate" : `rate of ${dmy(sn.fx.rate_date)}`})` : ""}</dt><dd className="font-mono">{fmtMinor(r.subtotalMinor, ccy)}</dd></div>
-                          <div className="flex justify-between gap-4"><dt>{sn.buyer.authority} {r.salesTaxPct}%</dt><dd className="font-mono">{fmtMinor(r.salesTaxMinor, ccy)}</dd></div>
-                          <div className="flex justify-between gap-4 border-t border-sky-200 pt-1 font-medium"><dt>Invoice total</dt><dd className="font-mono">{fmtMinor(r.totalMinor, ccy)}</dd></div>
-                          {kept > 0 && (
-                            <>
-                              <div className="flex justify-between gap-4"><dt>You keep back and pay to the government for us: income tax {fmtMinor(r.whtIncomeMinor, ccy)}{r.whtSalesMinor > 0 ? `, sales tax ${fmtMinor(r.whtSalesMinor, ccy)}` : ""}</dt><dd className="font-mono">−{fmtMinor(kept, ccy)}</dd></div>
-                              <div className="flex justify-between gap-4 font-medium"><dt>Send us</dt><dd className="font-mono">{fmtMinor(r.netExpectedMinor, ccy)}</dd></div>
-                            </>
-                          )}
-                        </dl>
-                      )}
-                      {kept > 0 && <p className="mt-2 text-xs text-zinc-700">After paying, open the invoice to prepare the withholding certificate for what you kept back. We need it to claim that tax.</p>}
-                      {sn.fx && <p className="mt-2 text-xs text-zinc-600">The rate is the one for the day you paid, so the invoice can differ slightly from this estimate.</p>}
-                    </div>
-                  );
-                })()}
-                <ol className="list-decimal space-y-2 pl-5">
-                  <li>Send <strong>{formatPrice(a.priceCents, a.currency)}</strong>{pkr ? <> (about <strong>Rs {pkr.toLocaleString("en-US")}</strong> at Rs {rate} to the dollar)</> : null} for each month you want to pay for, to this account:</li>
-                  <li>Write <span className="font-mono font-semibold">{paymentReference(m.tenantId)}</span> in the transfer&apos;s reference or description.</li>
-                  <li>Fill in the form on this page with the details from your bank&apos;s receipt.</li>
-                </ol>
-                <pre className="whitespace-pre-wrap rounded-md border border-zinc-200 bg-zinc-50 p-3 font-mono text-[13px] leading-6">{settings.bank_details}</pre>
-                {settings.payment_note && <p className="whitespace-pre-wrap text-zinc-600">{settings.payment_note}</p>}
-                {askEmail && <p className="text-zinc-500">Questions about billing: <a className="underline" href={`mailto:${askEmail}`}>{askEmail}</a></p>}
-              </div>
-            ) : <p className="text-sm text-zinc-600">Payment details have not been set up yet. {askEmail ? <>Write to <a className="underline" href={`mailto:${askEmail}`}>{askEmail}</a>.</> : "Please contact support."}</p>}
+          <Panel title="How to pay">
+            <div className="space-y-3 text-sm">
+              <p>Send <strong>{formatPrice(a.priceCents, a.currency)}</strong>{pkr ? <> (about <strong>Rs {pkr.toLocaleString("en-US")}</strong>)</> : null} for each month you want to pay for.</p>
+              {settings.bank_details?.trim() ? <><p className="text-zinc-600">Press the button and we email you the bill with the bank account to pay into.</p><RequestBillForm slug={slug} /></> : <p className="text-zinc-600">Payment details have not been set up yet.</p>}
+              <p>Write your payment reference <span className="font-mono font-semibold">{paymentReference(m.tenantId)}</span>, then fill in the form on this page once you have paid.</p>
+              {settings.payment_note && <p className="whitespace-pre-wrap text-zinc-600">{settings.payment_note}</p>}
+            </div>
           </Panel>
 
           <Panel title="I have paid" sub={waiting ? undefined : "Tell us about your transfer so we can confirm it."}>

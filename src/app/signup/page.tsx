@@ -48,7 +48,7 @@ async function Inner() {
             <div className="rounded-xl border border-zinc-200 bg-white p-5">
               <p className="text-zinc-500">After the trial</p>
               <p className="mt-1"><span className="text-2xl font-semibold leading-tight">{offer.headline}</span> <span className="block text-zinc-500">{offer.per}</span></p>
-              <p className="mt-2 text-zinc-600">Pay by bank transfer. If you do not subscribe, nothing is deleted at once: the workspace locks and you can still export your data.</p>
+              <p className="mt-2 text-zinc-600">If you do not subscribe, nothing is deleted at once: the workspace locks and you can still export your data.</p>
             </div>
           )}
         </aside>

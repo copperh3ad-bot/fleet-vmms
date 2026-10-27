@@ -3,7 +3,7 @@ import { useActionState } from "react";
 import { Input, Notice, Select, Submit, Field, inputCls } from "@/components/form";
 import { FileInput } from "@/components/file-input";
 import type { FormState } from "../actions-util";
-import { submitClaimAction } from "./actions";
+import { submitClaimAction, requestBillAction } from "./actions";
 
 export function ClaimForm({ slug, defaultAmount, defaultCurrency, today }: { slug: string; defaultAmount: string; defaultCurrency: "USD" | "PKR"; today: string }) {
   const [state, action] = useActionState<FormState, FormData>(submitClaimAction.bind(null, slug), {});
@@ -25,6 +25,15 @@ export function ClaimForm({ slug, defaultAmount, defaultCurrency, today }: { slu
       </Field>
       <Input name="note" label="Note (optional)" state={s} />
       <div className="flex flex-wrap items-center gap-3"><Submit pendingText="Sending">I have paid</Submit><Notice state={state} /></div>
+    </form>
+  );
+}
+
+export function RequestBillForm({ slug }: { slug: string }) {
+  const [state, action] = useActionState<FormState, FormData>(requestBillAction.bind(null, slug), {});
+  return (
+    <form action={action} className="flex flex-wrap items-center gap-3">
+      <Submit pendingText="Sending">Request bill</Submit><Notice state={state} />
     </form>
   );
 }
