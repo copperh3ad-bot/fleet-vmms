@@ -25,8 +25,13 @@ export function buildBillMail(i: BillInput): Mail {
     const r = i.tax.result, c = i.tax.currency;
     rows[0] = ["Fleet OTG subscription, 1 month", fmtMinor(r.subtotalMinor, c)];
     if (r.salesTaxMinor > 0) rows.push([`${i.tax.authority} ${r.salesTaxPct}%`, fmtMinor(r.salesTaxMinor, c)]);
-    rows.push(["Total to send", fmtMinor(r.totalMinor, c)]);
+    const kept = r.whtIncomeMinor + r.whtSalesMinor;
+    rows.push([kept > 0 ? "Invoice total" : "Total to send", fmtMinor(r.totalMinor, c)]);
     pay = fmtMinor(r.totalMinor, c);
+    if (kept > 0) {   // a customer that withholds keeps tax back and pays it to the government for us, so it sends less
+      rows.push(["You keep back and pay to the government for us", `−${fmtMinor(kept, c)}`], ["Send us", fmtMinor(r.netExpectedMinor, c)]);
+      pay = fmtMinor(r.netExpectedMinor, c);
+    }
   } else if (i.pkrEstimate) rows.push(["About", `Rs ${i.pkrEstimate.toLocaleString("en-US")}`]);
   const subject = `Your Fleet OTG bill ${no}`;
   const steps = [

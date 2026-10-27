@@ -25,4 +25,11 @@ describe("the bill", () => {
     expect(m.text).toContain("Total to send");
     expect(m.text).toContain("Send ");
   });
+
+  it("a customer that withholds is told to send less", () => {
+    const result = computeTax({ subtotalUsdCents: 14900, pkrPerUsd: 280, salesTaxPct: 16, whtIncomePct: 8, whtSalesSharePct: 50, whtIncomeBase: "subtotal", withholdingAgent: true });
+    const m = buildBillMail({ ...base, tax: { result, currency: "PKR", authority: "PRA" } });
+    expect(m.text).toContain("Send us");
+    expect(m.text).toContain("Send Rs 41,720.00 to the account below");
+  });
 });

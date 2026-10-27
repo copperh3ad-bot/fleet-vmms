@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { APP, body, check, fill, fixture, go, has, press, scenario, sql, step, waitSql, waitText } from "./lib.mjs";
 
 const iso = () => new Date().toISOString().slice(0, 10);
@@ -17,6 +18,17 @@ const claimNow = async (p, slug, { amount, currency, ref, proof = true }) => {
   if (proof) await p.page.locator("#proof").setInputFiles(fixture("policy-photo.png"));
   await press(p, "I have paid", { wait: 1500 });
   await waitText(p, "Waiting for confirmation", 8000);
+};
+/** Presses "Request bill" and returns the bill email the customer was sent (read from the test outbox). Bank details are only ever in this email. */
+const requestBillNow = async (p, slug) => {
+  await go(p, `/w/${slug}/billing`);
+  const t = await body(p);
+  check(!has(t, "Test Bank") && !has(t, "PK00TEST"), "the bank details are on the Billing page");
+  await press(p, "Request bill", { wait: 1500 });
+  await waitText(p, "We sent the bill", 8000);
+  const sent = readFileSync(process.env.E2E_OUTBOX, "utf8").trim().split("\n").map((l) => JSON.parse(l)).filter((m) => m.to === p.email && m.subject.startsWith("Your Fleet OTG bill"));
+  check(sent.length > 0, "no bill email was sent");
+  return sent[sent.length - 1];
 };
 const confirmNow = async (op, orgName) => {
   await go(op, "/admin/payments");
@@ -63,10 +75,9 @@ export async function billing(S) {
     await press(pk, "Save tax details", { wait: 1200 });
     await waitText(pk, "Saved", 6000);
     await go(pk, `/w/${slug}/billing`);
-    const t = await body(pk);
-    for (const w of ["Amount to send", "Invoice total", "Punjab 16%", "Rs 41,720.00", "Rs 48,395.20"]) check(t.toLowerCase().includes(w.toLowerCase()), `the amount box lacks "${w}": ${t.replace(/\s+/g, " ").slice(t.indexOf("Amount to send"), t.indexOf("Amount to send") + 300)}`);
-    check(has(t, "Test Bank"), "the bank details do not show");
-    check(!has(t, "I have paid") === false, "no payment form");
+    check(has(await body(pk), "I have paid"), "no payment form");
+    const bill = await requestBillNow(pk, slug);
+    for (const w of ["Total to send", "Punjab 16%", "Rs 41,720.00", "Rs 48,395.20", "Test Bank", "IBAN: PK00TEST0000000000000000", "FVM-"]) check(bill.text.toLowerCase().includes(w.toLowerCase()), `the bill lacks "${w}": ${bill.text.slice(0, 400)}`);
   });
 
   await step("it files a payment with a receipt, and the operator sees the invoice it will make", async () => {
@@ -114,10 +125,9 @@ export async function billing(S) {
     await pk.page.locator("input[name=withholding_agent]").check();
     await press(pk, "Save tax details", { wait: 1200 });
     await waitText(pk, "Saved", 6000);
-    await go(pk, `/w/${slug}/billing`);
-    const t = await body(pk);
-    check(t.includes("Send us") && t.includes("Rs 41,720.00") && t.includes("−Rs 6,676") === false || t.includes("Send us"), "no net amount shown");
-    check(t.includes("Rs 41,720.00"), `the amount to send is not Rs 41,720.00: ${t.replace(/\s+/g, " ").slice(t.indexOf("Send us") - 100, t.indexOf("Send us") + 80)}`);
+    const bill = await requestBillNow(pk, slug);
+    check(bill.text.includes("Send us"), "no net amount in the bill");
+    check(/Send us: Rs 41,720\.00/.test(bill.text), `the amount to send is not Rs 41,720.00: ${bill.text.slice(bill.text.indexOf("Send us") - 100, bill.text.indexOf("Send us") + 80)}`);
     await claimNow(pk, slug, { amount: "41720", currency: "PKR", ref: "BANK-REF-1002" });
     await go(op, "/admin/payments");
     check(has(await body(op), "They keep back"), "the operator is not shown the withholding");
@@ -169,10 +179,8 @@ export async function billing(S) {
     await us.page.selectOption("#country", "US");
     await press(us, "Save tax details", { wait: 1200 });
     await waitText(us, "Saved", 6000);
-    await go(us, `/w/${usSlug}/billing`);
-    const t = await body(us);
-    check(t.includes("Amount to send") && t.includes("$149.00") && has(t, "No tax is charged"), `the dollar customer's box: ${t.replace(/\s+/g, " ").slice(t.indexOf("Amount to send"), t.indexOf("Amount to send") + 160)}`);
-    check(!t.includes("Rs "), "rupees shown to a customer abroad");
+    const bill = await requestBillNow(us, usSlug);
+    check(bill.text.includes("$149") && !bill.text.includes("Rs ") && !has(bill.text, "sales tax"), `the dollar customer's bill: ${bill.text.slice(0, 300)}`);
     await claimNow(us, usSlug, { amount: "149", currency: "USD", ref: "WIRE-US-1" });
     await go(op, "/admin/payments");
     await confirmNow(op, S.usName);

@@ -105,7 +105,7 @@ export async function signInAs(p, email = p.email, password = p.password) {
 export async function signUpCompany(p, { name, person, email, password, country }) {
   await go(p, "/signup");
   await fill(p, "#org_name", name); await fill(p, "#contact_name", person); await fill(p, "#email", email);
-  await p.page.selectOption("#country", country);
+  if (await p.page.locator("#country").count()) await p.page.selectOption("#country", country);   // Pakistan only: no picker, the form sends PK
   await fill(p, "#password", password); await fill(p, "#confirm", password);
   await p.page.check("input[name=terms]");
   await press(p, /start my/i, { wait: 1000 });
@@ -113,7 +113,10 @@ export async function signUpCompany(p, { name, person, email, password, country 
   const { code } = await confirmEmail(email);
   await go(p, `/auth/callback?code=${code}`);
   await p.page.waitForURL(/\/w\/[a-z0-9-]+/, { timeout: 90000 });
-  return new URL(p.page.url()).pathname.split("/")[2];
+  const slug = new URL(p.page.url()).pathname.split("/")[2];
+  // the hidden foreign-customer flows are still in the code: a test customer abroad gets its country set directly
+  if (country && country !== "PK") sql(`update public.org_tax set country = '${country}' where tenant_id = (select id from public.tenants where slug = '${slug}')`);
+  return slug;
 }
 
 /** Waits (up to a few seconds) for some text to show on the page: server actions answer a moment after the click. */

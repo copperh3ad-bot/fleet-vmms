@@ -180,14 +180,13 @@ export async function publicPages(S) {
     await go(v, "/signup");
     await press(v, /start my/i, { wait: 600 });
     const t = await body(v);
-    for (const w of ["company name", "country"]) check(has(t, w), `no message about "${w}"`);
+    for (const w of ["company name"]) check(has(t, w), `no message about "${w}"`);
     check(v.page.url().endsWith("/signup"), "moved on from /signup");
   });
 
   await step("sign-up form checks the passwords and the terms", async () => {
     await go(v, "/signup");
     await fill(v, "#org_name", "Validation Co"); await fill(v, "#contact_name", "Test Person"); await fill(v, "#email", "validate@example.com");
-    await v.page.selectOption("#country", "PK");
     await fill(v, "#password", "short"); await fill(v, "#confirm", "short");
     await press(v, /start my/i, { wait: 600 });
     await waitText(v, "at least 10");
@@ -198,11 +197,12 @@ export async function publicPages(S) {
     check((await v.page.inputValue("#org_name")) === "Validation Co", "the form lost what was typed");
   });
 
-  await step("the country list starts with Pakistan and covers the world", async () => {
+  await step("sign-up is Pakistan only: no country list, the country is fixed to PK, and the page shows no bank or tax wording", async () => {
     await go(v, "/signup");
-    const opts = await v.page.locator("#country option").allTextContents();
-    check(opts[1] === "Pakistan", `first country is ${opts[1]}`);
-    check(opts.length > 240, `only ${opts.length} countries`);
+    check((await v.page.locator("#country").count()) === 0, "a country list is shown");
+    check((await v.page.locator("input[name=country]").inputValue()) === "PK", "the country is not fixed to Pakistan");
+    const t = await body(v);
+    check(!has(t, "bank transfer") && !has(t, "sales tax"), "the sign-up page mentions bank transfer or sales tax");
   });
 
   await step("joining with a wrong code says so, and records nothing", async () => {

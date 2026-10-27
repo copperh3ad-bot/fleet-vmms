@@ -4,6 +4,7 @@ import "./globals.css";
 import { SITE_URL } from "@/lib/site";
 import { JsonLd } from "@/components/json-ld";
 import { organizationLd, websiteLd } from "@/lib/seo";
+import { Suspense } from "react";
 import { SupportChat } from "@/components/support-chat";
 
 // The three typefaces (text, figures, condensed headings), served from our own domain (next/font downloads them at build time).
@@ -33,7 +34,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <JsonLd data={organizationLd()} />
         <JsonLd data={websiteLd()} />
         {children}
-        <SupportChat />
+        <Suspense fallback={null}><SupportChat /></Suspense>
       </body>
     </html>
   );

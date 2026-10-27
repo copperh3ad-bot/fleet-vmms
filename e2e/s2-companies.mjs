@@ -73,7 +73,7 @@ export async function companies(S) {
     const e = `unconfirmed.${tag}@example.com`;
     await go(v, "/signup");
     await fill(v, "#org_name", `Unconfirmed Co ${tag}`); await fill(v, "#contact_name", "No Confirm"); await fill(v, "#email", e);
-    await v.page.selectOption("#country", "PK"); await fill(v, "#password", PW); await fill(v, "#confirm", PW);
+    await fill(v, "#password", PW); await fill(v, "#confirm", PW);
     await v.page.check("input[name=terms]");
     await press(v, /start my/i, { wait: 1500 });
     check(v.page.url().includes("/signup/check-email"), `after sign-up: ${v.page.url()}`);
@@ -85,7 +85,7 @@ export async function companies(S) {
     const v = await persona("dupe");
     await go(v, "/signup");
     await fill(v, "#org_name", "Second Try Co"); await fill(v, "#contact_name", "Sana Malik"); await fill(v, "#email", S.pk.email);
-    await v.page.selectOption("#country", "PK"); await fill(v, "#password", PW); await fill(v, "#confirm", PW);
+    await fill(v, "#password", PW); await fill(v, "#confirm", PW);
     await v.page.check("input[name=terms]");
     await press(v, /start my/i, { wait: 1500 });
     check(v.page.url().endsWith("/signup"), `a customer's address went on to ${v.page.url()}`);
@@ -101,15 +101,16 @@ export async function companies(S) {
     await waitText(v, "on its way");
   });
 
-  await step("the sign-up form keeps the choices after a mistake (country, name, email)", async () => {
+  await step("the sign-up form is Pakistan only (no country picker) and keeps the choices after a mistake (name, email)", async () => {
     const v = await persona("keeps");
     await go(v, "/signup");
+    check((await v.page.locator("#country").count()) === 0, "a country picker is shown");
+    check((await v.page.locator("input[name=country]").inputValue()) === "PK", "the country is not fixed to Pakistan");
     await fill(v, "#org_name", "Keeps Co"); await fill(v, "#contact_name", "Kay Keeper"); await fill(v, "#email", "keeps@example.com");
-    await v.page.selectOption("#country", "AE");
     await fill(v, "#password", PW); await fill(v, "#confirm", PW);               // terms left unticked on purpose
     await press(v, /start my/i, { wait: 1200 });
     await waitText(v, "Accept the terms");
-    check((await v.page.inputValue("#country")) === "AE", `the country went back to "${await v.page.inputValue("#country")}"`);
     check((await v.page.inputValue("#org_name")) === "Keeps Co", "company name lost");
+    check((await v.page.inputValue("#email")) === "keeps@example.com", "email lost");
   });
 }
