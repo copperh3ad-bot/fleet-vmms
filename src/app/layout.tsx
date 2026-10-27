@@ -4,6 +4,7 @@ import "./globals.css";
 import { SITE_URL } from "@/lib/site";
 import { JsonLd } from "@/components/json-ld";
 import { organizationLd, websiteLd } from "@/lib/seo";
+import { SupportChat } from "@/components/support-chat";
 
 // The three typefaces (text, figures, condensed headings), served from our own domain (next/font downloads them at build time).
 const sans = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-plex-sans", display: "swap" });
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <JsonLd data={organizationLd()} />
         <JsonLd data={websiteLd()} />
         {children}
+        <SupportChat />
       </body>
     </html>
   );

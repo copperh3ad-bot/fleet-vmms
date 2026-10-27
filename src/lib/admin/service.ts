@@ -11,6 +11,7 @@ import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
 import { checkRecoveryCode, checkUsername, deleteLoginName, hashRecoveryCode, loginNameByUserId, loginNameByUsername, loginNamesFor, newLoginEmail, recordLoginName, setRecoveryHash, usernameTaken, verifyRecoveryCode } from "@/lib/auth/login-names";
 import { allowShared } from "@/lib/rate-limit";
+import { trialCapFor } from "@/lib/billing/trial";
 import { normalizePhone } from "@/lib/phone";
 import { authAdminConfigured, createLoginUser, deleteLoginUser, putInboundFile, setLoginPassword } from "@/lib/supabase/admin";
 
@@ -32,7 +33,8 @@ function friendly(e: unknown): never {
 
 export type Usage = { vehicles: { used: number; limit: number | null }; users: { used: number; limit: number | null } };
 
-export function planUsage(driver: Driver, m: Membership): Promise<Usage> {
+export async function planUsage(driver: Driver, m: Membership): Promise<Usage> {
+  const trialCap = await trialCapFor(driver, m);                    // while a free trial runs, its vehicle limit is the one that applies (ADR-038)
   return authorizedAny(driver, m, ["admin.users", "vehicle.read"], async (q) => {
     const lim = async (key: string) => (await q.query<{ l: number | null }>("select plan_limit($1) as l", [key])).rows[0].l;
     const vehicles = (await q.query<{ c: number }>("select count(*)::int c from vehicles where status <> 'disposed'")).rows[0].c;
@@ -41,7 +43,9 @@ export function planUsage(driver: Driver, m: Membership): Promise<Usage> {
     const ul = (await q.query<{ l: number | null }>(
       `select (p.limits->>'max_users')::int as l from public.tenant_subscriptions s join public.plans p on p.id = s.plan_id
         where s.tenant_id = $1 and s.status in ('trial','active')`, [m.tenantId])).rows[0]?.l ?? null;
-    return { vehicles: { used: vehicles, limit: await lim("max_vehicles") }, users: { used: users, limit: ul } };
+    const planLimit = await lim("max_vehicles");
+    const limit = trialCap === null ? planLimit : planLimit === null ? trialCap : Math.min(planLimit, trialCap);
+    return { vehicles: { used: vehicles, limit }, users: { used: users, limit: ul } };
   });
 }
 

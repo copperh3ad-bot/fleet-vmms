@@ -7,6 +7,8 @@ import { loadOffer } from "@/lib/billing/offer";
 import { signupsOpen } from "@/lib/orgs/runtime";
 import { countryOptions } from "@/lib/orgs/countries";
 import { SignupForm } from "./form";
+import { VehicleSheetCard } from "@/components/vehicle-sheet-card";
+import { trialVehicleCap } from "@/lib/billing/trial";
 
 export const metadata = pageMeta("Start your free trial · Fleet OTG", "Start a free trial of Fleet OTG for your company fleet. Every feature is open and no card is needed.");
 
@@ -18,6 +20,7 @@ async function Inner() {
   await connection();
   const offer = await loadOffer(getDriver()).catch(() => null);
   const open = !!offer && signupsOpen();
+  const vehicleLimit = await trialVehicleCap(getDriver()).catch(() => undefined);
   return (
     <SiteShell active="signup">
       <div className="mx-auto grid max-w-5xl gap-10 px-5 py-12 md:grid-cols-[1.2fr_1fr]">
@@ -40,6 +43,7 @@ async function Inner() {
               <li>{offer ? `After ${offer.trialDays} days, you choose whether to subscribe.` : "After the trial, you choose whether to subscribe."}</li>
             </ol>
           </div>
+          <VehicleSheetCard trialDays={offer?.trialDays} vehicleLimit={vehicleLimit} />
           {offer && (
             <div className="rounded-xl border border-zinc-200 bg-white p-5">
               <p className="text-zinc-500">After the trial</p>

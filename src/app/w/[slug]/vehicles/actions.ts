@@ -6,6 +6,7 @@ import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { addVehicleFile, removeVehicleFile, type VehicleFileKind } from "@/lib/master/files";
 import { UserError, addVehicle, changeCustody, endCustody, updateVehicleStatus, previewVehicleImport, commitVehicleImport, type ImportPreview } from "@/lib/master/service";
 import { runAction, str, typed, type FormState } from "../actions-util";
+import { MAX_SHEET_BYTES, xlsxToCsv } from "@/lib/master/vehicle-sheet";
 
 const DOC_TYPES = ["registration", "fitness", "token_tax", "route_permit"] as const;
 
@@ -107,6 +108,11 @@ export type ImportState = FormState & { preview?: ImportPreview; text?: string; 
 async function readCsv(form: FormData): Promise<string> {
   const file = form.get("file");
   if (file instanceof File && file.size > 0) {
+    // The filled-in vehicle sheet (.xlsx, ADR-038) is read straight from Excel; a CSV file is read as text.
+    if (/\.xlsx$/i.test(file.name) || file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
+      if (file.size > MAX_SHEET_BYTES) throw new Error("big");
+      return xlsxToCsv(new Uint8Array(await file.arrayBuffer()));
+    }
     if (file.size > 1_000_000) throw new Error("big");
     return file.text();
   }
@@ -118,7 +124,7 @@ export async function importVehiclesAction(slug: string, _prev: ImportState, for
   const commit = str(form, "intent") === "commit";
   let text: string;
   // Import saves exactly the text that was checked, not whatever the file box holds now.
-  try { text = commit ? str(form, "checked_text") : await readCsv(form); } catch { return { error: "The file is larger than 1 MB. Split it into smaller files." }; }
+  try { text = commit ? str(form, "checked_text") : await readCsv(form); } catch (e) { return { error: e instanceof Error && e.message !== "big" ? e.message : "The file is too large. Split it into smaller files." }; }
   let preview: ImportPreview | undefined, imported: number | undefined;
   const state = await runAction(slug, async (m) => {
     if (commit) { imported = (await commitVehicleImport(getDriver(), m, text)).imported; return `Imported ${imported} vehicle${imported === 1 ? "" : "s"}.`; }

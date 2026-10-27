@@ -8,14 +8,26 @@ import { signOut } from "@/app/login/actions";
 import { NavLink } from "@/components/shell/nav-link";
 import { MobileMenu } from "@/components/shell/mobile-menu";
 import { AccessBanner } from "@/components/shell/access-banner";
+import { ChatVisitorInfo } from "@/components/support-chat";
+import { chatVisitor } from "@/lib/chat";
+import { tenantPlan } from "@/lib/billing/plans";
 import { Logo, LogoMark } from "@/components/brand";
 
 export default function WorkspaceLayout({ children, params }: LayoutProps<"/w/[slug]">) {
   return (
     <Suspense fallback={<div className="flex flex-1"><div className="hidden w-[232px] shrink-0 bg-side md:block" /><div className="flex-1" /></div>}>
       <Shell params={params}>{children}</Shell>
+      <Suspense fallback={null}><ChatInfo params={params} /></Suspense>
     </Suspense>
   );
+}
+
+/** Who is asking, for the support chat: the company, workspace, plan and state. Never a person's name, email or phone. */
+async function ChatInfo({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const m = await requireMembership(slug, { allowLocked: true });
+  const plan = await tenantPlan(getDriver(), m.tenantId).catch(() => null);
+  return <ChatVisitorInfo info={chatVisitor({ company: m.tenantName ?? slug, slug, plan: plan?.name ?? "—", state: m.billing?.state ?? "unknown" })} />;
 }
 
 type Item = { href: string; label: string; show: boolean; badge?: number; exact?: boolean; exclude?: string[]; also?: string[] };

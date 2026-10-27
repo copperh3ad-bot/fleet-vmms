@@ -27,6 +27,8 @@ export type Access = {
   daysLeft: number | null;
   /** When that moment is, ISO. */
   until: string | null;
+  /** Milliseconds from now until a running free trial ends (for the live countdown); null in every other state. */
+  trialMsLeft?: number | null;
   priceCents: number;
   currency: string;
 };
@@ -43,7 +45,7 @@ export function accessFrom(row: BillingRow | null, now: Date = new Date()): Acce
   if (row.comped) return { ...base, state: "comped", full: true, daysLeft: null, until: null };
   if (row.status === "trialing") {
     const end = at(row.trial_ends_at);
-    if (Number.isFinite(end) && t < end) return { ...base, state: "trial", full: true, daysLeft: days(end - t), until: row.trial_ends_at };
+    if (Number.isFinite(end) && t < end) return { ...base, state: "trial", full: true, daysLeft: days(end - t), until: row.trial_ends_at, trialMsLeft: end - t };
     return { ...base, state: "locked", full: false, lockedReason: "trial_ended", daysLeft: null, until: row.trial_ends_at };
   }
   const end = at(row.current_period_end);

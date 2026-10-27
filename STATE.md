@@ -343,3 +343,12 @@
 - Basic = existing plan renamed (same price). Pro = Basic + AI, priced in fleet-size bands entered by the owner in Admin, Plans (no amounts in code; a test enforces it); each band sets the AI readings per day. Reading with AI is gated by plan on the server; a Pro trial gets 10 readings.
 - Rollout: Phase 1 Basic only; Phase 2 Pro offered as an upgrade to organizations entering more than 20 job cards a day (30-day average; setting). Pricing page says Pro is coming until the owner sets bands.
 - Not built: moving plans by payment in Billing (step 2), vendor scorecard and AI workshop recommendation (ADR-036, needs owner decisions listed there).
+
+## 2026-10-28: live chat, trial countdown (ADR-037)
+- Trial banner is a live countdown to the end of the free trial, counted from the server's measure (not the device clock); calm, warning in the last day, urgent in the last hour; refreshes the page when it reaches zero.
+- Zoho SalesIQ chat button on the public pages and in the workspace, set up by pasting the widget code into Admin, Settings. Public address /api/chat-config. Privacy policy updated (SalesIQ tracks visitors by default; the owner may turn that off in SalesIQ).
+
+
+## 2026-10-28: fallback point and resume document
+- Tag fleet-otg-resume-2026-10-28; read docs/RESUME.md first next session (what is live vs built, migrations to run, owner inputs, open Pakistan-only instruction with its two questions, build order).
+- Added in this stretch: vehicle sheet before sign-up and Excel import, free trial limited to 10 vehicles (setting), ADR-038. Chat, trial limit and vehicle sheet still need tests.

@@ -37,10 +37,10 @@ async function Privacy() {
         <li><strong>One-time links:</strong> when your administrator sends an invitation, an odometer link or a workshop estimate link, we store a protected fingerprint of the link (not the link itself), who it is for, and when it was used. The phone number a link is meant for is the one your administrator entered; the link is sent from your administrator&apos;s own phone, not by us.</li>
         <li><strong>Payment records:</strong> the bank transfers you tell us about, the reference, amount, date, any receipt or transfer number you upload, our invoices, and any tax withholding certificate.</li>
         <li><strong>Replies from workshops:</strong> when a workshop replies to an email an organization sent it, we keep the sender's address, the subject, the text it wrote and any photos or PDFs attached, on that organization's job card, so staff can enter the figures.</li>
-        <li><strong>Messages to us:</strong> what you write in the Contact form (name, email, company, topic, message) and in emails to our support addresses.</li>
+        <li><strong>Messages to us:</strong> what you write in the Contact form (name, email, company, topic, message), in emails to our support addresses and in the live chat.</li>
         <li><strong>Technical data:</strong> your internet address and the pages you ask for are seen by our hosting provider when you use the site, and may appear in its security and error logs. To slow down abuse we count attempts per address; the counter is kept in scrambled (hashed) form and for a short time only.</li>
       </ul>
-      <p>We do not collect payment card details, do not track your location, and do not use advertising or analytics trackers.</p>
+      <p>We do not collect payment card details, do not use advertising or analytics trackers, and do not track your location, apart from what the live chat works out from your internet address when it is switched on (see Zoho SalesIQ below).</p>
 
       <h2>3. Why we use it, and on what basis</h2>
       <ul>
@@ -58,6 +58,7 @@ async function Privacy() {
         <li><strong>Netlify</strong>: hosts the website and runs its server code; may keep technical logs.</li>
         <li><strong>Resend</strong>: sends the sign-up confirmation and password-reset emails, and the emails an organization sends its workshops, and receives the replies workshops send to them. It sees the sender&apos;s and recipient&apos;s email addresses and the text and attachments of the message.</li>
         <li><strong>Anthropic</strong> (the Claude AI service): only if your organization's administrator switches on AI reading of workshop documents. A person then chooses to have a file a workshop emailed read by the AI, and that file, the job card number, the currency and, for an invoice, the lines of the approved estimate are sent to Anthropic to be read. No names, vehicles or other records are sent. Anthropic does not use this data to train its models. The AI only makes a draft; a person checks and saves it, and each use is recorded on the job card.</li>
+        <li><strong>Zoho SalesIQ</strong> (live chat): when the chat button is switched on, it appears on our public pages and inside your workspace, and Zoho's chat service loads on those pages. It may record the page you are on, your browser, and your internet address with the country or city that implies, so our team can see who is chatting, and it keeps the messages you send us in the chat. From inside a workspace it is told your company's name, workspace, plan and status, never your name or email unless you type them. It sets its own cookies to keep a conversation going. It is not used for advertising.</li>
         <li><strong>Zoho Mail</strong>: our mailboxes. It handles the emails you send to our support, sales and billing addresses and our replies.</li>
       </ul>
       <p>We also share information when the law requires it, with a court or authority acting lawfully, or to protect our rights or others&apos; safety, and with a successor if the business is sold, on terms that keep this policy. Within your organization, only the people your administrator has given access can see your records. Our staff do not open an organization&apos;s records except to fix a problem you report, and then only as much as is needed.</p>
@@ -82,7 +83,7 @@ async function Privacy() {
       <p>Depending on where you live, you may have the right to see, correct, delete, restrict, object to, or receive a copy of the personal information held about you, and to withdraw consent where we rely on it. For our own records, write to us at the address below and we will answer within a reasonable time, normally within 30 days. For fleet records, ask your own organization first, because it decides what they hold; we help it respond. Your organization&apos;s administrator can export its data at any time. You may also complain to the data-protection authority where you live. We may need to confirm who you are before we act, and we may refuse a request where the law allows it, and will say why.</p>
 
       <h2>9. Cookies</h2>
-      <p>We use only the cookies needed to keep you signed in and to keep the service secure. We do not use advertising or tracking cookies, and the site does not need a cookie notice for anything else.</p>
+      <p>We use only the cookies needed to keep you signed in and to keep the service secure, plus, when the live chat is switched on, the cookies Zoho's chat sets to keep a conversation going. We do not use advertising or tracking cookies.</p>
 
       <h2>10. Children</h2>
       <p>Fleet OTG is for organizations and the working adults in them. It is not meant for anyone under 18, and we do not knowingly collect information from children.</p>

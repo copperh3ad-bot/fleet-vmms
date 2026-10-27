@@ -17,13 +17,14 @@ export function ImportForm({ slug }: { slug: string }) {
         <form action={action} className="space-y-3">
           <Notice state={state} />
           <Card title="1. Choose a file">
-            <input type="file" name="file" accept=".csv,text/csv" className="block w-full text-sm" aria-label="CSV file" />
+            <input type="file" name="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="block w-full text-sm" aria-label="Excel or CSV file" />
             <p className="my-2 text-xs text-zinc-500">or paste the rows:</p>
             <textarea name="text" rows={5} defaultValue={state.text ?? ""} className="w-full rounded-md border border-zinc-300 bg-white p-2 font-mono text-xs text-zinc-900" aria-label="CSV text" />
             <div className="mt-3"><Submit pendingText="Checking">Check file</Submit></div>
           </Card>
           {p && (
             <Card title={`2. Result: ${p.ok} ready, ${p.failed} with errors`}>
+              {p.trial && <p role="note" className={`mb-2 rounded-md border p-2 text-sm ${p.trial.note ? "border-amber-300 bg-amber-50 text-amber-900" : "border-sky-200 bg-sky-50 text-sky-900"}`}>{p.trial.note ?? `Free trial: up to ${p.trial.cap} vehicles. You have ${p.trial.existing}, so there is room for ${p.trial.room} more.`}</p>}
               {p.unknownColumns.length > 0 && <p className="mb-2 text-xs text-amber-800">Ignored columns: {p.unknownColumns.join(", ")}</p>}
               <div className="max-h-96 overflow-auto">
                 <table className="w-full text-left text-sm">

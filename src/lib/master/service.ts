@@ -1,5 +1,6 @@
 // Master data: vehicles, employees, vendors, custody, CSV import. Every function checks the permission first
 // (CLAUDE.md rule 3) and reaches tenant data only through authorized() -> withTenant().
+import { trialCapFor, trialFullMessage, trialRoomMessage } from "@/lib/billing/trial";
 import type { Driver, Queryable } from "@/lib/db/types";
 import { authorized, type Membership } from "@/lib/auth/can";
 import {
@@ -93,9 +94,11 @@ function toDbVehicle(v: VehicleInput) {
 /** The "Add a vehicle" save: one transaction through onboard_vehicle(). */
 export async function addVehicle(driver: Driver, m: Membership, raw: unknown): Promise<{ id: string }> {
   const parsed = vehicleSchema.safeParse(raw);
+  const trialCap = await trialCapFor(driver, m);                    // a free trial allows a small fleet (ADR-038); read before the transaction opens
   // Check the permission before revealing anything about the input.
   return authorized(driver, m, "vehicle.write", async (q) => {
     if (!parsed.success) throw new UserError("Fix the highlighted fields.", fieldErrors(parsed.error));
+    if (trialCap !== null && (await countLiveVehicles(q)) >= trialCap) throw new UserError(trialFullMessage(trialCap));
     try {
       const r = await q.query<{ id: string }>("select onboard_vehicle($1::jsonb, $2::uuid) as id", [toDbVehicle(parsed.data), m.userId]);
       return { id: r.rows[0].id };
@@ -219,7 +222,12 @@ export const VEHICLE_CSV_COLUMNS = [
 ] as const;
 
 export type ImportRowResult = { row: number; plate: string; errors: string[]; input?: VehicleInput };
-export type ImportPreview = { total: number; ok: number; failed: number; unknownColumns: string[]; rows: ImportRowResult[] };
+export type ImportPreview = { total: number; ok: number; failed: number; unknownColumns: string[]; rows: ImportRowResult[]; /** set while a free trial limits the fleet: what is allowed and what is already there */ trial?: { cap: number; existing: number; room: number; note: string | null } };
+
+/** Vehicles that count towards a limit: everything except those disposed of. */
+async function countLiveVehicles(q: Queryable): Promise<number> {
+  return (await q.query<{ c: number }>("select count(*)::int c from vehicles where status <> 'disposed'")).rows[0].c;
+}
 
 async function validateImport(q: Queryable, text: string): Promise<ImportPreview> {
   if (text.length > MAX_IMPORT_BYTES) throw new UserError("The file is larger than 1 MB. Split it into smaller files.");
@@ -269,14 +277,27 @@ async function validateImport(q: Queryable, text: string): Promise<ImportPreview
 }
 
 /** Dry run: nothing is saved. Every row gets either "ok" or the reasons it would fail. */
-export function previewVehicleImport(driver: Driver, m: Membership, text: string): Promise<ImportPreview> {
-  return authorized(driver, m, "vehicle.write", (q) => validateImport(q, text));
+export async function previewVehicleImport(driver: Driver, m: Membership, text: string): Promise<ImportPreview> {
+  const trialCap = await trialCapFor(driver, m);
+  return authorized(driver, m, "vehicle.write", async (q) => {
+    const pre = await validateImport(q, text);
+    if (trialCap !== null) {
+      const existing = await countLiveVehicles(q), room = Math.max(0, trialCap - existing);
+      pre.trial = { cap: trialCap, existing, room, note: pre.ok > room ? trialRoomMessage(trialCap, existing, pre.ok) : null };
+    }
+    return pre;
+  });
 }
 
 /** All or nothing: if any row has an error, nothing is saved, so a half-loaded fleet never happens. */
-export function commitVehicleImport(driver: Driver, m: Membership, text: string): Promise<{ imported: number }> {
+export async function commitVehicleImport(driver: Driver, m: Membership, text: string): Promise<{ imported: number }> {
+  const trialCap = await trialCapFor(driver, m);
   return authorized(driver, m, "vehicle.write", async (q) => {
     const pre = await validateImport(q, text);
+    if (trialCap !== null) {
+      const existing = await countLiveVehicles(q);
+      if (existing + pre.ok > trialCap) throw new UserError(trialRoomMessage(trialCap, existing, pre.ok));        // nothing is saved
+    }
     if (pre.failed) throw new UserError(`${pre.failed} row(s) have errors. Fix them and upload again; nothing was imported.`);
     for (const r of pre.rows) {
       try { await q.query("select onboard_vehicle($1::jsonb, $2::uuid)", [toDbVehicle(r.input!), m.userId]); }

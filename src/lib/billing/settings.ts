@@ -3,6 +3,7 @@
 import type { Driver } from "@/lib/db/types";
 import { withPlatform } from "@/lib/db/tenant";
 import { UserError } from "@/lib/master/service";
+import { CHAT_HOSTS, chatConfig } from "@/lib/chat";
 
 export type SettingDef = {
   key: string; label: string; hint: string; multiline?: boolean; max: number; numeric?: boolean;
@@ -17,7 +18,10 @@ export const PLATFORM_SETTINGS: SettingDef[] = [
   { key: "fx_side", label: "Which rate converts the price", hint: "Type buying, selling or average: the interbank buying rate, the selling rate, or the middle of the two. Ask your accountant which the tax authority expects. If empty, buying is used.", max: 8, oneOf: ["buying", "selling", "average"] },
   { key: "fx_forexpk_consent", label: "Automatic rates from forex.pk: written consent", hint: "forex.pk's terms of use do not allow commercial use of its pages without its prior written consent. Fetching its rates automatically stays OFF until you write here who gave consent and when (for example: email from forex.pk, 12 Nov 2026). Leave empty to enter rates by hand.", max: 200 },
   { key: "company_details", label: "Seller details on invoices", hint: "Your company name, address and tax number as they should appear on an invoice. One item per line.", multiline: true, max: 600 },
+  { key: "trial_max_vehicles", label: "Vehicles allowed during a free trial", hint: "How many vehicles a company can add while its free trial runs. Empty means 10. It applies to adding one vehicle and to importing a sheet.", max: 4, numeric: true },
   { key: "pro_offer_min_job_cards", label: "Pro is offered above this many job cards a day", hint: "Pro (the AI plan) is offered as an upgrade to organizations that enter more than this many job cards a day, on average over the last 30 days. Empty means 20.", max: 6, numeric: true },
+  { key: "chat_widget_code", label: "Live chat: Zoho SalesIQ widget code", hint: "From Zoho SalesIQ: Settings, Brands, your brand, Installation, the long code after widgetcode. Empty means no chat button. Only the code is used, never a script address.", max: 200 },
+  { key: "chat_widget_host", label: "Live chat: Zoho data centre", hint: "Which Zoho address your SalesIQ account uses: salesiq.zoho.com (US, the default), salesiq.zoho.eu, salesiq.zoho.in, salesiq.zoho.com.au, salesiq.zoho.jp, salesiq.zohocloud.ca or salesiq.zoho.sa. Empty means salesiq.zoho.com.", max: 40 },
   { key: "support_email", label: "Support email", hint: "Shown on the Contact page for help with an account or a question. For example support@yourdomain.", max: 120 },
   { key: "billing_email", label: "Billing email", hint: "Shown on the customer's Billing page for payment questions. If empty, the support email is shown there instead.", max: 120 },
   { key: "sales_email", label: "Sales email", hint: "Shown on the Pricing and Contact pages for people who want to talk to someone before they sign up.", max: 120 },
@@ -53,6 +57,8 @@ export function checkPlatformSetting(key: string, raw: string): string {
   if (def.numeric && v !== "") {
     if (!/^\d{1,6}(\.\d{1,4})?$/.test(v) || Number(v) <= 0 || Number(v) > 100000) throw new UserError("Enter a number like 280.5.", { [key]: "Enter a number like 280.5" });
   }
+  if (key === "chat_widget_code" && v !== "" && !chatConfig({ chat_widget_code: v })) throw new UserError("That does not look like a SalesIQ widget code. Copy only the long code after widgetcode.", { [key]: "Not a widget code" });
+  if (key === "chat_widget_host" && v !== "" && !(CHAT_HOSTS as readonly string[]).includes(v.toLowerCase())) throw new UserError(`Use one of: ${CHAT_HOSTS.join(", ")}.`, { [key]: "Not a SalesIQ address" });
   if (/_email$/.test(key) && v !== "" && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) throw new UserError("Enter a valid email address.", { [key]: "Enter a valid email address" });
   return v;
 }

@@ -136,3 +136,12 @@ When a workshop replies by email with an estimate or invoice, staff can press "R
 Phase 1 sells Basic only. In Admin, **Plans** shows Basic's price (the current one) and Pro's fleet-size bands. Leave Pro's bands **empty** until Phase 2: the Pricing page then says Pro is coming, with no amount.
 - **Phase 2:** fill in Pro's bands (up to N vehicles, price, AI readings per day; the last band has no upper limit), then Pro is for sale. It is offered as an upgrade to organizations that enter more than the number set in **Settings, "Pro is offered above this many job cards a day"** (20 if empty; measured as the average per day over the last 30 days). Moving an organization between plans by payment in Billing is the next change (ADR-035, step 2); until then you move one from its page in Admin.
 - **Try Pro yourself:** on your own organization's page in Admin, "Waive billing (no charge)", then "Move to Pro". Then switch AI on in Vendors and set the Netlify AI variables (ADR-034).
+
+## Live chat for customer support (ADR-037)
+A chat button on the public pages and inside the workspace, using Zoho SalesIQ. Nothing shows until you set it up:
+1. **Zoho SalesIQ:** sign in at salesiq.zoho.com with your Zoho account (admin@fleetotg.com), create a brand "Fleet OTG", and add your team as operators. Install the SalesIQ app on your phone to answer from it.
+2. **Get the widget code:** SalesIQ, Settings, Brands, your brand, Installation. Copy **only the long code after `widgetcode`**. Note which Zoho address your account uses (salesiq.zoho.com for the US).
+3. **Admin, Settings:** paste it into **Live chat: Zoho SalesIQ widget code**, and set **Live chat: Zoho data centre** if it is not salesiq.zoho.com. Save. The button appears within about five minutes (the answer is cached). Empty the code to switch the chat off.
+4. **In SalesIQ, decide what visitors are tracked.** By default SalesIQ records the page and an IP-based location for every visitor, not only those who open the chat. The Privacy policy says so; if you would rather not, turn visitor tracking and IP location off in SalesIQ's brand settings and tell me so the policy can be changed.
+5. The button never shows in Admin, on one-time workshop or driver links, or on the sign-in-code and password pages. Inside a workspace the team sees the company, workspace, plan and status, not the person's name or email. Leaving the workspace or signing out ends the chat session.
+
