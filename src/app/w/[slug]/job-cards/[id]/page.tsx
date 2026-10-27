@@ -141,7 +141,8 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
           {flow && (
             <Panel title="Quotation, work order and invoice">
               {c.status === "vendor_assigned" && <p className="mb-3 text-sm text-zinc-600">Waiting for {c.vendor_name} to send a quotation.</p>}
-              {c.status === "vendor_assigned" && c.vendor_name && (perms.has("jobcard.assign_vendor") || perms.has("quotation.approve")) && <QuoteLink slug={slug} jobId={id} vendor={c.vendor_name} />}
+              {c.status === "vendor_assigned" && c.vendor_name && (perms.has("jobcard.assign_vendor") || perms.has("quotation.approve")) && <QuoteLink slug={slug} jobId={id} vendor={c.vendor_name} kind="quotation" />}
+              {["quotation_approved", "in_progress", "completed"].includes(c.status) && c.vendor_name && (perms.has("jobcard.assign_vendor") || perms.has("quotation.approve") || perms.has("invoice.verify")) && <QuoteLink slug={slug} jobId={id} vendor={c.vendor_name} kind="invoice" />}
               {flow.quotations.map((qt) => (
                 <div key={qt.id} className="mb-4 rounded-md border border-zinc-200 p-4 text-sm">
                   <p className="font-medium">{qt.vendor_name} <span className="font-normal text-zinc-500">· {qt.status} · <span className="font-mono">{money(Number(qt.amount))}</span>{qt.days_needed ? ` · ${qt.days_needed} days` : ""}{qt.warranty_months ? ` · ${qt.warranty_months} months warranty` : ""}{qt.valid_until ? ` · valid until ${qt.valid_until}` : ""}</span></p>

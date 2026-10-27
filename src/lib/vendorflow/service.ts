@@ -92,35 +92,50 @@ export function decideQuotation(driver: Driver, m: Membership, quotationId: stri
   });
 }
 
-export type NewQuoteLink = { token: string; expires_at: string; job_no: string; vendor_name: string; phone: { e164: string; digits: string; display: string } };
+export type WorkshopLinkKind = "quotation" | "invoice";
+export type NewQuoteLink = { kind: WorkshopLinkKind; token: string; expires_at: string; job_no: string; vendor_name: string; vendor_email: string | null; phone: { e164: string; digits: string; display: string } };
 const QUOTE_LINK_HOURS = 168;
 const QUOTE_LINK_PERMS = ["jobcard.assign_vendor", "quotation.approve"];
+const INVOICE_LINK_PERMS = ["jobcard.assign_vendor", "quotation.approve", "invoice.verify"];
+/** The job card statuses in which each kind of link makes sense: waiting for an estimate, or an approved estimate still to be billed. */
+const LINK_STATUSES: Record<WorkshopLinkKind, string[]> = { quotation: ["vendor_assigned"], invoice: ["quotation_approved", "in_progress", "completed"] };
 
-/** A fresh single-use link for the workshop on this job card, to be sent to the workshop's own phone number. Any earlier unused link stops working. */
-export async function createQuoteLink(driver: Driver, m: Membership, jobId: string): Promise<NewQuoteLink> {
-  const made = await authorizedAny(driver, m, QUOTE_LINK_PERMS, async (q) => {
-    const j = (await q.query<{ job_no: string; status: string; vendor_id: string | null; vendor_name: string | null; phone: string | null }>(
-      "select jc.job_no, jc.status, jc.vendor_id, vn.name as vendor_name, vn.phone from job_cards jc left join vendors vn on vn.id = jc.vendor_id where jc.id = $1", [jobId])).rows[0];
+/**
+ * A fresh single-use link for the workshop on this job card, to be sent to the workshop's own phone number (ADR-030) or email (ADR-033).
+ * `quotation` asks for the estimate; `invoice` asks for the invoice against the approved estimate. Any earlier unused link of the same
+ * kind on this job card stops working. Workshops never sign up, so these links are how they send anything.
+ */
+export async function createWorkshopLink(driver: Driver, m: Membership, jobId: string, kind: WorkshopLinkKind): Promise<NewQuoteLink> {
+  const perms = kind === "quotation" ? QUOTE_LINK_PERMS : INVOICE_LINK_PERMS;
+  const made = await authorizedAny(driver, m, perms, async (q) => {
+    const j = (await q.query<{ job_no: string; status: string; vendor_id: string | null; vendor_name: string | null; phone: string | null; email: string | null }>(
+      "select jc.job_no, jc.status, jc.vendor_id, vn.name as vendor_name, vn.phone, vn.email from job_cards jc left join vendors vn on vn.id = jc.vendor_id where jc.id = $1", [jobId])).rows[0];
     if (!j) throw new UserError("Job card not found.");
-    if (j.status !== "vendor_assigned" || !j.vendor_id) throw new UserError("This job card is not waiting for a workshop estimate.");
+    if (!j.vendor_id || !LINK_STATUSES[kind].includes(j.status)) throw new UserError(kind === "quotation" ? "This job card is not waiting for a workshop estimate." : "This job card has no approved estimate waiting to be invoiced.");
+    if (kind === "invoice" && (await q.query("select 1 from work_orders wo where wo.job_card_id = $1 and wo.vendor_id = $2 and wo.status in ('issued','in_progress','completed') and not exists (select 1 from invoices i where i.work_order_id = wo.id and i.status in ('submitted','verified','paid'))", [jobId, j.vendor_id])).rows.length === 0)
+      throw new UserError("An invoice has already been sent for this job card.");
     const phone = normalizePhone(j.phone ?? "");
-    if (!phone.ok) throw new UserError(`${j.vendor_name} has no mobile number a message can reach. Add it under Vendors first.`);
-    await q.query("update public.quotation_links set revoked_at = now() where tenant_id = $1 and job_card_id = $2 and used_at is null and revoked_at is null", [m.tenantId, jobId]);
+    if (!phone.ok && !j.email) throw new UserError(`${j.vendor_name} has no mobile number or email a message can reach. Add one under Vendors first.`);
+    await q.query("update public.quotation_links set revoked_at = now() where tenant_id = $1 and job_card_id = $2 and kind = $3 and used_at is null and revoked_at is null", [m.tenantId, jobId, kind]);
     const token = newToken();
     const exp = (await q.query<{ e: string }>(
-      `insert into public.quotation_links(token_hash, tenant_id, job_card_id, vendor_id, created_by, expires_at)
-       values ($1, $2, $3, $4, $5, now() + ($6 || ' hours')::interval) returning expires_at::text as e`,
-      [hashToken(token), m.tenantId, jobId, j.vendor_id, m.userId, String(QUOTE_LINK_HOURS)])).rows[0].e;
-    return { token, expires_at: exp, job_no: j.job_no, vendor_name: j.vendor_name ?? "", phone: { e164: phone.e164, digits: phone.digits, display: phone.display } };
+      `insert into public.quotation_links(token_hash, tenant_id, job_card_id, vendor_id, created_by, expires_at, kind)
+       values ($1, $2, $3, $4, $5, now() + ($6 || ' hours')::interval, $7) returning expires_at::text as e`,
+      [hashToken(token), m.tenantId, jobId, j.vendor_id, m.userId, String(QUOTE_LINK_HOURS), kind])).rows[0].e;
+    return { kind, token, expires_at: exp, job_no: j.job_no, vendor_name: j.vendor_name ?? "", vendor_email: j.email,
+             phone: phone.ok ? { e164: phone.e164, digits: phone.digits, display: phone.display } : { e164: "", digits: "", display: "" } };
   });
   // The control plane learns which organization the link belongs to; without that it would not open.
-  try { await routeToken(driver, "quotation", m.tenantId, hashToken(made.token), made.expires_at); }
+  try { await routeToken(driver, kind, m.tenantId, hashToken(made.token), made.expires_at); }
   catch {
-    await authorizedAny(driver, m, QUOTE_LINK_PERMS, (q) => q.query("update public.quotation_links set revoked_at = now() where token_hash = $1", [hashToken(made.token)])).catch(() => undefined);
+    await authorizedAny(driver, m, perms, (q) => q.query("update public.quotation_links set revoked_at = now() where token_hash = $1", [hashToken(made.token)])).catch(() => undefined);
     throw new UserError("The link could not be created. Try again.");
   }
   return made;
 }
+
+/** The estimate link (ADR-030). */
+export const createQuoteLink = (driver: Driver, m: Membership, jobId: string) => createWorkshopLink(driver, m, jobId, "quotation");
 
 export type QuotationRow = { id: string; status: string; amount: string; created_at: string; valid_until: string | null; days_needed: number | null; warranty_months: number | null;
   job_card_id: string; job_no: string; job_status: string; vendor_name: string; registration_no: string };

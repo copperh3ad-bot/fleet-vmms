@@ -8,7 +8,10 @@ import { ForbiddenError } from "@/lib/auth/can";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { addJobCardAttachment, removeJobCardAttachment } from "@/lib/jobcards/attachments";
 import { UserError } from "@/lib/master/service";
-import { createQuoteLink, decideQuotation } from "@/lib/vendorflow/service";
+import { createWorkshopLink, decideQuotation, type WorkshopLinkKind } from "@/lib/vendorflow/service";
+import { emailConfigured, sendMail } from "@/lib/email/send";
+import { buildWorkshopMail } from "@/lib/email/workshop";
+import { SITE_URL } from "@/lib/site";
 import { origin } from "@/lib/origin";
 import { runAction, str, typed, type FormState } from "../actions-util";
 
@@ -128,16 +131,40 @@ export async function reviewDecisionAction(slug: string, id: string, _prev: Form
 
 export type QuoteLinkState = FormState & { send?: { text: string; digits: string; e164: string; display: string; vendor: string; expires_at: string } };
 
-/** A fresh single-use estimate link for the assigned workshop. It goes to the workshop's own phone number only and is not shown on screen (ADR-030). */
-export async function createQuoteLinkAction(slug: string, jobId: string, _prev: QuoteLinkState): Promise<QuoteLinkState> {
+const askText = (kind: WorkshopLinkKind, jobNo: string, url: string) =>
+  `Fleet OTG: please send your ${kind === "quotation" ? "estimate" : "invoice"} for job card ${jobNo} using this link (works once, valid 7 days): ${url}`;
+
+/** A fresh single-use link for the assigned workshop, for the estimate or the invoice. It goes to the workshop's own phone number only and is not shown on screen (ADR-030, ADR-033). */
+export async function createWorkshopLinkAction(slug: string, jobId: string, kind: WorkshopLinkKind, _prev: QuoteLinkState): Promise<QuoteLinkState> {
   const base = await origin();
   let send: QuoteLinkState["send"];
   const state = await runAction(slug, async (m) => {
-    const l = await createQuoteLink(getDriver(), m, jobId);
-    const url = `${base}/q/${l.token}`;
-    send = { text: `Fleet OTG: please send your estimate for job card ${l.job_no} using this link (works once, valid 7 days): ${url}`, digits: l.phone.digits, e164: l.phone.e164, display: l.phone.display, vendor: l.vendor_name, expires_at: l.expires_at };
+    const l = await createWorkshopLink(getDriver(), m, jobId, kind);
+    if (!l.phone.e164) throw new UserError(`${l.vendor_name} has no mobile number a message can reach. Add it under Vendors, or send the link by email.`);
+    send = { text: askText(kind, l.job_no, `${base}/q/${l.token}`), digits: l.phone.digits, e164: l.phone.e164, display: l.phone.display, vendor: l.vendor_name, expires_at: l.expires_at };
     return "Link ready.";
   });
   if (state.ok) refresh();
   return { ...state, send };
+}
+
+/**
+ * The same link, sent by email to the workshop's own address on the Vendors page (ADR-033). The email goes out from here, so the link is never
+ * shown to the person pressing the button; it reaches only the address the organization entered for that workshop.
+ */
+export async function emailWorkshopLinkAction(slug: string, jobId: string, kind: WorkshopLinkKind, _prev: QuoteLinkState): Promise<QuoteLinkState> {
+  const base = await origin();
+  const state = await runAction(slug, async (m) => {
+    if (!emailConfigured()) throw new UserError("Email is not set up on this server yet. Send the link by phone instead.");
+    const l = await createWorkshopLink(getDriver(), m, jobId, kind);
+    if (!l.vendor_email) throw new UserError(`${l.vendor_name} has no email address. Add it under Vendors, or send the link by phone.`);
+    try {
+      await sendMail(buildWorkshopMail({ to: l.vendor_email, kind, vendorName: l.vendor_name, orgName: m.tenantName || "A Fleet OTG customer", jobNo: l.job_no, url: `${base}/q/${l.token}`, siteUrl: SITE_URL }));
+    } catch {
+      throw new UserError("The email could not be sent. Try again, or send the link by phone.");
+    }
+    return `Email sent to ${l.vendor_name}.`;
+  });
+  if (state.ok) refresh();
+  return state;
 }

@@ -6,7 +6,7 @@ import { withPlatform } from "@/lib/db/tenant";
 import { loadAccess } from "@/lib/billing/state";
 
 export type TenantRef = { id: string; schema: string; slug: string; name: string };
-export type TokenKind = "invite" | "odometer" | "quotation";
+export type TokenKind = "invite" | "odometer" | "quotation" | "invoice";
 
 const ref = (r: { id: string; schema_name: string; slug: string; name: string }): TenantRef => ({ id: r.id, schema: r.schema_name, slug: r.slug, name: r.name });
 
