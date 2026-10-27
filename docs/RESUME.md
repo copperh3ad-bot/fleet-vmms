@@ -48,7 +48,7 @@ Things this touches: sign-up country list, workspace currency, pricing page "How
 ## What to build next, in order
 1. Ask the two Pakistan-only questions above, then do that change (public pages, sign-up, copy, tests, flyer).
 2. Write tests for the live chat (`src/lib/chat.ts`, `/api/chat-config`), the trial vehicle limit and the vehicle sheet (build the xlsx, read it back, `xlsxToCsv` into `previewVehicleImport`, cap enforced for add and import, disposed not counted, non-trial unlimited).
-3. Re-run the full browser suite (`bash e2e/run.sh`, about 20 minutes; see quirks) and fix what it finds. The last complete run was 220 passed / 4 failed; the 4 were fixed in test code afterwards but a clean rerun was still running when this was written.
+3. Re-run the full browser suite (`bash e2e/run.sh`, about 20 minutes; see quirks) after the chat, trial limit and vehicle sheet are tested. The last complete run, on the tree at commit `f9ab1c7` (before the chat, vehicle sheet and trial limit), was **224 passed, 0 failed**, with 7 launch findings: Terms and Privacy still carry `[placeholders]` and the draft notice (they clear when the owner fills in Admin, Settings and a lawyer has reviewed).
 4. Owner runs the migrations, then deploy, then a real trial sign-up on live as the final check.
 5. Later: moving plans by payment in Billing (ADR-035 step 2), vendor scorecard and AI workshop recommendation (ADR-036), delete the unreachable vendor portal code and its tests (ADR-033).
 
