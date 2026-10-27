@@ -43,7 +43,8 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
     listMembers(driver, m), listInvitations(driver, m), listRoles(driver, m), planUsage(driver, m), listVendors(driver, m).catch(() => []), getRoleMatrix(driver, m),
     getJoinCode(driver, m), listJoinRequests(driver, m), origin(),
   ]);
-  const roleOpts = roles.map((r) => [r.key, r.name] as [string, string]);
+  // Workshops never sign up and are not given logins (ADR-033), so the role is not offered. People already holding it keep it until removed.
+  const roleOpts = roles.filter((r) => r.key !== "vendor").map((r) => [r.key, r.name] as [string, string]);
   const editing = typeof sp.edit === "string" ? members.find((p) => p.user_id === sp.edit && !p.is_me) : undefined;
   const status = (s: string): { tone: Tone; label: string } => (s === "active" ? { tone: "ok", label: "Active" } : s === "invited" ? { tone: "info", label: "Invited" } : { tone: "neutral", label: "Disabled" });
   const limitHit = use.users.limit !== null && use.users.used >= use.users.limit;
@@ -126,7 +127,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
             </Panel>
           )}
           <Panel title="Company code" sub="So people can ask to join without waiting for an invitation">
-            <JoinCodePanel slug={slug} code={joinCode} staffUrl={joinCode ? `${base}/join?code=${joinCode}` : ""} workshopUrl={joinCode ? `${base}/join/workshop?code=${joinCode}` : ""} />
+            <JoinCodePanel slug={slug} code={joinCode} staffUrl={joinCode ? `${base}/join?code=${joinCode}` : ""} />
           </Panel>
           <Panel title="Built-in rules">
             <ul className="list-disc space-y-2 pl-5 text-sm">

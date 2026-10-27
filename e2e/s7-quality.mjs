@@ -29,7 +29,7 @@ export async function quality(S) {
     // Visits each page, collects the links on it, then asks for every distinct internal address once.
     const seen = new Map();   // address -> page it was found on
     const pagesToVisit = [...pages, "/odometer", "/vendors", "/accidents", "/challans", "/invoices", "/quotations", "/reports/breaking", "/notifications", "/vehicles/new", "/vehicles/import", "/job-cards/import", "/compliance/new", "/accidents/new"].map((p) => `${base}${p}`);
-    pagesToVisit.push("/", "/pricing", "/about", "/contact", "/signup", "/login", "/join", "/join/workshop", "/terms", "/privacy", "/forgot-password");
+    pagesToVisit.push("/", "/pricing", "/about", "/contact", "/signup", "/login", "/join", "/terms", "/privacy", "/forgot-password");
     for (const p of pagesToVisit) {
       await go(S.pk, p);
       const hrefs = await S.pk.page.$$eval("a[href]", (as) => as.map((a) => a.getAttribute("href")));

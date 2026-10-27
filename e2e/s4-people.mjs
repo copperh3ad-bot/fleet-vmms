@@ -13,18 +13,18 @@ async function askToJoin(p, { path, code, name, email, shop }) {
 }
 
 export async function people(S) {
-  scenario("4. Staff and workshops join a company with its code");
+  scenario("4. Staff join a company with its code; workshops are added by the company");
   const o = S.pk, slug = S.pkSlug, base = `/w/${slug}`, tag = uniq();
   check(o && slug, "scenarios 2 and 3 did not run");
 
-  await step("the administrator switches on the company code and gets two links", async () => {
+  await step("the administrator switches on the company code and gets a link for staff", async () => {
     await go(o, `${base}/users`);
     await press(o, "Switch on", { wait: 1200 });
     const code = (await o.page.locator("[aria-label='Company code']").first().innerText()).replace(/[^A-Z0-9]/g, "");
     check(/^[A-HJ-NP-Z2-9]{10}$/.test(code), `code looks like "${code}"`);
     S.code = code;
     const links = await o.page.locator("input[readonly]").evaluateAll((i) => i.map((x) => x.value));
-    check(links.some((l) => l.endsWith(`/join?code=${code}`)) && links.some((l) => l.endsWith(`/join/workshop?code=${code}`)), `links: ${links.join(" ")}`);
+    check(links.some((l) => l.endsWith(`/join?code=${code}`)) && !links.some((l) => l.includes("/join/workshop")), `links: ${links.join(" ")}`);
     check(sql(`select join_code from public.tenants where slug = '${slug}'`) === code, "the code is not stored");
   });
 
@@ -136,47 +136,21 @@ export async function people(S) {
     check(sql(`select count(*) from "${schema}".job_card_events where job_card_id = '${S.jobByStaff.split("/").pop()}'`) >= "1", "the history has no events");
   });
 
-  // ---------- workshop
-  S.shop = await persona("workshop", { email: `shop.${tag}@example.com`, password: PW });
-  await step("a workshop asks to join, with its own name", async () => {
-    await askToJoin(S.shop, { path: "/join/workshop", code: S.code, name: "Imran Ali", email: S.shop.email, shop: `Speedy Auto ${tag}` });
-    check(S.shop.page.url().includes("/join/sent"), `after asking: ${S.shop.page.url()}`);
-    const { code } = await confirmEmail(S.shop.email);
-    await go(S.shop, `/auth/callback?code=${code}`);
-    await waitText(S.shop, "Waiting for approval");
+  // ---------- workshop: added by the organization, never signs up (ADR-033)
+  await step("the organization adds its own workshop, which never signs up", async () => {
+    sql(`insert into "${schemaOf(slug)}".vendors(name, phone, email, status) values ('Speedy Auto ${tag}', '0300 1234567', 'shop.${tag}@example.com', 'active')`);
+    await go(o, `${base}/vendors`);
+    check(has(await body(o), `Speedy Auto ${tag}`), "the workshop is not on the Vendors page");
   });
-  await step("approving a workshop creates its record and an invitation, and it lands in the workshop portal", async () => {
-    await go(o, `${base}/users`);
-    const item = o.page.locator("li", { hasText: `Speedy Auto ${tag}` }).first();
-    check(has(await item.innerText(), "Workshop"), "not marked as a workshop");
-    await press(o, item.getByRole("button", { name: "Approve" }), { wait: 1800 });
-    check(sql(`select count(*) from "${schemaOf(slug)}".vendors where name = 'Speedy Auto ${tag}'`) === "1", "no workshop record");
-    await go(S.shop, "/");
-    await waitText(S.shop, "Invitations waiting for you");
-    await press(S.shop, /accept|join/i, { wait: 2500 });
-    await S.shop.page.waitForURL(new RegExp(`/w/${slug}`), { timeout: 20000 });
-    check(sql(`select role from public.tenant_memberships where user_id = '${await userId(S.shop.email)}'`) === "vendor", "wrong role");
-  });
-  await step("the workshop sees its portal and not the company's records", async () => {
-    const t = await body(S.shop);
-    check(has(t, "My work"), "no workshop portal");
-    for (const p of ["/vehicles", "/users", "/billing", "/policy", "/budgets", "/employees"]) {
-      await go(S.shop, `${base}${p}`);
-      const bt = await body(S.shop);
-      const u = new URL(S.shop.page.url()).pathname;
-      check(has(bt, "do not have access") || !u.endsWith(p), `a workshop opened ${p}`);
-    }
-  });
-  await step("the manager approves the job and assigns it to the workshop in one step, and the workshop then sees only that job", async () => {
+  await step("the manager approves the job and assigns it to the workshop in one step", async () => {
     const schema = schemaOf(slug), jobId = S.jobByStaff.split("/").pop();
     await go(S.mgr, S.jobByStaff);
     await S.mgr.page.locator("label", { hasText: `Speedy Auto ${tag}` }).first().click();
     await press(S.mgr, /approve and assign/i, { wait: 1800 });
     await waitSql(`select status from "${schema}".job_cards where id = '${jobId}'`, "vendor_assigned");
     check(sql(`select count(*) from "${schema}".job_card_events where job_card_id = '${jobId}'`) >= "2", "the history did not record the decision");
-    await go(S.shop, `${base}/vendor`);
-    check(has(await body(S.shop), "JC-"), "the workshop does not see the job it was given");
-    check(!has(await body(S.shop), "JC-000001"), "the workshop sees a job that was not given to it");
+    await go(S.mgr, S.jobByStaff);
+    check(has(await body(S.mgr), "Send the link by phone") || has(await body(S.mgr), "Email the link"), "the job card does not offer to send the workshop a link");
   });
   await step("a brand-new company cannot approve any job until it has a workshop (first-run friction)", async () => {
     finding("flow", "Approving a job card means choosing a workshop in the same step, and the company owner cannot approve at all. A new company therefore needs a manager and a workshop before its first job can move. Consider a first-run checklist (add a workshop, add a manager) or allowing approval without assignment.");

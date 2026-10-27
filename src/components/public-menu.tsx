@@ -5,7 +5,7 @@ import { useSignedIn } from "@/components/auth-links";
 
 const LINKS: [string, string][] = [
   ["/login", "Sign in"], ["/", "Home"], ["/features", "Features"], ["/pricing", "Pricing"], ["/about", "About us"], ["/contact", "Contact us"],
-  ["/join", "Join your company"], ["/join/workshop", "Join as a workshop"],
+  ["/join", "Join your company"],
 ];
 
 /** The phone menu for the pages anyone can open: every public page one tap away. Closes when a link is used, when the page

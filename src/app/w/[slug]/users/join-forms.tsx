@@ -19,17 +19,16 @@ function CopyLine({ label, value }: { label: string; value: string }) {
 }
 
 /** The company's code and the two links to give out. Turning it off or making a new one stops the old code at once. */
-export function JoinCodePanel({ slug, code, staffUrl, workshopUrl }: { slug: string; code: string | null; staffUrl: string; workshopUrl: string }) {
+export function JoinCodePanel({ slug, code, staffUrl }: { slug: string; code: string | null; staffUrl: string }) {
   const [state, run] = useActionState<FormState, "on" | "regenerate" | "off">((_p, a) => joinCodeAction(slug, a), {});
   const btn = "h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm";
   return (
     <div className="space-y-3 text-sm">
       {code ? (
         <>
-          <p>Give this code to your staff and your workshops. They ask to join, and nobody gets in until you approve.</p>
+          <p>Give this code to your staff. They ask to join, and nobody gets in until you approve. Workshops never sign up: add them under Vendors, and send them a link or an email from the job card.</p>
           <p className="font-mono text-2xl tracking-widest" aria-label="Company code">{`${code.slice(0, 5)}-${code.slice(5)}`}</p>
           <CopyLine label="Link for staff" value={staffUrl} />
-          <CopyLine label="Link for workshops" value={workshopUrl} />
           <div className="flex flex-wrap gap-2">
             <form action={() => run("regenerate")}><button type="submit" className={btn}>Make a new code</button></form>
             <form action={() => run("off")}><button type="submit" className={btn}>Switch off</button></form>
@@ -37,7 +36,7 @@ export function JoinCodePanel({ slug, code, staffUrl, workshopUrl }: { slug: str
         </>
       ) : (
         <>
-          <p>Joining with a code is off. Switch it on to let staff and workshops ask to join, instead of waiting for an invitation from you.</p>
+          <p>Joining with a code is off. Switch it on to let staff ask to join, instead of waiting for an invitation from you.</p>
           <form action={() => run("on")}><button type="submit" className={btn}>Switch on</button></form>
         </>
       )}

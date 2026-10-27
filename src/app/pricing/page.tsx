@@ -61,7 +61,7 @@ async function Inner() {
 
         <section className="mt-12 grid gap-6 text-sm md:grid-cols-2" aria-label="Common questions">
           {PRICING_FAQ.map((f) => <div key={f.q}><h3 className="font-semibold">{f.q}</h3><p className="mt-1 text-zinc-600">{f.a}</p></div>)}
-          <div><h3 className="font-semibold">Already have a company code?</h3><p className="mt-1 text-zinc-600"><a href="/join" className="underline">Join your company</a>, or <a href="/join/workshop" className="underline">join as a workshop</a>.</p></div>
+          <div><h3 className="font-semibold">Already have a company code?</h3><p className="mt-1 text-zinc-600"><a href="/join" className="underline">Join your company</a>.</p></div>
         </section>
       </div>
     </SiteShell>

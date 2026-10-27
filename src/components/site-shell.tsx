@@ -8,7 +8,7 @@ type Page = "signup" | "login" | "pricing" | "join" | "about" | "contact" | "fea
 
 const FOOTER: { title: string; links: [string, string][] }[] = [
   { title: "Fleet OTG", links: [["/features", "Features"], ["/pricing", "Pricing"], ["/about", "About us"], ["/contact", "Contact us"]] },
-  { title: "Get started", links: [["/signup", "Start a free trial"], ["/login", "Sign in"], ["/join", "Join your company"], ["/join/workshop", "Join as a workshop"]] },
+  { title: "Get started", links: [["/signup", "Start a free trial"], ["/login", "Sign in"], ["/join", "Join your company"]] },
   { title: "Legal", links: [["/terms", "Terms"], ["/privacy", "Privacy"]] },
 ];
 

@@ -20,6 +20,8 @@ const keep = (form: FormData): Record<string, string> =>
   Object.fromEntries([...form.entries()].filter((e): e is [string, string] => typeof e[1] === "string" && !/password|confirm|^\$/.test(e[0])));
 
 export async function joinAction(kind: JoinKind, _prev: FormState, form: FormData): Promise<FormState> {
+  // Workshops never sign up (ADR-033): an organization adds them itself. The page is gone, and the action refuses the kind so it cannot be called by hand.
+  if (kind !== "staff") return { error: "Workshops do not sign up. Ask the company to send you a link or an email.", values: keep(form) };
   const driver = getDriver();
   let input;
   try {

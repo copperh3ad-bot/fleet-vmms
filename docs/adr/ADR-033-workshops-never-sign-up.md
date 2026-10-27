@@ -41,6 +41,11 @@ and it keeps every estimate and invoice recorded against a job card number with 
 
 ## Consequences
 - Rule 5 (CLAUDE.md) lists the invoice link with the estimate link and adds the signed inbound-email webhook.
-- Existing workshop logins and the vendor portal are removed in a later step (no data migration: the data stays; only the pages and the join flow go).
+- **Removed now:** the public `/join/workshop` page and every link to it (header, phone menu, footer, sitemap, llms.txt, Pricing, the join page), the
+  join action's workshop kind (it refuses it, so it cannot be called by hand), the workshop link on the administrator's company-code panel, and the
+  `vendor` role in the invitation form. Nobody can newly become a workshop user.
+- **Kept for now, unreachable by new people:** the workshop portal (`/w/<slug>/vendor/...`), its service functions, the `vendor` role and the
+  join-request code for the workshop kind. They are dead code behind a role nobody can be given. Deleting them touches about a dozen unit tests and
+  the end-to-end scenarios that were written around a signed-in workshop, so it is a separate, reviewable step rather than part of this one.
 - The Privacy policy lists Resend as the provider of inbound email and says replies are stored.
 - Set-up the owner does once: docs/OPERATIONS.md, "Workshop email replies".

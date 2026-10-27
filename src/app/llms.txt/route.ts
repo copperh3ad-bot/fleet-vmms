@@ -11,7 +11,6 @@ const PAGES: Record<string, [string, string]> = {
   "/contact": ["Contact us", "Ask a question before signing up, or get help with an account or a payment."],
   "/signup": ["Start a free trial", "Create a company workspace."],
   "/join": ["Join your company", "For staff joining a company that already uses Fleet OTG, with a company code."],
-  "/join/workshop": ["Join as a workshop", "For workshops that repair a customer's vehicles."],
   "/terms": ["Terms", "Terms of use."],
   "/privacy": ["Privacy", "How personal information is handled."],
 };

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import { APP, MOCK, axe, body, check, finding, fill, go, has, mock, overflow, persona, press, scenario, sql, step, uniq, waitText } from "./lib.mjs";
 
-const PUBLIC = ["/", "/pricing", "/signup", "/signup/check-email", "/join", "/join/workshop", "/join/sent", "/login", "/forgot-password", "/about", "/contact", "/terms", "/privacy"];
+const PUBLIC = ["/", "/pricing", "/signup", "/signup/check-email", "/join", "/join/sent", "/login", "/forgot-password", "/about", "/contact", "/terms", "/privacy"];
 
 export async function publicPages(S) {
   scenario("1. Public pages, signed out");
@@ -217,8 +217,10 @@ export async function publicPages(S) {
   await step("the join page fills in the code from the link", async () => {
     await go(v, "/join?code=abcde-fghjk");
     check((await v.page.inputValue("#code")) === "ABCDEFGHJK", "code not prefilled and tidied");
-    await go(v, "/join/workshop?code=ABCDEFGHJK");
-    check(await v.page.locator("#workshop_name").count() === 1, "the workshop form has no workshop name field");
+    await go(v, "/join/workshop?code=ABCDEFGHJK");                       // workshops never sign up (ADR-033): the page is gone, and the join page says who to ask
+    check(await v.page.locator("#workshop_name").count() === 0, "a workshop sign-up form is still offered");
+    await go(v, "/join");
+    check(has(await body(v), "does not sign up"), "the join page does not say how a workshop is reached");
   });
 
   await step("signed-out visitors are sent to the sign-in page from every private address", async () => {
@@ -288,7 +290,7 @@ export async function publicPages(S) {
     }
   }
 
-  for (const path of ["/", "/pricing", "/signup", "/login", "/join", "/join/workshop"]) {
+  for (const path of ["/", "/pricing", "/signup", "/login", "/join"]) {
     await step(`${path}: accessibility check`, async () => { await go(v, path); const r = await axe(v, path); return `${r.length} issue types`; });
   }
 }

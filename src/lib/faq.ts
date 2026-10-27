@@ -20,5 +20,5 @@ export const HOME_FAQ: Faq[] = [
 export const PRICING_FAQ: Faq[] = [
   { q: "What if we do not subscribe?", a: "After a short grace period the workspace locks. Nothing is deleted, and you can still sign in to export all your data." },
   { q: "Do you take cards?", a: "Not yet. Bank transfer works today; card payment will be added later." },
-  { q: "Can my team and my workshops join?", a: "Yes, at no extra cost. Your administrator gives them a company code, or sends them an invitation link by WhatsApp or text message, and approves who gets in." },
+  { q: "Can my team join, and what about my workshops?", a: "Your team can join at no extra cost: your administrator gives them a company code, or sends an invitation link by WhatsApp or text message, and approves who gets in. Workshops never sign up: you add each one yourself, and it sends its estimates and invoices through a link or by replying to an email." },
 ];

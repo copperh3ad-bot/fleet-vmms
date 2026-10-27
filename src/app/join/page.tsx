@@ -32,7 +32,7 @@ async function Inner({ searchParams }: { searchParams: Promise<Record<string, st
           </div>
           <div className="rounded-xl border border-zinc-200 bg-white p-5">
             <h2 className="font-semibold">Not the right place?</h2>
-            <p className="mt-2 text-zinc-600">Running a workshop that repairs a company&apos;s vehicles? <a href="/join/workshop" className="underline">Join as a workshop</a>. Want to use Fleet OTG for your own company? <a href="/signup" className="underline">Start a free trial</a>.</p>
+            <p className="mt-2 text-zinc-600">A workshop that repairs a company&apos;s vehicles does not sign up: the company sends it a link or an email. Want to use Fleet OTG for your own company? <a href="/signup" className="underline">Start a free trial</a>.</p>
           </div>
         </aside>
       </div>
