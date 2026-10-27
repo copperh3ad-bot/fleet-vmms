@@ -19,6 +19,9 @@ create table if not exists workshop_emails (
   handled_at     timestamptz,
   received_at    timestamptz not null default now()
 );
+-- Which email a file came with, so the AI (and staff) read the right files for the right reply (ADR-034).
+alter table attachments add column if not exists source_email_id uuid;
+
 create unique index if not exists workshop_emails_message_idx on workshop_emails(message_id) where message_id is not null;
 create index if not exists workshop_emails_job_idx on workshop_emails(job_card_id);
 
@@ -96,8 +99,8 @@ begin
       if e.id is null then raise exception 'email not found'; end if;
       if left(p_path, length(current_schema()) + 1) <> current_schema() || '/' then raise exception 'path outside this workspace'; end if;
       if (select count(*) from attachments where entity_type = 'job_card' and entity_id = e.job_card_id) >= 12 then raise exception 'too many files'; end if;   -- the limit a person adding files has
-      insert into attachments(entity_type, entity_id, storage_path, file_name, mime_type, uploaded_by)
-      values ('job_card', e.job_card_id, p_path, left(p_name, 200), p_mime, null);
+      insert into attachments(entity_type, entity_id, storage_path, file_name, mime_type, uploaded_by, source_email_id)
+      values ('job_card', e.job_card_id, p_path, left(p_name, 200), p_mime, null, p_email);
       update workshop_emails set file_count = file_count + 1 where id = p_email;
     end $b$
   $f$, s);

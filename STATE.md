@@ -333,3 +333,8 @@
 - Invoice link beside the estimate link; both can be sent by phone (WhatsApp, text) or emailed to the workshop. Sending an invoice records the work as done.
 - Email replies: unique reply address per emailed request, Resend inbound webhook (/api/inbound/email), files saved on the job card, flagged "received by email, needs entering"; staff type the figures in with the same form (history names them).
 - Needs, before deploy: platform 0012, control 0014, tenant 0023 and 0024 run on live. Owner set-up in docs/OPERATIONS.md ("Workshop email replies"). Done: workshop sign-up page and links removed, vendor role no longer invitable. Open: delete the now-unreachable vendor portal code and its tests.
+
+## 2026-10-28: AI reads workshop documents (ADR-034), a separate stream from the non-AI tag
+- Drafts only, a person approves. Staff press a button on the entry page; Claude Haiku 5.5 (cheapest that reads PDFs and photos, AI_MODEL to change) reads the emailed file with prompt caching on, returns a checked draft that fills the form; the history says read by AI and checked by <name>.
+- Off until an organization's administrator switches it on (Vendors page, recorded who/when); no key, no feature; AI_DOCUMENT_READING=off stops it everywhere. Every use logged in ai_actions with tokens, cache use and whether the draft was saved unchanged or corrected.
+- Needs before use: platform 0013, tenant 0024 and 0025 on live; ANTHROPIC_API_KEY in Netlify. Not started: auto-approval, chasing, triage, briefings.

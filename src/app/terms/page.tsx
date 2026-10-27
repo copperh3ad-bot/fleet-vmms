@@ -25,7 +25,7 @@ async function Terms() {
 
       <h2>1. The service</h2>
       <p>Fleet OTG is web software for managing the maintenance of vehicles and equipment: job cards and their approvals, workshop quotations and invoices, odometer readings, servicing rules, budgets, vehicle documents, accidents and fines, and reports. Your organization gets its own workspace, kept apart from every other organization&apos;s.</p>
-      <p>Fleet OTG records and organizes what you and your people enter. It is a management tool. It does not give legal, tax, accounting, engineering or safety advice, and it does not inspect any vehicle. Reminders, due dates and flags are aids and may be wrong or late if the information entered is wrong or late. Keeping vehicles safe, roadworthy, insured and legal remains your responsibility.</p>
+      <p>Fleet OTG records and organizes what you and your people enter. It is a management tool. It does not give legal, tax, accounting, engineering or safety advice, and it does not inspect any vehicle. Reminders, due dates and flags are aids and may be wrong or late if the information entered is wrong or late. Where an organization switches on AI reading of workshop documents, the AI only fills in a draft: it can misread a document, so the person who saves it is responsible for checking every figure against the original. Keeping vehicles safe, roadworthy, insured and legal remains your responsibility.</p>
 
       <h2>2. Your account and your people</h2>
       <ul>

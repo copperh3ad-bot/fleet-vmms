@@ -4,6 +4,10 @@ import { getDriver } from "@/lib/db";
 import { listVendors } from "@/lib/master/service";
 import { PageHeader, Panel, Pill } from "@/components/ui";
 import { VendorForm, VendorStatusButton } from "./form";
+import { permissionsOf } from "@/lib/auth/can";
+import { aiConfigured } from "@/lib/ai/claude";
+import { aiDocumentsEnabled } from "@/lib/ai/service";
+import { AiDocumentsPanel } from "./ai-panel";
 
 export default function VendorsPage({ params }: PageProps<"/w/[slug]/vendors">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} /></Suspense>;
@@ -13,6 +17,9 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const m = await requireMembership(slug, { fullScope: true });
   const rows = await listVendors(getDriver(), m);
+  // Only an administrator sees the switch, and only where the service has AI set up (ADR-034).
+  const showAi = aiConfigured() && (await permissionsOf(getDriver(), m)).has("admin.users");
+  const aiOn = showAi ? await aiDocumentsEnabled(getDriver(), m.tenantId) : false;
   return (
     <main className="space-y-5 p-6 text-zinc-900">
       <PageHeader title="Vendors" sub={`${rows.length} workshops and suppliers`} />
@@ -37,7 +44,10 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
             </tbody>
           </table></div>
         </Panel>
-        <Panel title="Add a vendor"><VendorForm slug={slug} /></Panel>
+        <div className="space-y-5">
+          <Panel title="Add a vendor"><VendorForm slug={slug} /></Panel>
+          {showAi && <Panel title="Reading workshop documents with AI"><AiDocumentsPanel slug={slug} on={aiOn} /></Panel>}
+        </div>
       </div>
     </main>
   );

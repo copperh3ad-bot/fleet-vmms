@@ -122,3 +122,12 @@ Workshops never sign up. An organization emails a workshop a one-time link; the 
 6. **If replies do not arrive:** Resend, Emails, Receiving shows what it got; Resend, Webhooks shows the delivery attempts; Netlify, Logs, Functions shows `inbound-email:` lines (they never contain an address or text).
 Until steps 1 to 4 are done, the emails the app sends simply leave out the "or reply to this email" sentence.
 
+## AI reading of workshop documents (ADR-034)
+When a workshop replies by email with an estimate or invoice, staff can press "Read the attached file with AI" and the form is filled in as a draft for them to check and save. It is off everywhere until you set it up and an organization's administrator switches it on.
+1. **Netlify variables** (then redeploy): `ANTHROPIC_API_KEY` (secret; make a key just for this app in the Anthropic console and never paste it in chat). Optional: `AI_MODEL` (default `claude-haiku-5-5`, the cheapest that reads PDFs and photos; try `claude-sonnet-5-5` only if the "saved unchanged" share below is low), and `AI_DOCUMENT_READING=off` to switch the whole service's AI off at once.
+2. **Run the migrations** platform 0013 and tenant 0024 and 0025 (`scripts/migrate-tenants.mts`).
+3. **Each organization's administrator** opens Vendors and switches on "Reading workshop documents with AI". That records who and when. Nobody else sees the switch.
+4. **Watch it work.** In Supabase, table `tenant_xxx.ai_actions` has one row per reading: model, tokens, cache use, and `outcome` (`saved_unchanged` means the AI got it right; `saved_edited` means a person corrected it; `pending` means it was never used). If `saved_unchanged` is well below about 80 per cent, try a larger model.
+5. **Cost:** one reading is well under one US cent on the default model; 60 readings per organization per day is the cap. Anthropic's console shows the real spend. Prompt caching is on, so reading the same file again within five minutes costs very little.
+6. **Privacy:** the Privacy policy already names Anthropic. Do not switch this on for an organization that has told you it does not allow its documents to leave the company.
+

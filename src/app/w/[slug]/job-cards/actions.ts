@@ -10,6 +10,7 @@ import { addJobCardAttachment, removeJobCardAttachment } from "@/lib/jobcards/at
 import { UserError } from "@/lib/master/service";
 import { createWorkshopLink, decideQuotation, setWorkshopEmailStatus, type WorkshopLinkKind } from "@/lib/vendorflow/service";
 import { enterForWorkshop } from "@/lib/vendorflow/entry";
+import { readEmailDocument, setAiDocuments } from "@/lib/ai/service";
 import { estimateFromForm, invoiceFromForm } from "@/lib/vendorflow/form";
 import { emailConfigured, sendMail } from "@/lib/email/send";
 import { buildWorkshopMail } from "@/lib/email/workshop";
@@ -178,7 +179,8 @@ export async function emailWorkshopLinkAction(slug: string, jobId: string, kind:
  */
 export async function enterForWorkshopAction(slug: string, jobId: string, kind: WorkshopLinkKind, emailId: string, _prev: { error?: string; done?: boolean }, form: FormData): Promise<{ error?: string; done?: boolean }> {
   const state = await runAction(slug, async (m) => {
-    await enterForWorkshop(getDriver(), m, jobId, kind, kind === "quotation" ? estimateFromForm(form) : invoiceFromForm(form), emailId || undefined);
+    const ai = String(form.get("ai_action") ?? "");
+    await enterForWorkshop(getDriver(), m, jobId, kind, kind === "quotation" ? estimateFromForm(form) : invoiceFromForm(form), emailId || undefined, /^[0-9a-f-]{36}$/.test(ai) ? ai : undefined);
     return "Saved.";
   });
   if (state.ok) { refresh(); return { done: true }; }
@@ -188,6 +190,27 @@ export async function enterForWorkshopAction(slug: string, jobId: string, kind: 
 /** Says a workshop's emailed reply needs nothing more (or has been dealt with). */
 export async function workshopEmailStatusAction(slug: string, emailId: string, status: "entered" | "dismissed", _prev: FormState): Promise<FormState> {
   const state = await runAction(slug, async (m) => { await setWorkshopEmailStatus(getDriver(), m, emailId, status); return "Done."; });
+  if (state.ok) refresh();
+  return state;
+}
+
+/**
+ * Asks the AI to read the file(s) a workshop emailed, and shows what it made (ADR-034). Nothing on the job card changes: the result is a draft that
+ * fills the form on the next page for a person to check and save. Even a failed or refused reading is shown, so staff know to type it in.
+ */
+export async function readWithAiAction(slug: string, jobId: string, kind: WorkshopLinkKind, emailId: string, _prev: FormState): Promise<FormState> {
+  let id = "";
+  const state = await runAction(slug, async (m) => {
+    id = (await readEmailDocument(getDriver(), await supabaseBlobStore(), m, { jobId, kind, emailId })).id;
+    return "Read.";
+  });
+  if (state.ok && id) redirect(`/w/${slug}/job-cards/${jobId}/enter/${kind}?email=${emailId}&draft=${id}`);
+  return state;
+}
+
+/** The organization's administrator allows, or stops, reading workshop documents with AI. Allowing it records who and when. */
+export async function setAiDocumentsAction(slug: string, on: boolean, _prev: FormState): Promise<FormState> {
+  const state = await runAction(slug, async (m) => { await setAiDocuments(getDriver(), m, on); return on ? "Reading workshop documents with AI is on." : "Reading workshop documents with AI is off."; });
   if (state.ok) refresh();
   return state;
 }

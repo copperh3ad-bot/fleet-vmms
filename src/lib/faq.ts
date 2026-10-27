@@ -12,6 +12,7 @@ export const HOME_FAQ: Faq[] = [
   { q: "Can a job card be filled in without internet?", a: "Yes. The job card form is also available as an Excel file that can be filled in at the workshop with no internet and uploaded afterwards." },
   { q: "How does Fleet OTG stop one person approving their own request?", a: "Approval is a step in the job card, recorded with the person's name and the time. Whoever raises a request cannot approve it, and an invoice cannot be checked by the person who approved the job." },
   { q: "Which currency does it use?", a: "Each company's workspace shows amounts in the currency that company chose when it signed up." },
+  { q: "Does Fleet OTG use AI?", a: "Only where your administrator switches it on, and only to save typing: when a workshop emails an estimate or invoice, the AI can read the attached file and fill in the form as a draft. A person always checks the figures and saves, so every approval still carries a real person's name and time. It is off until you switch it on, and your records are never used to train AI." },
   { q: "Can I export my data?", a: "Yes. Costs by vehicle and job cards can be exported, and you can still sign in to export everything if a workspace is locked." },
   { q: "What happens after the trial?", a: "The workspace locks until you subscribe. Nothing is deleted, and you can still export your data. We keep it for 30 days after a lock." },
   { q: "How do I pay?", a: "By direct bank transfer for now. You send the transfer, upload the receipt, and we confirm it. Card payment is planned." },

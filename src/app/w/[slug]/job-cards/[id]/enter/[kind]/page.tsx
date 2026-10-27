@@ -10,6 +10,8 @@ import { Panel } from "@/components/ui";
 import { EstimateForm } from "@/app/q/[token]/form";
 import { InvoiceForm } from "@/app/q/[token]/invoice-form";
 import { enterForWorkshopAction } from "../../../actions";
+import { aiOffered, getAiAction } from "@/lib/ai/service";
+import { ReadWithAi } from "./read-ai";
 
 export const metadata = { title: "Enter what the workshop sent", robots: { index: false, follow: false } };
 
@@ -33,6 +35,12 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
   const emails = (await listWorkshopEmails(driver, m, id)).filter((e) => e.kind === kind && e.status === "new");
   const email = emails.find((e) => e.id === emailId) ?? emails[0];
   const submit = enterForWorkshopAction.bind(null, slug, id, kind, email?.id ?? "");
+  // The AI's reading (ADR-034): offered only when the organization has switched it on and the reply brought a file. It makes a draft for the form below;
+  // the person checks every figure and saves, exactly as when typing it in.
+  const draftId = typeof sp.draft === "string" && /^[0-9a-f-]{36}$/.test(sp.draft) ? sp.draft : "";
+  const ai = draftId ? await getAiAction(driver, m, id, draftId) : null;
+  const usable = ai && ai.status === "ok" && ai.outcome === "pending" ? ai : null;
+  const canRead = !!email && email.file_count > 0 && (await aiOffered(driver, m));
   const what = kind === "quotation" ? "estimate" : "invoice";
   return (
     <main className="space-y-5 p-6 text-zinc-900">
@@ -50,10 +58,21 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
           </div>
         </Panel>
       )}
-      <div className="max-w-md">
+      {canRead && <div className="max-w-md"><ReadWithAi slug={slug} jobId={id} kind={kind} emailId={email!.id} again={!!ai} /></div>}
+      {usable?.draft && (
+        <div role="note" className="max-w-md space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <p className="font-medium">Filled in by AI from the attached file. It can be wrong.</p>
+          <p>Check every line, quantity, price and the tax against the file before you save. Nothing is saved until you press the button, and the job card&apos;s history will say it was read by AI and checked by you.</p>
+          {usable.draft.warnings.length > 0 && <ul className="list-disc space-y-1 pl-5">{usable.draft.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
+        </div>
+      )}
+      {ai && !usable && ai.status !== "ok" && (
+        <p role="note" className="max-w-md rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">The AI could not read the file: {ai.reason} Type the figures in from the file below.</p>
+      )}
+      <div className="max-w-md" key={usable?.id ?? "blank"}>
         {kind === "quotation"
-          ? <EstimateForm submit={submit} currency={cur} doneText="Saved. The estimate is on the job card for a decision." />
-          : <InvoiceForm submit={submit} currency={cur} approved={approved?.lines ?? []} doneText="Saved. The invoice is on the job card for checking." />}
+          ? <EstimateForm submit={submit} currency={cur} doneText="Saved. The estimate is on the job card for a decision." draft={usable?.draft ?? null} aiActionId={usable?.id ?? ""} />
+          : <InvoiceForm submit={submit} currency={cur} approved={approved?.lines ?? []} doneText="Saved. The invoice is on the job card for checking." draft={usable?.draft ?? null} aiActionId={usable?.id ?? ""} />}
       </div>
     </main>
   );

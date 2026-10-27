@@ -49,7 +49,7 @@ async function Privacy() {
         <li>To keep the service secure, prevent abuse and fix faults, including the record of who changed what. <em>(Our legitimate interest in running a safe service, and yours.)</em></li>
         <li>To answer your messages and to tell your administrator about your account, a change to the terms, or a problem. <em>(To perform our agreement and our legitimate interest.)</em></li>
       </ul>
-      <p>We do not sell personal information. We do not use your organization&apos;s records for advertising, and we do not use them to train models or build products for others.</p>
+      <p>We do not sell personal information. We do not use your organization&apos;s records for advertising, and we do not use them to train models or build products for others. The only AI use of them is the optional reading of workshop documents described under Anthropic below, which each organization switches on or off itself.</p>
 
       <h2>4. Who else handles it</h2>
       <p>We use these providers to run the service. Each handles personal information only on our behalf and for the purpose shown:</p>
@@ -57,6 +57,7 @@ async function Privacy() {
         <li><strong>Supabase</strong>: database, sign-in and file storage. The database and files for the live service are in Tokyo, Japan.</li>
         <li><strong>Netlify</strong>: hosts the website and runs its server code; may keep technical logs.</li>
         <li><strong>Resend</strong>: sends the sign-up confirmation and password-reset emails, and the emails an organization sends its workshops, and receives the replies workshops send to them. It sees the sender&apos;s and recipient&apos;s email addresses and the text and attachments of the message.</li>
+        <li><strong>Anthropic</strong> (the Claude AI service): only if your organization's administrator switches on AI reading of workshop documents. A person then chooses to have a file a workshop emailed read by the AI, and that file, the job card number, the currency and, for an invoice, the lines of the approved estimate are sent to Anthropic to be read. No names, vehicles or other records are sent. Anthropic does not use this data to train its models. The AI only makes a draft; a person checks and saves it, and each use is recorded on the job card.</li>
         <li><strong>Zoho Mail</strong>: our mailboxes. It handles the emails you send to our support, sales and billing addresses and our replies.</li>
       </ul>
       <p>We also share information when the law requires it, with a court or authority acting lawfully, or to protect our rights or others&apos; safety, and with a successor if the business is sold, on terms that keep this policy. Within your organization, only the people your administrator has given access can see your records. Our staff do not open an organization&apos;s records except to fix a problem you report, and then only as much as is needed.</p>
