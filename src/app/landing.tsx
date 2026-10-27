@@ -3,6 +3,9 @@ import type { ReactNode } from "react";
 import type { Offer } from "@/lib/billing/offer";
 import { HeroScene } from "@/components/hero-scene";
 import { Hero3D } from "@/components/hero-3d";
+import { JsonLd } from "@/components/json-ld";
+import { HOME_FAQ } from "@/lib/faq";
+import { faqLd, softwareLd } from "@/lib/seo";
 
 const FEATURES: [string, string][] = [
   ["Job cards with approval", "A driver or fleet officer raises the job. A manager approves it. Nobody approves their own."],
@@ -24,6 +27,8 @@ const ICON: Record<string, string> = {
 export function Landing({ price }: { price: ReactNode }) {
   return (
     <SiteShell>
+      <JsonLd data={softwareLd()} />
+      <JsonLd data={faqLd(HOME_FAQ)} />
       <section className="hero-bg relative flex items-center overflow-hidden text-white [@media(min-height:760px)]:min-h-[calc(100svh-4.5rem)]">
         <div aria-hidden className="hero-grid pointer-events-none absolute inset-0" />
         <Hero3D />
@@ -64,10 +69,7 @@ export function Landing({ price }: { price: ReactNode }) {
       <section className="mx-auto max-w-3xl px-5 py-16">
         <h2 className="text-2xl font-semibold">Questions</h2>
         <dl className="mt-6 space-y-6 text-sm">
-          <div><dt className="font-semibold">Is my data separate from other companies?</dt><dd className="mt-1 text-zinc-600">Yes. Every company&apos;s records are kept apart from every other company&apos;s. People from other companies cannot see them, and we check this with automated tests.</dd></div>
-          <div><dt className="font-semibold">What happens after the trial?</dt><dd className="mt-1 text-zinc-600">The workspace locks until you subscribe. Nothing is deleted, and you can still export your data. We keep it for 30 days after a lock.</dd></div>
-          <div><dt className="font-semibold">How do I pay?</dt><dd className="mt-1 text-zinc-600">By direct bank transfer for now. You send the transfer, upload the receipt, and we confirm it. Card payment is planned.</dd></div>
-          <div><dt className="font-semibold">Do my drivers need accounts?</dt><dd className="mt-1 text-zinc-600">No. Drivers who only send odometer readings use a link from a message. Staff who approve, raise or review jobs sign in.</dd></div>
+          {HOME_FAQ.map((f) => <div key={f.q}><dt className="font-semibold">{f.q}</dt><dd className="mt-1 text-zinc-600">{f.a}</dd></div>)}
         </dl>
         <a href="/signup" className="mt-10 inline-block rounded-md bg-brand px-6 py-3 font-semibold text-white hover:opacity-90">Start your free trial</a>
       </section>

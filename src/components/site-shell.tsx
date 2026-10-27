@@ -4,10 +4,10 @@ import { Logo } from "@/components/brand";
 import { HeaderAuth } from "@/components/auth-links";
 import { PublicMenu } from "@/components/public-menu";
 
-type Page = "signup" | "login" | "pricing" | "join" | "about" | "contact";
+type Page = "signup" | "login" | "pricing" | "join" | "about" | "contact" | "features";
 
 const FOOTER: { title: string; links: [string, string][] }[] = [
-  { title: "Fleet OTG", links: [["/pricing", "Pricing"], ["/about", "About us"], ["/contact", "Contact us"]] },
+  { title: "Fleet OTG", links: [["/features", "Features"], ["/pricing", "Pricing"], ["/about", "About us"], ["/contact", "Contact us"]] },
   { title: "Get started", links: [["/signup", "Start a free trial"], ["/login", "Sign in"], ["/join", "Join your company"], ["/join/workshop", "Join as a workshop"]] },
   { title: "Legal", links: [["/terms", "Terms"], ["/privacy", "Privacy"]] },
 ];
@@ -26,6 +26,7 @@ export function SiteShell({ children, active }: { children: ReactNode; active?: 
         <div className="mx-auto flex max-w-6xl items-center gap-2 px-3 py-4 min-[360px]:gap-4 min-[360px]:px-5">
           <Link href="/" aria-label="Fleet OTG home" className="shrink-0"><Logo height={40} /></Link>
           <nav className="ml-auto flex items-center gap-1 whitespace-nowrap text-sm sm:gap-2" aria-label="Account">
+            {item("features", "/features", "Features")}
             {item("about", "/about", "About")}
             {item("contact", "/contact", "Contact")}
             {item("pricing", "/pricing", "Pricing")}

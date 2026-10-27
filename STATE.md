@@ -319,3 +319,9 @@
 - ADR-030: single-use /q/<token> link to the workshop phone; estimate saved against the job card. Needs platform 0011, control 0013, tenant 0022 run on live.
 - Quotations page; browser test now checks 5 widths and crawls every link; cost reconciliation test added.
 - Open: reports and some pages still hard-code PKR instead of the workspace currency.
+
+## 2026-10-28: sign-up email, mailboxes and search/answer-engine optimisation (ADR-031)
+- Sign-up and reset emails now go out through Resend from noreply@fleetotg.com. The Supabase Send Email hook is answered by a small Netlify function (netlify/functions/send-email.mts) because the whole page server needs about 4 seconds to wake and Supabase waits 5 (ADR-024).
+- Operator settings gain Billing email and Sales email beside Support email; app emails carry a Reply-To (EMAIL_REPLY_TO).
+- ADR-031: JSON-LD (Organization, WebSite, SoftwareApplication, FAQPage, breadcrumbs), one FAQ source for page and markup, a static /features page, /llms.txt, AI search crawlers named in robots.txt, /q/ added to private prefixes. No price, rating or customer claim is put in markup.
+- Open for the owner: add the site to Google Search Console and Bing Webmaster (submit /sitemap.xml); the share picture still has the old colours; real customer quotes or numbers would help most once they exist.

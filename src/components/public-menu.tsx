@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useSignedIn } from "@/components/auth-links";
 
 const LINKS: [string, string][] = [
-  ["/login", "Sign in"], ["/", "Home"], ["/pricing", "Pricing"], ["/about", "About us"], ["/contact", "Contact us"],
+  ["/login", "Sign in"], ["/", "Home"], ["/features", "Features"], ["/pricing", "Pricing"], ["/about", "About us"], ["/contact", "Contact us"],
   ["/join", "Join your company"], ["/join/workshop", "Join as a workshop"],
 ];
 

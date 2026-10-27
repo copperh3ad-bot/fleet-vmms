@@ -99,3 +99,11 @@ Drivers and others with no email address are invited with an employee code, a ro
 - No external uptime monitor. Add a free one (for example UptimeRobot) that checks `/api/health` every five minutes and emails you **(you)**.
 - No content-script policy on pages yet (the other security headers are on). It needs a per-request nonce; do it as its own piece of work.
 - Bank details, seller sales-tax registration, fallback exchange rate, support email and tax authorities are empty in live settings.
+
+## Being found by search and answer engines (ADR-031)
+The site publishes structured data, `/llms.txt`, a Features page and a `robots.txt` that names the AI search crawlers. You do these once, by hand:
+1. **Google Search Console**: add `https://www.fleetotg.com` as a property, verify it (DNS record at Spaceship), then submit `https://www.fleetotg.com/sitemap.xml`.
+2. **Bing Webmaster Tools**: import the site from Search Console, and submit the sitemap. Bing's index also feeds several AI assistants.
+3. **Check the markup** with Google's Rich Results Test on the home and pricing pages, and fix anything it reports.
+4. **Keep the words true.** The FAQ on the home page is `src/lib/faq.ts`; change it there and the page and the markup change together. Never put the price in it.
+5. To keep a crawler out of AI training, move its name in `src/app/robots.ts` from the answer list to a `disallow: "/"` rule.

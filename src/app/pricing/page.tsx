@@ -5,6 +5,9 @@ import { SiteShell } from "@/components/site-shell";
 import { getDriver } from "@/lib/db";
 import { loadOffer } from "@/lib/billing/offer";
 import { loadPlatformSettings } from "@/lib/billing/settings";
+import { JsonLd } from "@/components/json-ld";
+import { PRICING_FAQ } from "@/lib/faq";
+import { breadcrumbLd, faqLd } from "@/lib/seo";
 
 export const metadata = pageMeta("Pricing · Fleet OTG", "One plan with everything included, priced about the same as one month's wage of an unskilled labourer. Free trial, pay by bank transfer.");
 
@@ -25,6 +28,8 @@ async function Inner() {
   const sales = settings.sales_email?.trim();
   return (
     <SiteShell active="pricing">
+      <JsonLd data={breadcrumbLd([["Fleet OTG", "/"], ["Pricing", "/pricing"]])} />
+      <JsonLd data={faqLd(PRICING_FAQ)} />
       <div className="mx-auto max-w-5xl px-5 py-12">
         <h1 className="text-3xl font-semibold">One plan, one price</h1>
         <p className="mt-2 max-w-2xl text-zinc-600">Everything in Fleet OTG for your whole company. No per-user charges and no extras to switch on.</p>
@@ -55,9 +60,7 @@ async function Inner() {
         </div>
 
         <section className="mt-12 grid gap-6 text-sm md:grid-cols-2" aria-label="Common questions">
-          <div><h3 className="font-semibold">What if we do not subscribe?</h3><p className="mt-1 text-zinc-600">After a short grace period the workspace locks. Nothing is deleted, and you can still sign in to export all your data.</p></div>
-          <div><h3 className="font-semibold">Do you take cards?</h3><p className="mt-1 text-zinc-600">Not yet. Bank transfer works today; card payment will be added later.</p></div>
-          <div><h3 className="font-semibold">Can my team and my workshops join?</h3><p className="mt-1 text-zinc-600">Yes, at no extra cost. Your administrator gives them a company code, or sends them an invitation link by WhatsApp or text message, and approves who gets in.</p></div>
+          {PRICING_FAQ.map((f) => <div key={f.q}><h3 className="font-semibold">{f.q}</h3><p className="mt-1 text-zinc-600">{f.a}</p></div>)}
           <div><h3 className="font-semibold">Already have a company code?</h3><p className="mt-1 text-zinc-600"><a href="/join" className="underline">Join your company</a>, or <a href="/join/workshop" className="underline">join as a workshop</a>.</p></div>
         </section>
       </div>
