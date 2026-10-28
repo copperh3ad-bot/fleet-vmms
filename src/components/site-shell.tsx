@@ -24,7 +24,7 @@ export function SiteShell({ children, active }: { children: ReactNode; active?: 
       <a href="#content" className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-30 focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:text-zinc-900">Skip to the page</a>
       <header className="bg-side text-white">
         <div className="mx-auto flex max-w-6xl items-center gap-2 px-3 py-4 min-[360px]:gap-4 min-[360px]:px-5">
-          <Link href="/" aria-label="Fleet OTG home" className="shrink-0"><Logo height={40} /></Link>
+          <Link href="/" prefetch={false} aria-label="Fleet OTG home" className="shrink-0"><Logo height={40} /></Link>
           <nav className="ml-auto flex items-center gap-1 whitespace-nowrap text-sm sm:gap-2" aria-label="Account">
             {item("features", "/features", "Features")}
             {item("about", "/about", "About")}

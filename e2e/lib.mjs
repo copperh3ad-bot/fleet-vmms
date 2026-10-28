@@ -54,7 +54,7 @@ export async function persona(name, opts = {}) {
   page.on("console", (m) => { if (m.type() === "error") bag.push(`console: ${m.text().slice(0, 200)} @ ${new URL(page.url() || APP).pathname}`); });
   page.on("pageerror", (e) => bag.push(`pageerror: ${String(e.message).slice(0, 200)} @ ${new URL(page.url() || APP).pathname}`));
   page.on("requestfailed", (r) => { if (!/_rsc=|\/_next\/static|favicon/.test(r.url()) && r.failure()?.errorText !== "net::ERR_ABORTED") bag.push(`request failed: ${r.method()} ${r.url().slice(0, 120)} ${r.failure()?.errorText}`); });
-  page.on("response", (r) => { if (r.status() >= 500) bag.push(`HTTP ${r.status()}: ${r.request().method()} ${r.url().slice(0, 120)}`); });
+  page.on("response", (r) => { if (r.status() >= 500 || (r.status() === 404 && r.request().resourceType() !== "document")) bag.push(`HTTP ${r.status()}: ${r.request().method()} ${r.url().slice(0, 120)}`); });   // a missing file or script is worth knowing; a page that is meant to be 404 is not
   return { name, ctx, page, email: opts.email, password: opts.password };
 }
 
