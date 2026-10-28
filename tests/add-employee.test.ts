@@ -1,4 +1,4 @@
-// Adding an employee and inviting them are one step (ADR-040): every detail is required, the record and the invitation are made together or not at all.
+// Adding an employee and inviting them are one step (ADR-041): every detail is required, the record and the invitation are made together or not at all.
 import { beforeAll, describe, expect, it } from "vitest";
 import { testDriver, tenantMigrations, stripExt } from "./helpers";
 import { provisionTenant } from "@/lib/db/provision";

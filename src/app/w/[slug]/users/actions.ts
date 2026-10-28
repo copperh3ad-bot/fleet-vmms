@@ -37,7 +37,7 @@ export async function inviteAction(slug: string, _prev: InviteState, form: FormD
     const raw: Record<string, string> = Object.fromEntries(["full_name", "employee_no", "department", "email", "username", "phone", "role", "vehicle_scope", "vendor_id"].map((k) => [k, str(form, k)]));
     // A person with no email signs in with a name; when none is typed, the company and the employee code make one that is easy to say.
     if (!raw.email.trim() && !raw.username.trim()) raw.username = suggestUsername(slug, raw.employee_no);
-    // Everyone but a workshop is an employee, and an employee is only ever added together with the invitation, with every detail filled in (ADR-040).
+    // Everyone but a workshop is an employee, and an employee is only ever added together with the invitation, with every detail filled in (ADR-041).
     if (raw.role !== "vendor") {
       invite = await link(base, await addEmployeeWithInvite(getDriver(), m, raw), m.tenantName);
       return "Employee added and invited. Send the link now; it is shown once.";

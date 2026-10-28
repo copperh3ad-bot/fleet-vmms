@@ -277,7 +277,7 @@ export async function inviteUser(driver: Driver, m: Membership, input: Record<st
   return publicInvite(inv);
 }
 
-/** Every box is needed to add an employee: there is no half-filled record (ADR-040). The one choice is how they sign in: an email, or a sign-in name for someone with no email. */
+/** Every box is needed to add an employee: there is no half-filled record (ADR-041). The one choice is how they sign in: an email, or a sign-in name for someone with no email. */
 export const newEmployeeSchema = z.object({
   full_name: z.string().trim().min(2, "Enter the full name").max(120, "That name is too long"),
   employee_no: z.string().trim().min(1, "Enter the employee number").max(30, "That code is too long").regex(/^[A-Za-z0-9][A-Za-z0-9._/ -]*$/, "Use letters, numbers and - . / only"),
@@ -291,7 +291,7 @@ export const newEmployeeSchema = z.object({
 });
 
 /**
- * Adding an employee and inviting them are one step (ADR-040): an employee record is only ever made together with its invitation, in one
+ * Adding an employee and inviting them are one step (ADR-041): an employee record is only ever made together with its invitation, in one
  * transaction, so a record with no way to sign in cannot be left behind. Needs both permissions, since it does both jobs. The link is shown once.
  */
 export async function addEmployeeWithInvite(driver: Driver, m: Membership, input: Record<string, unknown>): Promise<NewInvite> {
