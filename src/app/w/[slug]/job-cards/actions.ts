@@ -15,6 +15,8 @@ import { estimateFromForm, invoiceFromForm } from "@/lib/vendorflow/form";
 import { emailConfigured, sendMail } from "@/lib/email/send";
 import { buildWorkshopMail } from "@/lib/email/workshop";
 import { replyAddress } from "@/lib/vendorflow/inbound";
+import { sendTemplate, whatsappConfigured } from "@/lib/whatsapp";
+import { attachWhatsAppReply } from "@/lib/vendorflow/service";
 import { SITE_URL } from "@/lib/site";
 import { origin } from "@/lib/origin";
 import { runAction, str, typed, type FormState } from "../actions-util";
@@ -168,6 +170,30 @@ export async function emailWorkshopLinkAction(slug: string, jobId: string, kind:
       throw new UserError("The email could not be sent. Try again, or send the link by phone.");
     }
     return `Email sent to ${l.vendor_name}.`;
+  });
+  if (state.ok) refresh();
+  return state;
+}
+
+/**
+ * The request sent to the workshop's WhatsApp from Fleet OTG itself (ADR-042): an approved template with a button to the one-time link, and the workshop may also just
+ * reply to the message with its estimate or invoice, which is filed on the job card. The link is never shown to the person pressing the button.
+ */
+export async function whatsappWorkshopLinkAction(slug: string, jobId: string, kind: WorkshopLinkKind, _prev: QuoteLinkState): Promise<QuoteLinkState> {
+  const state = await runAction(slug, async (m) => {
+    const template = process.env.WHATSAPP_REQUEST_TEMPLATE;
+    if (!whatsappConfigured() || !template) throw new UserError("Sending on WhatsApp from Fleet OTG is not set up yet. Use the phone buttons.");
+    const l = await createWorkshopLink(getDriver(), m, jobId, kind);
+    if (!l.phone.e164) throw new UserError(`${l.vendor_name} has no mobile number a message can reach. Add it under Vendors, or send the link by email.`);
+    let messageId: string;
+    try {
+      messageId = await sendTemplate(l.phone.e164, { name: template, params: [l.vendor_name, m.tenantName || "A Fleet OTG customer", kind === "quotation" ? "estimate" : "invoice", l.job_no], buttonUrlSuffix: l.token });
+    } catch (e) {
+      console.error(`workshop whatsapp request failed: ${e instanceof Error ? e.message.slice(0, 80) : "unknown"}`);   // never the number or the link
+      throw new UserError("The WhatsApp message could not be sent. Try again, or use the phone buttons.");
+    }
+    await attachWhatsAppReply(getDriver(), m, l.token, messageId, l.expires_at).catch(() => undefined);   // a reply still works through the link if this fails
+    return `Sent to ${l.vendor_name} on WhatsApp. They can answer with the button or by replying with a PDF or photo.`;
   });
   if (state.ok) refresh();
   return state;

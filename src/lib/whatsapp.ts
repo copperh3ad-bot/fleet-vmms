@@ -6,9 +6,14 @@
 //   WHATSAPP_OTP_TEMPLATE      the name of the approved authentication template that carries the code (WhatsApp lets a business start a conversation only with an
 //                              approved template; without one the code is sent as plain text, which only reaches people who messaged the business in the last 24 hours)
 //   WHATSAPP_TEMPLATE_LANG     the template's language code; en if empty
+// And to take replies from workshops and drivers (ADR-042):
+//   WHATSAPP_APP_SECRET        the app secret (Meta app, Settings, Basic): every call Meta makes to us is signed with it, and we refuse any that is not
+//   WHATSAPP_VERIFY_TOKEN      a long random string you make up and also type into Meta's webhook page, so Meta can prove it is calling the right address
+//   WHATSAPP_REQUEST_TEMPLATE  the approved utility template that asks a workshop for an estimate or invoice
 // For the browser and unit tests only: WHATSAPP_FILE=/path writes the message to that file instead of sending it, and is refused unless ALLOW_FILE_MAILER=1.
 // A phone number, a token or a message body is never logged.
 import { appendFileSync } from "node:fs";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 export class WhatsAppNotConfigured extends Error {
   constructor() { super("whatsapp is not configured"); this.name = "WhatsAppNotConfigured"; }
@@ -46,4 +51,100 @@ export async function sendWhatsApp(e164: string, m: { body: string; template?: s
     signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) throw new Error(`whatsapp failed: ${res.status}`);
+}
+
+// ---------------------------------------------------------------------------------------------- replies from workshops and drivers (ADR-042)
+
+/** Can we take replies? Needs the app secret (to check who is calling) and the token (to fetch their pictures and files). */
+export const whatsappInboundConfigured = () => !!process.env.WHATSAPP_APP_SECRET && !!process.env.WHATSAPP_VERIFY_TOKEN && !!process.env.WHATSAPP_ACCESS_TOKEN && !!process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+/** Meta signs the exact bytes it posts: "sha256=" and an HMAC of the body made with the app secret. Compared without leaking where it differs. */
+export function verifyMetaSignature(secret: string, rawBody: string, header: string | null): boolean {
+  if (!header?.startsWith("sha256=")) return false;
+  const given = Buffer.from(header.slice(7), "hex");
+  const want = createHmac("sha256", secret).update(rawBody).digest();
+  return given.length === want.length && timingSafeEqual(given, want);
+}
+
+/** Meta's one-time check when the webhook address is saved: it sends a token and a challenge, and wants the challenge back only if the token is ours. */
+export function verifyChallenge(q: { mode: string | null; token: string | null; challenge: string | null }, expected = process.env.WHATSAPP_VERIFY_TOKEN): string | null {
+  if (!expected || q.mode !== "subscribe" || !q.challenge || !q.token) return null;
+  const a = Buffer.from(q.token), b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b) ? q.challenge : null;
+}
+
+export type InboundMedia = { id: string; filename: string | null; mime: string | null };
+export type InboundMessage = { id: string; from: string; contextId: string | null; text: string; media: InboundMedia[] };
+
+/** The messages in one webhook call, only those sent to OUR business number, as plain data. Anything unexpected is left out, never an error. */
+export function parseWebhook(payload: unknown, ourPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID): InboundMessage[] {
+  const out: InboundMessage[] = [];
+  const entries = (payload as { entry?: unknown })?.entry;
+  if (!Array.isArray(entries)) return out;
+  for (const e of entries) for (const c of (Array.isArray((e as { changes?: unknown })?.changes) ? (e as { changes: unknown[] }).changes : [])) {
+    const v = (c as { field?: string; value?: { metadata?: { phone_number_id?: string }; messages?: unknown } })?.value;
+    if ((c as { field?: string })?.field !== "messages" || !v || v.metadata?.phone_number_id !== ourPhoneNumberId || !Array.isArray(v.messages)) continue;
+    for (const raw of v.messages as Record<string, unknown>[]) {
+      if (!raw || typeof raw !== "object") continue;
+      const id = typeof raw.id === "string" ? raw.id : "", from = typeof raw.from === "string" ? raw.from.replace(/\D/g, "") : "";
+      if (!id || id.length > 200 || !from || from.length > 20) continue;
+      const type = String(raw.type ?? "");
+      const ctx = (raw.context as { id?: unknown } | undefined)?.id;
+      const media: InboundMedia[] = [];
+      let text = "";
+      if (type === "text") text = String((raw.text as { body?: string } | undefined)?.body ?? "");
+      else if (type === "image" || type === "document") {
+        const m = raw[type] as { id?: string; mime_type?: string; filename?: string; caption?: string } | undefined;
+        if (m?.id) media.push({ id: String(m.id), filename: m.filename ? String(m.filename) : null, mime: m.mime_type ? String(m.mime_type) : null });
+        text = String(m?.caption ?? "");
+      } else continue;                                                           // voice notes, stickers, locations... are not filed
+      out.push({ id, from: `+${from}`, contextId: typeof ctx === "string" && ctx.length <= 200 ? ctx : null, text: text.slice(0, 4000), media });
+    }
+  }
+  return out;
+}
+
+const authHeader = () => ({ Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN ?? ""}` });
+
+/** One picture or file a person sent: first its address from Meta, then the bytes, both with our token. Refuses anything over `maxBytes`. */
+export async function fetchMedia(mediaId: string, maxBytes: number, fetchImpl: typeof fetch = fetch): Promise<{ bytes: Uint8Array; mime: string | null }> {
+  if (!/^[0-9]{5,40}$/.test(mediaId)) throw new Error("bad media id");
+  const meta = await fetchImpl(`${GRAPH}/${mediaId}`, { headers: authHeader(), signal: AbortSignal.timeout(8000) });
+  if (!meta.ok) throw new Error(`media lookup failed: ${meta.status}`);
+  const info = (await meta.json()) as { url?: string; mime_type?: string; file_size?: number };
+  if (!info.url || !/^https:\/\/[a-z0-9.-]+\.(fbcdn\.net|fbsbx\.com|facebook\.com|whatsapp\.net)\//i.test(info.url)) throw new Error("unexpected media address");
+  if (typeof info.file_size === "number" && info.file_size > maxBytes) throw new Error("media too large");
+  const res = await fetchImpl(info.url, { headers: authHeader(), signal: AbortSignal.timeout(15000) });
+  if (!res.ok) throw new Error(`media download failed: ${res.status}`);
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  if (bytes.length > maxBytes) throw new Error("media too large");
+  return { bytes, mime: info.mime_type ?? null };
+}
+
+async function post(payload: unknown, fetchImpl: typeof fetch): Promise<string> {
+  const id = process.env.WHATSAPP_PHONE_NUMBER_ID, token = process.env.WHATSAPP_ACCESS_TOKEN;
+  if (!id || !token) throw new WhatsAppNotConfigured();
+  const res = await fetchImpl(`${GRAPH}/${encodeURIComponent(id)}/messages`, { method: "POST", headers: { ...authHeader(), "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error(`whatsapp failed: ${res.status}`);
+  const body = (await res.json().catch(() => ({}))) as { messages?: { id?: string }[] };
+  return body.messages?.[0]?.id ?? "";
+}
+
+/**
+ * A message that starts a conversation: an approved template with its words filled in. Returns the message's own id, which is how a reply to it is recognised later
+ * (WhatsApp's "reply" carries it). `buttonUrlSuffix` is the part after the fixed address of the template's link button.
+ */
+export async function sendTemplate(e164: string, t: { name: string; params: string[]; buttonUrlSuffix?: string }, fetchImpl: typeof fetch = fetch): Promise<string> {
+  const file = testFile();
+  if (file) { const id = `wamid.test${Math.random().toString(36).slice(2, 10)}`; appendFileSync(file, JSON.stringify({ to: e164, template: t.name, params: t.params, button: t.buttonUrlSuffix ?? null, id }) + "\n"); return id; }
+  const components: unknown[] = [{ type: "body", parameters: t.params.map((text) => ({ type: "text", text })) }];
+  if (t.buttonUrlSuffix) components.push({ type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: t.buttonUrlSuffix }] });
+  return post({ messaging_product: "whatsapp", to: e164.replace(/\D/g, ""), type: "template", template: { name: t.name, language: { code: process.env.WHATSAPP_TEMPLATE_LANG || "en" }, components } }, fetchImpl);
+}
+
+/** A plain message to someone who wrote to us in the last 24 hours (an acknowledgement, or "reply to our message"). Anyone else cannot receive it, and that is not an error here. */
+export async function sendReplyText(e164: string, body: string, fetchImpl: typeof fetch = fetch): Promise<void> {
+  const file = testFile();
+  if (file) { appendFileSync(file, JSON.stringify({ to: e164, body }) + "\n"); return; }
+  await post({ messaging_product: "whatsapp", to: e164.replace(/\D/g, ""), type: "text", text: { body: body.slice(0, 1000) } }, fetchImpl);
 }

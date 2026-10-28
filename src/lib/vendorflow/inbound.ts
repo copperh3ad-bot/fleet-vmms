@@ -60,10 +60,10 @@ export type InboundOutcome =
   | { status: "ignored" }                                   // not an address of ours, a request that is closed, or too many replies: nothing was saved
   | { status: "filed"; emailId: string; saved: number; skipped: number };
 
-type Resolved = { schema: string; linkId: string; jobId: string; vendorId: string; kind: "quotation" | "invoice" };
+export type Resolved = { schema: string; linkId: string; jobId: string; vendorId: string; kind: "quotation" | "invoice" };
 
-async function resolveReply(driver: Driver, code: string): Promise<Resolved | null> {
-  const hash = replyCodeHash(code);
+/** The open request a reply belongs to, found by the hash of its reply code (email) or of the id of the WhatsApp message it answers (ADR-042). */
+export async function resolveReplyByHash(driver: Driver, hash: string): Promise<Resolved | null> {
   const t = await findTenantByToken(driver, "reply", hash);
   if (!t) return null;
   const row = (await withOrgPlatform(driver, t.schema, (q) => q.query<{ id: string; job_card_id: string; vendor_id: string; kind: "quotation" | "invoice" }>(
@@ -72,6 +72,8 @@ async function resolveReply(driver: Driver, code: string): Promise<Resolved | nu
       where l.reply_code_hash = $1 and l.revoked_at is null and l.expires_at > now() and l.replies_used < $2 and t.status = 'active'`, [hash, MAX_REPLIES_PER_REQUEST]))).rows[0];
   return row ? { schema: t.schema, linkId: row.id, jobId: row.job_card_id, vendorId: row.vendor_id, kind: row.kind } : null;
 }
+
+const resolveReply = (driver: Driver, code: string) => resolveReplyByHash(driver, replyCodeHash(code));
 
 export async function processInboundEmail(driver: Driver, deps: InboundDeps, input: { emailId: string; addresses: string[] }): Promise<InboundOutcome> {
   const code = codeFromAddresses(input.addresses);

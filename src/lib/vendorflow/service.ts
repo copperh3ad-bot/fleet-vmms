@@ -10,6 +10,7 @@ import { lineSchema } from "@/lib/jobcards/schemas";
 import { friendly, notifyAfter } from "@/lib/jobcards/service";
 import { inboundConfigured, newReplyCode, replyCodeHash } from "./inbound";
 import { notify } from "@/lib/notify";
+import { waReplyHash } from "./whatsapp-inbound";
 import { normalizePhone } from "@/lib/phone";
 import { hashToken, newToken } from "@/lib/odometer/link";
 import { routeToken } from "@/lib/orgs";
@@ -137,6 +138,18 @@ export async function createWorkshopLink(driver: Driver, m: Membership, jobId: s
     throw new UserError("The link could not be created. Try again.");
   }
   return made;
+}
+
+/**
+ * Remembers which WhatsApp message carried a request (ADR-042): a workshop's "reply" to it names that message, and it is found by a hash of its id, kept where an emailed
+ * request keeps its reply code. Only the person who could make the link may do this, and only for a link of this organization.
+ */
+export async function attachWhatsAppReply(driver: Driver, m: Membership, token: string, messageId: string, expiresAt: string): Promise<void> {
+  if (!messageId) return;
+  const hash = waReplyHash(messageId);
+  await authorizedAny(driver, m, [...QUOTE_LINK_PERMS, ...INVOICE_LINK_PERMS], (q) =>
+    q.query("update public.quotation_links set reply_code_hash = $1 where token_hash = $2 and tenant_id = $3 and used_at is null and revoked_at is null", [hash, hashToken(token), m.tenantId]));
+  await routeToken(driver, "reply", m.tenantId, hash, expiresAt);
 }
 
 /** The estimate link (ADR-030). */

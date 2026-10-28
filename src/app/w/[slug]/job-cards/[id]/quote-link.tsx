@@ -4,7 +4,7 @@ import { useFormStatus } from "react-dom";
 import { Notice } from "@/components/form";
 import { btn } from "@/components/ui";
 import { smsLink, whatsappLink } from "@/lib/phone";
-import { createWorkshopLinkAction, emailWorkshopLinkAction, type QuoteLinkState } from "../actions";
+import { createWorkshopLinkAction, emailWorkshopLinkAction, whatsappWorkshopLinkAction, type QuoteLinkState } from "../actions";
 
 type Kind = "quotation" | "invoice";
 
@@ -17,15 +17,17 @@ function Go({ label, pendingLabel }: { label: string; pendingLabel: string }) {
  * Asks the workshop for its estimate or its invoice with a single-use link (ADR-030, ADR-033). Workshops are added by the organization and never
  * sign up. The link is not printed: it goes out through the sender's own WhatsApp or messages app, or by email to the workshop's own address.
  */
-export function QuoteLink({ slug, jobId, vendor, kind }: { slug: string; jobId: string; vendor: string; kind: Kind }) {
+export function QuoteLink({ slug, jobId, vendor, kind, whatsappFromServer = false }: { slug: string; jobId: string; vendor: string; kind: Kind; /** the server can send the request on WhatsApp itself (set up, with its template) */ whatsappFromServer?: boolean }) {
   const [phone, phoneAction] = useActionState<QuoteLinkState, FormData>(createWorkshopLinkAction.bind(null, slug, jobId, kind), {});
   const [mail, mailAction] = useActionState<QuoteLinkState, FormData>(emailWorkshopLinkAction.bind(null, slug, jobId, kind), {});
+  const [wa, waAction] = useActionState<QuoteLinkState, FormData>(whatsappWorkshopLinkAction.bind(null, slug, jobId, kind), {});
   const send = phone.send;
   const what = kind === "quotation" ? "estimate" : "invoice";
   return (
     <div className="mb-3 space-y-2 rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm">
       <p className="text-zinc-700">{vendor} does not need an account. It can send the {what} with a link that works once, by phone or from an email. {kind === "invoice" ? "Sending the invoice also records the work as done. " : ""}The {what} is recorded against this job card.</p>
       <div className="flex flex-wrap gap-2">
+        {whatsappFromServer && <form action={waAction}><Go label="Ask on WhatsApp" pendingLabel="Sending on WhatsApp" /></form>}
         <form action={phoneAction}><Go label={`Send the link by phone`} pendingLabel="Making the link" /></form>
         <form action={mailAction}><Go label={`Email the link`} pendingLabel="Sending the email" /></form>
       </div>
@@ -40,6 +42,7 @@ export function QuoteLink({ slug, jobId, vendor, kind }: { slug: string; jobId: 
       )}
       <Notice state={send ? { ...phone, ok: undefined } : phone} />
       <Notice state={mail} />
+      <Notice state={wa} />
     </div>
   );
 }
