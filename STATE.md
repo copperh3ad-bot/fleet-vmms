@@ -352,3 +352,10 @@
 ## 2026-10-28: fallback point and resume document
 - Tag fleet-otg-resume-2026-10-28; read docs/RESUME.md first next session (what is live vs built, migrations to run, owner inputs, open Pakistan-only instruction with its two questions, build order).
 - Added in this stretch: vehicle sheet before sign-up and Excel import, free trial limited to 10 vehicles (setting), ADR-038. Chat, trial limit and vehicle sheet still need tests.
+
+## 2026-10-28: Pakistan only, and bank details only in an emailed bill (ADR-039)
+- Sign-up is fixed to Pakistan (flag PAKISTAN_ONLY in src/app/signup/form.tsx, reversible); foreign-customer flows hidden, not removed. No bank, tax or account-holder wording on public pages or the Billing page.
+- Billing has a "Request bill" button: the administrator is emailed a generated bill (number, payment reference, amount with tax or the net for a withholding customer, bank account and note from Admin, Settings); a copy without the bank account goes to the Billing mailbox. 3 requests an hour per organization; button hidden until bank details are set. No migration.
+- Production build fixed: SupportChat (ADR-037) is wrapped in Suspense in the root layout; it had blocked prerendering of /w/[slug]/job-cards since commit 1ea1f93.
+- Tests: bill, chat, trial limit and vehicle sheet added (773 unit tests pass, 0 fail). Browser suite: 221 passed, 3 failed in the public scenario (country picker), fixed; that scenario rerun 74 passed, 0 failed. Scenarios s1, s2 and s5 now follow the Pakistan-only form and read the bill from the test outbox.
+- Owner ran the migrations on live (platform 0012-0013, control 0014-0015, tenant 0023-0025). Not yet deployed. Open: browser console 404 on /signup seen once, source not found; the customer's tax-details form is still on the Billing page.
