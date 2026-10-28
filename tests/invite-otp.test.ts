@@ -7,13 +7,13 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { inviteUser, previewInvitation } from "@/lib/admin/service";
 import { withOrgPlatform } from "@/lib/db/tenant";
 import { OTP_MAX_SENDS, OTP_MAX_TRIES, checkInviteCode, maskPhone, sendInviteCode } from "@/lib/admin/invite-otp";
-import { SmsNotConfigured, sendSms, smsConfigured } from "@/lib/sms";
+import { WhatsAppNotConfigured, sendWhatsApp, whatsappConfigured } from "@/lib/whatsapp";
 import { harness, type Org } from "./billing-harness";
 
 let h: Awaited<ReturnType<typeof harness>>;
 let org: Org;
 let out: string;
-const saved = { f: process.env.SMS_FILE, a: process.env.ALLOW_FILE_MAILER, sid: process.env.TWILIO_ACCOUNT_SID, tok: process.env.TWILIO_AUTH_TOKEN, from: process.env.TWILIO_FROM };
+const saved = { f: process.env.WHATSAPP_FILE, a: process.env.ALLOW_FILE_MAILER, id: process.env.WHATSAPP_PHONE_NUMBER_ID, tok: process.env.WHATSAPP_ACCESS_TOKEN };
 let seq = 0;
 const invite = (over: Record<string, unknown> = {}) => inviteUser(h.router, org.admin, { full_name: "Sana Malik", employee_no: `OT-${++seq}`, email: `otp${seq}@example.com`, phone: "0300 1234567", role: "requester", ...over });
 const texts = () => (existsSync(out) ? readFileSync(out, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l) as { to: string; body: string }) : []);
@@ -24,25 +24,25 @@ const setSeconds = (id: string, seconds: number) => inOrg((q) => q.query("update
 beforeAll(async () => {
   h = await harness();
   org = await h.org("Otp Co");
-  out = join(mkdtempSync(join(tmpdir(), "sms-")), "out.jsonl");
+  out = join(mkdtempSync(join(tmpdir(), "wa-")), "out.jsonl");
 });
-afterAll(() => { for (const [k, v] of [["SMS_FILE", saved.f], ["ALLOW_FILE_MAILER", saved.a], ["TWILIO_ACCOUNT_SID", saved.sid], ["TWILIO_AUTH_TOKEN", saved.tok], ["TWILIO_FROM", saved.from]] as const) { if (v === undefined) delete process.env[k]; else process.env[k] = v; } });
+afterAll(() => { for (const [k, v] of [["WHATSAPP_FILE", saved.f], ["ALLOW_FILE_MAILER", saved.a], ["WHATSAPP_PHONE_NUMBER_ID", saved.id], ["WHATSAPP_ACCESS_TOKEN", saved.tok]] as const) { if (v === undefined) delete process.env[k]; else process.env[k] = v; } });
 
-describe("texting is off until it is set up", () => {
+describe("WhatsApp sending is off until it is set up", () => {
   it("asks for no code, and sending refuses", async () => {
-    delete process.env.SMS_FILE; delete process.env.TWILIO_ACCOUNT_SID; delete process.env.TWILIO_AUTH_TOKEN; delete process.env.TWILIO_FROM;
-    expect(smsConfigured()).toBe(false);
+    delete process.env.WHATSAPP_FILE; delete process.env.WHATSAPP_PHONE_NUMBER_ID; delete process.env.WHATSAPP_ACCESS_TOKEN;
+    expect(whatsappConfigured()).toBe(false);
     const inv = await invite();
     const p = await previewInvitation(h.router, inv.token);
     expect(p).toMatchObject({ codeRequired: false, phoneHint: null });
     await expect(sendInviteCode(h.router, inv.token, "1.1.1.1")).rejects.toThrow(/not switched on/);
     await checkInviteCode(h.router, inv.token, "");                       // nothing to check, so it passes
-    await expect(sendSms("+923001234567", "x")).rejects.toBeInstanceOf(SmsNotConfigured);
+    await expect(sendWhatsApp("+923001234567", { body: "x" })).rejects.toBeInstanceOf(WhatsAppNotConfigured);
   });
 });
 
-describe("with texting on", () => {
-  beforeAll(() => { process.env.SMS_FILE = out; process.env.ALLOW_FILE_MAILER = "1"; });
+describe("with WhatsApp sending on", () => {
+  beforeAll(() => { process.env.WHATSAPP_FILE = out; process.env.ALLOW_FILE_MAILER = "1"; });
 
   it("the invitation page is told a code is needed and where it goes, never the whole number", async () => {
     const inv = await invite();
@@ -52,7 +52,7 @@ describe("with texting on", () => {
     expect(maskPhone("+923001234567")).toBe("ending 4567");
   });
 
-  it("texts a 6-digit code to the invitation's number, and the right code passes", async () => {
+  it("sends a 6-digit code on WhatsApp to the invitation's number, and the right code passes", async () => {
     const inv = await invite();
     expect(await sendInviteCode(h.router, inv.token, "2.2.2.2")).toEqual({ sentTo: "ending 4567" });
     const t = texts().at(-1)!;
@@ -116,3 +116,51 @@ describe("with texting on", () => {
     await expect(checkInviteCode(h.router, "x".repeat(43), "123456")).rejects.toThrow(/not working/);
   });
 });
+
+describe("the WhatsApp request (Meta's WhatsApp Business Platform)", () => {
+  const fake = (status = 200) => { const calls: { url: string; init: RequestInit }[] = []; const f = (async (url: string, init: RequestInit) => { calls.push({ url, init }); return new Response("{}", { status }); }) as unknown as typeof fetch; return { calls, f }; };
+  const KEYS = ["WHATSAPP_FILE", "ALLOW_FILE_MAILER", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_TEMPLATE_LANG"];
+  const withEnv = async (env: Record<string, string>, run: () => Promise<void>) => {
+    const before = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
+    for (const k of KEYS) delete process.env[k];
+    Object.assign(process.env, env);
+    try { await run(); } finally { for (const k of KEYS) { if (before[k] === undefined) delete process.env[k]; else process.env[k] = before[k]; } }
+  };
+  const cfg = { WHATSAPP_PHONE_NUMBER_ID: "109876543210", WHATSAPP_ACCESS_TOKEN: "secret-token" };
+
+  it("posts to the business number's messages address with a bearer token and the number as digits only", async () => {
+    await withEnv(cfg, async () => {
+      const { calls, f } = fake();
+      await sendWhatsApp("+923001234567", { body: "Your code 123456" }, f);
+      expect(calls[0].url).toBe("https://graph.facebook.com/v21.0/109876543210/messages");
+      expect((calls[0].init.headers as Record<string, string>).Authorization).toBe("Bearer secret-token");
+      expect(JSON.parse(String(calls[0].init.body))).toEqual({ messaging_product: "whatsapp", to: "923001234567", type: "text", text: { body: "Your code 123456" } });
+    });
+  });
+
+  it("uses the approved authentication template when there is one, with the code in its body and its copy-code button", async () => {
+    await withEnv({ ...cfg, WHATSAPP_TEMPLATE_LANG: "en_US" }, async () => {
+      const { calls, f } = fake();
+      await sendWhatsApp("+923001234567", { body: "plain", template: "fleetotg_code", code: "654321" }, f);
+      const sent = JSON.parse(String(calls[0].init.body));
+      expect(sent).toMatchObject({ type: "template", to: "923001234567", template: { name: "fleetotg_code", language: { code: "en_US" } } });
+      expect(sent.template.components).toEqual([
+        { type: "body", parameters: [{ type: "text", text: "654321" }] },
+        { type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: "654321" }] },
+      ]);
+      expect(JSON.stringify(sent)).not.toContain("plain");
+    });
+  });
+
+  it("is not configured without both the number id and the token, and says plainly when Meta refuses", async () => {
+    await withEnv({ WHATSAPP_PHONE_NUMBER_ID: "1" }, async () => {
+      expect(whatsappConfigured()).toBe(false);
+      await expect(sendWhatsApp("+923001234567", { body: "x" })).rejects.toBeInstanceOf(WhatsAppNotConfigured);
+    });
+    await withEnv(cfg, async () => {
+      expect(whatsappConfigured()).toBe(true);
+      await expect(sendWhatsApp("+923001234567", { body: "x" }, fake(400).f)).rejects.toThrow("whatsapp failed: 400");
+    });
+  });
+});
+

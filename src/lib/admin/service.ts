@@ -13,7 +13,7 @@ import { checkRecoveryCode, checkUsername, deleteLoginName, hashRecoveryCode, lo
 import { allowShared } from "@/lib/rate-limit";
 import { trialCapFor } from "@/lib/billing/trial";
 import { normalizePhone } from "@/lib/phone";
-import { smsConfigured } from "@/lib/sms";
+import { whatsappConfigured } from "@/lib/whatsapp";
 import { authAdminConfigured, createLoginUser, deleteLoginUser, putInboundFile, setLoginPassword } from "@/lib/supabase/admin";
 
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
@@ -386,7 +386,7 @@ export async function issueResetLink(driver: Driver, m: Membership, userId: stri
 
 // ============================ The invited person ============================
 
-/** `codeRequired`: a one-time code is texted to the number ending `phoneHint` and must be typed before the account is made (ADR-041). */
+/** `codeRequired`: a one-time code is sent on WhatsApp to the number ending `phoneHint` and must be typed before the account is made (ADR-041). */
 export type InvitePreview = { workspace: string; full_name: string; email: string | null; username: string | null; reset: boolean; codeRequired: boolean; phoneHint: string | null };
 
 /** What the invitation page may show: nothing for an unknown, used, revoked or expired link. */
@@ -400,7 +400,7 @@ export async function previewInvitation(driver: Driver, token: string): Promise<
       where i.token_hash = $1 and i.accepted_at is null and i.revoked_at is null and i.expires_at > now() and t.status = 'active' and (i.email is not null or i.username is not null)`, [hash]))).rows[0];
   if (!r) return null;
   const { phone, ...rest } = r;                                  // the full number never leaves the server
-  const codeRequired = smsConfigured() && !!phone && !r.reset;
+  const codeRequired = whatsappConfigured() && !!phone && !r.reset;
   return { ...rest, codeRequired, phoneHint: codeRequired ? `ending ${phone!.replace(/\D/g, "").slice(-4)}` : null };
 }
 
