@@ -4,7 +4,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import type { Driver } from "@/lib/db/types";
-import { authorized, authorizedAny, type Membership } from "@/lib/auth/can";
+import { assertCan, authorized, authorizedAny, type Membership } from "@/lib/auth/can";
 import { withOrgPlatform, withTenant } from "@/lib/db/tenant";
 import { findTenantByInvitation, findTenantByToken, forgetMember, indexInvitation, rememberMember, routeToken, tenantsInvitingEmail, unindexInvitation, unrouteToken } from "@/lib/orgs";
 import { UserError } from "@/lib/master/service";
@@ -13,6 +13,7 @@ import { checkRecoveryCode, checkUsername, deleteLoginName, hashRecoveryCode, lo
 import { allowShared } from "@/lib/rate-limit";
 import { trialCapFor } from "@/lib/billing/trial";
 import { normalizePhone } from "@/lib/phone";
+import { smsConfigured } from "@/lib/sms";
 import { authAdminConfigured, createLoginUser, deleteLoginUser, putInboundFile, setLoginPassword } from "@/lib/supabase/admin";
 
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
@@ -276,6 +277,46 @@ export async function inviteUser(driver: Driver, m: Membership, input: Record<st
   return publicInvite(inv);
 }
 
+/** Every box is needed to add an employee: there is no half-filled record (ADR-040). The one choice is how they sign in: an email, or a sign-in name for someone with no email. */
+export const newEmployeeSchema = z.object({
+  full_name: z.string().trim().min(2, "Enter the full name").max(120, "That name is too long"),
+  employee_no: z.string().trim().min(1, "Enter the employee number").max(30, "That code is too long").regex(/^[A-Za-z0-9][A-Za-z0-9._/ -]*$/, "Use letters, numbers and - . / only"),
+  department: z.string().trim().min(1, "Enter the department").max(60, "That name is too long"),
+  phone: z.string().trim().min(1, "Enter the phone number").max(30, "That number is too long"),
+  /** the email, or (for someone with none) a sign-in name: one of the two is needed */
+  email: z.preprocess(blank, z.email("Enter a valid email").transform(lower).optional()),
+  username: z.preprocess(blank, z.string().trim().max(40).optional()),
+  role: z.string().trim().min(1, "Choose a role").max(40).refine((r) => r !== "vendor", "A workshop is added on the Vendors page"),
+  vehicle_scope: z.enum(["all", "own"]).default("all"),
+});
+
+/**
+ * Adding an employee and inviting them are one step (ADR-040): an employee record is only ever made together with its invitation, in one
+ * transaction, so a record with no way to sign in cannot be left behind. Needs both permissions, since it does both jobs. The link is shown once.
+ */
+export async function addEmployeeWithInvite(driver: Driver, m: Membership, input: Record<string, unknown>): Promise<NewInvite> {
+  const r = newEmployeeSchema.safeParse(input);
+  if (!r.success) throw new UserError("Fix the highlighted fields.", fieldErrors(r.error));
+  const d = r.data;
+  const phone = normalizePhone(d.phone);
+  if (!phone.ok) throw new UserError(phone.message, { phone: phone.message });
+  let username: string | undefined;
+  if (!d.email) {
+    if (!authAdminConfigured()) throw new UserError("Enter their email. Inviting someone without an email is not switched on yet; ask the platform owner to finish the set-up.", { email: "Enter the email" });
+    username = await checkNewUsername(driver, d.username);
+  }
+  const inv = await authorized(driver, m, "admin.users", async (q) => {
+    await assertCan(q, m.role, "employee.manage");
+    if ((await q.query("select 1 from employees where lower(employee_no) = lower($1)", [d.employee_no])).rows.length) throw new UserError("Another employee already has this employee number.", { employee_no: "Already used" });
+    if (d.email && (await q.query("select 1 from employees where lower(email) = lower($1)", [d.email])).rows.length) throw new UserError("Another employee already has this email.", { email: "Already used" });
+    await q.query("insert into employees(full_name, employee_no, department, email, phone) values ($1, $2, $3, $4, $5)", [d.full_name, d.employee_no, d.department, d.email ?? null, phone.e164]);
+    // the invitation finds the record just made by its employee number; any problem with it (plan limit, an open invitation for this email) rolls the record back too
+    return createInvite(q, m, { full_name: d.full_name, employee_no: d.employee_no, email: d.email, username, phone: phone.e164, role: d.role, vehicle_scope: d.vehicle_scope });
+  });
+  await track(driver, m, inv);
+  return publicInvite(inv);
+}
+
 export function revokeInvitation(driver: Driver, m: Membership, id: string): Promise<void> {
   return authorized(driver, m, "admin.users", async (q) => {
     const r = await q.query<{ token_hash: string }>("update public.invitations set revoked_at = now() where id = $1 and tenant_id = $2 and accepted_at is null and revoked_at is null returning token_hash", [id, m.tenantId]);
@@ -345,7 +386,8 @@ export async function issueResetLink(driver: Driver, m: Membership, userId: stri
 
 // ============================ The invited person ============================
 
-export type InvitePreview = { workspace: string; full_name: string; email: string | null; username: string | null; reset: boolean };
+/** `codeRequired`: a one-time code is texted to the number ending `phoneHint` and must be typed before the account is made (ADR-041). */
+export type InvitePreview = { workspace: string; full_name: string; email: string | null; username: string | null; reset: boolean; codeRequired: boolean; phoneHint: string | null };
 
 /** What the invitation page may show: nothing for an unknown, used, revoked or expired link. */
 export async function previewInvitation(driver: Driver, token: string): Promise<InvitePreview | null> {
@@ -353,10 +395,13 @@ export async function previewInvitation(driver: Driver, token: string): Promise<
   const hash = hashInviteToken(token);
   const t = await findTenantByToken(driver, "invite", hash);
   if (!t) return null;
-  const r = (await withOrgPlatform(driver, t.schema, (q) => q.query<InvitePreview>(
-    `select t.name as workspace, i.full_name, i.email, i.username, (i.reset_user_id is not null) as reset from public.invitations i join public.tenants t on t.id = i.tenant_id
+  const r = (await withOrgPlatform(driver, t.schema, (q) => q.query<Omit<InvitePreview, "codeRequired" | "phoneHint"> & { phone: string | null }>(
+    `select t.name as workspace, i.full_name, i.email, i.username, (i.reset_user_id is not null) as reset, i.phone from public.invitations i join public.tenants t on t.id = i.tenant_id
       where i.token_hash = $1 and i.accepted_at is null and i.revoked_at is null and i.expires_at > now() and t.status = 'active' and (i.email is not null or i.username is not null)`, [hash]))).rows[0];
-  return r ?? null;
+  if (!r) return null;
+  const { phone, ...rest } = r;                                  // the full number never leaves the server
+  const codeRequired = smsConfigured() && !!phone && !r.reset;
+  return { ...rest, codeRequired, phoneHint: codeRequired ? `ending ${phone!.replace(/\D/g, "").slice(-4)}` : null };
 }
 
 export type PendingInvite = { id: string; workspace: string; role_name: string };

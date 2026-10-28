@@ -15,8 +15,8 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const rows = await listEmployees(getDriver(), m);
   return (
     <main className="space-y-5 p-6 text-zinc-900">
-      <PageHeader title="Employees" sub={`${rows.length} ${rows.length === 1 ? "employee" : "employees"} on record`} />
-      <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
+      <PageHeader title="Employees" sub={`${rows.length} ${rows.length === 1 ? "employee" : "employees"} on record. New employees are added with an invitation on the Users page.`} />
+      <div>
         <Panel title="People" flush>
           <div className="overflow-x-auto"><table className="w-full text-left text-sm">
             <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Name</th><th>No.</th><th>Department</th><th className="text-right">Vehicles</th><th>Login</th><th /></tr></thead>
@@ -33,7 +33,6 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
             </tbody>
           </table></div>
         </Panel>
-        <Panel title="Add an employee"><EmployeeForm slug={slug} /></Panel>
       </div>
     </main>
   );

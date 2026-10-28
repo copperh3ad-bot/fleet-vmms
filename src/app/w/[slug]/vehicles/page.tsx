@@ -52,7 +52,7 @@ async function Vehicles({ params, searchParams }: { params: Promise<{ slug: stri
     <main className="space-y-5 p-6 text-zinc-900">
       <PageHeader title="Vehicles" sub={sub} actions={<>
         <ExportLink slug={slug} kind="vehicles" query={{ q, status: "" }} />
-        {canWrite && <a href={`/w/${slug}/vehicles/import`} className={btn}>Import from CSV</a>}
+        {canWrite && <a href={`/w/${slug}/vehicles/import`} className={btnPrimary}>Import data</a>}
         {canWrite && <a href={`/w/${slug}/vehicles/new`} className={btnPrimary}>Add vehicle</a>}
       </>} />
 

@@ -1,4 +1,4 @@
-import { APP, body, check, fill, finding, go, has, persona, press, scenario, signUpCompany, sql, step, uniq, waitText } from "./lib.mjs";
+import { APP, addEmployee, body, check, fill, finding, go, has, persona, press, scenario, signUpCompany, sql, step, uniq, waitText } from "./lib.mjs";
 
 const PW = ["a", "long", "test", "password", "1"].join("-");
 
@@ -11,9 +11,7 @@ export async function lockAndIsolation(S) {
   await step("a company whose trial and grace period have run out is locked, but can still reach billing and its data export", async () => {
     S.lockSlug = await signUpCompany(S.lockCo, { name: `Lock Logistics ${tag}`, person: "Lena Lock", email: S.lockCo.email, password: PW, country: "US" });
     const id = sql(`select id from public.tenants where slug = '${S.lockSlug}'`);
-    await go(S.lockCo, `/w/${S.lockSlug}/employees`);
-    await fill(S.lockCo, "form:has(button:has-text('Add employee')) #full_name", "Kept Employee");
-    await press(S.lockCo, "Add employee", { wait: 900 });
+    await addEmployee(S.lockCo, S.lockSlug, { name: "Kept Employee", code: "E-KEPT", email: `kept.${tag}@example.com` });
     sql(`update public.org_billing set trial_ends_at = now() - interval '30 days' where tenant_id = '${id}'`);
     for (const p of ["", "/vehicles", "/job-cards", "/employees", "/policy"]) {
       await go(S.lockCo, `/w/${S.lockSlug}${p}`);
@@ -81,11 +79,8 @@ export async function lockAndIsolation(S) {
 
   // ---------- hostile input
   await step("script typed into a name is shown as text and never runs", async () => {
-    await go(pk, `/w/${S.pkSlug}/employees`);
     const evil = `<img src=x onerror="window.__xss=1"><script>window.__xss=2</script>`;
-    await fill(pk, "form:has(button:has-text('Add employee')) #full_name", evil);
-    await fill(pk, "form:has(button:has-text('Add employee')) #employee_no", "E-XSS");
-    await press(pk, "Add employee", { wait: 1200 });
+    await addEmployee(pk, S.pkSlug, { name: evil, code: "E-XSS", email: `xss.${tag}@example.com` });
     await go(pk, `/w/${S.pkSlug}/employees`);
     check(!(await pk.page.evaluate(() => window.__xss)), "the script ran");
     check((await body(pk)).includes("<img src=x"), "the text is not shown as typed");

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import ExcelJS from "exceljs";
-import { APP, body, check, fill, finding, fixture, go, has, mock, press, scenario, shot, sql, step, waitText } from "./lib.mjs";
+import { APP, addEmployee, body, check, fill, finding, fixture, go, has, mock, press, scenario, shot, sql, step, waitText } from "./lib.mjs";
 
 const tenantId = (slug) => sql(`select id from public.tenants where slug = '${slug}'`);
 const setting = (slug, key) => sql(`select value from "${sql(`select schema_name from public.tenants where slug = '${slug}'`)}".settings where key = '${key}'`);
@@ -40,13 +40,10 @@ export async function workspace(S) {
   });
 
   await step("an employee is added", async () => {
-    await go(o, `${base}/employees`);
-    await fill(o, "form:has(button:has-text('Add employee')) #full_name", "Ali Raza");
-    await fill(o, "form:has(button:has-text('Add employee')) #employee_no", "E-100");
-    await fill(o, "form:has(button:has-text('Add employee')) #email", "ali.raza@example.com");
-    await press(o, "Add employee", { wait: 900 });
+    await addEmployee(o, slug, { name: "Ali Raza", code: "E-100", email: "ali.raza@example.com" });
     await go(o, `${base}/employees`);
     check(has(await body(o), "Ali Raza"), "the employee is not listed");
+    check((await o.page.locator("form:has(button:has-text('Add employee'))").count()) === 0, "the Employees page still offers a way to add one without an invitation");
   });
 
   await step("two vehicles are added with the form", async () => {

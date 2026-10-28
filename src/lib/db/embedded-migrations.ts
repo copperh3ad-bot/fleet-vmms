@@ -66,6 +66,11 @@ export const PLATFORM_MIGRATIONS: Migration[] = [
     "name": "0013_ai_consent.sql",
     "sql": "-- Whether an organization lets the AI read the estimates and invoices its workshops send (ADR-034). Off until the organization's administrator switches it\n-- on, which records who and when: the documents are sent to the AI provider, so that is the organization's decision, not ours. Idempotent.\nalter table public.tenants add column if not exists ai_documents_enabled boolean not null default false;\nalter table public.tenants add column if not exists ai_consent_by uuid;\nalter table public.tenants add column if not exists ai_consent_at timestamptz;\n",
     "checksum": "01ce767e1a0860b0489cae2a10e9d0f5baecf450f1b9271ccc92b1220c3796c4"
+  },
+  {
+    "name": "0014_invitation_otp.sql",
+    "sql": "-- A one-time code texted to the invited person's phone, to be typed before the invitation link makes an account (ADR-041). Only a hash of the code is kept, with\n-- when it runs out, how many wrong tries it has had, and how many were sent, so a stolen link is not enough on its own. Idempotent.\nalter table public.invitations add column if not exists otp_hash text;\nalter table public.invitations add column if not exists otp_expires_at timestamptz;\nalter table public.invitations add column if not exists otp_attempts int not null default 0;\nalter table public.invitations add column if not exists otp_sends int not null default 0;\nalter table public.invitations add column if not exists otp_sent_at timestamptz;\n",
+    "checksum": "4e6574af130bf792a1e135a00ded750b99cab49f99aed22db4de897c79f45964"
   }
 ];
 

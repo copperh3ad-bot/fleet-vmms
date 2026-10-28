@@ -89,7 +89,8 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
                     <td className="py-3 pr-5 text-right">{!p.is_me && <a className="text-sky-800 underline" href={`/w/${slug}/users?edit=${p.user_id}#invite`}>Change</a>}{!p.is_me && p.username && p.status === "active" && <div className="mt-1 space-y-1 text-left"><ResetLink slug={slug} userId={p.user_id} /><ReplaceLogin slug={slug} userId={p.user_id} name={p.full_name ?? p.username} /></div>}</td>
                   </tr>))}
                 {invites.map((i) => (
-                  <tr key={i.id} className="border-t border-zinc-100 align-top">
+                  // keyed by who is invited, not by the invitation: "Send a new link" replaces the invitation (new id), and the row, with the link just made, must stay on screen
+                  <tr key={`${i.employee_no ?? ""}|${i.email ?? ""}|${i.username ?? ""}|${i.vendor_name ?? ""}|${i.reset ? "reset" : i.full_name}`} className="border-t border-zinc-100 align-top">
                     <td className="px-5 py-3 font-medium">{i.full_name}</td>
                     <td className="py-3 font-mono text-xs">{i.employee_no ?? "—"}</td>
                     <td className="py-3">{i.email ?? (i.username ? <span className="font-mono">{i.username}</span> : "—")}{i.reset && <span className="block text-xs text-zinc-500">Password reset link</span>}{i.vendor_name && <span className="block text-xs text-zinc-500">{i.vendor_name}</span>}</td>

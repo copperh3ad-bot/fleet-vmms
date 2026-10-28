@@ -8,6 +8,7 @@ import { allowShared } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
 import { UserError } from "@/lib/master/service";
 import { acceptInvitation, acceptWithUsername, hashInviteToken, previewInvitation } from "@/lib/admin/service";
+import { checkInviteCode, sendInviteCode } from "@/lib/admin/invite-otp";
 
 /** `go` is where the browser moves on to once the account is made and the person is signed in. */
 export type InviteFormState = { error?: string; notice?: string; go?: string };
@@ -27,6 +28,12 @@ export async function createAccountAction(token: string, _prev: InviteFormState,
   const password = String(form.get("password") ?? "");
   if (password.length < MIN_PASSWORD) return { error: `Choose a password of at least ${MIN_PASSWORD} characters.` };
   if (password !== String(form.get("confirm") ?? "")) return { error: "The two passwords do not match." };
+
+  // The link alone is not enough: the code texted to the employee's phone must be typed too (ADR-041). Checked before anything is made.
+  if (invite.codeRequired) {
+    try { await checkInviteCode(driver, token, String(form.get("code") ?? "")); }
+    catch (e) { if (e instanceof UserError) return { error: e.message }; throw e; }
+  }
 
   const supabase = await supabaseServer();
 
@@ -63,4 +70,12 @@ export async function createAccountAction(token: string, _prev: InviteFormState,
     throw e;
   }
   redirect(`/w/${slug}`);
+}
+
+/** "Send me a code": texts a new one-time code to the phone number on the invitation. The answer says only where it went, never the code. */
+export async function sendCodeAction(token: string): Promise<{ sentTo?: string; error?: string }> {
+  const driver = getDriver();
+  if (!(await allowShared(driver, `invite-token:${hashInviteToken(token)}`, 10, TEN_MIN))) return { error: "Too many tries. Wait a few minutes and try again." };
+  try { return await sendInviteCode(driver, token, await clientIp()); }
+  catch (e) { if (e instanceof UserError) return { error: e.message }; throw e; }
 }

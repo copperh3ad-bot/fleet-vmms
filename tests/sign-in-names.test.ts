@@ -106,7 +106,7 @@ describe("inviting someone with no email", () => {
     const row = await raw(async (q) => (await q.query<{ email: string | null; username: string; employee_no: string; phone: string; role_key: string; vehicle_scope: string }>(
       "select email, username, employee_no, phone, role_key, vehicle_scope from public.invitations where id = $1", [inv.id])).rows[0]);
     expect(row).toEqual({ email: null, username: "acme.d-101", employee_no: "D-101", phone: "+923001111111", role_key: "requester", vehicle_scope: "own" });
-    expect(await ad.previewInvitation(router, inv.token)).toEqual({ workspace: "Acme Transport", full_name: "Driver One", email: null, username: "acme.d-101", reset: false });
+    expect(await ad.previewInvitation(router, inv.token)).toEqual({ workspace: "Acme Transport", full_name: "Driver One", email: null, username: "acme.d-101", reset: false, codeRequired: false, phoneHint: null });
     const listed = (await ad.listInvitations(router, admin)).find((i) => i.id === inv.id);
     expect(listed).toMatchObject({ username: "acme.d-101", employee_no: "D-101", email: null, reset: false });
   });

@@ -119,6 +119,21 @@ export async function signUpCompany(p, { name, person, email, password, country 
   return slug;
 }
 
+/** Adds an employee the only way there is (ADR-040): the invite form on the Users page, every box filled in. Leaves the person on that page with the link box showing. */
+export async function addEmployee(p, slug, { name, code, email, department = "Operations", phone = "0300 1234567", role = "requester" }) {
+  await go(p, `/w/${slug}/users`);
+  const f = p.page.locator("form:has(#employee_no)").first();
+  await f.locator("#employee_no").fill(code); await f.locator("#full_name").fill(name); await f.locator("#department").fill(department);
+  await f.locator("#role").selectOption(role); await f.locator("#phone").fill(phone); await f.locator("#email").fill(email);
+  await press(p, "Add and invite", { wait: 1500 });
+  check(has(await body(p), "Employee added and invited"), `the employee was not added: ${(await p.page.locator("[role=alert], [role=status]").allInnerTexts()).join(" | ")}`);
+  // the link is also emailed (ADR-041): the screen says so, and the test outbox holds the message with a one-time link
+  check(has(await body(p), "We also emailed the link"), "the screen does not say the link was emailed");
+  const sent = fs.readFileSync(process.env.E2E_OUTBOX, "utf8").trim().split("\n").map((l) => JSON.parse(l)).filter((m) => m.to === email.toLowerCase() && /has invited you to Fleet OTG/.test(m.subject));
+  check(sent.length > 0, "no invitation email was sent");
+  check(/\/invite\/[A-Za-z0-9_-]{43}/.test(sent[sent.length - 1].text), "the invitation email has no one-time link");
+}
+
 /** Waits (up to a few seconds) for some text to show on the page: server actions answer a moment after the click. */
 export async function waitText(p, text, ms = 8000) {
   const t0 = Date.now();

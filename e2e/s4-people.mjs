@@ -220,20 +220,21 @@ export async function people(S) {
     await f.locator("#employee_no").fill(noMail.code);
     await f.locator("#full_name").fill(noMail.name);
     await f.locator("#role").selectOption("requester");
+    await f.locator("#department").fill("Drivers");
     await f.getByLabel("With a sign-in name (no email)").check();
-    await press(o, "Create invitation", { wait: 1200 });
-    check(has(await body(o), "Enter their phone number"), "an invitation with no phone number was accepted");
-    await f.locator("#full_name").fill(noMail.name); await f.locator("#phone").fill("12345"); await press(o, "Create invitation", { wait: 1200 });   // the form clears its text boxes after a failed try
+    await press(o, "Add and invite", { wait: 1200 });
+    check(has(await body(o), "Enter the phone number"), "an invitation with no phone number was accepted");
+    await f.locator("#full_name").fill(noMail.name); await f.locator("#phone").fill("12345"); await press(o, "Add and invite", { wait: 1200 });   // the form clears its text boxes after a failed try
     const widths = await o.page.evaluate(() => ["employee_no", "full_name", "role", "phone"].map((id) => document.getElementById(id)?.offsetWidth ?? 0));
     check(widths.every((w) => w > 150), `the invite form is squeezed: field widths ${widths.join(", ")}`);
     check(has(await body(o), "Start the number with 0") || has(await body(o), "wrong length") || has(await body(o), "Pakistani"), `a bad phone number was accepted: ${(await o.page.locator("[role=alert], [role=status]").allInnerTexts()).join(" | ")} // phone=${await f.locator("#phone").inputValue()}`);
     await f.locator("#full_name").fill(noMail.name); await f.locator("#phone").fill("0300-1234567");
     const shown = await f.locator("#username").inputValue();
     check(shown === noMail.user, `the suggested sign-in name was "${shown}", wanted "${noMail.user}"`);
-    await press(o, "Create invitation", { wait: 2000 });
+    await press(o, "Add and invite", { wait: 2000 });
     check(has(await body(o), "Their sign-in name is") && has(await body(o), noMail.user), `no sign-in name shown: ${(await body(o)).slice(0, 200)}`);
     // The link is sent to the phone number only: the box offers WhatsApp and a text message to that number, and nothing else.
-    const box = o.page.locator("div", { hasText: "goes to this number only" }).last();
+    const box = o.page.locator("div", { hasText: "The link is not shown here" }).last();
     check(has(await box.innerText(), "0300 1234567"), "the number is not shown for checking");
     const wa = await o.page.getByRole("link", { name: "Send on WhatsApp" }).first().getAttribute("href");
     const sms = await o.page.getByRole("link", { name: "Send as a text message" }).first().getAttribute("href");
@@ -245,6 +246,20 @@ export async function people(S) {
     linkPath = url ? new URL(url).pathname : "";
     check(/^\/invite\/[A-Za-z0-9_-]{43}$/.test(linkPath), `the link was ${url}`);
     check(sql(`select count(*) from "public".invitations where username = '${noMail.user}' and email is null and employee_no = '${noMail.code}'`) === "1", "the invitation was not stored with the sign-in name and code");
+  });
+  await step("\"Send a new link\" on a waiting invitation works: it makes a new link, shows it, and the old one stops working", async () => {
+    await go(o, `${base}/users`);
+    const row = o.page.locator("tr", { hasText: noMail.name }).first();
+    await press(o, row.getByRole("button", { name: "Send a new link" }), { wait: 2500 });
+    check(has(await body(o), "The link is not shown here"), `no new link was shown: ${(await body(o)).slice(0, 200)}`);
+    const wa = await o.page.getByRole("link", { name: "Send on WhatsApp" }).first().getAttribute("href");
+    const fresh = new URL((decodeURIComponent(new URL(wa).searchParams.get("text") ?? "").match(/https?:\/\/\S+\/invite\/[A-Za-z0-9_-]{43}/) ?? [""])[0]).pathname;
+    check(/^\/invite\/[A-Za-z0-9_-]{43}$/.test(fresh) && fresh !== linkPath, `the new link was ${fresh}`);
+    const probe = await persona("old-link");
+    await go(probe, linkPath);
+    check(has(await body(probe), "not working"), "the old link still works after a new one was made");
+    await probe.ctx.close();
+    linkPath = fresh;
   });
   await step("the person opens the link, sees their sign-in name, chooses a password, and lands in the workspace", async () => {
     await go(nd, linkPath);

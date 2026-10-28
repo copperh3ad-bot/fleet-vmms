@@ -7,7 +7,7 @@ import type { FormState } from "../actions-util";
 import { changeMemberAction, inviteAction, replaceLoginAction, resendAction, resetLinkAction, revokeAction, type InviteResult, type InviteState } from "./actions";
 
 /** The link is sent to the person's phone number and nowhere else (ADR-026): no copy button, no email, and the link is not shown on screen. */
-function LinkBox({ invite }: { invite: InviteResult }) {
+export function LinkBox({ invite }: { invite: InviteResult }) {
   const phone = invite.phone ? normalizePhone(invite.phone) : null;
   const byName = !invite.email && !!invite.username;
   const text = invite.reset
@@ -21,8 +21,10 @@ function LinkBox({ invite }: { invite: InviteResult }) {
     <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-zinc-900">
       <p>
         Send the {invite.reset ? "password reset" : "invitation"} link to <span className="font-medium">{invite.full_name}</span> on <span className="rounded bg-white px-1.5 py-0.5 font-mono font-medium">{phone.display}</span>.
-        {byName && <> Their sign-in name is <span className="rounded bg-white px-1.5 py-0.5 font-mono font-medium">{invite.username}</span>.</>} The link goes to this number only, and is not shown here.
+        {byName && <> Their sign-in name is <span className="rounded bg-white px-1.5 py-0.5 font-mono font-medium">{invite.username}</span>.</>} The link is not shown here.
       </p>
+      {invite.emailed === true && <p className="rounded bg-white px-2 py-1 text-green-900">We also emailed the link to <span className="font-medium">{invite.email}</span>.</p>}
+      {invite.emailed === false && invite.email && <p role="alert" className="rounded bg-white px-2 py-1 text-red-800">The email to {invite.email} could not be sent. Use WhatsApp or a text message, or send a new link.</p>}
       <div className="flex flex-wrap gap-2">
         <a className={btn} href={whatsappLink(phone.digits, text)} target="_blank" rel="noreferrer">Send on WhatsApp</a>
         <a className={btn} href={smsLink(phone.e164, text)}>Send as a text message</a>
@@ -61,8 +63,9 @@ export function InviteForm({ slug, roles, vendors, stack }: { stack?: boolean; s
   return (
     <div className="space-y-3">
       <form onSubmit={submit} className={`grid grid-cols-1 gap-3 ${stack ? "" : "sm:grid-cols-2"}`} noValidate>
-        {!isVendor && <Input name="employee_no" label="Employee code" state={state} required value={code} onChange={(e) => setCode(e.target.value)} hint="The code on their employee record. Their login is linked to that employee." />}
-        <Input name="full_name" label="Full name" state={state} required={isVendor} hint={isVendor ? undefined : "Leave empty to use the name already on the employee record."} />
+        {!isVendor && <Input name="employee_no" label="Employee number" state={state} required value={code} onChange={(e) => setCode(e.target.value)} hint="Their code on the employee record. It is made now, with the invitation." />}
+        <Input name="full_name" label="Full name" state={state} required />
+        {!isVendor && <Input name="department" label="Department" state={state} required />}
         <div>
           <label htmlFor="role" className="mb-1 block text-xs font-medium text-zinc-600">Role <span className="text-red-700">*</span></label>
           <select id="role" name="role" value={role} onChange={(e) => setRole(e.target.value)} className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-zinc-900" aria-invalid={!!state.fields?.role}>
@@ -76,18 +79,18 @@ export function InviteForm({ slug, roles, vendors, stack }: { stack?: boolean; s
             ? <Select key="own" name="vehicle_scope" label="Vehicles they can raise job cards for" state={{ ...state, values: { vehicle_scope: "own" } }} options={[["own", "Only the vehicle they hold"]]} />
             : <Select key="any" name="vehicle_scope" label="Vehicles they can see" state={{ ...state, values: { vehicle_scope: state.values?.vehicle_scope ?? "all" } }} blank="All" options={[["all", "All vehicles"], ["own", "Only the vehicle they hold"]]} />}
         <fieldset className={span}>
-          <legend className="mb-1 text-xs font-medium text-zinc-600">How will they sign in?</legend>
-          <div className="flex flex-wrap gap-4 text-sm">
-            <label className="flex items-center gap-2"><input type="radio" name="contact" checked={!noEmail} onChange={() => setNoEmail(false)} /> With their email</label>
-            <label className="flex items-center gap-2"><input type="radio" name="contact" checked={noEmail} onChange={() => setNoEmail(true)} /> With a sign-in name (no email)</label>
-          </div>
+            <legend className="mb-1 text-xs font-medium text-zinc-600">How will they sign in?</legend>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <label className="flex items-center gap-2"><input type="radio" name="contact" checked={!noEmail} onChange={() => setNoEmail(false)} /> With their email</label>
+              <label className="flex items-center gap-2"><input type="radio" name="contact" checked={noEmail} onChange={() => setNoEmail(true)} /> With a sign-in name (no email)</label>
+            </div>
         </fieldset>
         {noEmail
           ? <Input name="username" label="Sign-in name" state={state} required value={typed ?? suggested} onChange={(e) => setTyped(e.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false}
               hint="They sign in with this and a password they choose. Letters, numbers, dots and dashes." />
           : <Input name="email" label="Email" type="email" state={state} required hint="They confirm this address to join." />}
         <Input name="phone" label="Phone number" state={state} inputMode="tel" required hint="The invitation link is sent to this number, and nowhere else. For example 0300 1234567." />
-        <div className={`flex flex-wrap items-center gap-3 ${span}`}><button type="submit" disabled={pending} className="h-10 rounded-md bg-brand px-5 text-sm font-medium text-white disabled:opacity-60">{pending ? "Creating" : "Create invitation"}</button><Notice state={state} /></div>
+        <div className={`flex flex-wrap items-center gap-3 ${span}`}><button type="submit" disabled={pending} className="h-10 rounded-md bg-brand px-5 text-sm font-medium text-white disabled:opacity-60">{pending ? "Adding" : isVendor ? "Create invitation" : "Add and invite"}</button><Notice state={state} /></div>
       </form>
       {state.invite && <LinkBox invite={state.invite} />}
     </div>
