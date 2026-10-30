@@ -15,12 +15,12 @@ export type ReadableStore = BlobStore & { get(path: string): Promise<Uint8Array 
 
 export type Progress = { status: "reading" | "ready" | "failed"; pagesDone: number; pagesTotal: number; error: string | null };
 export type FindingView = Finding & { current: string | null; applied: boolean; actionable: boolean };
-export type Reading = Progress & { kind: string | null; confidence: number | null; findings: FindingView[]; textLength: number };
+export type Reading = Progress & { source: "patterns" | "ai"; kind: string | null; confidence: number | null; findings: FindingView[]; textLength: number };
 
-type Row = { id: string; status: Progress["status"]; file_kind: string | null; pages_total: number; pages_done: number; page_text: string[]; confidence: number | null; findings: Finding[]; applied: string[]; error: string | null };
-const COLS = "id, status, file_kind, pages_total, pages_done, page_text, confidence, findings, applied, error";
+type Row = { id: string; status: Progress["status"]; file_kind: string | null; pages_total: number; pages_done: number; page_text: string[]; confidence: number | null; findings: Finding[]; applied: string[]; error: string | null; source: "patterns" | "ai"; ai_action_id: string | null };
+const COLS = "id, status, file_kind, pages_total, pages_done, page_text, confidence, findings, applied, error, source, ai_action_id";
 
-async function policyFile(q: import("@/lib/db/types").Queryable, m: Membership, policyId: string): Promise<string> {
+export async function policyFile(q: import("@/lib/db/types").Queryable, m: Membership, policyId: string): Promise<string> {
   if ((await q.query("select 1 from maintenance_policies where id = $1", [policyId])).rows.length === 0) throw new UserError("Policy not found.");
   const path = (await q.query<{ storage_path: string }>("select storage_path from attachments where entity_type = 'maintenance_policy' and entity_id = $1 order by created_at limit 1", [policyId])).rows[0]?.storage_path;
   if (!path || !path.startsWith(`${m.schema}/`)) throw new UserError("This policy has no file to read.");
@@ -88,7 +88,7 @@ export async function getReading(driver: Driver, m: Membership, policyId: string
   const r = await authorized(driver, m, "policy.manage", async (q) => (await q.query<Row>(`select ${COLS} from policy_readings where policy_id = $1`, [policyId])).rows[0]);
   if (!r) return null;
   // The settings are read after the first transaction has closed: a second one inside it would wait on the first.
-  return { ...progress(r), kind: r.file_kind, confidence: r.confidence, textLength: r.page_text.join("").trim().length, findings: await view(driver, m, r) };
+  return { ...progress(r), source: r.source, kind: r.file_kind, confidence: r.confidence, textLength: r.page_text.join("").trim().length, findings: await view(driver, m, r) };
 }
 
 async function view(driver: Driver, m: Membership, r: Row): Promise<FindingView[]> {
@@ -135,5 +135,10 @@ export async function applyFindings(driver: Driver, m: Membership, policyId: str
 
   await authorized(driver, m, "policy.manage", (q) =>
     q.query("update policy_readings set applied = (select coalesce(jsonb_agg(distinct x), '[]'::jsonb) from jsonb_array_elements(applied || $2::jsonb) x), updated_at = now() where policy_id = $1", [policyId, JSON.stringify(done)]));
+  if (r.ai_action_id) {     // an AI reading: record whether the person took every rule it offered or only some (how good was the draft)
+    const offered = r.findings.filter((f) => f.target.kind !== "info").length, took = new Set([...r.applied, ...done]).size;
+    await authorized(driver, m, "policy.manage", (q) =>
+      q.query("update ai_actions set outcome = $2, resolved_by = $3, resolved_at = now() where id = $1 and outcome = 'pending'", [r.ai_action_id, took >= offered ? "saved_unchanged" : "saved_edited", m.userId]));
+  }
   return lines;
 }

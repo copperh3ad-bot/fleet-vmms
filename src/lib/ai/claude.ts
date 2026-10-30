@@ -3,6 +3,7 @@
 // approved estimate's lines): no names of people, no vehicle owner, no other job. It has no tools and cannot act; its answer is data that
 // src/lib/ai/document.ts checks. The key is read from the server's environment by the SDK, never logged, never sent to a browser.
 import Anthropic from "@anthropic-ai/sdk";
+import { checkPolicyDraft, POLICY_PROMPT, POLICY_SCHEMA, type PolicyDraft } from "./policy-draft";
 import { checkDraft, DOCUMENT_SCHEMA, SYSTEM_PROMPT, type Draft, type Expectation } from "./document";
 
 export const aiConfigured = () => !!process.env.ANTHROPIC_API_KEY && process.env.AI_DOCUMENT_READING !== "off";
@@ -23,13 +24,13 @@ export type ReadRequest = { jobNo: string; kind: "quotation" | "invoice"; curren
 export type ReadResult =
   | ({ status: "ok"; draft: Draft } & Usage)
   | ({ status: "unreadable" | "refused" | "failed"; reason: string } & Usage);
-type Usage = { model: string; inputTokens: number; outputTokens: number; cacheWriteTokens: number; cacheReadTokens: number };
-const noUsage = (model: string): Usage => ({ model, inputTokens: 0, outputTokens: 0, cacheWriteTokens: 0, cacheReadTokens: 0 });
+export type Usage = { model: string; inputTokens: number; outputTokens: number; cacheWriteTokens: number; cacheReadTokens: number };
+export const noUsage = (model: string): Usage => ({ model, inputTokens: 0, outputTokens: 0, cacheWriteTokens: 0, cacheReadTokens: 0 });
 
 /** The one call, passed in so tests need no network. The real one is the SDK's beta messages create. */
 export type CreateMessage = (params: Anthropic.Beta.MessageCreateParamsNonStreaming) => Promise<Anthropic.Beta.BetaMessage>;
 let sdk: Anthropic | null = null;
-const realCreate: CreateMessage = (p) => (sdk ??= new Anthropic({ maxRetries: 2, timeout: 120_000 })).beta.messages.create(p);
+export const realCreate: CreateMessage = (p) => (sdk ??= new Anthropic({ maxRetries: 2, timeout: 120_000 })).beta.messages.create(p);
 
 export function usableFiles(files: AiFile[]): { use: AiFile[]; skipped: string[] } {
   const use: AiFile[] = [], skipped: string[] = [];
@@ -86,6 +87,40 @@ export async function readDocument(req: ReadRequest, create: CreateMessage = rea
     return { status: "ok", draft, ...usage };
   } catch (e) {
     // Never the key, the file or the answer: only the kind of failure.
+    const why = e instanceof Anthropic.RateLimitError ? "The AI service is busy. Try again in a minute." : e instanceof Anthropic.APIError ? `The AI service refused the request (${e.status}).` : "The AI service could not be reached.";
+    return { status: "failed", reason: why, ...noUsage(model) };
+  }
+}
+
+export type PolicyResult = ({ status: "ok"; draft: PolicyDraft } & Usage) | ({ status: "unreadable" | "refused" | "failed"; reason: string } & Usage);
+
+/** The one model call for a policy. `create` is passed in so tests need no network. */
+export async function readPolicyFile(file: AiFile, create: CreateMessage = realCreate): Promise<PolicyResult> {
+  const model = aiModel();
+  const { use, skipped } = usableFiles([file]);
+  if (use.length === 0) return { status: "unreadable", reason: skipped[0] ?? "There is no file to read.", ...noUsage(model) };
+  const data = Buffer.from(use[0].bytes).toString("base64");
+  const block: Anthropic.Beta.BetaContentBlockParam = use[0].mime === "application/pdf"
+    ? { type: "document", source: { type: "base64", media_type: "application/pdf", data }, cache_control: { type: "ephemeral" } }
+    : { type: "image", source: { type: "base64", media_type: use[0].mime as "image/jpeg" | "image/png" | "image/webp" | "image/gif", data }, cache_control: { type: "ephemeral" } };
+  try {
+    const res = await create({
+      model, max_tokens: 8000,
+      output_config: { effort: "medium", format: { type: "json_schema", schema: POLICY_SCHEMA as unknown as Record<string, unknown> } },
+      system: [{ type: "text", text: POLICY_PROMPT, cache_control: { type: "ephemeral" } }],
+      messages: [{ role: "user", content: [block, { type: "text", text: "List the rules in this policy." }] }],
+    });
+    const usage: Usage = { model, inputTokens: res.usage?.input_tokens ?? 0, outputTokens: res.usage?.output_tokens ?? 0, cacheWriteTokens: res.usage?.cache_creation_input_tokens ?? 0, cacheReadTokens: res.usage?.cache_read_input_tokens ?? 0 };
+    if (res.stop_reason === "refusal") return { status: "refused", reason: "The AI declined to read this file. Use \"Read this policy\", or set the rules by hand.", ...usage };
+    if (res.stop_reason === "max_tokens") return { status: "failed", reason: "The policy was too long to read in one go. Use \"Read this policy\", or set the rules by hand.", ...usage };
+    const text = res.content.find((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")?.text ?? "";
+    let raw: unknown;
+    try { raw = JSON.parse(text); } catch { return { status: "failed", reason: "The AI's answer could not be read. Try again, or use \"Read this policy\".", ...usage }; }
+    const draft = checkPolicyDraft(raw);
+    for (const s of skipped) draft.warnings.push(`Not read: ${s}.`);
+    if (!draft.readable) return { status: "unreadable", reason: draft.warnings[0] ?? "The file could not be read well enough to take rules from.", ...usage };
+    return { status: "ok", draft, ...usage };
+  } catch (e) {
     const why = e instanceof Anthropic.RateLimitError ? "The AI service is busy. Try again in a minute." : e instanceof Anthropic.APIError ? `The AI service refused the request (${e.status}).` : "The AI service could not be reached.";
     return { status: "failed", reason: why, ...noUsage(model) };
   }

@@ -5,10 +5,10 @@ import { Notice, Submit } from "@/components/form";
 import { Pill } from "@/components/ui";
 import type { FormState } from "../actions-util";
 import type { Progress, Reading } from "@/lib/master/policy-reading";
-import { applyFindingsAction, readNextPageAction, startReadingAction } from "./reading";
+import { applyFindingsAction, readNextPageAction, readWithAiAction, startReadingAction } from "./reading";
 
 /** Reads the policy one page per call, shows progress, then lets a person choose what to apply. */
-export function PolicyReader({ slug, policyId, reading }: { slug: string; policyId: string; reading: Reading | null }) {
+export function PolicyReader({ slug, policyId, reading, aiOffered }: { slug: string; policyId: string; reading: Reading | null; aiOffered: boolean }) {
   const router = useRouter();
   const [busy, startBusy] = useTransition();
   const [live, setLive] = useState<Progress | null>(null);
@@ -27,6 +27,13 @@ export function PolicyReader({ slug, policyId, reading }: { slug: string; policy
     router.refresh();
   }
 
+  async function runAi() {
+    setError(null);
+    const state = await readWithAiAction(slug, policyId);
+    if (state.error) setError(state.error);
+    router.refresh();
+  }
+
   const shown = live ?? (reading?.status === "reading" ? reading : null);
   return (
     <div className="space-y-3">
@@ -37,11 +44,18 @@ export function PolicyReader({ slug, policyId, reading }: { slug: string; policy
           {reading ? "Read it again" : "Read this policy"}
         </button>
       )}
+      {aiOffered && !shown && (
+        <span className="ml-2 inline-block align-top">
+          <button type="button" disabled={busy} onClick={() => startBusy(runAi)} className="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium disabled:opacity-60">{busy ? "Reading with AI" : "Read with AI"}</button>
+          <span className="mt-1 block max-w-md text-xs text-zinc-500">Sends this file to our AI provider. It lists the rules it finds; you still choose what to apply.</span>
+        </span>
+      )}
       {!live && reading?.status === "reading" && (
         <button type="button" disabled={busy} onClick={() => startBusy(() => run(false))} className="ml-2 h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium disabled:opacity-60">Continue reading</button>
       )}
       {(error || (reading?.status === "failed" && reading.error)) && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error ?? reading?.error}</p>}
       {reading?.status === "ready" && !shown && <Review slug={slug} policyId={policyId} reading={reading} />}
+      {reading?.status === "ready" && reading.source === "ai" && reading.error && !shown && <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Check: {reading.error}</p>}
     </div>
   );
 }
@@ -56,7 +70,7 @@ function Review({ slug, policyId, reading }: { slug: string; policyId: string; r
 
   return (
     <form action={action} className="space-y-4">
-      <p className="text-sm text-zinc-600">Found in your policy{reading.confidence !== null && reading.confidence < 80 ? ` (the scan was hard to read, so check each number: ${reading.confidence}% sure)` : ""}. Tick what is right, then apply. Nothing changes until you do.</p>
+      <p className="text-sm text-zinc-600">{reading.source === "ai" ? "Read by AI. Check each number against the sentence it came from" : "Found in your policy"}{reading.source !== "ai" && reading.confidence !== null && reading.confidence < 80 ? ` (the scan was hard to read, so check each number: ${reading.confidence}% sure)` : ""}. Tick what is right, then apply. Nothing changes until you do.</p>
       <ul className="space-y-3">
         {actionable.map((f) => (
           <li key={f.id} className="rounded-md border border-zinc-200 p-3 text-sm">

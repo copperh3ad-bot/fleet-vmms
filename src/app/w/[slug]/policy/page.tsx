@@ -10,6 +10,7 @@ import { SettingsForm } from "../settings/forms";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { PolicyRemove, PolicyUpload } from "./forms";
 import { PolicyReader } from "./reader";
+import { policyAiOffered } from "@/lib/ai/policy";
 import { getReading } from "@/lib/master/policy-reading";
 
 export default function PolicyPage({ params }: PageProps<"/w/[slug]/policy">) {
@@ -28,6 +29,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const manage = perms.has("policy.manage");
   const [current, ...earlier] = versions;
   const reading = manage && current?.file ? await getReading(driver, m, current.id) : null;
+  const aiOffered = manage && !!current?.file && await policyAiOffered(driver, m);
 
   return (
     <main className="space-y-5 p-6 text-zinc-900">
@@ -50,7 +52,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
 
           {manage && current?.file && (
             <Panel title="Read this policy" sub="The system reads the file and offers the rules it finds. You decide what to apply.">
-              <PolicyReader slug={slug} policyId={current.id} reading={reading} />
+              <PolicyReader slug={slug} policyId={current.id} reading={reading} aiOffered={aiOffered} />
             </Panel>
           )}
 
