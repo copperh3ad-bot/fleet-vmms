@@ -32,7 +32,7 @@ async function Inner() {
     <SiteShell active="pricing">
       <JsonLd data={breadcrumbLd([["Fleet OTG", "/"], ["Pricing", "/pricing"]])} />
       <JsonLd data={faqLd(PRICING_FAQ)} />
-      <div className="mx-auto max-w-5xl px-5 py-12">
+      <div className="mx-auto max-w-5xl 2xl:max-w-6xl px-5 py-12">
         <h1 className="text-3xl font-semibold">Basic, and Pro for larger fleets</h1>
         <p className="mt-2 max-w-2xl text-zinc-600">Everything in Fleet OTG for your whole company, with no per-user charges. Basic has every feature and is what every company starts on. Pro, coming in the second phase, adds the AI that reads your workshops&apos; estimates and invoices for you.</p>
 

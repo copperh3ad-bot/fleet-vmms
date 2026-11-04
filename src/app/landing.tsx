@@ -32,7 +32,7 @@ export function Landing({ price }: { price: ReactNode }) {
       <section className="hero-bg relative flex items-center overflow-hidden text-white [@media(min-height:760px)]:min-h-[calc(100svh-4.5rem)]">
         <div aria-hidden className="hero-grid pointer-events-none absolute inset-0" />
         <Hero3D />
-        <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 px-5 py-16 md:grid-cols-[1fr_1.05fr] md:py-24 [@media(max-height:640px)]:gap-6 [@media(max-height:640px)]:py-8 md:[@media(max-height:640px)]:py-8">
+        <div className="relative mx-auto grid w-full max-w-6xl 2xl:max-w-[96rem] items-center gap-12 px-5 py-16 md:grid-cols-[1fr_1.05fr] md:py-24 [@media(max-height:640px)]:gap-6 [@media(max-height:640px)]:py-8 md:[@media(max-height:640px)]:py-8">
           <div>
             <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-[#C9D5DC]"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-badge" /> Your Fleet Maintenance Manager</p>
             <h1 className="mt-5 text-[40px] font-semibold leading-[1.08] md:text-5xl">Know what you&apos;re spending on your fleet&apos;s maintenance, <span className="text-badge">and why.</span></h1>
@@ -49,7 +49,7 @@ export function Landing({ price }: { price: ReactNode }) {
 
       <section className="mx-auto max-w-3xl px-5 pt-16" aria-label="Price">{price}</section>
 
-      <section className="mx-auto max-w-6xl px-5 py-16">
+      <section className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-16">
         <h2 className="text-2xl font-semibold">What you get</h2>
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(([t, d]) => (
@@ -59,7 +59,7 @@ export function Landing({ price }: { price: ReactNode }) {
       </section>
 
       <section className="border-y border-zinc-200 bg-white">
-        <div className="mx-auto grid max-w-6xl gap-8 px-5 py-14 md:grid-cols-3">
+        <div className="mx-auto grid max-w-6xl 2xl:max-w-[96rem] gap-8 px-5 py-14 md:grid-cols-3">
           {[["1", "Sign up", "Tell us your company and confirm your email. It takes about two minutes."], ["2", "We set up your own workspace", "Your company gets its own workspace, kept apart from every other company's, ready in under a minute."], ["3", "Add vehicles and invite your team", `Try everything during the free trial. Subscribe if it works for you; if not, export your data and leave.`]].map(([n, t, d]) => (
             <div key={n} className="flex gap-4"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-side font-semibold text-white">{n}</span><div><h3 className="font-semibold">{t}</h3><p className="mt-1 text-sm text-zinc-600">{d}</p></div></div>
           ))}

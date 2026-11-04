@@ -21,7 +21,7 @@ async function Inner() {
   const [accounts, trial, tax, journals] = await Promise.all([listAccounts(d, op.id), trialBalance(d, op.id), taxSummary(d, op.id), listJournals(d, op.id, { limit: 25 })]);
   const currencies = [...new Set(trial.map((r) => r.currency))];
   return (
-    <main className="mx-auto max-w-5xl space-y-5 p-6 text-zinc-900">
+    <main className="mx-auto max-w-5xl 2xl:max-w-6xl space-y-5 p-6 text-zinc-900">
       <PageHeader title="Accounting" sub="The ledger of the subscription business: posted from every invoice, never edited"
         actions={<><a className={btn} href="/admin/accounting/export/journal">Journal (CSV)</a><a className={btn} href="/admin/accounting/export/tax-summary">Tax summary (CSV)</a></>} />
 

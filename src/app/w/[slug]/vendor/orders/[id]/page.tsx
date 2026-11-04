@@ -27,7 +27,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
   const statusPill = o.job_status === "invoiced" ? <Pill tone="info">Invoice sent</Pill> : ["invoice_verified", "closed"].includes(o.job_status) ? <Pill tone="ok">Invoice checked</Pill>
     : o.wo_status === "issued" ? <Pill tone="info">Ready to start</Pill> : o.wo_status === "in_progress" ? <Pill tone="info">In repair</Pill> : <Pill tone="warn">Work done, send your invoice</Pill>;
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-5 p-6 text-zinc-900">
+    <main className="mx-auto w-full max-w-6xl 2xl:max-w-[96rem] space-y-5 p-6 text-zinc-900">
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-sm text-zinc-500"><a className="underline" href={`/w/${slug}/vendor`}>My work</a> / {o.wo_no}</p>

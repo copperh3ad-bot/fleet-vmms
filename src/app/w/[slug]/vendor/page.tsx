@@ -19,7 +19,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
     o.job_status === "invoiced" ? <Pill tone="info">Invoice sent</Pill> : ["invoice_verified", "closed"].includes(o.job_status) ? <Pill tone="ok">Invoice checked</Pill>
     : o.wo_status === "issued" ? <Pill tone="info">Ready to start</Pill> : o.wo_status === "in_progress" ? <Pill tone="info">In repair</Pill> : o.wo_status === "completed" ? <Pill tone="warn">Send your invoice</Pill> : <Pill>{o.wo_status}</Pill>;
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-5 p-6 text-zinc-900">
+    <main className="mx-auto w-full max-w-5xl 2xl:max-w-6xl space-y-5 p-6 text-zinc-900">
       <PageHeader title="My work" sub={`${m.tenantName ?? ""} · ${plural(requests.length, "quotation")} to send · ${plural(orders.length, "work order")}`} />
 
       <Panel title="Waiting for your quotation" sub={String(requests.length)} flush>

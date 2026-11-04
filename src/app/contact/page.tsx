@@ -10,7 +10,7 @@ export const metadata = pageMeta("Contact us · Fleet OTG", "Ask a question abou
 export default function ContactPage() {
   return (
     <SiteShell active="contact">
-      <div className="mx-auto grid max-w-5xl gap-10 px-5 py-12 md:grid-cols-[1.4fr_1fr]">
+      <div className="mx-auto grid max-w-5xl 2xl:max-w-6xl gap-10 px-5 py-12 md:grid-cols-[1.4fr_1fr]">
         <div>
           <h1 className="text-3xl font-semibold">Contact us</h1>
           <p className="mt-3 text-zinc-700">Questions before you sign up, help with your account, or a payment to check: write to us here. We read every message.</p>

@@ -41,7 +41,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
     return (
       <div className="flex flex-1 flex-col">
         <header className="bg-side text-white">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-1 px-4 py-3 text-sm">
+          <div className="mx-auto flex max-w-6xl 2xl:max-w-[96rem] flex-wrap items-center gap-x-5 gap-y-1 px-4 py-3 text-sm">
             <span className="flex items-center gap-2 font-semibold"><LogoMark height={24} /> <span className="font-normal text-[#9FB2BE]">· {m.tenantName ?? slug}</span></span>
             <nav className="flex gap-1" aria-label="Locked workspace"><NavLink href={`/w/${slug}/billing`} label="Billing" /></nav>
             <span className="ml-auto text-[#9FB2BE]">{who.name}</span>
@@ -98,7 +98,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
     return (
       <div className="flex flex-1 flex-col">
         <header className="bg-side text-white">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-1 px-4 py-3 text-sm">
+          <div className="mx-auto flex max-w-6xl 2xl:max-w-[96rem] flex-wrap items-center gap-x-5 gap-y-1 px-4 py-3 text-sm">
             <span className="flex items-center gap-2 font-semibold"><LogoMark height={24} /> <span className="font-normal text-[#9FB2BE]">· Vendor portal</span></span>
             <nav className="flex gap-1" aria-label="Workshop">
               <NavLink href={to("/vendor")} label="My work" />

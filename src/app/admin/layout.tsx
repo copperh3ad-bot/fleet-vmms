@@ -21,7 +21,7 @@ async function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="flex flex-1 flex-col">
       <header className="bg-side text-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-1 px-4 py-3 text-sm">
+        <div className="mx-auto flex max-w-6xl 2xl:max-w-[96rem] flex-wrap items-center gap-x-5 gap-y-1 px-4 py-3 text-sm">
           <span className="flex items-center gap-2 font-semibold"><LogoMark height={24} /> <span className="font-normal text-[#9FB2BE]">· Operator</span></span>
           <nav className="flex gap-1" aria-label="Operator">
             <NavLink href="/admin" label="Organizations" exact />

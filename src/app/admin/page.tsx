@@ -21,7 +21,7 @@ async function Inner() {
   const count = (s: string) => orgs.filter((o) => o.access.state === s).length;
   const mrr = orgs.filter((o) => o.access.state === "active" || o.access.state === "grace").reduce((n, o) => n + (o.billing?.price_cents ?? 0), 0);
   return (
-    <main className="mx-auto max-w-6xl space-y-5 p-6 text-zinc-900">
+    <main className="mx-auto max-w-6xl 2xl:max-w-[96rem] space-y-5 p-6 text-zinc-900">
       <PageHeader title="Organizations" sub={`${orgs.length} in total`} />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Kpi label="On a trial" value={count("trial")} />

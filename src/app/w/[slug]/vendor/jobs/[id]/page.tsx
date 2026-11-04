@@ -25,7 +25,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
   if (r.job_status !== "vendor_assigned") redirect(`/w/${slug}/vendor`);
   const to = (p: string) => `/w/${slug}/${p}`;
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-5 p-6 text-zinc-900">
+    <main className="mx-auto w-full max-w-6xl 2xl:max-w-[96rem] space-y-5 p-6 text-zinc-900">
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-sm text-zinc-500"><a className="underline" href={to("vendor")}>My work</a> / {r.job_no}</p>

@@ -24,7 +24,7 @@ async function Inner({ searchParams }: { searchParams: Promise<Record<string, st
   const previews = new Map(await Promise.all(claims.filter((c) => c.status === "pending").map(async (c) => [c.id, await previewClaimTax(getDriver(), op.id, c.id).catch(() => null)] as const)));
   const tab = (on: boolean) => `rounded-full border px-4 py-1.5 text-sm ${on ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300 bg-white hover:bg-zinc-50"}`;
   return (
-    <main className="mx-auto max-w-5xl space-y-5 p-6 text-zinc-900">
+    <main className="mx-auto max-w-5xl 2xl:max-w-6xl space-y-5 p-6 text-zinc-900">
       <PageHeader title="Payments" sub="Check each one against the bank before confirming" />
       <nav className="flex gap-2" aria-label="Payment status">
         {[["pending", "To check"], ["confirmed", "Confirmed"], ["rejected", "Rejected"]].map(([k, l]) => <a key={k} href={`/admin/payments?view=${k}`} className={tab(view === k)}>{l}</a>)}

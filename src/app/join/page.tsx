@@ -15,7 +15,7 @@ async function Inner({ searchParams }: { searchParams: Promise<Record<string, st
   const code = typeof sp.code === "string" ? normalizeCode(sp.code).slice(0, 10) : "";
   return (
     <SiteShell active="join">
-      <div className="mx-auto grid max-w-5xl gap-10 px-5 py-12 md:grid-cols-[1.2fr_1fr]">
+      <div className="mx-auto grid max-w-5xl 2xl:max-w-6xl gap-10 px-5 py-12 md:grid-cols-[1.2fr_1fr]">
         <section>
           <h1 className="text-3xl font-semibold">Join your company</h1>
           <p className="mt-2 text-zinc-600">Your company already uses Fleet OTG. Enter its code and ask to join. Your administrator approves you.</p>
