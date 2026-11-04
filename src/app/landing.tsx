@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import type { Offer } from "@/lib/billing/offer";
 import { HeroScene } from "@/components/hero-scene";
 import { Hero3D } from "@/components/hero-3d";
+import { FlowDemo } from "@/components/flow-demo";
+import { Icon } from "@/components/icons";
 import { JsonLd } from "@/components/json-ld";
 import { HOME_FAQ } from "@/lib/faq";
 import { faqLd, softwareLd } from "@/lib/seo";
@@ -16,11 +18,16 @@ const FEATURES: [string, string][] = [
   ["Papers and fines in one place", "Insurance, fitness, token tax, accidents and challans, with reminders before they expire."],
 ];
 
-// A plain mark for each feature, drawn from text so there is nothing to download.
 const ICON: Record<string, string> = {
-  "Job cards with approval": "✓", "Workshops and quotations": "⚙", "Odometer by link": "↗",
-  "Servicing that tells you what is due": "◷", "Budgets and flags": "▮", "Papers and fines in one place": "▤",
+  "Job cards with approval": "approve", "Workshops and quotations": "workshop", "Odometer by link": "odometer",
+  "Servicing that tells you what is due": "service", "Budgets and flags": "budget", "Papers and fines in one place": "papers",
 };
+
+const ASSURE: [string, string, string][] = [
+  ["shield", "Nobody approves their own job", "Every approval is recorded with a name and a time."],
+  ["phone", "No app for drivers or workshops", "A link on any phone is enough."],
+  ["export", "Your data stays yours", "Export it at any time, and leave if it is not for you."],
+];
 
 /** `price` is the price box. It is passed in so the rest of the page can be built ahead of time while the price (read from the
  *  plans table) is filled in separately. The trial length is not stated here for the same reason; the price box carries it. */
@@ -49,11 +56,28 @@ export function Landing({ price }: { price: ReactNode }) {
 
       <section className="mx-auto max-w-3xl px-5 pt-16" aria-label="Price">{price}</section>
 
-      <section className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-16">
+      <section className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 pt-12" aria-label="What sets it apart">
+        <ul className="grid gap-4 md:grid-cols-3">
+          {ASSURE.map(([ic, t, d]) => (
+            <li key={t} className="reveal flex items-start gap-4 rounded-xl border border-zinc-200 bg-white/70 p-5">
+              <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-badge text-side"><Icon name={ic} /></span>
+              <div><p className="font-semibold">{t}</p><p className="mt-1 text-sm text-zinc-600">{d}</p></div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-16" aria-labelledby="flow-h">
+        <h2 id="flow-h" className="text-2xl font-semibold">See one repair, start to finish</h2>
+        <p className="mt-2 max-w-2xl text-zinc-600">Pick a step, or let it play. This is the trail every job card leaves behind.</p>
+        <div className="mt-8"><FlowDemo /></div>
+      </section>
+
+      <section className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 pb-16">
         <h2 className="text-2xl font-semibold">What you get</h2>
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(([t, d]) => (
-            <div key={t} className="reveal lift rounded-2xl border border-zinc-200 bg-white p-6 shadow-[var(--shadow-card)]"><span aria-hidden className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-side text-base text-badge">{ICON[t]}</span><h3 className="font-semibold">{t}</h3><p className="mt-2 text-sm text-zinc-600">{d}</p></div>
+            <div key={t} className="reveal lift group rounded-2xl border border-zinc-200 bg-white p-6 shadow-[var(--shadow-card)]"><span aria-hidden className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-side text-badge transition-colors group-hover:bg-brand group-hover:text-white"><Icon name={ICON[t]} /></span><h3 className="font-semibold">{t}</h3><p className="mt-2 text-sm text-zinc-600">{d}</p></div>
           ))}
         </div>
       </section>
@@ -68,10 +92,25 @@ export function Landing({ price }: { price: ReactNode }) {
 
       <section className="mx-auto max-w-3xl px-5 py-16">
         <h2 className="text-2xl font-semibold">Questions</h2>
-        <dl className="mt-6 space-y-6 text-sm">
-          {HOME_FAQ.map((f) => <div key={f.q}><dt className="font-semibold">{f.q}</dt><dd className="mt-1 text-zinc-600">{f.a}</dd></div>)}
-        </dl>
-        <a href="/signup" className="mt-10 inline-block rounded-md bg-brand px-6 py-3 font-semibold text-white hover:opacity-90">Start your free trial</a>
+        <div className="mt-6 divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white text-sm">
+          {HOME_FAQ.map((f) => (
+            <details key={f.q} className="group px-5 py-4 open:bg-zinc-50">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold">{f.q}<span aria-hidden className="shrink-0 text-brand transition-transform group-open:rotate-45"><Icon name="plus" size={18} /></span></summary>
+              <p className="mt-2 text-zinc-600">{f.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <section className="hero-bg relative overflow-hidden text-white" aria-label="Get started">
+        <div aria-hidden className="hero-grid pointer-events-none absolute inset-0" />
+        <div className="relative mx-auto flex max-w-6xl 2xl:max-w-[96rem] flex-wrap items-center justify-between gap-6 px-5 py-14">
+          <div className="max-w-xl">
+            <h2 className="text-3xl font-semibold uppercase">See where your maintenance money goes</h2>
+            <p className="mt-2 text-[#B6C6D0]">Set up in about two minutes. No card needed to try it.</p>
+          </div>
+          <a href="/signup" className="shine inline-flex items-center gap-2 rounded-md bg-badge px-6 py-3 text-base font-semibold text-side hover:opacity-90">Start your free trial <Icon name="arrow" /></a>
+        </div>
       </section>
     </SiteShell>
   );

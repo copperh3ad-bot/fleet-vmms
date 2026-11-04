@@ -2,6 +2,7 @@
 import { useActionState, useEffect } from "react";
 import { signIn, type LoginState } from "./actions";
 import { Logo } from "@/components/brand";
+import { Icon } from "@/components/icons";
 
 const box = "h-11 w-full rounded-md border border-zinc-300 bg-white px-3 text-zinc-900";
 
@@ -17,6 +18,13 @@ export default function LoginPage() {
         <div className="max-w-md">
           <h2 className="text-[34px] font-semibold leading-tight">Know what you&apos;re spending on your fleet&apos;s maintenance, and why.</h2>
           <p className="mt-4 text-[#9FB2BE]">Job cards, approvals, workshops, budgets and servicing in one place.</p>
+          <ul className="mt-8 space-y-3 text-sm text-[#C9D5DC]">
+            {([["shield", "Every approval recorded with a name and a time"], ["workshop", "Workshops quote by link, no sign-up"], ["budget", "Cost per vehicle against its budget"]] as const).map(([ic, t], n) => (
+              <li key={t} className="rise flex items-center gap-3" style={{ "--i": n + 1 } as React.CSSProperties}>
+                <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-badge"><Icon name={ic} /></span>{t}
+              </li>
+            ))}
+          </ul>
         </div>
         <p className="text-xs text-[#7E93A1]"><a href="/pricing" className="underline">See pricing</a></p>
       </section>
