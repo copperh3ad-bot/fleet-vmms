@@ -3,7 +3,7 @@
 Written 2026-10-29, updated 2026-11-04 (the section "Update 2026-11-04" below overrides anything older here). Read this first in the next session, then `STATE.md` (history, append-only), `CLAUDE.md` (rules), `docs/OWNER-CHECKLIST.md` (the owner's to-do list) and `docs/WHATSAPP-SETUP.md` (the WhatsApp set-up steps).
 
 ## Fallback points
-- Git tag **`fleet-otg-resume-2026-11-04`** marks the latest state. Live production is commit `fcdbc80` (deployed 2026-11-04); the tag is one commit ahead (`9267e69`, landing and login design work, not deployed).
+- Git tag **`fleet-otg-resume-2026-11-04`** marks the latest state. Live production is commit `fcdbc80` (deployed 2026-11-04); the tag is two commits ahead (`9267e69` landing and login design work, not deployed, and the docs commit).
 - Git tag **`fleet-otg-resume-2026-10-29`** marks this state. Earlier tags: `fleet-otg-resume-2026-10-28` (before Pakistan-only and everything below) and `fleet-otg-non-ai-developments` (end of the non-AI work; ADR-034 onwards is the AI and plans stream).
 - Last checks on this state: **805 unit tests pass**, only `tests/ledger.test.ts` "trial balance as of a date" fails on some runs (a date-boundary flake, unrelated); `next build` compiles; type-check clean for `src`.
 - Last **full browser run: 225 passed, 0 failed** (before the one-time code and the WhatsApp work, which are not covered by the browser suite; they have unit tests).
