@@ -374,3 +374,9 @@
 ## 2026-11-04: deployed to production
 - Owner ran platform 0014 and tenant 0026 (confirmed with `migrate-tenants.mts --check`: shared no drift, 0 dedicated organizations), then deployed to https://www.fleetotg.com (Netlify deploy 6aeae1bb9f8b5a18ab741e98): add-and-invite employee (ADR-041), emailed invitation link, WhatsApp code step, WhatsApp requests and replies for workshops (ADR-042), AI policy reader (ADR-043). Build compiled and type-checked; `/api/inbound/whatsapp` is in the route list.
 - WhatsApp: the Fleet OTG number (phone number ID 1471993539322498) is linked and registered on Meta. Still open: Netlify variables, approved templates, webhook subscription, app set to Live, business verification. The code step stays off until the access token and phone number ID are set. Not run against real Meta, not run against the real Anthropic API.
+
+## 2026-11-04: wide screens, public design pass, WhatsApp template block, resume point
+- Deployed ADR-041/042/043 (see the entry above), then wide-screen containers (`fcdbc80`): public shell, landing, admin, workspace top bars and vendor pages grow at 1536px and up; reading-width pages unchanged.
+- Landing and login design pass (`9267e69`, not deployed): clickable repair walkthrough with example data, assurance strip, line icons, FAQ accordion, closing band, login brand points. Other public pages still to do.
+- WhatsApp: number linked and registered, Netlify variables set by the owner. `fleetotg_code` (authentication) cannot be created: Meta refuses with code 10, subcode 2388185 in the Manager and the Graph API. Business not verified; owner to file a Meta support case and start Business Verification. `fleetotg_request` is approved but categorised MARKETING. Invitation code step stays unusable until `fleetotg_code` is approved.
+- Resume point: tag `fleet-otg-resume-2026-11-04`, `docs/RESUME.md` ("Update 2026-11-04").
