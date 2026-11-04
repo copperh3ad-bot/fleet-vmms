@@ -10,9 +10,9 @@ Written 2026-10-29 at the end of a long session. Read this first in the next ses
 
 ## What is live and what is not
 - **Live at https://www.fleetotg.com**: deployed twice on 2026-10-28/29, the last at commit `a9246bb` (Pakistan only, Request bill, vehicle sheet, trial limit, live chat, workshop links and email replies, AI reader, Basic/Pro, SEO, Terms/Privacy drafts, the prefetch fix).
-- **Built, committed, NOT deployed**, after `a9246bb`: add-and-invite employee (ADR-041), emailed invitation link, one-time code on WhatsApp, WhatsApp requests and replies for workshops (ADR-042). Deploying them needs **platform migration 0014** first (see below).
+- **Deployed 2026-11-04** (after `a9246bb`): add-and-invite employee (ADR-041), emailed invitation link, one-time code on WhatsApp, WhatsApp requests and replies for workshops (ADR-042), AI policy reader (ADR-043). Platform 0014 and tenant 0026 were run first (confirmed with `--check`, no drift). The WhatsApp parts do nothing until the Netlify variables are set.
 - Deploy command: `find .next -name "* [0-9]*" -delete; npx netlify-cli deploy --build --prod --context production`.
-- Migrations: the owner runs them on live with `! npx tsx --env-file=.env.local scripts/migrate-tenants.mts` (the auto-mode blocks me). **Run on live already:** platform 0012-0013, control 0014-0015, tenant 0023-0025. **Still to run: platform 0014** (`db/public/0014_invitation_otp.sql`, the code's hash, expiry, tries and sends on `public.invitations`). Deploying before it breaks invitations. After editing any `db/` file run `npx tsx scripts/embed-migrations.mts`.
+- Migrations: the owner runs them on live with `! npx tsx --env-file=.env.local scripts/migrate-tenants.mts` (the auto-mode blocks me). **Run on live already:** platform 0012-0013, control 0014-0015, tenant 0023-0025. **Run 2026-11-04: platform 0014 and tenant 0026 (no drift).** (Old note on 0014:) (`db/public/0014_invitation_otp.sql`, the code's hash, expiry, tries and sends on `public.invitations`). Deploying before it breaks invitations. After editing any `db/` file run `npx tsx scripts/embed-migrations.mts`.
 
 ## What is built (all in git; ADRs in `docs/adr/`)
 | Area | ADR | State |
