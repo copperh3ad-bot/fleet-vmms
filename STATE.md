@@ -380,3 +380,8 @@
 - Landing and login design pass (`9267e69`, not deployed): clickable repair walkthrough with example data, assurance strip, line icons, FAQ accordion, closing band, login brand points. Other public pages still to do.
 - WhatsApp: number linked and registered, Netlify variables set by the owner. `fleetotg_code` (authentication) cannot be created: Meta refuses with code 10, subcode 2388185 in the Manager and the Graph API. Business not verified; owner to file a Meta support case and start Business Verification. `fleetotg_request` is approved but categorised MARKETING. Invitation code step stays unusable until `fleetotg_code` is approved.
 - Resume point: tag `fleet-otg-resume-2026-11-04`, `docs/RESUME.md` ("Update 2026-11-04").
+
+## 2026-11-05: legal name, design pass on Features and Pricing, competitor gap ADRs
+- Deployed the operator legal name in the footer and About us (`cae77fb`, `97fae59`) for Meta Business Verification; Meta also wants the phone number tied to the business (document or business email), still open with the owner.
+- Features and Pricing redesigned with shared `PageHero` and `CtaBand` (`04a35e6`, not deployed). About, Contact, Sign-up and Join still to do.
+- Compared a competitor brochure (VMS & Fleet Management) with Fleet OTG for the fleet part only. ADR-044 (driver licences, cost per km, workshop downtime; tenant migration 0027) and ADR-045 (trip requests and gate passes as an optional module; migration 0028) written, both proposed, nothing built. ADR-045 waits on four owner decisions listed in it.
