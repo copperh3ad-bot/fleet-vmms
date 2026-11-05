@@ -77,7 +77,10 @@ describe("the features page and the pages that carry markup", () => {
   it("is listed in the sitemap and has one h1, a definition up front and no prices", () => {
     expect(sitemap().map((s) => s.url)).toContain(`${SITE_URL}/features`);
     const src = readFileSync("src/app/features/page.tsx", "utf8");
-    expect(src.match(/<h1\b/g)?.length).toBe(1);
+    // The one h1 comes from PageHero, which renders exactly one.
+    expect(src.match(/<PageHero\b/g)?.length).toBe(1);
+    expect(src.match(/<h1\b/g)).toBeNull();
+    expect(readFileSync("src/components/page-hero.tsx", "utf8").match(/<h1\b/g)?.length).toBe(1);
     expect(src).toMatch(/Fleet OTG is fleet maintenance management software/);
     expect(src).not.toMatch(/\$\s?\d|USD\s?\d|Rs\.?\s?\d|PKR\s?\d/i);
   });
