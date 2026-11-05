@@ -5,10 +5,11 @@ import type { Driver, Queryable } from "@/lib/db/types";
 import { authorizedAny, type Membership } from "@/lib/auth/can";
 import { UserError } from "@/lib/master/service";
 import { csvFileName, toCsv, type Column } from "./csv";
+import { costPerKmIn, downtimeIn } from "@/lib/analytics/fleet-use";
 
 export const MAX_EXPORT_ROWS = 50_000;
 
-type Filters = { q?: string; status?: string; type?: string };
+type Filters = { q?: string; status?: string; type?: string; months?: string };
 type Ctx = { q: Queryable; held: Set<string>; m: Membership; f: Filters };
 type Def = { perms: string[]; run: (c: Ctx) => Promise<Record<string, unknown>[]>; columns: Column<Record<string, unknown>>[] };
 
@@ -128,6 +129,22 @@ const DEFS: Record<string, Def> = {
           order by r.created_at desc ${cap}`)).rows;
     },
   },
+  "cost-per-km": {
+    perms: ["report.view"],
+    columns: [col("Vehicle", "registration_no"), col("Job cards", "jobs"), col("Cost", "cost"), col("Kilometres", "km"), col("Cost per km", "per_km")],
+    async run({ q, f }) {
+      const r = await costPerKmIn(q, Number(f.months) || 12);
+      return r.rows.map((x) => ({ registration_no: x.registration_no, jobs: x.jobs, cost: x.cost.toFixed(2), km: x.km === null ? "Not enough readings" : x.km.toFixed(1), per_km: x.per_km === null ? "" : x.per_km.toFixed(2) }));
+    },
+  },
+  "workshop-time": {
+    perms: ["report.view"],
+    columns: [col("Vehicle", "registration_no"), col("Days in the workshop", "workshop_days"), col("Visits", "visits"), col("Longest visit (days)", "longest_days"), col("Days counted", "days"), col("Availability percent", "availability")],
+    async run({ q, f }) {
+      const r = await downtimeIn(q, Number(f.months) || 12);
+      return r.rows.map((x) => ({ ...x, availability: x.availability === null ? "" : (x.availability * 100).toFixed(1) }));
+    },
+  },
   flags: {
     perms: ["report.view"],
     columns: [col("Vehicle", "registration_no"), col("Flag", "flag"), col("Severity", "severity"), col("Detail", "detail")],
@@ -142,7 +159,7 @@ export const isExportKind = (k: string) => Object.prototype.hasOwnProperty.call(
 export async function exportCsv(driver: Driver, m: Membership, kind: string, filters: Filters = {}): Promise<{ fileName: string; csv: string; rows: number }> {
   if (!isExportKind(kind)) throw new UserError("Unknown export.");
   const def = DEFS[kind];
-  const f: Filters = { q: filters.q?.slice(0, 80) || undefined, status: filters.status?.slice(0, 30) || undefined, type: filters.type?.slice(0, 30) || undefined };
+  const f: Filters = { q: filters.q?.slice(0, 80) || undefined, status: filters.status?.slice(0, 30) || undefined, type: filters.type?.slice(0, 30) || undefined, months: filters.months?.slice(0, 3) || undefined };
   return authorizedAny(driver, m, def.perms, async (q, held) => {
     const rows = await def.run({ q, held, m, f });
     if (rows.length > MAX_EXPORT_ROWS) throw new UserError(`Too many rows to export at once (more than ${MAX_EXPORT_ROWS.toLocaleString("en-US")}). Narrow it with a filter.`);

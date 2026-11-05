@@ -5,6 +5,7 @@ import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { listDocuments, listMissingDocuments } from "@/lib/compliance/service";
 import { DOC_LABEL } from "@/lib/compliance/schemas";
+import { listExpiringLicences } from "@/lib/compliance/licences";
 import { getSettings } from "@/lib/control/service";
 import { listVehicles } from "@/lib/master/service";
 import { Kpi, PageHeader, Panel, Pill, Plate, btnPrimary, type Tone } from "@/components/ui";
@@ -29,11 +30,13 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const driver = getDriver();
   const perms = await permissionsOf(driver, m);
   const manage = perms.has("compliance.manage");
-  const [all, missing, settings, vehicles] = await Promise.all([
+  const canSeeLicences = manage || perms.has("employee.manage");
+  const [all, missing, settings, vehicles, licences] = await Promise.all([
     listDocuments(driver, m, { search: q || undefined }),
     listMissingDocuments(driver, m, ["registration", "fitness", "token_tax", "insurance"]),
     getSettings(driver, m).catch(() => []),
     manage ? listVehicles(driver, m) : Promise.resolve([]),
+    canSeeLicences ? listExpiringLicences(driver, m) : Promise.resolve([]),
   ]);
   const needs = (r: { doc_status: string }) => r.doc_status === "expired" || r.doc_status === "due_30";
   const rows = all.filter((r) => (type ? r.doc_type === type : true) && (status === "action" ? needs(r) : status ? r.doc_status === status : true));
@@ -79,6 +82,22 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
               </table></div>
             )}
           </Panel>
+          {canSeeLicences && !q && !status && !type && (
+            <Panel title="Driving licences" sub={licences.length ? `${licences.length} expired or expiring within 90 days` : "None expiring in the next 90 days"} flush>
+              {licences.length > 0 && (
+                <div className="overflow-x-auto"><table className="w-full text-left text-sm">
+                  <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Employee</th><th>Licence</th><th>Expires</th><th className="px-5">Time left</th></tr></thead>
+                  <tbody>{licences.map((l) => (
+                    <tr key={l.employee_id} className={`border-t border-zinc-100 ${l.status === "expired" ? "bg-red-50/60" : ""}`}>
+                      <td className="px-5 py-3"><a className="hover:underline" href={`/w/${slug}/employees`}>{l.full_name}</a>{l.employee_no && <span className="block text-xs text-zinc-500">{l.employee_no}</span>}</td>
+                      <td className="py-3 font-mono text-xs">{l.licence_masked}{l.licence_class && <span className="block font-sans text-zinc-500">{l.licence_class}</span>}</td>
+                      <td className="py-3">{dmy(l.expires_on)}</td>
+                      <td className="px-5 py-3"><Pill tone={TONE[l.status]}>{left(l.days_left)}</Pill></td>
+                    </tr>))}</tbody>
+                </table></div>
+              )}
+            </Panel>
+          )}
           {missing.length > 0 && !q && !status && !type && (
             <Panel title="No document on file" sub={`${missing.length} missing`}>
               <ul className="grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">

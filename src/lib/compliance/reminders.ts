@@ -25,7 +25,11 @@ export async function runDocumentReminders(driver: Driver, today?: string): Prom
                   v.registration_no as plate,
                   (select e.user_id from vehicle_custody c join employees e on e.id = c.employee_id where c.vehicle_id = r.vehicle_id and c.to_date is null limit 1) as holder_user
              from claim_document_reminders(coalesce($1::date, current_date)) r join vehicles v on v.id = r.vehicle_id`, [today ?? null])).rows;
-        if (due.length === 0) return 0;
+        // Driving licences (ADR-044): the same days, claimed the same way. The notice never carries the licence number.
+        const licences = (await q.query<{ entity_id: string; employee_id: string; expires_on: string; days_left: number; full_name: string; user_id: string | null }>(
+          `select r.entity_id, r.employee_id, r.expires_on::text, r.days_left, e.full_name, e.user_id
+             from claim_licence_reminders(coalesce($1::date, current_date)) r join employees e on e.id = r.employee_id`, [today ?? null])).rows;
+        if (due.length === 0 && licences.length === 0) return 0;
         const managers = await usersWithPermission(q, t.id, "compliance.manage");
         for (const d of due) {
           await notify(q, [...managers, d.holder_user], d.days_left < 0 ? "document.expired" : "document.expiring", {
@@ -33,7 +37,14 @@ export async function runDocumentReminders(driver: Driver, today?: string): Prom
             reference: d.reference, expires_on: d.expires_on, days_left: d.days_left,
           }, SYSTEM_USER);
         }
-        return due.length;
+        for (const l of licences) {
+          const text = l.days_left < 0 ? `${l.full_name}'s driving licence expired ${-l.days_left} ${-l.days_left === 1 ? "day" : "days"} ago`
+            : l.days_left === 0 ? `${l.full_name}'s driving licence expires today` : `${l.full_name}'s driving licence expires in ${l.days_left} ${l.days_left === 1 ? "day" : "days"}`;
+          await notify(q, [...managers, l.user_id], l.days_left < 0 ? "licence.expired" : "licence.expiring", {
+            entity_type: "driver_licence", entity_id: l.entity_id, employee_id: l.employee_id, expires_on: l.expires_on, days_left: l.days_left, text,
+          }, SYSTEM_USER);
+        }
+        return due.length + licences.length;
       });
       out.push({ schema: t.schema_name, sent });
     } catch (e) {
