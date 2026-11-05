@@ -1,23 +1,30 @@
-// Where the one-time code on an invitation goes (ADR-041, extended by ADR-046). Kept free of database code so the invitation page and the sender
+// Where the one-time code on an invitation goes (ADR-041, extended by ADR-046 and ADR-047). Kept free of database code so the invitation page and the sender
 // agree on one answer. `INVITE_CODE_CHANNEL` (set in Netlify, not a secret) chooses:
-//   unset or "auto"  WhatsApp, when it is set up and the invitation has a phone number. This is how it has worked since ADR-041.
-//   "email"          the invitation's email address when it has one and mail sending is set up, otherwise WhatsApp as above.
+// Each setting is an order of preference; the first channel that is set up for that invitation is used, and none means no code is asked for.
+//   unset or "auto"  WhatsApp, then SMS. WhatsApp alone is how it worked from ADR-041 until SMS existed.
 //   "whatsapp"       the same as auto, written out.
+//   "sms"            SMS, then WhatsApp.
+//   "email"          the invitation's email address, then SMS, then WhatsApp.
 //   "off"            no code is asked for on any invitation. Use it if the code cannot be delivered, so invitations are not blocked.
+// SMS and WhatsApp need the invitation's phone number; email needs its email address.
 // A password-reset link never asks for a code: its recovery code protects it.
 import { emailConfigured } from "@/lib/email/send";
+import { smsConfigured } from "@/lib/sms";
 import { whatsappConfigured } from "@/lib/whatsapp";
 
-export type CodeChannel = "email" | "whatsapp";
+export type CodeChannel = "email" | "sms" | "whatsapp";
 export type InviteTarget = { email: string | null; phone: string | null; reset: boolean };
+
+const ORDER: Record<string, CodeChannel[]> = {
+  auto: ["whatsapp", "sms"], whatsapp: ["whatsapp", "sms"], sms: ["sms", "whatsapp"], email: ["email", "sms", "whatsapp"],
+};
 
 export function codeChannel(inv: InviteTarget, setting: string | undefined = process.env.INVITE_CODE_CHANNEL): CodeChannel | null {
   if (inv.reset) return null;
   const mode = (setting ?? "auto").trim().toLowerCase();
   if (mode === "off") return null;
-  if (mode === "email" && inv.email && emailConfigured()) return "email";
-  if (inv.phone && whatsappConfigured()) return "whatsapp";
-  return null;
+  const usable = (c: CodeChannel) => c === "email" ? !!inv.email && emailConfigured() : !!inv.phone && (c === "sms" ? smsConfigured() : whatsappConfigured());
+  return (ORDER[mode] ?? ORDER.auto).find(usable) ?? null;
 }
 
 /** "j***@example.com": enough for the person to recognise their own address, not enough to learn it. */
@@ -31,5 +38,6 @@ export const maskPhone = (e164: string) => `ending ${e164.replace(/\D/g, "").sli
 
 /** Where the code goes, in words for the invitation page. Never the whole address or number. */
 export function codeHint(channel: CodeChannel, inv: { email: string | null; phone: string | null }): string {
-  return channel === "email" ? `your email ${maskEmail(inv.email!)}` : `WhatsApp, to the number ${maskPhone(inv.phone!)}`;
+  if (channel === "email") return `your email ${maskEmail(inv.email!)}`;
+  return channel === "sms" ? `a text message to the number ${maskPhone(inv.phone!)}` : `WhatsApp, to the number ${maskPhone(inv.phone!)}`;
 }

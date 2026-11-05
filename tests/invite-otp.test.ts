@@ -10,6 +10,7 @@ import { buildInviteCodeMail } from "@/lib/email/invitation";
 import { withOrgPlatform } from "@/lib/db/tenant";
 import { OTP_MAX_SENDS, OTP_MAX_TRIES, checkInviteCode, maskPhone, sendInviteCode } from "@/lib/admin/invite-otp";
 import { WhatsAppNotConfigured, sendWhatsApp, whatsappConfigured } from "@/lib/whatsapp";
+import { SmsNotConfigured, sendSms, smsConfigured } from "@/lib/sms";
 import { harness, type Org } from "./billing-harness";
 
 let h: Awaited<ReturnType<typeof harness>>;
@@ -278,5 +279,177 @@ describe("the code by email (ADR-046)", () => {
     expect(m.html).toContain("&lt;b&gt;Sana&lt;/b&gt;");
     expect(m.html).toContain("A &amp; B &lt;Co&gt;");
     expect(m.text).toContain("123456");
+  });
+});
+
+// ADR-047: the code by text message, and the two SMS providers.
+describe("the code by text message (ADR-047)", () => {
+  const KEYS = ["INVITE_CODE_CHANNEL", "SMS_FILE", "SMTP_URL", "EMAIL_FROM", "ALLOW_FILE_MAILER", "WHATSAPP_FILE", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_ACCESS_TOKEN"];
+  let smsOut: string;
+  const before: Record<string, string | undefined> = {};
+  const sms = () => (existsSync(smsOut) ? readFileSync(smsOut, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l) as { to: string; body: string }) : []);
+  const smsCode = () => sms().at(-1)!.body.match(/\b(\d{6})\b/)![1];
+
+  beforeAll(() => {
+    for (const k of KEYS) before[k] = process.env[k];
+    smsOut = join(mkdtempSync(join(tmpdir(), "sms-")), "out.jsonl");
+    process.env.ALLOW_FILE_MAILER = "1"; process.env.SMS_FILE = smsOut; process.env.WHATSAPP_FILE = out;
+    delete process.env.SMTP_URL; delete process.env.EMAIL_FROM;
+    process.env.INVITE_CODE_CHANNEL = "sms";
+  });
+  afterAll(() => { for (const k of KEYS) { if (before[k] === undefined) delete process.env[k]; else process.env[k] = before[k]; } });
+
+  it("names the channel and shows only the last four digits", async () => {
+    const inv = await invite();
+    expect(await previewInvitation(h.router, inv.token)).toMatchObject({ codeRequired: true, codeChannel: "sms", codeHint: "a text message to the number ending 4567" });
+  });
+
+  it("texts a short 6-digit code to the invitation's number, never on WhatsApp, and the right code passes", async () => {
+    const inv = await invite();
+    const wa = texts().length;
+    expect(await sendInviteCode(h.router, inv.token, "10.0.0.1")).toEqual({ sentTo: "a text message to the number ending 4567", channel: "sms" });
+    const t = sms().at(-1)!;
+    expect(t.to).toBe("+923001234567");
+    expect(t.body).toBe(`Fleet OTG code ${smsCode()}. It works for 10 minutes. Do not share it.`);
+    expect(t.body.length).toBeLessThan(160);                           // one segment, one charge
+    expect(texts().length).toBe(wa);
+    await checkInviteCode(h.router, inv.token, smsCode());
+  });
+
+  it("keeps every limit of the other channels: a hash only, spacing, five wrong tries, expiry", async () => {
+    const inv = await invite();
+    await sendInviteCode(h.router, inv.token, "10.0.0.2");
+    const row = await inOrg(async (q) => (await q.query<Record<string, unknown>>("select otp_hash from public.invitations where id = $1", [inv.id])).rows[0]);
+    expect(String(row.otp_hash)).toMatch(/^[0-9a-f]{64}$/);
+    expect(JSON.stringify(row)).not.toContain(smsCode());
+    await expect(sendInviteCode(h.router, inv.token, "10.0.0.2")).rejects.toThrow(/Wait \d+ seconds/);
+    const right = smsCode(), wrong = right === "000000" ? "111111" : "000000";
+    for (let i = 0; i < OTP_MAX_TRIES; i++) await expect(checkInviteCode(h.router, inv.token, wrong)).rejects.toThrow(/not right/);
+    await expect(checkInviteCode(h.router, inv.token, right)).rejects.toThrow(/Too many wrong codes/);
+    await setSeconds(inv.id, 120);
+    await sendInviteCode(h.router, inv.token, "10.0.0.2");
+    await inOrg((q) => q.query("update public.invitations set otp_expires_at = now() - interval '1 minute' where id = $1", [inv.id]));
+    await expect(checkInviteCode(h.router, inv.token, smsCode())).rejects.toThrow(/run out/);
+  });
+
+  it("reaches a person invited by sign-in name, which email cannot", () => {
+    const noEmail = { email: null, phone: "+923001234567", reset: false };
+    expect(codeChannel(noEmail, "sms")).toBe("sms");
+    expect(codeChannel(noEmail, "email")).toBe("sms");                  // email has nowhere to go, so the next channel is used
+    expect(codeChannel({ ...noEmail, phone: null }, "sms")).toBeNull();
+  });
+
+  it("is chosen in a clear order, and auto uses WhatsApp first so nothing changes where WhatsApp works", () => {
+    const both = { email: "a@example.com", phone: "+923001234567", reset: false };
+    expect(smsConfigured() && whatsappConfigured()).toBe(true);
+    expect(codeChannel(both, "auto")).toBe("whatsapp");
+    expect(codeChannel(both, "whatsapp")).toBe("whatsapp");
+    expect(codeChannel(both, "sms")).toBe("sms");
+    const set = process.env.INVITE_CODE_CHANNEL;
+    delete process.env.INVITE_CODE_CHANNEL;                              // unset: the default setting is read from the environment
+    try { expect(codeChannel(both)).toBe("whatsapp"); } finally { process.env.INVITE_CODE_CHANNEL = set; }
+    expect(codeChannel(both, "off")).toBeNull();
+    expect(codeChannel({ ...both, reset: true }, "sms")).toBeNull();
+    expect(codeChannel(both, "nonsense")).toBe("whatsapp");              // an unknown value behaves as auto
+  });
+
+  it("with email set up too, email comes first, then SMS, then WhatsApp", () => {
+    const both = { email: "a@example.com", phone: "+923001234567", reset: false };
+    process.env.SMTP_URL = `file:${smsOut}.mail`; process.env.EMAIL_FROM = "Fleet OTG <noreply@example.com>";
+    try { expect(codeChannel(both, "email")).toBe("email"); } finally { delete process.env.SMTP_URL; delete process.env.EMAIL_FROM; }
+  });
+
+  it("falls back to SMS when WhatsApp is not set up, and to WhatsApp when SMS is not", () => {
+    const inv = { email: null, phone: "+923001234567", reset: false };
+    const wa = process.env.WHATSAPP_FILE;
+    delete process.env.WHATSAPP_FILE;
+    try { expect(whatsappConfigured()).toBe(false); expect(codeChannel(inv, "auto")).toBe("sms"); } finally { process.env.WHATSAPP_FILE = wa; }
+    const sf = process.env.SMS_FILE;
+    delete process.env.SMS_FILE;
+    try { expect(smsConfigured()).toBe(false); expect(codeChannel(inv, "sms")).toBe("whatsapp"); } finally { process.env.SMS_FILE = sf; }
+  });
+
+  it("says plainly that the code could not be sent when the provider refuses, and the invitation stays live", async () => {
+    const inv = await invite();
+    const keep = { f: process.env.SMS_FILE, a: process.env.ALLOW_FILE_MAILER };
+    delete process.env.SMS_FILE;
+    Object.assign(process.env, { SMS_PROVIDER: "twilio", SMS_ACCOUNT_ID: "ACtest", SMS_AUTH_TOKEN: "t", SMS_FROM: "+15005550006" });
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async () => new Response("{}", { status: 401 })) as typeof fetch;
+    try { await expect(sendInviteCode(h.router, inv.token, "10.0.0.3")).rejects.toThrow(/could not be sent/); }
+    finally {
+      globalThis.fetch = realFetch;
+      for (const k of ["SMS_PROVIDER", "SMS_ACCOUNT_ID", "SMS_AUTH_TOKEN", "SMS_FROM"]) delete process.env[k];
+      process.env.SMS_FILE = keep.f; process.env.ALLOW_FILE_MAILER = keep.a;
+    }
+    expect(await previewInvitation(h.router, inv.token)).not.toBeNull();
+  });
+});
+
+describe("the SMS request (Twilio and Plivo)", () => {
+  const KEYS = ["SMS_FILE", "ALLOW_FILE_MAILER", "SMS_PROVIDER", "SMS_ACCOUNT_ID", "SMS_AUTH_TOKEN", "SMS_FROM"];
+  const withEnv = async (env: Record<string, string>, run: () => Promise<void>) => {
+    const before = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
+    for (const k of KEYS) delete process.env[k];
+    Object.assign(process.env, env);
+    try { await run(); } finally { for (const k of KEYS) { if (before[k] === undefined) delete process.env[k]; else process.env[k] = before[k]; } }
+  };
+  const fake = (status = 200) => { const calls: { url: string; init: RequestInit }[] = []; const f = (async (url: string, init: RequestInit) => { calls.push({ url, init }); return new Response("{}", { status }); }) as unknown as typeof fetch; return { calls, f }; };
+  const twilio = { SMS_PROVIDER: "twilio", SMS_ACCOUNT_ID: "AC123", SMS_AUTH_TOKEN: "tok-secret", SMS_FROM: "+15005550006" };
+  const plivo = { SMS_PROVIDER: "plivo", SMS_ACCOUNT_ID: "MAXXXX", SMS_AUTH_TOKEN: "tok-secret", SMS_FROM: "FleetOTG" };
+  const basic = (id: string) => `Basic ${Buffer.from(`${id}:tok-secret`).toString("base64")}`;
+
+  it("Twilio: a form post to the account's messages address with basic authentication", async () => {
+    await withEnv(twilio, async () => {
+      const { calls, f } = fake();
+      await sendSms("+923001234567", "Hello 123456", f);
+      expect(calls[0].url).toBe("https://api.twilio.com/2010-04-01/Accounts/AC123/Messages.json");
+      const h2 = calls[0].init.headers as Record<string, string>;
+      expect(h2.Authorization).toBe(basic("AC123"));
+      expect(h2["Content-Type"]).toBe("application/x-www-form-urlencoded");
+      expect(Object.fromEntries(new URLSearchParams(String(calls[0].init.body)))).toEqual({ To: "+923001234567", From: "+15005550006", Body: "Hello 123456" });
+    });
+  });
+
+  it("Twilio: a sender that starts with MG is a Messaging Service", async () => {
+    await withEnv({ ...twilio, SMS_FROM: "MG0123456789abcdef" }, async () => {
+      const { calls, f } = fake();
+      await sendSms("+923001234567", "x", f);
+      expect(Object.fromEntries(new URLSearchParams(String(calls[0].init.body)))).toEqual({ To: "+923001234567", MessagingServiceSid: "MG0123456789abcdef", Body: "x" });
+    });
+  });
+
+  it("Plivo: a JSON post with the number as digits only", async () => {
+    await withEnv(plivo, async () => {
+      const { calls, f } = fake();
+      await sendSms("+923001234567", "Hello 123456", f);
+      expect(calls[0].url).toBe("https://api.plivo.com/v1/Account/MAXXXX/Message/");
+      expect((calls[0].init.headers as Record<string, string>).Authorization).toBe(basic("MAXXXX"));
+      expect(JSON.parse(String(calls[0].init.body))).toEqual({ src: "FleetOTG", dst: "923001234567", text: "Hello 123456" });
+    });
+  });
+
+  it("is off without every setting or with an unknown provider, and says only the status when a provider refuses", async () => {
+    await withEnv({ SMS_PROVIDER: "twilio", SMS_ACCOUNT_ID: "AC1" }, async () => {
+      expect(smsConfigured()).toBe(false);
+      await expect(sendSms("+923001234567", "x")).rejects.toBeInstanceOf(SmsNotConfigured);
+    });
+    await withEnv({ ...twilio, SMS_PROVIDER: "other" }, async () => {
+      expect(smsConfigured()).toBe(false);
+      await expect(sendSms("+923001234567", "x")).rejects.toBeInstanceOf(SmsNotConfigured);
+    });
+    await withEnv(plivo, async () => {
+      expect(smsConfigured()).toBe(true);
+      const err = await sendSms("+923001234567", "x", fake(401).f).catch((e: Error) => e);
+      expect((err as Error).message).toBe("sms failed: 401");
+      expect((err as Error).message).not.toContain("tok-secret");
+    });
+  });
+
+  it("the test file is refused unless the file switch is on, so a stray setting cannot write messages to disk", async () => {
+    await withEnv({ SMS_FILE: "/tmp/should-not-be-written.jsonl" }, async () => {
+      expect(smsConfigured()).toBe(false);
+      await expect(sendSms("+923001234567", "x")).rejects.toBeInstanceOf(SmsNotConfigured);
+    });
   });
 });

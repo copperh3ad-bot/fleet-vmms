@@ -1,5 +1,5 @@
 // The one-time code on an invitation (ADR-041, channels in ADR-046). The invitation link alone is not enough to make an account: a 6-digit code is sent on WhatsApp to the phone number the
-// administrator typed for the employee, or by email to the invited address (src/lib/admin/invite-channel.ts decides which), and the person types it on the invitation page. So a link that is forwarded, overheard or opened first by someone else is
+// administrator typed for the employee, or by email to the invited address or by text message (src/lib/admin/invite-channel.ts decides which), and the person types it on the invitation page. So a link that is forwarded, overheard or opened first by someone else is
 // no use without the employee's phone. The code is made on the server, only its hash is stored, it runs out after 10 minutes, five wrong tries end it, and sends
 // are limited. The administrator never sees it. It is asked for only when a channel is set up for that invitation; a password reset link is protected by the recovery code instead.
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
@@ -10,6 +10,7 @@ import { UserError } from "@/lib/master/service";
 import { hashInviteToken } from "./service";
 import { allowShared } from "@/lib/rate-limit";
 import { sendWhatsApp } from "@/lib/whatsapp";
+import { sendSms } from "@/lib/sms";
 import { sendMail, mailFailure } from "@/lib/email/send";
 import { buildInviteCodeMail } from "@/lib/email/invitation";
 import { SITE_URL } from "@/lib/site";
@@ -62,6 +63,9 @@ export async function sendInviteCode(driver: Driver, token: string, ip: string):
   try {
     if (channel === "email") {
       await sendMail(buildInviteCodeMail({ to: row.email!, fullName: row.full_name, orgName: row.workspace, code, minutes: OTP_MINUTES, siteUrl: SITE_URL }));
+    } else if (channel === "sms") {
+      // short on purpose: one text segment, and every segment is paid for. No workspace name.
+      await sendSms(row.phone!, `Fleet OTG code ${code}. It works for ${OTP_MINUTES} minutes. Do not share it.`);
     } else {
       await sendWhatsApp(row.phone!, {
         body: `Fleet OTG code ${code} to join ${row.workspace}. It works for ${OTP_MINUTES} minutes. Enter it only if you asked to join.`,
