@@ -385,3 +385,7 @@
 - Deployed the operator legal name in the footer and About us (`cae77fb`, `97fae59`) for Meta Business Verification; Meta also wants the phone number tied to the business (document or business email), still open with the owner.
 - Features and Pricing redesigned with shared `PageHero` and `CtaBand` (`04a35e6`, not deployed). About, Contact, Sign-up and Join still to do.
 - Compared a competitor brochure (VMS & Fleet Management) with Fleet OTG for the fleet part only. ADR-044 (driver licences, cost per km, workshop downtime; tenant migration 0027) and ADR-045 (trip requests and gate passes as an optional module; migration 0028) written, both proposed, nothing built. ADR-045 waits on four owner decisions listed in it.
+
+## 2026-11-06: invitation code by email (ADR-046), licences and downtime built (ADR-044)
+- ADR-044 built and committed (`21563b8`): driver licences with expiry reminders, cost per kilometre, time in the workshop; tenant migration 0027. Production database project was paused by Supabase on 2026-11-05 and restored by the owner; migration 0027 still to be run on live.
+- ADR-046: `INVITE_CODE_CHANNEL` (unset or whatsapp = as before, email, off). Email codes go to the invited address, never with the link; people invited by sign-in name still use WhatsApp, because email cannot reach them. Unit tests added; browser suite not extended. SMS left for the owner to decide.

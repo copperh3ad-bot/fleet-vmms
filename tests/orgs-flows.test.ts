@@ -76,7 +76,7 @@ describe("inviting and accepting across the two databases", () => {
     expect(routes).toContainEqual({ kind: "invite", tenant_id: admin.tenantId });
     expect(JSON.stringify(await control.transaction(async (q) => (await q.query("select * from public.link_routes")).rows))).not.toContain(inv.token);
 
-    expect(await ad.previewInvitation(router, inv.token)).toEqual({ workspace: "Acme Transport", full_name: "Sana Khan", email: "sana@example.com", username: null, reset: false, codeRequired: false, phoneHint: null });
+    expect(await ad.previewInvitation(router, inv.token)).toEqual({ workspace: "Acme Transport", full_name: "Sana Khan", email: "sana@example.com", username: null, reset: false, codeRequired: false, codeChannel: null, codeHint: null });
     expect(await ad.previewInvitation(router, inv.token.slice(0, 42) + "x")).toBeNull();           // wrong token: nothing
 
     // she signs up elsewhere and sees the waiting invitation on the first page

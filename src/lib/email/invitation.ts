@@ -29,3 +29,29 @@ export function buildInvitationMail(i: InvitationMailInput): Mail {
 </td></tr></table></td></tr></table></body></html>`;
   return { to: i.to, subject, text, html, replyTo: i.replyTo };
 }
+
+export type InviteCodeMailInput = { to: string; fullName: string; orgName: string; code: string; minutes: number; siteUrl: string; replyTo?: string };
+
+/** The one-time code on an invitation, sent to the invited person's email (ADR-046). It never contains the invitation link: the link and the code
+ *  travel separately so that one alone is of no use. The code is made by the server, never typed by a person. */
+export function buildInviteCodeMail(i: InviteCodeMailInput): Mail {
+  const subject = "Your Fleet OTG code";
+  const text = [
+    `Hello ${i.fullName},`, "",
+    `Your Fleet OTG code to join ${i.orgName} is:`, "", `    ${i.code}`, "",
+    `Type it on the invitation page. It works for ${i.minutes} minutes.`,
+    "If you did not ask to join, ignore this message and do not share the code with anyone.", "",
+    "Fleet OTG", i.siteUrl,
+  ].join("\n");
+  const html = `<!doctype html><html lang="en"><body style="margin:0;background:#f3f5f6;font-family:Arial,Helvetica,sans-serif;color:#14202b">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f5f6;padding:24px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:10px;overflow:hidden">
+<tr><td style="background:#15191d;padding:18px 24px"><img src="${esc(i.siteUrl)}/fleetotg-logo.png" alt="Fleet OTG" width="160" height="40" style="display:block;border:0"></td></tr>
+<tr><td style="padding:28px 24px">
+<h1 style="margin:0 0 14px;font-size:20px;line-height:1.3">Your code to join ${esc(i.orgName)}</h1>
+<p style="margin:0 0 12px;font-size:15px;line-height:1.5;color:#3d4a55">Hello ${esc(i.fullName)}, type this code on the invitation page:</p>
+<p style="margin:0 0 20px;font-size:32px;letter-spacing:6px;font-weight:bold;font-family:'Courier New',monospace">${esc(i.code)}</p>
+<p style="margin:0;font-size:13px;line-height:1.5;color:#6b7782">It works for ${i.minutes} minutes. If you did not ask to join, ignore this message and do not share the code with anyone.</p>
+</td></tr></table></td></tr></table></body></html>`;
+  return { to: i.to, subject, text, html, replyTo: i.replyTo };
+}

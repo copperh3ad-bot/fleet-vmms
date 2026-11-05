@@ -4,7 +4,7 @@ import { createAccountAction, sendCodeAction, type InviteFormState } from "./act
 
 const box = "h-12 w-full rounded-md border border-zinc-300 bg-white px-3 text-zinc-900";
 
-export function CreateAccountForm({ token, email, username, reset, phoneHint }: { token: string; email: string | null; username: string | null; reset: boolean; phoneHint: string | null }) {
+export function CreateAccountForm({ token, email, username, reset, codeHint }: { token: string; email: string | null; username: string | null; reset: boolean; codeHint: string | null }) {
   const [state, setState] = useState<InviteFormState>({});
   const [pending, setPending] = useState(false);
   const [sending, setSending] = useState(false);
@@ -68,11 +68,11 @@ export function CreateAccountForm({ token, email, username, reset, phoneHint }: 
           )}
         </>
       )}
-      {phoneHint && (
+      {codeHint && (
         <div className="space-y-2 rounded-md border border-zinc-200 bg-zinc-50 p-3">
-          <p className="text-sm">To make sure this invitation is yours, we send a 6-digit code on WhatsApp to the phone number {phoneHint}.</p>
+          <p className="text-sm">To make sure this invitation is yours, we send a 6-digit code to {codeHint}.</p>
           <button type="button" onClick={sendCode} disabled={sending} className="h-10 rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 disabled:opacity-60">{sending ? "Sending" : sent?.sentTo ? "Send me a new code" : "Send me a code"}</button>
-          {sent?.sentTo && <p role="status" className="text-sm text-green-900">Code sent on WhatsApp to the number {sent.sentTo}.</p>}
+          {sent?.sentTo && <p role="status" className="text-sm text-green-900">Code sent to {sent.sentTo}.</p>}
           {sent?.error && <p role="alert" className="text-sm text-red-700">{sent.error}</p>}
           <div>
             <label htmlFor="code" className="mb-1 block text-sm font-medium">The 6-digit code</label>

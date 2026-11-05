@@ -36,3 +36,6 @@ Workshops can answer a request by replying on WhatsApp with a PDF or photo, and 
 Then open a job card that is waiting for an estimate, press **Ask on WhatsApp** (the button appears once the template is named), and from the workshop's phone reply to the message with a PDF. The reply shows on the job card as "WhatsApp, needs entering".
 
 If nothing arrives: the webhook must show a green tick in Meta's page; check the Netlify function log for `inbound-whatsapp`. A 401 means the app secret in Netlify is wrong. Workshops must have their mobile number on the Vendors page, in the form 0300 1234567.
+
+## If the template is not approved yet (ADR-046)
+With the WhatsApp variables set but no approved `WHATSAPP_OTP_TEMPLATE`, the invitation code cannot be sent and no invited person can finish. Set `INVITE_CODE_CHANNEL` in Netlify and redeploy: `email` sends the code to the invited email address (people invited by sign-in name still get WhatsApp), `off` asks for no code. Unset it again once Meta approves the template.
