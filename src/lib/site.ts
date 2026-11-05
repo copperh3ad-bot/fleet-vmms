@@ -20,3 +20,7 @@ export function pageMeta(title: string, description: string): Metadata {
     twitter: { card: "summary_large_image", title, description, images: images.map((i) => i.url) },
   };
 }
+
+/** The registered business behind the service, shown on every public page (footer) and on About us. Meta Business Verification
+ *  needs the legal name on the website. It is a public fact, not a secret. */
+export const OPERATOR_NAME = "Ammar Bilal and Company";

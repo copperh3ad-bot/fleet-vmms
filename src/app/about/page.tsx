@@ -1,4 +1,4 @@
-import { pageMeta } from "@/lib/site";
+import { pageMeta, OPERATOR_NAME } from "@/lib/site";
 import { SiteShell } from "@/components/site-shell";
 
 export const metadata = pageMeta("About us · Fleet OTG", "Why Fleet OTG exists: the everyday problems of running a company fleet on spreadsheets, and what we built to end them.");
@@ -72,6 +72,11 @@ export default function AboutPage() {
             <li><span className="font-medium text-zinc-900">Everyone in one system.</span> Drivers, managers, workshops and finance each see what they need, and nothing more.</li>
             <li><span className="font-medium text-zinc-900">Simple pricing.</span> One plan with everything included, priced about the same as one month&apos;s wage of an unskilled labourer. No charge per user, and a free trial first.</li>
           </ul>
+        </section>
+
+        <section aria-labelledby="who" className="mt-12">
+          <h2 id="who" className="text-2xl font-semibold">Who runs Fleet OTG</h2>
+          <p className="mt-3 text-zinc-700">Fleet OTG is a service of <span className="font-medium text-zinc-900">{OPERATOR_NAME}</span>, a business registered in Pakistan. Write to us from the <a href="/contact" className="underline">Contact us</a> page.</p>
         </section>
 
         <section aria-labelledby="try" className="mt-12 rounded-xl bg-side p-8 text-white">

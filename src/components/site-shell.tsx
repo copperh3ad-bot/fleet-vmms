@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Logo } from "@/components/brand";
 import { HeaderAuth } from "@/components/auth-links";
 import { PublicMenu } from "@/components/public-menu";
+import { OPERATOR_NAME } from "@/lib/site";
 
 type Page = "signup" | "login" | "pricing" | "join" | "about" | "contact" | "features";
 
@@ -48,6 +49,7 @@ export function SiteShell({ children, active }: { children: ReactNode; active?: 
             </nav>
           ))}
         </div>
+        <p className="mx-auto max-w-6xl 2xl:max-w-[96rem] border-t border-zinc-100 px-5 py-4 text-sm text-zinc-600">&copy; {new Date().getFullYear()} {OPERATOR_NAME}. Fleet OTG is operated by {OPERATOR_NAME}.</p>
       </footer>
     </div>
   );
