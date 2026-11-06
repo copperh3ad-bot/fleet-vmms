@@ -321,9 +321,9 @@ export function listActiveVendors(driver: Driver, m: Membership): Promise<{ id: 
 
 // ---------- Notifications ----------
 
-export type NotificationRow = { id: string; kind: string; payload: { job_card_id?: string; job_no?: string; to?: string; text?: string; key?: string; request_id?: string }; read_at: string | null; created_at: string };
+export type NotificationRow = { id: string; kind: string; payload: { job_card_id?: string; job_no?: string; to?: string; text?: string; key?: string; request_id?: string; trip_id?: string }; read_at: string | null; created_at: string };
 
-const NOTICE_PERMISSIONS = ["jobcard.create", "jobcard.read_own", "jobcard.read_all", "jobcard.approve", "quotation.submit", "invoice.verify", "compliance.manage"];
+const NOTICE_PERMISSIONS = ["jobcard.create", "jobcard.read_own", "jobcard.read_all", "jobcard.approve", "quotation.submit", "invoice.verify", "compliance.manage", "trip.request", "trip.approve", "trip.dispatch"];
 
 export function listNotifications(driver: Driver, m: Membership): Promise<NotificationRow[]> {
   return authorizedAny(driver, m, NOTICE_PERMISSIONS, async (q) =>

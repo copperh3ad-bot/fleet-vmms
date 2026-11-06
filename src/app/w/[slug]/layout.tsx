@@ -3,6 +3,7 @@ import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf, whoAmI } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { unreadCount } from "@/lib/jobcards/service";
+import { tripsEnabled } from "@/lib/trips/service";
 import { getNavCounts } from "@/lib/dashboard/service";
 import { signOut } from "@/app/login/actions";
 import { NavLink } from "@/components/shell/nav-link";
@@ -53,7 +54,8 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
     );
   }
   const [perms, me, unread, counts] = await Promise.all([permissionsOf(driver, m), whoAmI(driver, m), unreadCount(driver, m), getNavCounts(driver, m)]);
-  const to = (p: string) => `/w/${slug}${p}`;
+  const tripsOn = perms.has("trip.request") || perms.has("trip.approve") || perms.has("trip.dispatch") || perms.has("trip.read_all") ? await tripsEnabled(driver, m).catch(() => false) : false;
+  const to =(p: string) => `/w/${slug}${p}`;
   const has = (...p: string[]) => p.some((x) => perms.has(x));
   const sees = has("jobcard.create", "jobcard.read_own", "jobcard.read_all");
   const company = m.tenantName ?? slug;
@@ -63,6 +65,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
     { href: to(""), label: "Dashboard", show: true, exact: true },
     { href: to("/job-cards"), label: "Job cards", show: sees, badge: counts.approvals },
     { href: to("/vehicles"), label: "Vehicles", show: has("vehicle.read"), exclude: [to("/vehicles/new"), to("/vehicles/import")] },
+    { href: to("/trips"), label: "Trips", show: tripsOn },
     { href: to("/odometer"), label: "Odometer", show: has("odometer.review"), badge: counts.odometer },
     { href: to("/vendors"), label: "Vendors", show: has("vendor.manage") },
     { href: to("/policy"), label: "Maintenance policy", show: has("policy.read") },
@@ -85,13 +88,13 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
   ];
   // Someone limited to their own vehicle gets the dashboard and the job cards, nothing else (the pages say no as well).
   const ownOnly = m.vehicleScope === "own";
-  const keep = (i: Item) => i.show && (!ownOnly || i.label === "Dashboard" || i.label === "Job cards");
+  const keep = (i: Item) => i.show && (!ownOnly || i.label === "Dashboard" || i.label === "Job cards" || i.label === "Trips");
   const groups: { title?: string; items: Item[] }[] = [
     { items: main.filter(keep) },
     { title: "Analysis and money", items: money.filter(keep) },
     { title: "Admin", items: admin.filter(keep) },
   ].filter((g) => g.items.length);
-  const notices = sees || has("quotation.submit", "invoice.verify", "compliance.manage");
+  const notices = sees || has("quotation.submit", "invoice.verify", "compliance.manage", "trip.request", "trip.approve", "trip.dispatch");
 
   // Workshops get the slimmer "vendor portal" bar from the design, not the full sidebar.
   if (m.role === "vendor") {

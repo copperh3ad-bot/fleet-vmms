@@ -2,6 +2,19 @@
 
 Status: proposed, 2026-11-05. Owner request, from a comparison with a competitor's fleet brochure (VMS & Fleet Management, pages 5 and 6). **Decisions 1 to 4 in "Owner decisions" are to be confirmed before the migration is written.** Builds on custody (`vehicle_custody`), odometer readings (`0003_odometer.sql`), the permission model (`roles`, `permissions`, `can()`), and the rule that state changes go through one function and always write an event (CLAUDE.md rule 4).
 
+## Amendments, 2026-11-06 (phase 5a built)
+Owner said "start with ADR-045", so the assumed answers to decisions 1 to 4 stand: included in Basic behind the switch, gate staff have their own login (the `security` role), only people with a login request. Changes made while building:
+- **The overlap rule is a trigger, not an exclusion constraint** (`trip_overlap_guard`). It takes a transaction lock per vehicle and per driver, then checks for an overlapping approved or started trip, so a race between two approvals still cannot book the same vehicle twice, and no database extension (`btree_gist`) is needed. Back-to-back trips (one ends when the next starts) are allowed.
+- **Migration 0028 holds trips only.** Gate passes, with their `gate_passes` table and sequence, move to migration 0029 (phase 5b). 0028 already adds the `gate.use` permission and the `security` role.
+- **The module switch is the setting `module_trips` (0 or 1)**, shown in Settings under general with `admin.settings`.
+- **Pick and drop by pool cars (owner request, 2026-11-06).** The logistics department runs a few pool cars that pick up and drop staff.
+  1. `vehicles.is_pool` marks a pool car; the Trips page lists the fleet with a switch per car, for logistics and for people who manage vehicles. A car with an approved or started pick and drop run cannot be taken out of the pool.
+  2. `trips.kind` is `trip` (default) or `pick_drop`; `trips.stops` holds further pick-up or drop-off points, in order, as text. A pick and drop run still has a first pick-up (`from_place`), a last drop-off (`to_place`), start and end times and a passenger count.
+  3. **A pick and drop run can only be given a pool car**, checked in `trip_transition` and when a preferred vehicle is named. An ordinary trip may use a pool car.
+  4. New role **`logistics`** and permission **`trip.dispatch`**: dispatch means approve and assign a vehicle and driver for pick and drop runs only (also given to `fleet_manager` and `tenant_admin`). Logistics may also ask for trips (`trip.request`) but cannot approve ordinary trips; it sees every pick and drop run and, of ordinary trips, only its own. Approvers are notified of pick and drop requests together with the dispatchers.
+  5. **Not built, and the next step if logistics wants it:** a fixed route that repeats every working day with a passenger list (recurring runs), a day sheet of runs per car, and passengers named per run. Today each run is one request.
+- Notifications are open to people holding `trip.request`, `trip.approve` or `trip.dispatch`, so a logistics login (which has no job card permission) gets its notices.
+
 ## Why
 Fleet OTG manages the cost and approval trail of repairs. A company that also lends its pool vehicles out for trips has no record of who asked for a vehicle, who agreed, who drove, when it left and came back, or how far it went. That record also makes two things meaningful that are not today: **utilisation** (how many days a vehicle was actually used) and **driver trip counts**. It is a separate module, so a company that only wants maintenance never sees it.
 
