@@ -49,6 +49,42 @@ export function costPerKmIn(q: Queryable, monthsIn: number): Promise<CostPerKmRe
   })();
 }
 
+export type CostPerHour = { vehicle_id: string; registration_no: string; cost: number; jobs: number; hours: number | null; per_hour: number | null };
+export type CostPerHourReport = { months: number; rows: CostPerHour[]; fleet: { cost: number; hours: number; per_hour: number | null; vehicles_counted: number } };
+
+/** The same measure as cost per km, for vehicles with an hour meter: the last accepted reading in the period minus the last one before it. */
+export async function costPerHourIn(q: Queryable, monthsIn: number): Promise<CostPerHourReport> {
+  const months = periodMonths(monthsIn);
+  const rows = (await q.query<{ vehicle_id: string; registration_no: string; cost: string; jobs: number; start_h: string | null; end_h: string | null; n: number }>(
+    `with p as (select ${FROM} as from_at),
+     acc as (select r.vehicle_id, r.reading_hours, r.read_at from engine_hour_readings r where r.status = 'accepted'),
+     base as (select distinct on (a.vehicle_id) a.vehicle_id, a.reading_hours from acc a, p where a.read_at < p.from_at order by a.vehicle_id, a.read_at desc),
+     inside as (select a.vehicle_id, count(*)::int as n,
+                       (array_agg(a.reading_hours order by a.read_at asc))[1] as first_h,
+                       (array_agg(a.reading_hours order by a.read_at desc))[1] as last_h
+                  from acc a, p where a.read_at >= p.from_at group by a.vehicle_id),
+     cost as (select c.vehicle_id, sum(c.cost) as cost, count(*)::int as jobs from v_vehicle_job_cost c, p where c.created_at >= p.from_at group by c.vehicle_id)
+     select v.id as vehicle_id, v.registration_no, coalesce(c.cost, 0)::text as cost, coalesce(c.jobs, 0) as jobs,
+            coalesce(b.reading_hours, i.first_h)::text as start_h, i.last_h::text as end_h,
+            coalesce(i.n, 0) + (case when b.reading_hours is null then 0 else 1 end) as n
+       from vehicles v left join cost c on c.vehicle_id = v.id left join base b on b.vehicle_id = v.id left join inside i on i.vehicle_id = v.id
+      where v.status <> 'disposed' and v.tracks_hours and dept_ok(v.id)
+      order by v.registration_no`, [months])).rows;
+  const out: CostPerHour[] = rows.map((r) => {
+    const cost = Number(r.cost);
+    const hours = r.n >= 2 && r.start_h !== null && r.end_h !== null && Number(r.end_h) >= Number(r.start_h) ? Number(r.end_h) - Number(r.start_h) : null;
+    return { vehicle_id: r.vehicle_id, registration_no: r.registration_no, cost, jobs: r.jobs, hours, per_hour: hours && hours > 0 && cost > 0 ? cost / hours : null };
+  }).filter((r) => r.cost > 0 || r.hours !== null);
+  out.sort((a, b) => (b.per_hour ?? -1) - (a.per_hour ?? -1) || b.cost - a.cost || a.registration_no.localeCompare(b.registration_no));
+  const counted = out.filter((r) => r.hours !== null && r.hours > 0);
+  const cost = counted.reduce((s, r) => s + r.cost, 0), hours = counted.reduce((s, r) => s + (r.hours ?? 0), 0);
+  return { months, rows: out, fleet: { cost, hours, per_hour: hours > 0 && cost > 0 ? cost / hours : null, vehicles_counted: counted.length } };
+}
+
+export function costPerHour(driver: Driver, m: Membership, months = 12): Promise<CostPerHourReport> {
+  return authorized(driver, m, PERM, (q) => costPerHourIn(q, months));
+}
+
 export function costPerKm(driver: Driver, m: Membership, months = 12): Promise<CostPerKmReport> {
   return authorized(driver, m, PERM, (q) => costPerKmIn(q, months));
 }

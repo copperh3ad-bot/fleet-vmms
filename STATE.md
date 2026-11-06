@@ -396,3 +396,6 @@ Migration 0028 (not yet applied to live), src/lib/trips, /w/[slug]/trips pages, 
 
 ## 2026-11-06: ADR-048 phase 48a built (operating departments, logistics maintenance)
 Migration 0029 (not applied to live), dept_ok on read paths, write guards, pool-car rule, dept_approval_limit setting, tests/dept-scope.test.ts. 896 unit tests pass, build OK. Migrations 0028 and 0029 both pending on live. Engine hours (48b), department column on vehicle lists, browser scenarios, and ADR-045 5b/5c not done. Undeployed.
+
+## 2026-11-07: ADR-048 phase 48b built (engine hours)
+Migration 0030 (applied nowhere yet: not on live), src/lib/hours, hours on the vehicle page, job card form and wizard, service rules and Settings, cost per hour on Reports and as an export, tests/engine-hours.test.ts (15). Also removed a duplicate `module_trips` entry from the settings list. 910 unit tests pass (the known ledger date flake apart), build OK. Not deployed; run migration 0030 on live with the deploy.

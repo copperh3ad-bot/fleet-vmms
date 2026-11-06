@@ -1,6 +1,6 @@
 # ADR-048: Operating departments: the logistics department runs and maintains its own vehicles
 
-Status: accepted, 2026-11-06. Owner request, in several messages while ADR-045 phase 5a was built. **Phase 48a is built** (department scope, logistics maintenance, dispatch, pool-car rule, spending limit; migration `0029_departments.sql`; `tests/dept-scope.test.ts`), **not deployed**. 48b (engine hours) and 48c are not built. Extends ADR-045 (trips, pool cars) and the job card flow. Owner answers already given: logistics raises **and approves its own job cards**; a vehicle's department is **a field on the vehicle**; loaders and forklifts get **an hour meter**.
+Status: accepted, 2026-11-06. Owner request, in several messages while ADR-045 phase 5a was built. **Phase 48a is built** (department scope, logistics maintenance, dispatch, pool-car rule, spending limit; migration `0029_departments.sql`; `tests/dept-scope.test.ts`), **not deployed**. **Phase 48b is built** (engine hours, hour-based service rules, cost per hour; migration `0030_engine_hours.sql`; `tests/engine-hours.test.ts`), **not deployed**. 48c is not built. Extends ADR-045 (trips, pool cars) and the job card flow. Owner answers already given: logistics raises **and approves its own job cards**; a vehicle's department is **a field on the vehicle**; loaders and forklifts get **an hour meter**.
 
 ## Why
 In the owner's company the logistics department operates the vehicles used in day-to-day operations (trucks, loaders, forklifts, the pool cars for staff pick and drop), and looks after their maintenance, their trips and who drives what. Today every approval, every workshop choice and every list is company-wide and belongs to the fleet manager. Logistics needs to do its own work, on its own vehicles, without seeing or touching the rest of the fleet or the company's money.
@@ -79,3 +79,11 @@ Tenant data only through `src/lib/db/tenant.ts`; `can()` first in every action; 
 
 ## Open points for the owner
 1. **The limit figure.** Enter it in Settings once built, or tell me and I will set it.
+
+## Amendment: phase 48b as built (2026-11-07)
+- Migration `0030_engine_hours.sql`: `vehicles.tracks_hours`, `engine_hours`, `engine_hours_updated_at`; `engine_hour_readings` (source manual, job_card or baseline) with a validation trigger, a refresh trigger, the department write guard and an audit trigger; `job_cards.engine_hours` with a trigger that writes a reading; `service_types.interval_hours`; `vehicle_service_baselines.last_hours`; setting `pm_warning_hours` (default 25); `v_service_last_done` and `v_pm_status` carry hours (new columns at the end).
+- A bad reading is **refused at entry** with a message (lower than on file, or more than 24 hours for every day since the last), not held for review as the odometer is. The database flags the same two cases and does not let them move the vehicle, as a second guard. There is no review screen for hours.
+- Hour tracking is switched on per vehicle (the Manage panel on the vehicle page), by `vehicle.write` or `trip.dispatch`, and `dept_ok` keeps a logistics user to its own vehicles. A job card carries an hour meter field only for a vehicle that tracks hours; for any other vehicle a stray value is ignored.
+- A service rule may be in hours alone, or any mix of months, km and hours. A vehicle that stops tracking hours drops the hours rule. The warning margin is `pm_warning_hours`.
+- Cost per engine hour is a Reports panel (shown only when a vehicle tracks hours) and the export `cost-per-hour`, measured the way cost per km is: last accepted reading in the period minus the last one before it, two readings needed.
+- Not built: hour readings through the driver's single-use link, and a department column on the vehicle lists (48c).

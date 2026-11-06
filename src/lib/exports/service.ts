@@ -5,7 +5,7 @@ import type { Driver, Queryable } from "@/lib/db/types";
 import { authorizedAny, type Membership } from "@/lib/auth/can";
 import { UserError } from "@/lib/master/service";
 import { csvFileName, toCsv, type Column } from "./csv";
-import { costPerKmIn, downtimeIn } from "@/lib/analytics/fleet-use";
+import { costPerHourIn, costPerKmIn, downtimeIn } from "@/lib/analytics/fleet-use";
 
 export const MAX_EXPORT_ROWS = 50_000;
 
@@ -135,6 +135,14 @@ const DEFS: Record<string, Def> = {
     async run({ q, f }) {
       const r = await costPerKmIn(q, Number(f.months) || 12);
       return r.rows.map((x) => ({ registration_no: x.registration_no, jobs: x.jobs, cost: x.cost.toFixed(2), km: x.km === null ? "Not enough readings" : x.km.toFixed(1), per_km: x.per_km === null ? "" : x.per_km.toFixed(2) }));
+    },
+  },
+  "cost-per-hour": {
+    perms: ["report.view"],
+    columns: [col("Vehicle", "registration_no"), col("Job cards", "jobs"), col("Cost", "cost"), col("Engine hours", "hours"), col("Cost per hour", "per_hour")],
+    async run({ q, f }) {
+      const r = await costPerHourIn(q, Number(f.months) || 12);
+      return r.rows.map((x) => ({ registration_no: x.registration_no, jobs: x.jobs, cost: x.cost.toFixed(2), hours: x.hours === null ? "Not enough readings" : x.hours.toFixed(1), per_hour: x.per_hour === null ? "" : x.per_hour.toFixed(2) }));
     },
   },
   "workshop-time": {

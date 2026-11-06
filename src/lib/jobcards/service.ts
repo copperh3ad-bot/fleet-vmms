@@ -3,6 +3,7 @@
 import type { Driver, Queryable } from "@/lib/db/types";
 import { authorized, authorizedAny, ForbiddenError, type Membership } from "@/lib/auth/can";
 import { UserError } from "@/lib/master/service";
+import { assertHoursPlausible } from "@/lib/hours/service";
 import { notify, usersWithPermission } from "@/lib/notify";
 import { fieldErrors } from "@/lib/master/schemas";
 import { jobCardSchema, TRANSITION_PERMISSION, type JobCardData, type JobCardInput } from "./schemas";
@@ -83,13 +84,24 @@ async function assertOdometerNotLower(q: Queryable, vehicleId: string, km: numbe
   }
 }
 
+/** An hour meter reading on the card counts only for a vehicle that tracks hours; it must not be lower than the one on file. Returns the number to store, or undefined. */
+async function checkedHours(q: Queryable, vehicleId: string, hours: number | undefined): Promise<number | undefined> {
+  if (hours === undefined) return undefined;
+  const v = (await q.query<{ t: boolean }>("select tracks_hours as t from vehicles where id = $1", [vehicleId])).rows[0];
+  if (!v?.t) return undefined;
+  await assertHoursPlausible(q, vehicleId, hours, "engine_hours");
+  return hours;
+}
+
 export async function createJobCard(driver: Driver, m: Membership, input: JobCardInput, submit: boolean): Promise<{ id: string; job_no: string }> {
   const data = parse(input);
   return authorized(driver, m, "jobcard.create", async (q) => {
     await assertVehicleAllowed(q, m, data.vehicle_id);
     await assertOdometerNotLower(q, data.vehicle_id, data.odometer_km);
+    const hours = await checkedHours(q, data.vehicle_id, data.engine_hours);
     try {
       const id = (await q.query<{ id: string }>("select create_job_card($1::jsonb, $2, $3) as id", [JSON.stringify(data), m.userId, submit])).rows[0].id;
+      if (hours !== undefined) await q.query("update job_cards set engine_hours = $2 where id = $1", [id, hours]);
       if (submit) await notifyAfter(q, m, id, "submitted");
       const jc = (await q.query<{ job_no: string }>("select job_no from job_cards where id = $1", [id])).rows[0];
       return { id, job_no: jc.job_no };
@@ -102,8 +114,10 @@ export async function editJobCard(driver: Driver, m: Membership, id: string, inp
   return authorized(driver, m, "jobcard.create", async (q) => {
     await assertVehicleAllowed(q, m, data.vehicle_id);
     await assertOdometerNotLower(q, data.vehicle_id, data.odometer_km);
+    const hours = await checkedHours(q, data.vehicle_id, data.engine_hours);
     try {
       await q.query("select edit_job_card($1, $2::jsonb, $3, $4)", [id, JSON.stringify(data), m.userId, submit]);
+      if (hours !== undefined) await q.query("update job_cards set engine_hours = $2 where id = $1", [id, hours]);
       if (submit) await notifyAfter(q, m, id, "submitted");
     } catch (e) { friendly(e); }
   });
@@ -118,7 +132,7 @@ export function listServiceTags(driver: Driver, m: Membership): Promise<{ key: s
 // ---------- What the form knows about the chosen vehicle ----------
 
 export type JobContext = {
-  vehicle: { id: string; registration_no: string; label: string; odometer_km: number; odometer_updated_at: string | null; holder: string | null; department: string | null };
+  vehicle: { id: string; registration_no: string; label: string; odometer_km: number; odometer_updated_at: string | null; holder: string | null; department: string | null; tracks_hours: boolean; engine_hours: number | null };
   due: { label: string; service_type_key: string; status: string; due_on: string | null; days: number | null }[];
   budget: { budget: number; spent: number; pct: number } | null;
   lastJobs: { job_no: string; created_at: string; reason: string; cost: number }[];
@@ -130,8 +144,8 @@ export type JobContext = {
 export function getJobContext(driver: Driver, m: Membership, vehicleId: string): Promise<JobContext | null> {
   return authorizedAny(driver, m, ["jobcard.create", "jobcard.approve"], async (q, held) => {
     if (held.has("jobcard.create") && !held.has("jobcard.approve")) await assertVehicleAllowed(q, m, vehicleId);
-    const v = (await q.query<{ id: string; registration_no: string; label: string; km: string; updated: string | null; holder: string | null; department: string | null }>(
-      `select v.id, v.registration_no, concat_ws(' ', v.make, v.model, v.year) as label, v.odometer_km::text as km, v.odometer_updated_at::text as updated, h.full_name as holder, h.department
+    const v = (await q.query<{ id: string; registration_no: string; label: string; km: string; updated: string | null; holder: string | null; department: string | null; tracks_hours: boolean; hours: string | null }>(
+      `select v.id, v.registration_no, concat_ws(' ', v.make, v.model, v.year) as label, v.odometer_km::text as km, v.odometer_updated_at::text as updated, h.full_name as holder, h.department, v.tracks_hours, v.engine_hours::text as hours
          from vehicles v left join vehicle_custody c on c.vehicle_id = v.id and c.to_date is null left join employees h on h.id = c.employee_id where v.id = $1 and dept_ok(v.id)`, [vehicleId])).rows[0];
     if (!v) return null;
     const due = (await q.query<{ label: string; service_type_key: string; status: string; due_on: string | null; days: number | null }>(
@@ -149,7 +163,7 @@ export function getJobContext(driver: Driver, m: Membership, vehicleId: string):
         where jc.vehicle_id = $1 and jc.status not in ('draft','cancelled','rejected') and rc.category <> 'scheduled_service'
           and jc.created_at >= now() - ($2 || ' days')::interval order by jc.reason_code_id, jc.created_at desc`, [vehicleId, window])).rows;
     return {
-      vehicle: { id: v.id, registration_no: v.registration_no, label: v.label, odometer_km: Number(v.km), odometer_updated_at: v.updated, holder: v.holder, department: v.department },
+      vehicle: { id: v.id, registration_no: v.registration_no, label: v.label, odometer_km: Number(v.km), odometer_updated_at: v.updated, holder: v.holder, department: v.department, tracks_hours: v.tracks_hours, engine_hours: v.hours === null ? null : Number(v.hours) },
       due, budget: b ? { budget: Number(b.budget), spent: Number(b.spent), pct: Number(b.pct ?? 0) } : null,
       lastJobs: lastJobs.map((j) => ({ ...j, cost: Number(j.cost) })), recent, repeatWindowDays: Number(window),
     };
@@ -281,7 +295,7 @@ export function listJobCards(driver: Driver, m: Membership, opts: { status?: str
 }
 
 export type JobCardDetail = JobCardRow & {
-  cause_text: string; description: string | null; odometer_km: string | null; custodian_name: string | null;
+  cause_text: string; description: string | null; odometer_km: string | null; engine_hours: string | null; custodian_name: string | null;
   requested_reason_label: string; reason_code_id: string; requested_by: string; approver_name: string | null; approved_by: string | null;
   vendor_id: string | null; vendor_name: string | null; mine: boolean; requester_is_me: boolean; age_days: number;
   lines: { id: string; kind: string; description: string; qty: string; unit_cost: string; service_type_key: string | null }[];
@@ -292,7 +306,7 @@ export function getJobCard(driver: Driver, m: Membership, id: string): Promise<J
   return authorizedAny(driver, m, ["jobcard.read_all", "jobcard.read_own"], async (q, held) => {
     const jc = (await q.query<JobCardDetail>(
       `select jc.id, jc.job_no, jc.status, jc.category, jc.priority, jc.created_at::text, jc.needed_by::text, jc.vehicle_id,
-              jc.cause_text, jc.description, jc.odometer_km::text, jc.estimated_cost::text, jc.reason_code_id, jc.requested_by, jc.approved_by,
+              jc.cause_text, jc.description, jc.odometer_km::text, jc.engine_hours::text, jc.estimated_cost::text, jc.reason_code_id, jc.requested_by, jc.approved_by,
               jc.vendor_id, v.registration_no, re.full_name as requester_name, rc.label as reason_label, rq.label as requested_reason_label,
               cu.full_name as custodian_name, ap.full_name as approver_name, vn.name as vendor_name,
               job_card_is_mine(jc.id, $2) as mine, (jc.requested_by = actor_employee($2)) as requester_is_me, greatest(0, current_date - jc.created_at::date)::int as age_days

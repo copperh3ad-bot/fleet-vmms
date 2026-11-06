@@ -5,6 +5,7 @@ import { getDriver } from "@/lib/db";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { addVehicleFile, removeVehicleFile, type VehicleFileKind } from "@/lib/master/files";
 import { UserError, addVehicle, changeCustody, endCustody, setVehicleDepartment, updateVehicleStatus, previewVehicleImport, commitVehicleImport, type ImportPreview } from "@/lib/master/service";
+import { recordEngineHours, setTracksHours } from "@/lib/hours/service";
 import { runAction, str, typed, type FormState } from "../actions-util";
 import { MAX_SHEET_BYTES, xlsxToCsv } from "@/lib/master/vehicle-sheet";
 
@@ -99,6 +100,18 @@ export async function endCustodyAction(slug: string, vehicleId: string, _prev: F
 
 export async function setDepartmentAction(slug: string, vehicleId: string, _prev: FormState, form: FormData): Promise<FormState> {
   const state = await runAction(slug, async (m) => { await setVehicleDepartment(getDriver(), m, vehicleId, str(form, "department")); return "Department saved."; });
+  if (state.ok) refresh();
+  return state.error || state.fields ? { ...state, values: typed(form) } : state;
+}
+
+export async function setTracksHoursAction(slug: string, vehicleId: string, on: boolean): Promise<FormState> {
+  const state = await runAction(slug, async (m) => { await setTracksHours(getDriver(), m, vehicleId, on); return on ? "Hour tracking is on." : "Hour tracking is off."; });
+  if (state.ok) refresh();
+  return state;
+}
+
+export async function recordHoursAction(slug: string, vehicleId: string, _prev: FormState, form: FormData): Promise<FormState> {
+  const state = await runAction(slug, async (m) => { await recordEngineHours(getDriver(), m, vehicleId, str(form, "hours")); return "Hour meter saved."; });
   if (state.ok) refresh();
   return state.error || state.fields ? { ...state, values: typed(form) } : state;
 }

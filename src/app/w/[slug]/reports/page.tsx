@@ -4,7 +4,7 @@ import { requireMembership } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
 import { Kpi, PageHeader, Panel } from "@/components/ui";
 import { costOverview, getFlags } from "@/lib/analytics/service";
-import { costPerKm, downtime } from "@/lib/analytics/fleet-use";
+import { costPerHour, costPerKm, downtime } from "@/lib/analytics/fleet-use";
 import { Bars, FlagList, money } from "./shared";
 import { monthShort } from "@/lib/labels";
 
@@ -24,7 +24,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const m = await requireMembership(slug, { fullScope: true });
   const cur = m.currency || "PKR";
   const driver = getDriver();
-  const [r, flags, perKm, down] = await Promise.all([costOverview(driver, m, months), getFlags(driver, m), costPerKm(driver, m, months), downtime(driver, m, months)]);
+  const [r, flags, perKm, perHour, down] = await Promise.all([costOverview(driver, m, months), getFlags(driver, m), costPerKm(driver, m, months), costPerHour(driver, m, months), downtime(driver, m, months)]);
   const money2 = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const sel = "h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm";
   return (
@@ -35,7 +35,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
             <select id="months" name="months" defaultValue={months} className={sel}>{[3, 6, 12, 24].map((n) => <option key={n} value={n}>{n} months</option>)}</select>
             <button className={`${sel} font-medium hover:bg-zinc-50`}>Show</button></form>
           <ExportLink slug={slug} kind="costs-by-vehicle" label="Export costs by vehicle" /><ExportLink slug={slug} kind="flags" label="Export flags" />
-          <ExportLink slug={slug} kind="cost-per-km" query={{ months: String(months) }} label="Export cost per km" /><ExportLink slug={slug} kind="workshop-time" query={{ months: String(months) }} label="Export workshop time" />
+          <ExportLink slug={slug} kind="cost-per-km" query={{ months: String(months) }} label="Export cost per km" />{perHour.rows.length > 0 && <ExportLink slug={slug} kind="cost-per-hour" query={{ months: String(months) }} label="Export cost per hour" />}<ExportLink slug={slug} kind="workshop-time" query={{ months: String(months) }} label="Export workshop time" />
         </>} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -69,6 +69,21 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
           )}
           <p className="mt-3 text-xs text-zinc-500">Cost is the same figure as above. Kilometres come from accepted odometer readings: the last one in the period minus the last one before it. A vehicle needs two readings to show a distance.</p>
         </Panel>
+        {perHour.rows.length > 0 && (
+          <Panel title="Cost per engine hour" sub={perHour.fleet.per_hour !== null ? `Fleet ${money2(perHour.fleet.per_hour)} ${cur} per hour over ${money(perHour.fleet.hours)} hours` : "Vehicles with an hour meter, worst first"}>
+            <div className="overflow-x-auto"><table className="w-full text-left text-sm">
+              <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="py-2">Vehicle</th><th className="text-right">Cost</th><th className="text-right">Hours</th><th className="text-right">Per hour</th></tr></thead>
+              <tbody>{perHour.rows.slice(0, 15).map((x) => (
+                <tr key={x.vehicle_id} className="border-t border-zinc-100">
+                  <td className="py-2"><a className="font-medium text-sky-800 hover:underline" href={`/w/${slug}/vehicles/${x.vehicle_id}`}>{x.registration_no}</a></td>
+                  <td className="py-2 text-right font-mono">{money(x.cost)}</td>
+                  <td className="py-2 text-right font-mono">{x.hours === null ? <span className="font-sans text-xs text-zinc-500">Not enough readings</span> : money(x.hours)}</td>
+                  <td className="py-2 text-right font-mono">{x.per_hour === null ? "—" : money2(x.per_hour)}</td>
+                </tr>))}</tbody>
+            </table></div>
+            <p className="mt-3 text-xs text-zinc-500">Hours come from accepted hour meter readings: the last one in the period minus the last one before it. A vehicle needs two readings.</p>
+          </Panel>
+        )}
         <Panel title="Time in the workshop" sub={down.fleet.availability !== null ? `Fleet availability ${(down.fleet.availability * 100).toFixed(1)}%` : undefined}>
           {down.rows.length === 0 ? <p className="text-sm text-zinc-500">No vehicle was in the workshop in this period.</p> : (
             <div className="overflow-x-auto"><table className="w-full text-left text-sm">

@@ -29,7 +29,7 @@ function cardFromForm(f: FormData) {
     .map((d, i) => ({ kind: kind[i], description: d, qty: qty[i], unit_cost: unit[i], service_type_key: tag[i] }))
     .filter((l) => l.description.trim() !== "" || (l.unit_cost ?? "").trim() !== "");
   const raw: Record<string, unknown> = { lines };
-  for (const k of ["vehicle_id", "requested_by", "category", "reason_code_id", "cause_text", "description", "priority", "needed_by", "odometer_km"]) raw[k] = str(f, k);
+  for (const k of ["vehicle_id", "requested_by", "category", "reason_code_id", "cause_text", "description", "priority", "needed_by", "odometer_km", "engine_hours"]) raw[k] = str(f, k);
   return raw;
 }
 

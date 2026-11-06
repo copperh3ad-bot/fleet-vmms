@@ -21,7 +21,7 @@ const appliesTo = (c: string[] | null) => {
 };
 
 // The wording on the board for each number, and which panel it sits in.
-const TIMING = [["pm_warning_days", "Warn this many days before due"], ["pm_warning_km", "Warn this many km before due"], ["odometer_stale_days", "Odometer counts as stale after (days)"], ["odometer_max_km_per_day", "Reject readings above (km a day)"], ["odometer_due_day", "Odometer reading due on day of month"]] as const;
+const TIMING = [["pm_warning_days", "Warn this many days before due"], ["pm_warning_km", "Warn this many km before due"], ["pm_warning_hours", "Warn this many engine hours before due"], ["odometer_stale_days", "Odometer counts as stale after (days)"], ["odometer_max_km_per_day", "Reject readings above (km a day)"], ["odometer_due_day", "Odometer reading due on day of month"]] as const;
 const FLAGS = [["flag_jobs_90d", "Many jobs: more than this many in 90 days"], ["flag_repeat_days", "Repeat repair: same reason within (days)"], ["flag_cost_multiple", "Cost: above this times the median for the same model"], ["doc_reminder_days", "Expiring documents warn (days)"]] as const;
 
 async function Inner({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -46,12 +46,13 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
           <div className="space-y-5">
             <Panel title="Preventive servicing" sub="Switches save at once. Numbers below save with “Save rules”." flush>
               <div className="overflow-x-auto"><table className="w-full text-left text-sm">
-                <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Service</th><th>Every</th><th>Or every</th><th>On</th><th>Applies to</th>{manageRules && <th />}</tr></thead>
+                <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Service</th><th>Every</th><th>Or every</th><th>Or hours</th><th>On</th><th>Applies to</th>{manageRules && <th />}</tr></thead>
                 <tbody>{rules.map((r) => (
                   <tr key={r.key} className={`border-t border-zinc-100 ${r.active ? "" : "text-zinc-500"}`}>
                     <td className="px-5 py-3">{r.label}{!r.is_preventive && <span className="block text-xs text-zinc-500">Not shown as due</span>}</td>
                     <td className="py-3">{r.interval_months ? `${r.interval_months} months` : "—"}</td>
                     <td className="py-3 font-mono">{r.interval_km ? `${Number(r.interval_km).toLocaleString("en-US")} km` : "—"}</td>
+                    <td className="py-3 font-mono">{r.interval_hours ? `${Number(r.interval_hours).toLocaleString("en-US")} h` : "—"}</td>
                     <td className="py-3"><RuleToggle slug={slug} ruleKey={r.key} active={r.active} disabled={!manageRules} label={r.label} /></td>
                     <td className="py-3">{r.active ? appliesTo(r.applies_to_classes) : "Not used yet"}</td>
                     {manageRules && <td className="py-3 pr-5 text-right"><a className="text-sky-800 underline" href={to(`?edit=${r.key}`)}>Change</a></td>}

@@ -5,7 +5,7 @@ import type { Driver } from "@/lib/db/types";
 import { authorized, type Membership } from "@/lib/auth/can";
 
 export type RecordJob = { id: string; job_no: string; created_at: string; status: string; reason: string; category: string; repeat: boolean; cause_text: string; vendor: string | null; cost: number };
-export type RecordService = { label: string; status: string; last_done_on: string | null; last_km: number | null; due_on: string | null; days_remaining: number | null; km_remaining: number | null };
+export type RecordService = { label: string; status: string; last_done_on: string | null; last_km: number | null; due_on: string | null; days_remaining: number | null; km_remaining: number | null; hours_remaining: number | null };
 export type RecordHolder = { employee_id: string; name: string; department: string | null; from_date: string; to_date: string | null; cost: number };
 export type RecordDoc = { entity_id: string; entity_type: string; doc_type: string; expires_on: string; days_left: number; doc_status: string };
 export type RecordReading = { read_at: string; reading_km: number; source: string; status: string };
@@ -13,6 +13,7 @@ export type RecordReading = { read_at: string; reading_km: number; source: strin
 export type VehicleRecord = {
   id: string; registration_no: string; make: string | null; model: string | null; year: number | null; status: string; vehicle_class: string | null; fuel_type: string | null;
   colour: string | null; vin: string | null; engine_no: string | null; base_location: string | null; department: string | null; odometer_km: number; odometer_updated_at: string | null;
+  tracksHours: boolean; engineHours: number | null;
   holder: { employee_id: string; name: string; department: string | null; since: string } | null;
   period: { start: string; end: string; fromBudget: boolean };
   spend: number; budget: number | null; pct: number | null; budgetUsedUpOn: string | null; monthsRemaining: number | null;
@@ -34,11 +35,11 @@ export function getVehicleRecord(driver: Driver, m: Membership, id: string): Pro
     const own = m.vehicleScope === "own";
     const v = (await q.query<{
       id: string; registration_no: string; make: string | null; model: string | null; year: number | null; status: string; vehicle_class: string | null; fuel_type: string | null;
-      colour: string | null; vin: string | null; engine_no: string | null; base_location: string | null; department: string | null; odometer_km: string; odometer_updated_at: string | null;
+      colour: string | null; vin: string | null; engine_no: string | null; base_location: string | null; department: string | null; odometer_km: string; odometer_updated_at: string | null; tracks_hours: boolean; engine_hours: string | null;
       holder_id: string | null; holder_name: string | null; holder_dept: string | null; holder_since: string | null;
     }>(
       `select v.id, v.registration_no, v.make, v.model, v.year, v.status, v.vehicle_class, v.fuel_type, v.colour, v.vin, v.engine_no, v.base_location, v.department,
-              v.odometer_km::text, v.odometer_updated_at::text, h.id as holder_id, h.full_name as holder_name, h.department as holder_dept, c.from_date::text as holder_since
+              v.odometer_km::text, v.odometer_updated_at::text, v.tracks_hours, v.engine_hours::text, h.id as holder_id, h.full_name as holder_name, h.department as holder_dept, c.from_date::text as holder_since
          from vehicles v left join vehicle_custody c on c.vehicle_id = v.id and c.to_date is null left join employees h on h.id = c.employee_id
         where v.id = $1 and dept_ok(v.id) ${own ? "and h.user_id = $2" : ""}`, own ? [id, m.userId] : [id])).rows[0];
     if (!v) return null;
@@ -81,10 +82,10 @@ export function getVehicleRecord(driver: Driver, m: Membership, id: string): Pro
       if (last) repeatText = `${last.reason} twice in ${last.days} days`;
     }
 
-    const services = (await q.query<{ label: string; status: string; last_done_on: string | null; last_km: string | null; due_on: string | null; days_remaining: number | null; km_remaining: string | null }>(
-      `select label, pm_status as status, last_done_on::text, last_km::text, due_on::text, days_remaining::int, km_remaining::text from v_pm_status where vehicle_id = $1
+    const services = (await q.query<{ label: string; status: string; last_done_on: string | null; last_km: string | null; due_on: string | null; days_remaining: number | null; km_remaining: string | null; hours_remaining: string | null }>(
+      `select label, pm_status as status, last_done_on::text, last_km::text, due_on::text, days_remaining::int, km_remaining::text, hours_remaining::text from v_pm_status where vehicle_id = $1
         order by case pm_status when 'overdue' then 0 when 'due_soon' then 1 when 'no_history' then 2 when 'scheduled' then 3 else 4 end, coalesce(days_remaining, 99999), label`, [id])).rows
-      .map((s) => ({ ...s, last_km: s.last_km === null ? null : Number(s.last_km), km_remaining: s.km_remaining === null ? null : Number(s.km_remaining) }));
+      .map((s) => ({ ...s, last_km: s.last_km === null ? null : Number(s.last_km), km_remaining: s.km_remaining === null ? null : Number(s.km_remaining), hours_remaining: s.hours_remaining === null ? null : Number(s.hours_remaining) }));
     const rule = (await q.query<{ label: string; interval_months: number | null; interval_km: string | null }>(
       "select label, interval_months, interval_km::text from service_types where active and is_preventive order by label limit 1")).rows[0];
 
@@ -110,6 +111,7 @@ export function getVehicleRecord(driver: Driver, m: Membership, id: string): Pro
     return {
       id: v.id, registration_no: v.registration_no, make: v.make, model: v.model, year: v.year, status: v.status, vehicle_class: v.vehicle_class, fuel_type: v.fuel_type,
       colour: v.colour, vin: v.vin, engine_no: v.engine_no, base_location: v.base_location, department: v.department, odometer_km: km, odometer_updated_at: v.odometer_updated_at,
+      tracksHours: v.tracks_hours, engineHours: v.engine_hours === null ? null : Number(v.engine_hours),
       holder: v.holder_id ? { employee_id: v.holder_id, name: v.holder_name!, department: v.holder_dept, since: v.holder_since! } : null,
       period, spend, budget, pct: budget ? Math.round((spend / budget) * 1000) / 10 : null, budgetUsedUpOn: usedUp, monthsRemaining,
       jobs90, fleetAvgJobs90: fleet.vehicles ? Math.round((fleet.jobs / fleet.vehicles) * 10) / 10 : 0,

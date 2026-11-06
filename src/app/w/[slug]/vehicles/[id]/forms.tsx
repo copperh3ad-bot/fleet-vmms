@@ -1,8 +1,8 @@
 "use client";
-import { useActionState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { Input, Notice, Select, Submit } from "@/components/form";
 import type { FormState } from "../../actions-util";
-import { changeCustodyAction, endCustodyAction, setDepartmentAction, setStatusAction } from "../actions";
+import { changeCustodyAction, endCustodyAction, recordHoursAction, setDepartmentAction, setStatusAction, setTracksHoursAction } from "../actions";
 
 export function CustodyForms({ slug, vehicleId, employees, hasHolder }: {
   slug: string; vehicleId: string; employees: { id: string; full_name: string; employee_no: string | null }[]; hasHolder: boolean;
@@ -51,5 +51,28 @@ export function DepartmentForm({ slug, vehicleId, current, known }: { slug: stri
       <Submit>Save</Submit>
       <Notice state={s} />
     </form>
+  );
+}
+
+/** Switch hour tracking on for a vehicle with an hour meter, and record its reading. */
+export function HoursForm({ slug, vehicleId, tracks, hours }: { slug: string; vehicleId: string; tracks: boolean; hours: number | null }) {
+  const [s, action] = useActionState<FormState, FormData>(recordHoursAction.bind(null, slug, vehicleId), {});
+  const [t, setT] = useState<FormState>({});
+  const [pending, start] = useTransition();
+  return (
+    <div className="space-y-2 border-t border-zinc-100 pt-3">
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={tracks} disabled={pending} onChange={(e) => start(async () => setT(await setTracksHoursAction(slug, vehicleId, e.target.checked)))} />
+        This vehicle has an hour meter (loaders, forklifts, generators)
+      </label>
+      {t.error && <p role="alert" className="text-sm text-red-700">{t.error}</p>}
+      {tracks && (
+        <form action={action} className="flex flex-wrap items-end gap-2">
+          <Input name="hours" label="Hour meter reading" state={s} inputMode="decimal" hint={hours !== null ? `On file: ${hours.toLocaleString("en-US", { maximumFractionDigits: 1 })} hours.` : "No reading yet."} />
+          <Submit>Save reading</Submit>
+          <Notice state={s} />
+        </form>
+      )}
+    </div>
   );
 }

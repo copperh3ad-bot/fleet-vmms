@@ -170,12 +170,12 @@ export async function saveSettings(driver: Driver, m: Membership, values: Record
 // ============================ Service rules ============================
 
 export type ServiceRule = {
-  key: string; label: string; is_preventive: boolean; interval_months: number | null; interval_km: string | null; active: boolean; applies_to_classes: string[] | null;
+  key: string; label: string; is_preventive: boolean; interval_months: number | null; interval_km: string | null; interval_hours: string | null; active: boolean; applies_to_classes: string[] | null;
 };
 
 export function listServiceRules(driver: Driver, m: Membership): Promise<ServiceRule[]> {
   return authorizedAny(driver, m, ["service.manage", "report.view"], async (q) =>
-    (await q.query<ServiceRule>("select key, label, is_preventive, interval_months, interval_km::text, active, applies_to_classes from service_types order by active desc, label")).rows);
+    (await q.query<ServiceRule>("select key, label, is_preventive, interval_months, interval_km::text, interval_hours::text, active, applies_to_classes from service_types order by active desc, label")).rows);
 }
 
 export const serviceRuleSchema = z.object({
@@ -184,9 +184,10 @@ export const serviceRuleSchema = z.object({
   is_preventive: z.boolean(),
   interval_months: z.preprocess(blank, z.coerce.number().int("Whole months").min(1, "At least 1").max(120).optional()),
   interval_km: z.preprocess(blank, z.coerce.number().min(1, "At least 1").max(1_000_000).optional()),
+  interval_hours: z.preprocess(blank, z.coerce.number().min(1, "At least 1").max(100_000).optional()),
   active: z.boolean(),
   applies_to_classes: z.array(z.enum(VEHICLE_CLASSES)).optional(),
-}).refine((r) => r.interval_months != null || r.interval_km != null, { path: ["interval_months"], message: "Set a time interval, a distance interval, or both" });
+}).refine((r) => r.interval_months != null || r.interval_km != null || r.interval_hours != null, { path: ["interval_months"], message: "Set a time, distance or hours interval, or any of them" });
 
 const slug = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40);
 
@@ -199,16 +200,16 @@ export async function saveServiceRule(driver: Driver, m: Membership, input: Reco
     const classes = s.applies_to_classes?.length ? s.applies_to_classes : null;
     if (s.key) {
       const done = await q.query(
-        "update service_types set label = $2, is_preventive = $3, interval_months = $4, interval_km = $5, active = $6, applies_to_classes = $7 where key = $1 returning key",
-        [s.key, s.label, s.is_preventive, s.interval_months ?? null, s.interval_km ?? null, s.active, classes]);
+        "update service_types set label = $2, is_preventive = $3, interval_months = $4, interval_km = $5, active = $6, applies_to_classes = $7, interval_hours = $8 where key = $1 returning key",
+        [s.key, s.label, s.is_preventive, s.interval_months ?? null, s.interval_km ?? null, s.active, classes, s.interval_hours ?? null]);
       if (done.rows.length === 0) throw new UserError("Service rule not found.");
       return s.key;
     }
     const key = slug(s.label);
     if (!/^[a-z][a-z0-9_]{1,39}$/.test(key)) throw new UserError("Use letters in the name.", { label: "Use letters" });
     if ((await q.query("select 1 from service_types where key = $1", [key])).rows.length) throw new UserError("A rule with this name already exists.", { label: "Already exists" });
-    await q.query("insert into service_types(key, label, is_preventive, interval_months, interval_km, active, applies_to_classes) values ($1, $2, $3, $4, $5, $6, $7)",
-      [key, s.label, s.is_preventive, s.interval_months ?? null, s.interval_km ?? null, s.active, classes]);
+    await q.query("insert into service_types(key, label, is_preventive, interval_months, interval_km, active, applies_to_classes, interval_hours) values ($1, $2, $3, $4, $5, $6, $7, $8)",
+      [key, s.label, s.is_preventive, s.interval_months ?? null, s.interval_km ?? null, s.active, classes, s.interval_hours ?? null]);
     return key;
   });
 }

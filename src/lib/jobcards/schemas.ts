@@ -25,6 +25,7 @@ export const jobCardSchema = z.object({
   priority: z.enum(PRIORITIES).default("normal"),
   needed_by: z.preprocess(blank, z.iso.date().optional()),
   odometer_km: num(),
+  engine_hours: z.preprocess(blank, z.coerce.number().min(0).max(9_999_999).optional()),
   lines: z.array(lineSchema).max(50).default([]),
 });
 /** Untrusted form values; jobCardSchema is what makes them safe. */

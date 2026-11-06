@@ -113,6 +113,14 @@ export function JobCardForm({ slug, id, currency = "PKR", vehicles, reasons, ser
                 {err("odometer_km") ? <p role="alert" className="mt-1 text-xs text-red-700">{err("odometer_km")}</p>
                   : <p className={`mt-1 text-xs ${odometer !== "" && !odoOk ? "text-red-700" : "text-zinc-500"}`}>{onFile !== null ? `On file: ${money(onFile)} km${shown?.vehicle.odometer_updated_at ? ` on ${dm(shown.vehicle.odometer_updated_at)}` : ""}. Must be at least that.` : "Read the odometer on the vehicle's dashboard and type the number you see."}</p>}
               </div>
+              {shown?.vehicle.tracks_hours && (
+                <div>
+                  <label htmlFor="engine_hours" className={label}>Hour meter now (hours)</label>
+                  <input id="engine_hours" name="engine_hours" inputMode="decimal" defaultValue={v0.engine_hours ?? ""} className={`${inputCls} font-mono`} aria-invalid={!!err("engine_hours")} />
+                  {err("engine_hours") ? <p role="alert" className="mt-1 text-xs text-red-700">{err("engine_hours")}</p>
+                    : <p className="mt-1 text-xs text-zinc-500">{shown.vehicle.engine_hours !== null ? `On file: ${shown.vehicle.engine_hours.toLocaleString("en-US", { maximumFractionDigits: 1 })} hours. Must be at least that.` : "Read the hour meter. Optional, but it keeps hour-based services accurate."}</p>}
+                </div>
+              )}
               {people && (
                 <div>
                   <label htmlFor="requested_by" className={label}>Raise on behalf of</label>

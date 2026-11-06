@@ -13,7 +13,7 @@ import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { StatusBadge } from "../../job-cards/status";
 import { removeVehicleFileAction, uploadVehicleFileAction } from "../actions";
 import { VehicleFileRemove, VehicleFileUpload } from "./files";
-import { CustodyForms, DepartmentForm, StatusForm } from "./forms";
+import { CustodyForms, DepartmentForm, HoursForm, StatusForm } from "./forms";
 
 export default function VehiclePage({ params, searchParams }: PageProps<"/w/[slug]/vehicles/[id]">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} searchParams={searchParams} /></Suspense>;
@@ -150,6 +150,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
               <div id="manage" className="space-y-4 scroll-mt-6">
                 <CustodyForms slug={slug} vehicleId={v.id} employees={employees} hasHolder={!!v.holder} />
                 {canWrite && <StatusForm slug={slug} vehicleId={v.id} current={v.status} />}
+                <HoursForm slug={slug} vehicleId={v.id} tracks={v.tracksHours} hours={v.engineHours} />
                 {canWrite && <DepartmentForm slug={slug} vehicleId={v.id} current={v.department ?? ""} known={departments} />}
               </div>
             </Panel>
@@ -183,6 +184,8 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
                 ["Last service", v.lastService ? <span key="l" className="font-mono">{dayMonth(v.lastService.date)}{v.lastService.km !== null && ` · ${money(v.lastService.km)} km`}</span> : "—"],
                 ["Next service", next && nextTone ? <Pill key="n" tone={nextTone.tone}>{next.due_on ? `${dayMonth(next.due_on)}, ${nextTone.text.toLowerCase()}` : nextTone.text}</Pill> : "—"],
                 ["Odometer", <span key="o" className="font-mono">{money(v.odometer_km)} km</span>],
+                ...(v.tracksHours ? [["Engine hours", <span key="h" className="font-mono">{v.engineHours === null ? "No reading yet" : `${v.engineHours.toLocaleString("en-US", { maximumFractionDigits: 1 })} h`}</span>] as const,
+                  ["Hours to next service", <span key="hr" className="font-mono">{next?.hours_remaining == null ? "—" : next.hours_remaining < 0 ? `${money(-next.hours_remaining)} h overdue` : `${money(next.hours_remaining)} h`}</span>] as const] : []),
                 ["Last reading", v.odometer_updated_at ? <span key="r" className="font-mono">{dayMonth(v.odometer_updated_at)}{v.readings[0] ? `, ${(SOURCE[v.readings[0].source] ?? v.readings[0].source).toLowerCase()}` : ""}</span> : "—"],
                 ["Since last service", v.sinceServiceKm !== null ? <span key="s" className="font-mono">{money(v.sinceServiceKm)} km</span> : "—"],
               ].map(([k, val]) => <div key={String(k)} className="flex items-center justify-between gap-3 py-2.5"><dt className="text-zinc-500">{k}</dt><dd>{val}</dd></div>)}

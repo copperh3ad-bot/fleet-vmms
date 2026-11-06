@@ -114,6 +114,15 @@ export function JobCardWizard({ slug, currency = "PKR", vehicles, reasons, initi
               {err("odometer_km") ?? (onFile !== null ? `Last reading we have: ${money(onFile)} km${shown?.vehicle.odometer_updated_at ? ` on ${dm(shown.vehicle.odometer_updated_at)}` : ""}. Must be at least that.` : "Read the odometer on the vehicle's dashboard and type the number you see.")}
             </p>
           </div>
+          {shown?.vehicle.tracks_hours && (
+            <div>
+              <label htmlFor="m_engine_hours" className={lbl}>What does the hour meter show? (hours)</label>
+              <input id="m_engine_hours" name="engine_hours" inputMode="decimal" defaultValue={v0.engine_hours ?? ""} placeholder="e.g. 1,250" className={`${big} font-mono`} aria-invalid={!!err("engine_hours")} />
+              <p className={`mt-1 text-sm ${err("engine_hours") ? "text-red-700" : "text-zinc-500"}`}>
+                {err("engine_hours") ?? (shown.vehicle.engine_hours !== null ? `Last reading we have: ${shown.vehicle.engine_hours.toLocaleString("en-US", { maximumFractionDigits: 1 })} hours. Must be at least that.` : "Optional, but it keeps hour-based services accurate.")}
+              </p>
+            </div>
+          )}
         </section>
 
         {/* 2 */}

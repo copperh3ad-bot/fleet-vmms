@@ -20,7 +20,7 @@ export async function saveSettingsAction(slug: string, group: string, _prev: For
 export async function saveServiceRuleAction(slug: string, _prev: FormState, form: FormData): Promise<FormState> {
   const state = await runAction(slug, async (m) => {
     await saveServiceRule(getDriver(), m, {
-      key: str(form, "key"), label: str(form, "label"), interval_months: str(form, "interval_months"), interval_km: str(form, "interval_km"),
+      key: str(form, "key"), label: str(form, "label"), interval_months: str(form, "interval_months"), interval_km: str(form, "interval_km"), interval_hours: str(form, "interval_hours"),
       is_preventive: form.get("is_preventive") === "on", active: form.get("active") === "on", applies_to_classes: form.getAll("applies_to_classes").map(String),
     });
     return str(form, "key") ? "Rule saved." : "Rule added.";

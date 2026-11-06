@@ -25,7 +25,7 @@ export function SettingsForm({ slug, group, items }: { slug: string; group: stri
   );
 }
 
-type Rule = { key: string; label: string; is_preventive: boolean; interval_months: number | null; interval_km: string | null; active: boolean; applies_to_classes: string[] | null };
+type Rule = { key: string; label: string; is_preventive: boolean; interval_months: number | null; interval_km: string | null; interval_hours: string | null; active: boolean; applies_to_classes: string[] | null };
 
 export function ServiceRuleForm({ slug, rule }: { slug: string; rule?: Rule }) {
   const [state, action] = useActionState<FormState, FormData>(saveServiceRuleAction.bind(null, slug), {});
@@ -34,7 +34,7 @@ export function ServiceRuleForm({ slug, rule }: { slug: string; rule?: Rule }) {
   return (
     <form action={action} className="space-y-3" noValidate>
       <input type="hidden" name="key" value={rule?.key ?? ""} />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
         <Field label="Name" name="label" state={state} required>
           <input id="label" name="label" defaultValue={v?.label ?? rule?.label ?? ""} className={inputCls} aria-invalid={!!state.fields?.label} />
         </Field>
@@ -43,6 +43,9 @@ export function ServiceRuleForm({ slug, rule }: { slug: string; rule?: Rule }) {
         </Field>
         <Field label="Every (km)" name="interval_km" state={state} hint="Leave empty for no distance rule.">
           <input id="interval_km" name="interval_km" defaultValue={v?.interval_km ?? (rule?.interval_km ? String(Number(rule.interval_km)) : "")} inputMode="decimal" className={inputCls} aria-invalid={!!state.fields?.interval_km} />
+        </Field>
+        <Field label="Every (engine hours)" name="interval_hours" state={state} hint="For vehicles with an hour meter. Empty for no hours rule.">
+          <input id="interval_hours" name="interval_hours" defaultValue={v?.interval_hours ?? (rule?.interval_hours ? String(Number(rule.interval_hours)) : "")} inputMode="decimal" className={inputCls} aria-invalid={!!state.fields?.interval_hours} />
         </Field>
       </div>
       <fieldset>
