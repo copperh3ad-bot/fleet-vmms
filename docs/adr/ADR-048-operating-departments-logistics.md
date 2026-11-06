@@ -64,6 +64,11 @@ Tenant data only through `src/lib/db/tenant.ts`; `can()` first in every action; 
 - Hour meters read from a tracker.
 - Moving a vehicle between departments with its history; the field is simply changed, and the audit trail shows who and when.
 
+## Pool cars (owner, 2026-11-06)
+**Pool cars are Logistics vehicles, and only those.** A vehicle assigned to a person outside the logistics department is not a pool car. Built into 48a, replacing the plain `is_pool` switch of ADR-045 5a:
+- A vehicle can be marked a pool car only when its `department` is Logistics (the department of the `logistics` role) and it is not held by an employee of another department. The switch is refused otherwise, with the reason.
+- Giving a pool car to an employee whose department is not Logistics (custody, ADR-044 and the vehicle page), or moving it to another department, is refused while it is in the pool; take it out of the pool first. A pool car held by a logistics employee stays a pool car.
+- Both rules are in the database (a trigger on `vehicles` and on `vehicle_custody`), not only on the screens. Pick and drop runs keep their rule: only a pool car can be assigned.
+
 ## Open points for the owner
 1. **Logistics and money.** As decided, logistics approves its own job cards with no spending limit. If the company wants a limit (above which a fleet manager must approve), say so; it would be one setting, not a new design.
-2. **Pool cars and department.** Pool cars are assumed to be Logistics vehicles. If one belongs to another department but is shared, say so.
