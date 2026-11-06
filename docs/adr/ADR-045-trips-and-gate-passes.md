@@ -12,7 +12,8 @@ Owner said "start with ADR-045", so the assumed answers to decisions 1 to 4 stan
   2. `trips.kind` is `trip` (default) or `pick_drop`; `trips.stops` holds further pick-up or drop-off points, in order, as text. A pick and drop run still has a first pick-up (`from_place`), a last drop-off (`to_place`), start and end times and a passenger count.
   3. **A pick and drop run can only be given a pool car**, checked in `trip_transition` and when a preferred vehicle is named. An ordinary trip may use a pool car.
   4. New role **`logistics`** and permission **`trip.dispatch`**: dispatch means approve and assign a vehicle and driver for pick and drop runs only (also given to `fleet_manager` and `tenant_admin`). Logistics may also ask for trips (`trip.request`) but cannot approve ordinary trips; it sees every pick and drop run and, of ordinary trips, only its own. Approvers are notified of pick and drop requests together with the dispatchers.
-  5. **Not built, and the next step if logistics wants it:** a fixed route that repeats every working day with a passenger list (recurring runs), a day sheet of runs per car, and passengers named per run. Today each run is one request.
+  5. **Widened by ADR-048:** logistics also dispatches trips on its own vehicles (trucks, loaders), not only pick and drop runs, and sees only its department's vehicles. Until ADR-048 is built, `trip.dispatch` covers pick and drop runs only.
+  6. **Not built, and the next step if logistics wants it:** a fixed route that repeats every working day with a passenger list (recurring runs), a day sheet of runs per car, and passengers named per run. Today each run is one request.
 - Notifications are open to people holding `trip.request`, `trip.approve` or `trip.dispatch`, so a logistics login (which has no job card permission) gets its notices.
 
 ## Why
