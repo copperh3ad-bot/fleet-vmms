@@ -70,5 +70,12 @@ Tenant data only through `src/lib/db/tenant.ts`; `can()` first in every action; 
 - Giving a pool car to an employee whose department is not Logistics (custody, ADR-044 and the vehicle page), or moving it to another department, is refused while it is in the pool; take it out of the pool first. A pool car held by a logistics employee stays a pool car.
 - Both rules are in the database (a trigger on `vehicles` and on `vehicle_custody`), not only on the screens. Pick and drop runs keep their rule: only a pool car can be assigned.
 
+## Spending limit on logistics approvals (owner: yes, 2026-11-06)
+- One setting, **`dept_approval_limit`**, in the company's currency, entered by the owner in Settings (never built into the code or the repository). It applies to department users only.
+- **Above the limit a department user cannot approve**: not a job card whose estimate is over it, not a quotation whose total is over it. They can still raise, read and chase it; a **fleet manager or administrator** approves it, and the job card page says so ("over the logistics limit, waiting for a fleet manager"). Fleet managers are told, as they are for any submitted job card. At or under the limit, logistics approves as in section 3.
+- Enforced where approval happens, in the database (the job card approval guard and the quotation approval function read `app.role`, the role's department and the setting), so a direct request cannot get past the page.
+- **Until a figure is entered, no limit applies** (logistics approves anything on its own vehicles) and Settings shows "No limit set" beside the field with a short warning. Entering 0 means logistics approves nothing itself. The setting changes are in the audit trail like the others.
+- **To confirm with the owner:** the figure, and whether the quotation total or the job card estimate decides when the two differ (assumed: each is checked at its own step against its own amount).
+
 ## Open points for the owner
-1. **Logistics and money.** As decided, logistics approves its own job cards with no spending limit. If the company wants a limit (above which a fleet manager must approve), say so; it would be one setting, not a new design.
+1. **The limit figure.** Enter it in Settings once built, or tell me and I will set it.
