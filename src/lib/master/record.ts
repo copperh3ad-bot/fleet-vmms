@@ -12,7 +12,7 @@ export type RecordReading = { read_at: string; reading_km: number; source: strin
 
 export type VehicleRecord = {
   id: string; registration_no: string; make: string | null; model: string | null; year: number | null; status: string; vehicle_class: string | null; fuel_type: string | null;
-  colour: string | null; vin: string | null; engine_no: string | null; base_location: string | null; odometer_km: number; odometer_updated_at: string | null;
+  colour: string | null; vin: string | null; engine_no: string | null; base_location: string | null; department: string | null; odometer_km: number; odometer_updated_at: string | null;
   holder: { employee_id: string; name: string; department: string | null; since: string } | null;
   period: { start: string; end: string; fromBudget: boolean };
   spend: number; budget: number | null; pct: number | null; budgetUsedUpOn: string | null; monthsRemaining: number | null;
@@ -34,13 +34,13 @@ export function getVehicleRecord(driver: Driver, m: Membership, id: string): Pro
     const own = m.vehicleScope === "own";
     const v = (await q.query<{
       id: string; registration_no: string; make: string | null; model: string | null; year: number | null; status: string; vehicle_class: string | null; fuel_type: string | null;
-      colour: string | null; vin: string | null; engine_no: string | null; base_location: string | null; odometer_km: string; odometer_updated_at: string | null;
+      colour: string | null; vin: string | null; engine_no: string | null; base_location: string | null; department: string | null; odometer_km: string; odometer_updated_at: string | null;
       holder_id: string | null; holder_name: string | null; holder_dept: string | null; holder_since: string | null;
     }>(
-      `select v.id, v.registration_no, v.make, v.model, v.year, v.status, v.vehicle_class, v.fuel_type, v.colour, v.vin, v.engine_no, v.base_location,
+      `select v.id, v.registration_no, v.make, v.model, v.year, v.status, v.vehicle_class, v.fuel_type, v.colour, v.vin, v.engine_no, v.base_location, v.department,
               v.odometer_km::text, v.odometer_updated_at::text, h.id as holder_id, h.full_name as holder_name, h.department as holder_dept, c.from_date::text as holder_since
          from vehicles v left join vehicle_custody c on c.vehicle_id = v.id and c.to_date is null left join employees h on h.id = c.employee_id
-        where v.id = $1 ${own ? "and h.user_id = $2" : ""}`, own ? [id, m.userId] : [id])).rows[0];
+        where v.id = $1 and dept_ok(v.id) ${own ? "and h.user_id = $2" : ""}`, own ? [id, m.userId] : [id])).rows[0];
     if (!v) return null;
 
     const bud = (await q.query<{ period_start: string; period_end: string; budget: string }>(
@@ -109,7 +109,7 @@ export function getVehicleRecord(driver: Driver, m: Membership, id: string): Pro
 
     return {
       id: v.id, registration_no: v.registration_no, make: v.make, model: v.model, year: v.year, status: v.status, vehicle_class: v.vehicle_class, fuel_type: v.fuel_type,
-      colour: v.colour, vin: v.vin, engine_no: v.engine_no, base_location: v.base_location, odometer_km: km, odometer_updated_at: v.odometer_updated_at,
+      colour: v.colour, vin: v.vin, engine_no: v.engine_no, base_location: v.base_location, department: v.department, odometer_km: km, odometer_updated_at: v.odometer_updated_at,
       holder: v.holder_id ? { employee_id: v.holder_id, name: v.holder_name!, department: v.holder_dept, since: v.holder_since! } : null,
       period, spend, budget, pct: budget ? Math.round((spend / budget) * 1000) / 10 : null, budgetUsedUpOn: usedUp, monthsRemaining,
       jobs90, fleetAvgJobs90: fleet.vehicles ? Math.round((fleet.jobs / fleet.vehicles) * 10) / 10 : 0,

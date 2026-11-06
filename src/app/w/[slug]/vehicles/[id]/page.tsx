@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
-import { listEmployeeOptions } from "@/lib/master/service";
+import { listDepartments, listEmployeeOptions } from "@/lib/master/service";
 import { getVehicleRecord, type RecordService } from "@/lib/master/record";
 import { Kpi, Panel, Pill, Plate, btn, btnPrimary, money, type Tone } from "@/components/ui";
 import { DOC_LABEL } from "@/lib/compliance/schemas";
@@ -13,7 +13,7 @@ import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { StatusBadge } from "../../job-cards/status";
 import { removeVehicleFileAction, uploadVehicleFileAction } from "../actions";
 import { VehicleFileRemove, VehicleFileUpload } from "./files";
-import { CustodyForms, StatusForm } from "./forms";
+import { CustodyForms, DepartmentForm, StatusForm } from "./forms";
 
 export default function VehiclePage({ params, searchParams }: PageProps<"/w/[slug]/vehicles/[id]">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} searchParams={searchParams} /></Suspense>;
@@ -45,7 +45,9 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
   const canFiles = perms.has("vehicle.write");
   const tab = TABS.some(([k]) => k === sp.tab) ? String(sp.tab) : "history";
   const canWrite = perms.has("vehicle.write");
-  const employees = canWrite ? await listEmployeeOptions(driver, m) : [];
+  const canManage = canWrite || perms.has("trip.dispatch");   // logistics assigns the drivers of its own vehicles
+  const employees = canManage ? await listEmployeeOptions(driver, m) : [];
+  const departments = canWrite ? await listDepartments(driver, m) : [];
   const to = (p: string) => `/w/${slug}/${p}`;
   const next = v.nextService;
   const nextTone = next ? dueTone(next) : null;
@@ -59,7 +61,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
         <a href={to("vehicles")} aria-label="Back to all vehicles"><Plate large>{v.registration_no}</Plate></a>
         <div className="min-w-0 flex-1">
           <h1 className="text-[22px] font-semibold leading-tight">{[v.make, v.model, v.year].filter(Boolean).join(" ") || v.registration_no}</h1>
-          <p className="text-sm text-zinc-500 capitalize">{v.status.replace("_", " ")}{v.holder && <> · driver <span className="font-medium text-zinc-900 normal-case">{v.holder.name}</span>{v.holder.department && <span className="normal-case">, {v.holder.department}</span>}<span className="normal-case">, since {long(v.holder.since)}</span></>}</p>
+          <p className="text-sm text-zinc-500 capitalize">{v.status.replace("_", " ")}{v.department && <span className="normal-case"> · {v.department} department</span>}{v.holder && <> · driver <span className="font-medium text-zinc-900 normal-case">{v.holder.name}</span>{v.holder.department && <span className="normal-case">, {v.holder.department}</span>}<span className="normal-case">, since {long(v.holder.since)}</span></>}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {canWrite && <a href="#manage" className={btn}>Transfer to another driver</a>}
@@ -143,11 +145,12 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
             )}
           </Panel>
 
-          {canWrite && (
+          {canManage && (
             <Panel title="Manage this vehicle" sub="Past holders stay on the record, and costs go to whoever held the vehicle when the job card was raised.">
               <div id="manage" className="space-y-4 scroll-mt-6">
                 <CustodyForms slug={slug} vehicleId={v.id} employees={employees} hasHolder={!!v.holder} />
-                <StatusForm slug={slug} vehicleId={v.id} current={v.status} />
+                {canWrite && <StatusForm slug={slug} vehicleId={v.id} current={v.status} />}
+                {canWrite && <DepartmentForm slug={slug} vehicleId={v.id} current={v.department ?? ""} known={departments} />}
               </div>
             </Panel>
           )}

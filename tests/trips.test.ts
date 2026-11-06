@@ -222,20 +222,21 @@ describe("roles", () => {
     const perms = async (role: string) => (await raw((q) => q.query<{ permission_key: string }>("select permission_key from role_permissions where role_key = $1 order by 1", [role]))).rows.map((r) => r.permission_key);
     expect(await perms("security")).toEqual(["gate.use", "vehicle.read"]);
     expect((await perms("fleet_manager")).filter((p) => p.startsWith("trip.")).sort()).toEqual(["trip.approve", "trip.dispatch", "trip.read_all", "trip.request"]);
-    expect((await perms("logistics")).sort()).toEqual(["trip.dispatch", "trip.request", "vehicle.read"]);
+    expect(await perms("logistics")).toEqual(expect.arrayContaining(["trip.dispatch", "trip.request", "vehicle.read"]));
     expect((await perms("requester")).filter((p) => p.startsWith("trip."))).toEqual(["trip.request"]);
     expect((await perms("auditor")).filter((p) => p.startsWith("trip."))).toEqual(["trip.read_all"]);
   });
 });
 
 describe("staff pick and drop by pool cars (logistics)", () => {
+  beforeAll(async () => { await raw((q) => q.query("update vehicles set department = 'Logistics' where id = $1", [car])); });   // pool cars are Logistics vehicles (ADR-048)
   it("a pool car is chosen by logistics or someone who manages vehicles, and only they may change it", async () => {
     await expect(trips.setPoolCar(d, req(), van, true)).rejects.toBeInstanceOf(ForbiddenError);
     await expect(trips.listPoolCandidates(d, guard())).rejects.toBeInstanceOf(ForbiddenError);
     await trips.setPoolCar(d, logi(), car, true);
     const list = await trips.listPoolCandidates(d, logi());
     expect(list.find((c) => c.id === car)?.is_pool).toBe(true);
-    expect(list.find((c) => c.id === van)?.is_pool).toBe(false);
+    expect(list.find((c) => c.id === van)?.is_pool).toBeUndefined();
     expect((await trips.setPoolCar(d, logi(), "00000000-0000-0000-0000-0000000000ff", true).catch((e) => e)).message).toMatch(/not found/);
   });
 

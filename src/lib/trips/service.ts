@@ -33,6 +33,7 @@ const KNOWN = [
   /trip not found/, /illegal trip transition [a-z]+ -> [a-z]+/, /segregation of duties: [^"]*/, /choose a vehicle for this trip/, /choose a driver for this trip/,
   /vehicle not found/, /that vehicle is not available[^"]*/, /pick and drop runs use a pool car/, /the driver must be an active employee/, /a reason of at least 5 characters is required/,
   /enter the odometer reading [a-z ]+/, /the return reading is below the departure reading/,
+  /this vehicle belongs to another department/, /pool cars belong to the [A-Za-z ]+ department/, /this car is held by someone outside[^"]*/,
   /that vehicle is already booked for part of this time/, /that driver is already on another trip for part of this time/,
 ];
 function friendly(e: unknown): never {
@@ -53,11 +54,14 @@ export function tripsEnabled(driver: Driver, m: Membership): Promise<boolean> {
 
 export type TripRow = {
   id: string; trip_no: string; kind: string; status: string; purpose: string; from_place: string; to_place: string; start_at: string; end_at: string;
-  requester_name: string; registration_no: string | null; driver_name: string | null; distance_km: string | null; mine: boolean;
+  requester_name: string; registration_no: string | null; driver_name: string | null; distance_km: string | null; mine: boolean; dispatchable: boolean;
 };
+/** True for a pick and drop run, and for a trip on (or asking for) a vehicle of the acting department. Only a department user can be true on the second half. */
+const DISPATCHABLE = `(t.kind = 'pick_drop' or (acting_department() is not null and exists (select 1 from vehicles pv where pv.id = coalesce(t.vehicle_id, t.preferred_vehicle_id) and dept_ok(pv.id))))`;
+
 const ROW_SQL = `select t.id, t.trip_no, t.kind, t.status, t.purpose, t.from_place, t.to_place, t.start_at::text, t.end_at::text,
        re.full_name as requester_name, v.registration_no, d.full_name as driver_name,
-       (t.odometer_in - t.odometer_out)::text as distance_km, (re.user_id = $1 or d.user_id = $1) as mine
+       (t.odometer_in - t.odometer_out)::text as distance_km, (re.user_id = $1 or d.user_id = $1) as mine, ${DISPATCHABLE} as dispatchable
   from trips t join employees re on re.id = t.requested_by left join vehicles v on v.id = t.vehicle_id left join employees d on d.id = t.driver_id`;
 
 /** trip.read_all sees every trip; anyone else sees the trips they asked for or drive. A person limited to their own vehicles sees only trips on them. */
@@ -65,9 +69,9 @@ export function listTrips(driver: Driver, m: Membership, opts: { status?: string
   return authorizedAny(driver, m, ["trip.request", "trip.approve", "trip.dispatch", "trip.read_all"], async (q, held) => {
     await requireOn(q);
     const params: unknown[] = [m.userId];
-    const where: string[] = [];
-    // Logistics sees every pick and drop run plus its own trips; the others see their own unless they may read or approve all.
-    if (!held.has("trip.read_all") && !held.has("trip.approve")) where.push(held.has("trip.dispatch") ? "(re.user_id = $1 or d.user_id = $1 or t.kind = 'pick_drop')" : "(re.user_id = $1 or d.user_id = $1)");
+    const where: string[] = ["(t.vehicle_id is null or dept_ok(t.vehicle_id))"];
+    // Logistics sees every pick and drop run and every trip on its own vehicles, plus its own trips; the others see their own unless they may read or approve all.
+    if (!held.has("trip.read_all") && !held.has("trip.approve")) where.push(held.has("trip.dispatch") ? `(re.user_id = $1 or d.user_id = $1 or ${DISPATCHABLE})` : "(re.user_id = $1 or d.user_id = $1)");
     if (m.vehicleScope === "own") where.push("(re.user_id = $1 or d.user_id = $1)");
     if (opts.status) { params.push(opts.status); where.push(`t.status = $${params.length}`); }
     return (await q.query<TripRow>(`${ROW_SQL} ${where.length ? "where " + where.join(" and ") : ""} order by t.start_at desc limit 300`, params)).rows;
@@ -87,12 +91,12 @@ export function getTrip(driver: Driver, m: Membership, id: string): Promise<Trip
       `select t.id, t.trip_no, t.kind, t.stops, t.status, t.purpose, t.from_place, t.to_place, t.start_at::text, t.end_at::text, t.passengers, t.vehicle_id, t.driver_id,
               t.decision_note, t.odometer_out::text, t.odometer_in::text, re.full_name as requester_name, v.registration_no, d.full_name as driver_name,
               pv.registration_no as preferred_vehicle, (t.odometer_in - t.odometer_out)::text as distance_km, (re.user_id = $2 or d.user_id = $2) as mine,
-              (re.user_id = $2) as requested_by_me,
+              (re.user_id = $2) as requested_by_me, ${DISPATCHABLE.replace(/\$1/g, "$2")} as dispatchable,
               coalesce((select l.expires_on < t.end_at::date from driver_licences l where l.employee_id = t.driver_id), false) as driver_licence_expired
          from trips t join employees re on re.id = t.requested_by left join vehicles v on v.id = t.vehicle_id left join employees d on d.id = t.driver_id
-         left join vehicles pv on pv.id = t.preferred_vehicle_id where t.id = $1`, [id, m.userId])).rows[0];
+         left join vehicles pv on pv.id = t.preferred_vehicle_id where t.id = $1 and (t.vehicle_id is null or dept_ok(t.vehicle_id))`, [id, m.userId])).rows[0];
     if (!t) return null;
-    if (!held.has("trip.read_all") && !held.has("trip.approve") && !t.mine && !(held.has("trip.dispatch") && t.kind === "pick_drop")) return null;
+    if (!held.has("trip.read_all") && !held.has("trip.approve") && !t.mine && !(held.has("trip.dispatch") && t.dispatchable)) return null;
     const events = (await q.query<TripEvent>(
       `select e.from_status, e.to_status, e.note, e.created_at::text, coalesce(emp.full_name, null) as actor_name
          from trip_events e left join employees emp on emp.user_id = e.actor_id where e.trip_id = $1 order by e.created_at, e.id`, [id])).rows;
@@ -104,7 +108,7 @@ export function getTrip(driver: Driver, m: Membership, id: string): Promise<Trip
 export function assignables(driver: Driver, m: Membership, opts: { poolOnly?: boolean } = {}) {
   return authorizedAny(driver, m, ["trip.request", "trip.approve", "trip.dispatch"], async (q) => ({
     vehicles: (await q.query<{ id: string; registration_no: string; label: string }>(
-      `select id, registration_no, concat_ws(' ', make, model) as label from vehicles where status = 'active' ${opts.poolOnly ? "and is_pool" : ""} order by registration_no`)).rows,
+      `select id, registration_no, concat_ws(' ', make, model) as label from vehicles where status = 'active' and dept_ok(id) ${opts.poolOnly ? "and is_pool" : ""} order by registration_no`)).rows,
     drivers: (await q.query<{ id: string; full_name: string }>("select id, full_name from employees where active order by full_name")).rows,
   }));
 }
@@ -147,14 +151,14 @@ export async function transitionTrip(driver: Driver, m: Membership, id: string, 
   if (odo !== null && (!Number.isFinite(odo) || odo < 0)) throw new UserError("Enter the odometer as a number.", { odometer: "Enter a number" });
   return authorizedAny(driver, m, ["trip.approve", "trip.dispatch", "trip.request"], async (q, held) => {
     await requireOn(q);
-    const t = (await q.query<{ kind: string; trip_no: string; status: string; requester_user: string | null; driver_user: string | null; purpose: string }>(
-      `select t.kind, t.trip_no, t.status, t.purpose, re.user_id as requester_user, d.user_id as driver_user
+    const t = (await q.query<{ kind: string; dispatchable: boolean; trip_no: string; status: string; requester_user: string | null; driver_user: string | null; purpose: string }>(
+      `select t.kind, ${DISPATCHABLE} as dispatchable, t.trip_no, t.status, t.purpose, re.user_id as requester_user, d.user_id as driver_user
          from trips t join employees re on re.id = t.requested_by left join employees d on d.id = t.driver_id where t.id = $1`, [id])).rows[0];
     if (!t) throw new UserError("Trip not found.");
     // approvers act on any trip; a requester may cancel only their own request. The driver of an approved trip may also record start and return.
     const isMine = t.requester_user === m.userId;
     const driverMe = t.driver_user === m.userId;
-    const allowed = held.has("trip.approve") || (t.kind === "pick_drop" && held.has("trip.dispatch")) || (to === "cancelled" && isMine && held.has("trip.request")) || ((to === "started" || to === "completed") && driverMe);
+    const allowed = held.has("trip.approve") || (t.dispatchable && held.has("trip.dispatch")) || (to === "cancelled" && isMine && held.has("trip.request")) || ((to === "started" || to === "completed") && driverMe);
     if (!allowed) throw new ForbiddenError(permission);
     try {
       await q.query("select trip_transition($1, $2, $3, $4, $5, $6, $7)", [id, to, m.userId, opts.note ?? null, opts.vehicleId || null, opts.driverId || null, odo]);
@@ -164,7 +168,7 @@ export async function transitionTrip(driver: Driver, m: Membership, id: string, 
       const drv = (await q.query<{ user_id: string | null }>("select d.user_id from trips t join employees d on d.id = t.driver_id where t.id = $1", [id])).rows[0];
       await notify(q, [t.requester_user, drv?.user_id], "trip.approved", payload, m.userId);
     } else if (to === "rejected") await notify(q, [t.requester_user], "trip.rejected", payload, m.userId);
-    else if (to === "cancelled") await notify(q, [t.requester_user, t.driver_user, ...(await usersWithPermission(q, m.tenantId, t.kind === "pick_drop" ? "trip.dispatch" : "trip.approve"))], "trip.cancelled", payload, m.userId);
+    else if (to === "cancelled") await notify(q, [t.requester_user, t.driver_user, ...(await usersWithPermission(q, m.tenantId, t.dispatchable ? "trip.dispatch" : "trip.approve"))], "trip.cancelled", payload, m.userId);
   });
 }
 
@@ -175,7 +179,7 @@ export type PoolCar = { id: string; registration_no: string; label: string; stat
 export function listPoolCandidates(driver: Driver, m: Membership): Promise<PoolCar[]> {
   return authorizedAny(driver, m, ["trip.dispatch", "vehicle.write"], async (q) => {
     await requireOn(q);
-    return (await q.query<PoolCar>("select id, registration_no, concat_ws(' ', make, model) as label, status, is_pool from vehicles where status <> 'disposed' order by is_pool desc, registration_no")).rows;
+    return (await q.query<PoolCar>("select id, registration_no, concat_ws(' ', make, model) as label, status, is_pool from vehicles where status <> 'disposed' and dept_ok(id) order by is_pool desc, registration_no")).rows;
   });
 }
 
@@ -185,7 +189,9 @@ export function setPoolCar(driver: Driver, m: Membership, vehicleId: string, poo
     await requireOn(q);
     if (!pool && (await q.query("select 1 from trips where vehicle_id = $1 and kind = 'pick_drop' and status in ('approved','started')", [vehicleId])).rows.length)
       throw new UserError("This car has pick and drop runs booked. Cancel or finish them first.");
-    const r = await q.query("update vehicles set is_pool = $2 where id = $1 and status <> 'disposed' returning id", [vehicleId, pool]);
-    if (r.rows.length === 0) throw new UserError("Vehicle not found.");
+    try {
+      const r = await q.query("update vehicles set is_pool = $2 where id = $1 and status <> 'disposed' and dept_ok(id) returning id", [vehicleId, pool]);
+      if (r.rows.length === 0) throw new UserError("Vehicle not found.");
+    } catch (e) { friendly(e); }
   });
 }

@@ -21,7 +21,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const [t, perms] = await Promise.all([getTrip(driver, m, id), permissionsOf(driver, m)]);
   if (!t) notFound();
-  const approver = perms.has("trip.approve") || (t.kind === "pick_drop" && perms.has("trip.dispatch"));
+  const approver = perms.has("trip.approve") || (t.dispatchable && perms.has("trip.dispatch"));
   const canCancel = approver || (t.requested_by_me && perms.has("trip.request"));
   const lists = approver && t.status === "requested" ? await assignables(driver, m, { poolOnly: t.kind === "pick_drop" }) : null;
   const step = { slug, id };

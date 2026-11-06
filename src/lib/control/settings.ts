@@ -2,7 +2,7 @@
 // this table says who may change which one and how to describe it.
 export type SettingGroup = "service" | "alerts" | "general" | "policy";
 
-export type SettingDef = { key: string; label: string; hint: string; group: SettingGroup; permission: string; kind: "number" | "list"; unit?: string; min?: number; max?: number };
+export type SettingDef = { key: string; label: string; hint: string; group: SettingGroup; permission: string; kind: "number" | "list"; unit?: string; min?: number; max?: number; /** may be left empty, which means "not set" */ optional?: boolean };
 
 export const SETTINGS: SettingDef[] = [
   { key: "pm_warning_days", label: "Service due warning (days)", hint: "Show a service as due soon this many days before its date.", group: "service", permission: "service.manage", kind: "number", unit: "days", min: 0, max: 365 },
@@ -18,6 +18,7 @@ export const SETTINGS: SettingDef[] = [
   { key: "odometer_stale_days", label: "Odometer is old after", hint: "Distance-based service dates are marked unreliable when the last reading is older than this.", group: "general", permission: "admin.settings", kind: "number", unit: "days", min: 1, max: 365 },
   { key: "module_trips", label: "Trips and vehicle requests", hint: "1 switches on trip requests, approval and the Trips menu. 0 switches them off; nothing is deleted.", group: "general", permission: "admin.settings", kind: "number", min: 0, max: 1 },
   { key: "module_trips", label: "Trips and vehicle requests", hint: "1 switches on trip requests, approval and the Trips menu. 0 switches them off; nothing is deleted.", group: "general", permission: "admin.settings", kind: "number", min: 0, max: 1 },
+  { key: "dept_approval_limit", label: "Most a department may approve itself", hint: "The most a job card estimate or a quotation can be for the logistics department to approve it on its own vehicles. Above it a fleet manager must approve. Leave empty for no limit; 0 means logistics approves nothing itself. In your company currency.", group: "general", permission: "admin.settings", kind: "number", unit: "amount", min: 0, max: 1000000000, optional: true },
   { key: "policy_replace_years", label: "Replace a vehicle after", hint: "Flag a vehicle as due for replacement when its model year is this many years back or more. 0 switches the rule off.", group: "policy", permission: "policy.manage", kind: "number", unit: "years", min: 0, max: 40 },
   { key: "policy_free_accidents", label: "Accidents the company absorbs per driver", hint: "A driver's first accidents up to this number are covered by the company. After that the driver bears the depreciation. 0 switches the rule off.", group: "policy", permission: "policy.manage", kind: "number", unit: "accidents", min: 0, max: 20 },
   { key: "policy_accident_gap_months", label: "Months between covered accidents", hint: "An accident is covered only if at least this many months passed since the driver's previous accident.", group: "policy", permission: "policy.manage", kind: "number", unit: "months", min: 0, max: 120 },
@@ -29,6 +30,7 @@ export const SETTING_PERMISSIONS = [...new Set(SETTINGS.map((s) => s.permission)
 /** Checks a typed value against its definition and returns the cleaned text, or a message to show. */
 export function checkSetting(def: SettingDef, raw: string): { ok: true; value: string } | { ok: false; message: string } {
   const v = raw.trim().replace(/\s+/g, "");
+  if (def.optional && v === "") return { ok: true, value: "" };
   if (def.kind === "list") {
     if (!/^\d+(,\d+)*$/.test(v)) return { ok: false, message: "Use numbers separated by commas, like 60,30,14" };
     const nums = [...new Set(v.split(",").map(Number))];

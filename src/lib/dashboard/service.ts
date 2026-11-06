@@ -33,15 +33,15 @@ export function getDashboard(driver: Driver, m: Membership): Promise<Dashboard> 
     const cards = async (key: string, label: string, where: string, hrefStatus: string, params: unknown[] = []) => {
       const rows = (await q.query<{ id: string; job_no: string; registration_no: string; priority: string }>(
         `select jc.id, jc.job_no, v.registration_no, jc.priority from job_cards jc join vehicles v on v.id = jc.vehicle_id
-          where ${where} order by case jc.priority when 'urgent' then 0 when 'high' then 1 when 'normal' then 2 else 3 end, jc.created_at limit 5`, params)).rows;
-      const count = (await q.query<{ c: number }>(`select count(*)::int c from job_cards jc where ${where}`, params)).rows[0].c;
+          where (${where}) and dept_ok(jc.vehicle_id) order by case jc.priority when 'urgent' then 0 when 'high' then 1 when 'normal' then 2 else 3 end, jc.created_at limit 5`, params)).rows;
+      const count = (await q.query<{ c: number }>(`select count(*)::int c from job_cards jc where (${where}) and dept_ok(jc.vehicle_id)`, params)).rows[0].c;
       if (count > 0) actions.push({ key, label, count, href: `job-cards?status=${hrefStatus}`, samples: rows.map((r) => ({ text: `${r.job_no} · ${r.registration_no}${r.priority === "urgent" || r.priority === "high" ? ` · ${r.priority}` : ""}`, href: `job-cards/${r.id}` })) });
     };
     // a card the member raised cannot be decided by them, so it is not "waiting for you"
     // (the administrator may approve a card they raised themselves, so for them every submitted card is waiting)
     const notMine = m.role === "tenant_admin" ? "true and $1::text is not null" : "jc.requested_by is distinct from actor_employee($1)";
 
-    if (held.has("jobcard.approve")) await cards("approve", "Job cards waiting for your approval", `jc.status = 'submitted' and ${notMine}`, "submitted", [m.userId]);
+    if (held.has("jobcard.approve")) await cards("approve", "Job cards waiting for your approval", `jc.status = 'submitted' and ${notMine} and not dept_over_limit(jc.estimated_cost)`, "submitted", [m.userId]);
     if (held.has("quotation.approve")) await cards("quotes", "Quotations to decide", `jc.status = 'quotation_received' and ${notMine}`, "quotation_received", [m.userId]);
     if (held.has("jobcard.assign_vendor")) await cards("assign", "Approved, no workshop chosen yet", `jc.status = 'approved' and jc.vendor_id is null`, "approved");
     if (held.has("invoice.verify")) {
@@ -104,7 +104,7 @@ export function getDashboard(driver: Driver, m: Membership): Promise<Dashboard> 
                 (select count(*)::int from v_documents_status d where d.vehicle_id = v.id and d.doc_status = 'expired') as docs_expired,
                 (select count(*)::int from v_documents_status d where d.vehicle_id = v.id and d.doc_status = 'due_30') as docs_due
            from vehicles v join vehicle_custody c on c.vehicle_id = v.id and c.to_date is null join employees e on e.id = c.employee_id
-          where e.user_id = $1 and v.status in ('active','in_workshop') order by v.registration_no limit 10`, [m.userId])).rows;
+          where e.user_id = $1 and dept_ok(v.id) and v.status in ('active','in_workshop') order by v.registration_no limit 10`, [m.userId])).rows;
     }
     // Someone limited to their own vehicle also sees what it has cost them. Nobody else's figures reach this query: it filters on the
     // signed-in person's own employee record, not on anything the page sends.
@@ -141,7 +141,7 @@ export async function getNavCounts(driver: Driver, m: Membership): Promise<{ app
   try {
     return await authorizedAny(driver, m, ["jobcard.approve", "odometer.review", "admin.users"], async (q, held) => {
       const approvals = held.has("jobcard.approve")
-        ? (await q.query<{ c: number }>("select count(*)::int c from job_cards jc where jc.status = 'submitted' and jc.requested_by is distinct from actor_employee($1)", [m.userId])).rows[0].c : 0
+        ? (await q.query<{ c: number }>("select count(*)::int c from job_cards jc where jc.status = 'submitted' and jc.requested_by is distinct from actor_employee($1) and dept_ok(jc.vehicle_id) and not dept_over_limit(jc.estimated_cost)", [m.userId])).rows[0].c : 0
       const odometer = held.has("odometer.review")
         ? (await q.query<{ c: number }>(
             `select count(*)::int c from odometer_submissions s join odometer_cycles c on c.id = s.cycle_id where c.status = 'open' and s.status = 'submitted'`)).rows[0].c : 0;

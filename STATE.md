@@ -393,3 +393,6 @@
 
 ## 2026-11-06: ADR-045 phase 5a built (trips, approval, pool-car pick and drop)
 Migration 0028 (not yet applied to live), src/lib/trips, /w/[slug]/trips pages, tests/trips.test.ts (20). Module off by default (settings.module_trips). Overlap rule is a locked trigger, not btree_gist. Logistics role + trip.dispatch for pick and drop; vehicles.is_pool. Gate passes (5b), reports (5c), Privacy line, e2e scenarios not done. Undeployed.
+
+## 2026-11-06: ADR-048 phase 48a built (operating departments, logistics maintenance)
+Migration 0029 (not applied to live), dept_ok on read paths, write guards, pool-car rule, dept_approval_limit setting, tests/dept-scope.test.ts. 896 unit tests pass, build OK. Migrations 0028 and 0029 both pending on live. Engine hours (48b), department column on vehicle lists, browser scenarios, and ADR-045 5b/5c not done. Undeployed.

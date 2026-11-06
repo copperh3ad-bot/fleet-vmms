@@ -63,8 +63,14 @@ export type JobFlow = {
 };
 
 /** Everything the commercial side of a job card shows. Vendor prices are for people who can read all cards. */
+/** A department user reaches only the job cards of their department's vehicles (ADR-048). */
+async function jobVisible(q: import("@/lib/db/types").Queryable, jobId: string): Promise<boolean> {
+  return (await q.query("select 1 from job_cards where id = $1 and dept_ok(vehicle_id)", [jobId])).rows.length > 0;
+}
+
 export function getJobFlow(driver: Driver, m: Membership, jobId: string): Promise<JobFlow> {
   return authorized(driver, m, "jobcard.read_all", async (q) => {
+    if (!(await jobVisible(q, jobId))) return { quotations: [], workOrder: null, invoices: [] };
     const quotations = (await q.query<Omit<QuotationView, "lines">>(
       `select q.id, q.status, q.amount::text, q.details, q.days_needed, q.valid_until::text, q.warranty_months, q.created_at::text, vn.name as vendor_name
          from quotations q join vendors vn on vn.id = q.vendor_id where q.job_card_id = $1 order by q.created_at desc`, [jobId])).rows as QuotationView[];
@@ -83,7 +89,7 @@ export function getJobFlow(driver: Driver, m: Membership, jobId: string): Promis
 
 export function decideQuotation(driver: Driver, m: Membership, quotationId: string, decision: "approve" | "reject", note?: string): Promise<void> {
   return authorized(driver, m, "quotation.approve", async (q) => {
-    const jobId = (await q.query<{ job_card_id: string }>("select job_card_id from quotations where id = $1", [quotationId])).rows[0]?.job_card_id;
+    const jobId = (await q.query<{ job_card_id: string }>("select qt.job_card_id from quotations qt join job_cards jc on jc.id = qt.job_card_id where qt.id = $1 and dept_ok(jc.vehicle_id)", [quotationId])).rows[0]?.job_card_id;
     if (!jobId) throw new UserError("Quotation not found.");
     try {
       if (decision === "approve") await q.query("select approve_quotation($1, $2, $3)", [quotationId, m.userId, note?.trim() || null]);
@@ -111,7 +117,7 @@ export async function createWorkshopLink(driver: Driver, m: Membership, jobId: s
   const perms = kind === "quotation" ? QUOTE_LINK_PERMS : INVOICE_LINK_PERMS;
   const made = await authorizedAny(driver, m, perms, async (q) => {
     const j = (await q.query<{ job_no: string; status: string; vendor_id: string | null; vendor_name: string | null; phone: string | null; email: string | null }>(
-      "select jc.job_no, jc.status, jc.vendor_id, vn.name as vendor_name, vn.phone, vn.email from job_cards jc left join vendors vn on vn.id = jc.vendor_id where jc.id = $1", [jobId])).rows[0];
+      "select jc.job_no, jc.status, jc.vendor_id, vn.name as vendor_name, vn.phone, vn.email from job_cards jc left join vendors vn on vn.id = jc.vendor_id where jc.id = $1 and dept_ok(jc.vehicle_id)", [jobId])).rows[0];
     if (!j) throw new UserError("Job card not found.");
     if (!j.vendor_id || !LINK_STATUSES[kind].includes(j.status)) throw new UserError(kind === "quotation" ? "This job card is not waiting for a workshop estimate." : "This job card has no approved estimate waiting to be invoiced.");
     if (kind === "invoice" && (await q.query("select 1 from work_orders wo where wo.job_card_id = $1 and wo.vendor_id = $2 and wo.status in ('issued','in_progress','completed') and not exists (select 1 from invoices i where i.work_order_id = wo.id and i.status in ('submitted','verified','paid'))", [jobId, j.vendor_id])).rows.length === 0)
@@ -162,14 +168,14 @@ const EMAIL_PERMS = ["jobcard.assign_vendor", "quotation.approve", "invoice.veri
 
 /** The replies that came in for one job card, newest first, for the people who handle estimates and invoices. */
 export function listWorkshopEmails(driver: Driver, m: Membership, jobId: string): Promise<WorkshopEmailRow[]> {
-  return authorizedAny(driver, m, EMAIL_PERMS, async (q) => (await q.query<WorkshopEmailRow>(
+  return authorizedAny(driver, m, EMAIL_PERMS, async (q) => !(await jobVisible(q, jobId)) ? [] : (await q.query<WorkshopEmailRow>(
     "select id, kind, from_address, sender_matches, subject, body_text, file_count, status, received_at::text from workshop_emails where job_card_id = $1 order by received_at desc, id", [jobId])).rows);
 }
 
 /** Staff say a reply has been dealt with: its figures were entered, or it needs nothing. */
 export function setWorkshopEmailStatus(driver: Driver, m: Membership, emailId: string, status: "entered" | "dismissed"): Promise<void> {
   return authorizedAny(driver, m, EMAIL_PERMS, async (q) => {
-    await q.query("update workshop_emails set status = $2, handled_by = $3, handled_at = now() where id = $1 and status = 'new'", [emailId, status, m.userId]);
+    await q.query("update workshop_emails set status = $2, handled_by = $3, handled_at = now() where id = $1 and status = 'new' and exists (select 1 from job_cards jc where jc.id = workshop_emails.job_card_id and dept_ok(jc.vehicle_id))", [emailId, status, m.userId]);
   });
 }
 
@@ -183,7 +189,7 @@ export function listQuotations(driver: Driver, m: Membership, opts: { status?: s
       `select qt.id, qt.status, qt.amount::text, qt.created_at::text, qt.valid_until::text, qt.days_needed, qt.warranty_months,
               jc.id as job_card_id, jc.job_no, jc.status as job_status, vn.name as vendor_name, v.registration_no
          from quotations qt join job_cards jc on jc.id = qt.job_card_id join vendors vn on vn.id = qt.vendor_id join vehicles v on v.id = jc.vehicle_id
-        ${opts.status ? "where qt.status = $1" : ""} order by qt.created_at desc, qt.id limit 300`, opts.status ? [opts.status] : [])).rows);
+        where dept_ok(jc.vehicle_id) ${opts.status ? "and qt.status = $1" : ""} order by qt.created_at desc, qt.id limit 300`, opts.status ? [opts.status] : [])).rows);
 }
 
 export type InvoiceRow = { id: string; invoice_no: string; invoice_date: string; amount: string; status: string; job_no: string; job_card_id: string; vendor_name: string; registration_no: string };
@@ -383,7 +389,11 @@ export async function vendorAttach(driver: Driver, store: BlobStore, m: Membersh
 
 /** Files on one quotation or invoice, for the fleet side (people who can read the job card or check invoices). */
 export function listCommercialFiles(driver: Driver, store: BlobStore, m: Membership, kind: "quotation" | "invoice", entityId: string): Promise<AttachmentRow[]> {
-  return authorizedAny(driver, m, ["jobcard.read_all", "invoice.verify"], (q) => listAttachments(q, store, m, kind, entityId));
+  return authorizedAny(driver, m, ["jobcard.read_all", "invoice.verify"], async (q) => {
+    const from = kind === "quotation" ? "quotations x join job_cards jc on jc.id = x.job_card_id" : "invoices x join work_orders wo on wo.id = x.work_order_id join job_cards jc on jc.id = wo.job_card_id";
+    if ((await q.query(`select 1 from ${from} where x.id = $1 and dept_ok(jc.vehicle_id)`, [entityId])).rows.length === 0) return [];
+    return listAttachments(q, store, m, kind, entityId);
+  });
 }
 
 /** Files the workshop itself attached to one of its invoices. */

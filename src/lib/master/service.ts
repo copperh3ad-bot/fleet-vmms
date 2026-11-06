@@ -2,7 +2,7 @@
 // (CLAUDE.md rule 3) and reaches tenant data only through authorized() -> withTenant().
 import { trialCapFor, trialFullMessage, trialRoomMessage } from "@/lib/billing/trial";
 import type { Driver, Queryable } from "@/lib/db/types";
-import { authorized, type Membership } from "@/lib/auth/can";
+import { authorized, authorizedAny, type Membership } from "@/lib/auth/can";
 import {
   vehicleSchema, employeeSchema, vendorSchema, custodySchema, plateKey, fieldErrors,
   type VehicleInput, type EmployeeInput, type VendorInput,
@@ -24,6 +24,8 @@ function friendly(e: unknown): never {
   if (msg.includes("employees_no_uq")) throw new UserError("Another employee already has this employee number.", { employee_no: "Already used" });
   if (msg.includes("employees_email") ) throw new UserError("Another employee already has this email.", { email: "Already used" });
   if (msg.includes("vendors_name_uq")) throw new UserError("A vendor with this name already exists.", { name: "Already exists" });
+  const dept = msg.match(/(this vehicle belongs to another department|pool cars belong to the [A-Za-z ]+ department|this car is held by someone outside[^"]*|a pool car can only be held by[^"]*)/);
+  if (dept) throw new UserError(dept[0].replace(/^./, (c) => c.toUpperCase()) + (dept[0].endsWith(".") ? "" : "."));
   if (msg.includes("vehicle_custody_one_open")) throw new UserError("This vehicle already has a current holder. Use change custody.");
   if (/violates check constraint|invalid input syntax|22023|employee already holds|new custody must start|employee is not active|no current holder|end date is before/.test(msg)) {
     const m = msg.match(/(employee already holds[^"]*|new custody must start[^"]*|employee is not active|vehicle has no current holder|end date is before[^"]*)/);
@@ -39,13 +41,13 @@ function friendly(e: unknown): never {
 export type VehicleRow = {
   id: string; registration_no: string; make: string | null; model: string | null; year: number | null;
   vehicle_class: string | null; fuel_type: string | null; status: string; odometer_km: string;
-  base_location: string | null; holder_id: string | null; holder_name: string | null; pm_worst: string | null;
+  base_location: string | null; department: string | null; holder_id: string | null; holder_name: string | null; pm_worst: string | null;
 };
 
 /** Vehicles the member may see: everything, or (scope "own") only those whose current holder is their own employee record. */
 export function listVehicles(driver: Driver, m: Membership, opts: { search?: string; status?: string } = {}): Promise<VehicleRow[]> {
   return authorized(driver, m, "vehicle.read", async (q) => {
-    const where: string[] = [], params: unknown[] = [];
+    const where: string[] = ["dept_ok(v.id)"], params: unknown[] = [];
     if (m.vehicleScope === "own") { params.push(m.userId); where.push(`h.user_id = $${params.length}`); }
     if (opts.status) { params.push(opts.status); where.push(`v.status = $${params.length}`); }
     if (opts.search) {
@@ -54,7 +56,7 @@ export function listVehicles(driver: Driver, m: Membership, opts: { search?: str
     }
     return (await q.query<VehicleRow>(
       `select v.id, v.registration_no, v.make, v.model, v.year, v.vehicle_class, v.fuel_type, v.status, v.odometer_km::text,
-              v.base_location, h.id as holder_id, h.full_name as holder_name,
+              v.base_location, v.department, h.id as holder_id, h.full_name as holder_name,
               (select case min(case p.pm_status when 'overdue' then 0 when 'due_soon' then 1 when 'no_history' then 2 when 'scheduled' then 3 else 4 end)
                        when 0 then 'overdue' when 1 then 'due_soon' when 2 then 'no_history' when 3 then 'scheduled' when 4 then 'ok' end
                  from v_pm_status p where p.vehicle_id = v.id) as pm_worst
@@ -76,7 +78,7 @@ export function getVehicle(driver: Driver, m: Membership, id: string): Promise<V
          from vehicles v
          left join vehicle_custody c on c.vehicle_id = v.id and c.to_date is null
          left join employees h on h.id = c.employee_id
-        where v.id = $1 ${m.vehicleScope === "own" ? "and h.user_id = $2" : ""}`,
+        where v.id = $1 and dept_ok(v.id) ${m.vehicleScope === "own" ? "and h.user_id = $2" : ""}`,
       m.vehicleScope === "own" ? [id, m.userId] : [id])).rows[0];
     if (!v) return null;
     v.custody = (await q.query<CustodyRow>(
@@ -123,7 +125,7 @@ export function listServiceTypes(driver: Driver, m: Membership): Promise<{ key: 
 // ---------- Custody ----------
 
 export function changeCustody(driver: Driver, m: Membership, raw: unknown): Promise<void> {
-  return authorized(driver, m, "vehicle.write", async (q) => {
+  return authorizedAny(driver, m, ["vehicle.write", "trip.dispatch"], async (q) => {
     const p = custodySchema.safeParse(raw);
     if (!p.success) throw new UserError("Choose a vehicle and a person.", fieldErrors(p.error));
     try { await q.query("select change_custody($1, $2, coalesce($3::date, current_date))", [p.data.vehicle_id, p.data.employee_id, p.data.from ?? null]); }
@@ -132,7 +134,7 @@ export function changeCustody(driver: Driver, m: Membership, raw: unknown): Prom
 }
 
 export function endCustody(driver: Driver, m: Membership, vehicleId: string, on?: string): Promise<void> {
-  return authorized(driver, m, "vehicle.write", async (q) => {
+  return authorizedAny(driver, m, ["vehicle.write", "trip.dispatch"], async (q) => {
     try { await q.query("select end_custody($1, coalesce($2::date, current_date))", [vehicleId, on ?? null]); }
     catch (e) { friendly(e); }
   });
@@ -151,7 +153,7 @@ export function listEmployees(driver: Driver, m: Membership): Promise<EmployeeRo
 
 /** Names only, for the custodian picker on vehicle forms. Contact details stay behind employee.manage. */
 export function listEmployeeOptions(driver: Driver, m: Membership): Promise<{ id: string; full_name: string; employee_no: string | null; department: string | null }[]> {
-  return authorized(driver, m, "vehicle.write", async (q) => (await q.query<{ id: string; full_name: string; employee_no: string | null; department: string | null }>(
+  return authorizedAny(driver, m, ["vehicle.write", "trip.dispatch"], async (q) => (await q.query<{ id: string; full_name: string; employee_no: string | null; department: string | null }>(
     "select id, full_name, employee_no, department from employees where active order by full_name")).rows);
 }
 
@@ -304,5 +306,29 @@ export async function commitVehicleImport(driver: Driver, m: Membership, text: s
       catch (e) { friendly(e); }
     }
     return { imported: pre.rows.length };
+  });
+}
+
+// ---------- Operating departments (ADR-048) ----------
+
+/** The names of departments in use, for the vehicle form: those on vehicles, and those a role is tied to. */
+export function listDepartments(driver: Driver, m: Membership): Promise<string[]> {
+  return authorizedAny(driver, m, ["vehicle.read", "vehicle.write"], async (q) =>
+    (await q.query<{ d: string }>(
+      `select distinct on (lower(btrim(d))) btrim(d) as d from (select department as d from vehicles union all select department from role_departments) x
+        where d is not null and btrim(d) <> '' order by lower(btrim(d)), btrim(d)`)).rows.map((r) => r.d));
+}
+
+/** Sets or clears the operating department of one vehicle. Needs vehicle.write, so a department user (who has none) cannot move vehicles. */
+export function setVehicleDepartment(driver: Driver, m: Membership, vehicleId: string, department: string): Promise<void> {
+  const name = department.trim().replace(/\s+/g, " ");
+  if (name.length > 60) return Promise.reject(new UserError("Keep the department name under 60 letters.", { department: "Too long" }));
+  return authorized(driver, m, "vehicle.write", async (q) => {
+    // a name already in use keeps its spelling, so "logistics" and "Logistics" stay one department
+    const known = name ? (await q.query<{ d: string }>("select d from (select department as d from vehicles union all select department from role_departments) x where lower(btrim(d)) = lower($1) limit 1", [name])).rows[0]?.d : undefined;
+    try {
+      const r = await q.query("update vehicles set department = $2 where id = $1 returning id", [vehicleId, known ?? (name || null)]);
+      if (r.rows.length === 0) throw new UserError("Vehicle not found.");
+    } catch (e) { friendly(e); }
   });
 }

@@ -23,7 +23,7 @@ const DEFS: Record<string, Def> = {
     columns: [col("Registration", "registration_no"), col("Make", "make"), col("Model", "model"), col("Year", "year"), col("Class", "vehicle_class"), col("Fuel", "fuel_type"),
       col("Status", "status"), col("Odometer km", "odometer_km"), col("Base location", "base_location"), col("Held by", "holder"), col("Employee ID", "holder_no"), col("Worst service status", "pm_worst")],
     async run({ q, m, f }) {
-      const where: string[] = [], p: unknown[] = [];
+      const where: string[] = ["dept_ok(v.id)"], p: unknown[] = [];
       if (m.vehicleScope === "own") { p.push(m.userId); where.push(`h.user_id = $${p.length}`); }
       if (f.status) { p.push(f.status); where.push(`v.status = $${p.length}`); }
       if (f.q) { p.push(like(f.q)); where.push(`(v.registration_no ilike $${p.length} or v.make ilike $${p.length} or v.model ilike $${p.length} or h.full_name ilike $${p.length})`); }
@@ -40,7 +40,7 @@ const DEFS: Record<string, Def> = {
     columns: [col("Job", "job_no"), col("Raised", "created_at"), col("Vehicle", "registration_no"), col("Status", "status"), col("Type", "category"), col("Priority", "priority"),
       col("Reason", "reason"), col("Requested by", "requester"), col("Approved by", "approver"), col("Workshop", "vendor"), col("Estimate", "estimated_cost"), col("Cost counted", "cost"), col("Cause", "cause_text")],
     async run({ q, m, held, f }) {
-      const where: string[] = [], p: unknown[] = [];
+      const where: string[] = ["dept_ok(jc.vehicle_id)"], p: unknown[] = [];
       if (!held.has("jobcard.read_all")) { p.push(m.userId); where.push(`(re.user_id = $${p.length} or cu.user_id = $${p.length})`); }
       if (f.status) { p.push(f.status); where.push(`jc.status = $${p.length}`); }
       if (f.q) { p.push(like(f.q)); where.push(`(jc.job_no ilike $${p.length} or v.registration_no ilike $${p.length} or re.full_name ilike $${p.length})`); }

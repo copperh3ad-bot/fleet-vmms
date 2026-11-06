@@ -22,7 +22,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   if (!(await tripsEnabled(driver, m))) return <main className="p-6 text-sm text-zinc-600">Trips are not switched on for this organization. An administrator can switch them on in Settings.</main>;
   const [rows, perms] = await Promise.all([listTrips(driver, m, { status: status || undefined }), permissionsOf(driver, m)]);
   const dispatcher = perms.has("trip.dispatch");
-  const waiting = perms.has("trip.approve") ? rows.filter((r) => r.status === "requested") : dispatcher ? rows.filter((r) => r.status === "requested" && r.kind === "pick_drop") : [];
+  const waiting = perms.has("trip.approve") ? rows.filter((r) => r.status === "requested") : dispatcher ? rows.filter((r) => r.status === "requested" && r.dispatchable) : [];
   const pool = dispatcher || perms.has("vehicle.write") ? await listPoolCandidates(driver, m) : [];
   const control = "h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm";
   const table = (list: typeof rows) => (

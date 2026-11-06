@@ -2,7 +2,7 @@
 import { useActionState } from "react";
 import { Input, Notice, Select, Submit } from "@/components/form";
 import type { FormState } from "../../actions-util";
-import { changeCustodyAction, endCustodyAction, setStatusAction } from "../actions";
+import { changeCustodyAction, endCustodyAction, setDepartmentAction, setStatusAction } from "../actions";
 
 export function CustodyForms({ slug, vehicleId, employees, hasHolder }: {
   slug: string; vehicleId: string; employees: { id: string; full_name: string; employee_no: string | null }[]; hasHolder: boolean;
@@ -36,6 +36,19 @@ export function StatusForm({ slug, vehicleId, current }: { slug: string; vehicle
       <Select name="status" label="Status" state={{ ...s, values: { status: s.values?.status ?? current } }}
         options={[["active", "Active"], ["in_workshop", "In workshop"], ["inactive", "Inactive"], ["disposed", "Disposed"]]} blank="Choose" />
       <Submit>Update</Submit>
+      <Notice state={s} />
+    </form>
+  );
+}
+
+/** Which department runs this vehicle. Empty is the general fleet. A department with a role tied to it (ADR-048) limits that role to its own vehicles. */
+export function DepartmentForm({ slug, vehicleId, current, known }: { slug: string; vehicleId: string; current: string; known: string[] }) {
+  const [s, action] = useActionState<FormState, FormData>(setDepartmentAction.bind(null, slug, vehicleId), {});
+  return (
+    <form action={action} className="mt-3 flex flex-wrap items-end gap-2">
+      <Input name="department" label="Operating department" state={{ ...s, values: { department: s.values?.department ?? current } }} list="departments" hint="For example Logistics or Operations. Empty means the general fleet." />
+      <datalist id="departments">{known.map((d) => <option key={d} value={d} />)}</datalist>
+      <Submit>Save</Submit>
       <Notice state={s} />
     </form>
   );

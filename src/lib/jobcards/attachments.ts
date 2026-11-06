@@ -101,7 +101,7 @@ export function listJobCardAttachments(driver: Driver, store: BlobStore, m: Memb
     // the same visibility rule as the card itself
     const visible = (await q.query(
       `select 1 from job_cards jc join employees re on re.id = jc.requested_by left join employees cu on cu.id = jc.custodian_id
-        where jc.id = $1 ${held.has("jobcard.read_all") ? "" : "and (re.user_id = $2 or cu.user_id = $2)"}`,
+        where jc.id = $1 and dept_ok(jc.vehicle_id) ${held.has("jobcard.read_all") ? "" : "and (re.user_id = $2 or cu.user_id = $2)"}`,
       held.has("jobcard.read_all") ? [jobCardId] : [jobCardId, m.userId])).rows.length > 0;
     return visible ? listAttachments(q, store, m, "job_card", jobCardId) : [];
   });

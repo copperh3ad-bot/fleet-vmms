@@ -34,7 +34,7 @@ export function getBoard(driver: Driver, m: Membership, opts: { q?: string; filt
   const page = Math.max(1, Math.floor(opts.page ?? 1));
   return authorized(driver, m, "vehicle.read", async (q) => {
     const params: unknown[] = [];
-    const where: string[] = ["v.status in ('active','in_workshop')"];
+    const where: string[] = ["v.status in ('active','in_workshop')", "dept_ok(v.id)"];
     if (m.vehicleScope === "own") { params.push(m.userId); where.push(`h.user_id = $${params.length}`); }
     if (opts.q) {
       params.push(`%${opts.q.replace(/[%_\\]/g, "\\$&").slice(0, 80)}%`);

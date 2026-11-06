@@ -23,6 +23,7 @@ export function addVehicleFile(driver: Driver, store: BlobStore, m: Membership, 
 
 export function listVehicleFiles(driver: Driver, store: BlobStore, m: Membership, vehicleId: string): Promise<VehicleFile[]> {
   return authorized(driver, m, "vehicle.read", async (q) => {
+    if ((await q.query("select 1 from vehicles where id = $1 and dept_ok(id)", [vehicleId])).rows.length === 0) return [];
     if (m.vehicleScope === "own") {
       const mine = await q.query(
         `select 1 from vehicle_custody c join employees e on e.id = c.employee_id where c.vehicle_id = $1 and c.to_date is null and e.user_id = $2`, [vehicleId, m.userId]);

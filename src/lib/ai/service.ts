@@ -38,7 +38,7 @@ export type DraftView = { id: string; status: "ok" | "unreadable" | "refused" | 
 
 export function getAiAction(driver: Driver, m: Membership, jobId: string, id: string): Promise<DraftView | null> {
   return authorizedAny(driver, m, PERMS, async (q) =>
-    (await q.query<DraftView>("select id, status, reason, draft, model, outcome, email_id, document_kind from ai_actions where id = $1 and job_card_id = $2", [id, jobId])).rows[0] ?? null);
+    (await q.query<DraftView>("select id, status, reason, draft, model, outcome, email_id, document_kind from ai_actions where id = $1 and job_card_id = $2 and exists (select 1 from job_cards j where j.id = ai_actions.job_card_id and dept_ok(j.vehicle_id))", [id, jobId])).rows[0] ?? null);
 }
 
 type Loaded = { jobNo: string; files: { path: string; name: string; mime: string }[]; approved: ApprovedLine[] };
@@ -52,7 +52,7 @@ export async function readEmailDocument(driver: Driver, store: ReadableStore, m:
   const loaded = await authorizedAny(driver, m, PERMS, async (q): Promise<Loaded> => {
     const e = (await q.query<{ job_no: string }>(
       `select jc.job_no from workshop_emails we join job_cards jc on jc.id = we.job_card_id
-        where we.id = $1 and we.job_card_id = $2 and we.kind = $3 and we.status = 'new'`, [input.emailId, input.jobId, input.kind])).rows[0];
+        where we.id = $1 and we.job_card_id = $2 and we.kind = $3 and we.status = 'new' and dept_ok(jc.vehicle_id)`, [input.emailId, input.jobId, input.kind])).rows[0];
     if (!e) throw new UserError("That email is not waiting to be entered.");
     const files = (await q.query<{ storage_path: string; file_name: string; mime_type: string | null }>(
       "select storage_path, file_name, mime_type from attachments where entity_type = 'job_card' and entity_id = $1 and source_email_id = $2 order by created_at, id limit 6", [input.jobId, input.emailId])).rows;

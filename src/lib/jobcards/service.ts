@@ -21,6 +21,8 @@ const KNOWN = [
   /enter the invoice number/, /an invoice line points at a line that is not in the approved quotation/,
   /invoice [0-9a-f-]+ is not awaiting verification/, /job card [A-Za-z0-9-]+ is [a-z_]+ and cannot be verified/,
   /a note is required for decision [a-z_]+/, /unknown decision [a-z_]*/,
+  /this is over the approval limit for your department[^"]*/, /this vehicle belongs to another department/,
+  /a pool car can only be held by[^"]*/, /pool cars belong to the [A-Za-z ]+ department/, /this car is held by someone outside[^"]*/,
 ];
 /** Turns a known database message into something a person can read; anything else is rethrown as a real error. */
 export function friendly(e: unknown): never {
@@ -130,7 +132,7 @@ export function getJobContext(driver: Driver, m: Membership, vehicleId: string):
     if (held.has("jobcard.create") && !held.has("jobcard.approve")) await assertVehicleAllowed(q, m, vehicleId);
     const v = (await q.query<{ id: string; registration_no: string; label: string; km: string; updated: string | null; holder: string | null; department: string | null }>(
       `select v.id, v.registration_no, concat_ws(' ', v.make, v.model, v.year) as label, v.odometer_km::text as km, v.odometer_updated_at::text as updated, h.full_name as holder, h.department
-         from vehicles v left join vehicle_custody c on c.vehicle_id = v.id and c.to_date is null left join employees h on h.id = c.employee_id where v.id = $1`, [vehicleId])).rows[0];
+         from vehicles v left join vehicle_custody c on c.vehicle_id = v.id and c.to_date is null left join employees h on h.id = c.employee_id where v.id = $1 and dept_ok(v.id)`, [vehicleId])).rows[0];
     if (!v) return null;
     const due = (await q.query<{ label: string; service_type_key: string; status: string; due_on: string | null; days: number | null }>(
       `select label, service_type_key, pm_status as status, due_on::text, days_remaining::int as days from v_pm_status
@@ -170,7 +172,7 @@ export type ReviewContext = {
 export function getReviewContext(driver: Driver, m: Membership, jobId: string): Promise<ReviewContext | null> {
   return authorizedAny(driver, m, ["jobcard.read_all", "jobcard.read_own"], async (q, held) => {
     const jc = (await q.query<{ vehicle_id: string; reason_code_id: string; created_at: string; estimated_cost: string | null; status: string }>(
-      "select vehicle_id, reason_code_id, created_at::text, estimated_cost::text, status from job_cards where id = $1", [jobId])).rows[0];
+      "select vehicle_id, reason_code_id, created_at::text, estimated_cost::text, status from job_cards where id = $1 and dept_ok(vehicle_id)", [jobId])).rows[0];
     if (!jc) return null;
     const v = (await q.query<{ id: string; label: string; km: string; holder: string | null; department: string | null }>(
       `select v.id, concat_ws(' ', v.make, v.model, v.year) as label, v.odometer_km::text as km, h.full_name as holder, h.department
@@ -258,7 +260,7 @@ export type JobCardRow = {
 /** "read_all" sees everything; "read_own" sees cards the member raised or whose vehicle they held when it was raised. */
 export function listJobCards(driver: Driver, m: Membership, opts: { status?: string; search?: string } = {}): Promise<JobCardRow[]> {
   return authorizedAny(driver, m, ["jobcard.read_all", "jobcard.read_own"], async (q, held) => {
-    const where: string[] = [], params: unknown[] = [];
+    const where: string[] = ["dept_ok(jc.vehicle_id)"], params: unknown[] = [];
     if (!held.has("jobcard.read_all")) { params.push(m.userId); where.push(`(re.user_id = $${params.length} or cu.user_id = $${params.length})`); }
     if (opts.status) { params.push(opts.status); where.push(`jc.status = $${params.length}`); }
     if (opts.search) {
@@ -302,7 +304,7 @@ export function getJobCard(driver: Driver, m: Membership, id: string): Promise<J
          left join vendors vn on vn.id = jc.vendor_id
          join reason_codes rc on rc.id = jc.reason_code_id
          join reason_codes rq on rq.id = jc.requested_reason_code_id
-        where jc.id = $1 ${held.has("jobcard.read_all") ? "" : "and (re.user_id = $2 or cu.user_id = $2)"}`, [id, m.userId])).rows[0];
+        where jc.id = $1 and dept_ok(jc.vehicle_id) ${held.has("jobcard.read_all") ? "" : "and (re.user_id = $2 or cu.user_id = $2)"}`, [id, m.userId])).rows[0];
     if (!jc) return null;
     jc.lines = (await q.query<JobCardDetail["lines"][number]>(
       "select id, kind, description, qty::text, unit_cost::text, service_type_key from job_card_lines where job_card_id = $1 order by id", [id])).rows;

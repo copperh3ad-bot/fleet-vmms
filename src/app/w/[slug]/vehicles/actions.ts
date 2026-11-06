@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { getDriver } from "@/lib/db";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { addVehicleFile, removeVehicleFile, type VehicleFileKind } from "@/lib/master/files";
-import { UserError, addVehicle, changeCustody, endCustody, updateVehicleStatus, previewVehicleImport, commitVehicleImport, type ImportPreview } from "@/lib/master/service";
+import { UserError, addVehicle, changeCustody, endCustody, setVehicleDepartment, updateVehicleStatus, previewVehicleImport, commitVehicleImport, type ImportPreview } from "@/lib/master/service";
 import { runAction, str, typed, type FormState } from "../actions-util";
 import { MAX_SHEET_BYTES, xlsxToCsv } from "@/lib/master/vehicle-sheet";
 
@@ -93,6 +93,12 @@ export async function endCustodyAction(slug: string, vehicleId: string, _prev: F
     await endCustody(getDriver(), m, vehicleId, str(form, "on") || undefined);
     return "Vehicle returned. No current holder.";
   });
+  if (state.ok) refresh();
+  return state.error || state.fields ? { ...state, values: typed(form) } : state;
+}
+
+export async function setDepartmentAction(slug: string, vehicleId: string, _prev: FormState, form: FormData): Promise<FormState> {
+  const state = await runAction(slug, async (m) => { await setVehicleDepartment(getDriver(), m, vehicleId, str(form, "department")); return "Department saved."; });
   if (state.ok) refresh();
   return state.error || state.fields ? { ...state, values: typed(form) } : state;
 }
