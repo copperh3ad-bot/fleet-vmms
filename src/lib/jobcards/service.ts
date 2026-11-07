@@ -295,7 +295,7 @@ export function listJobCards(driver: Driver, m: Membership, opts: { status?: str
   });
 }
 
-export type JobCardDetail = JobCardRow & {
+export type JobCardDetail = JobCardRow & { source: string;
   cause_text: string; description: string | null; odometer_km: string | null; engine_hours: string | null; custodian_name: string | null;
   requested_reason_label: string; reason_code_id: string; requested_by: string; approver_name: string | null; approved_by: string | null;
   vendor_id: string | null; vendor_name: string | null; mine: boolean; requester_is_me: boolean; age_days: number;
@@ -306,7 +306,7 @@ export type JobCardDetail = JobCardRow & {
 export function getJobCard(driver: Driver, m: Membership, id: string): Promise<JobCardDetail | null> {
   return authorizedAny(driver, m, ["jobcard.read_all", "jobcard.read_own"], async (q, held) => {
     const jc = (await q.query<JobCardDetail>(
-      `select jc.id, jc.job_no, jc.status, jc.category, jc.priority, jc.created_at::text, jc.needed_by::text, jc.vehicle_id,
+      `select jc.id, jc.job_no, jc.source, jc.status, jc.category, jc.priority, jc.created_at::text, jc.needed_by::text, jc.vehicle_id,
               jc.cause_text, jc.description, jc.odometer_km::text, jc.engine_hours::text, jc.estimated_cost::text, jc.reason_code_id, jc.requested_by, jc.approved_by,
               jc.vendor_id, v.registration_no, re.full_name as requester_name, rc.label as reason_label, rq.label as requested_reason_label,
               cu.full_name as custodian_name, ap.full_name as approver_name, vn.name as vendor_name,
@@ -338,7 +338,7 @@ export function listActiveVendors(driver: Driver, m: Membership): Promise<{ id: 
 
 // ---------- Notifications ----------
 
-export type NotificationRow = { id: string; kind: string; payload: { job_card_id?: string; job_no?: string; to?: string; text?: string; key?: string; request_id?: string; trip_id?: string }; read_at: string | null; created_at: string };
+export type NotificationRow = { id: string; kind: string; payload: { job_card_id?: string; job_no?: string; to?: string; text?: string; key?: string; request_id?: string; vehicle_id?: string; trip_id?: string }; read_at: string | null; created_at: string };
 
 const NOTICE_PERMISSIONS = ["jobcard.create", "jobcard.read_own", "jobcard.read_all", "jobcard.approve", "quotation.submit", "invoice.verify", "compliance.manage", "trip.request", "trip.approve", "trip.dispatch", "vreq.request", "vreq.decide"];
 

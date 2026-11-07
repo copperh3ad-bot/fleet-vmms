@@ -66,7 +66,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-sm text-zinc-500"><a className="underline" href={to(showCrumbQueue ? "job-cards?status=submitted" : "job-cards")}>{showCrumbQueue ? "Approval queue" : "Job cards"}</a> / {c.job_no}</p>
-          <h1 className="mt-0.5 flex flex-wrap items-center gap-3 text-[22px] font-semibold leading-tight"><span className="font-mono">{c.job_no}</span> {c.reason_label} <StatusBadge status={c.status} />{ctx?.repeat && <Pill tone="warn">Repeat repair</Pill>}</h1>
+          <h1 className="mt-0.5 flex flex-wrap items-center gap-3 text-[22px] font-semibold leading-tight"><span className="font-mono">{c.job_no}</span> {c.reason_label} <StatusBadge status={c.status} />{c.source === "whatsapp" && <Pill tone="info">Raised by WhatsApp</Pill>}{ctx?.repeat && <Pill tone="warn">Repeat repair</Pill>}</h1>
           <p className="mt-1 text-sm text-zinc-500">Raised by {c.requester_name} on {raised}{waiting !== null && ` · waiting ${plural(waiting, "day")}`}</p>
         </div>
         {ctx?.queue && (

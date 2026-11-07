@@ -12,6 +12,7 @@ import { createWorkshopLink, decideQuotation, setWorkshopEmailStatus, workshopCo
 import { notifyWorkshop } from "@/lib/vendorflow/whatsapp-notify";
 import { enterForWorkshop } from "@/lib/vendorflow/entry";
 import { readEmailDocument, setAiDocuments } from "@/lib/ai/service";
+import { setWaJobCards } from "@/lib/wa-jobcards/service";
 import { estimateFromForm, invoiceFromForm } from "@/lib/vendorflow/form";
 import { emailConfigured, sendMail } from "@/lib/email/send";
 import { buildWorkshopMail } from "@/lib/email/workshop";
@@ -244,6 +245,13 @@ export async function readWithAiAction(slug: string, jobId: string, kind: Worksh
 /** The organization's administrator allows, or stops, reading workshop documents with AI. Allowing it records who and when. */
 export async function setAiDocumentsAction(slug: string, on: boolean, _prev: FormState): Promise<FormState> {
   const state = await runAction(slug, async (m) => { await setAiDocuments(getDriver(), m, on); return on ? "Reading workshop documents with AI is on." : "Reading workshop documents with AI is off."; });
+  if (state.ok) refresh();
+  return state;
+}
+
+/** The organization's administrator allows, or stops, raising job cards by WhatsApp (ADR-061). Allowing it needs the Pro plan and records who and when. */
+export async function setWaJobCardsAction(slug: string, on: boolean, _prev: FormState): Promise<FormState> {
+  const state = await runAction(slug, async (m) => { await setWaJobCards(getDriver(), m, on); return on ? "Job cards by WhatsApp are on." : "Job cards by WhatsApp are off."; });
   if (state.ok) refresh();
   return state;
 }

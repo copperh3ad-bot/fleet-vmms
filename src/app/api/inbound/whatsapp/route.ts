@@ -10,6 +10,7 @@ import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { failedStatuses, fetchMedia, statusKinds, parseWebhook, sendReplyText, verifyChallenge, verifyMetaSignature, whatsappInboundConfigured } from "@/lib/whatsapp";
 import { processInboundWhatsApp } from "@/lib/vendorflow/whatsapp-inbound";
 import { processOdometerReply } from "@/lib/odometer/whatsapp";
+import { processWhatsAppJobCard } from "@/lib/wa-jobcards/service";
 
 const MAX_BODY = 200_000;
 const MAX_MESSAGES = 20;
@@ -47,6 +48,15 @@ export async function POST(req: NextRequest) {
     for (const m of messages) {
       const odo = await processOdometerReply(driver, m);          // a driver's answer to the monthly odometer request (ADR-050)
       if (odo.handled) { if (odo.reply) await tell(m.from, odo.reply); continue; }
+      // A known employee raising a job card (ADR-061). A failure here is answered kindly and never retried: Meta repeating the message would draft it twice.
+      try {
+        const wj = await processWhatsAppJobCard(driver, deps, m);
+        if (wj.handled) { if (wj.reply) await tell(m.from, wj.reply); continue; }
+      } catch (e) {
+        console.error(`inbound-whatsapp: job card by WhatsApp failed: ${e instanceof Error ? e.message.slice(0, 120) : "unknown"}`);
+        await tell(m.from, "Sorry, I could not process that just now. Please try again in a few minutes, or raise the job card in the app.");
+        continue;
+      }
       const out = await processInboundWhatsApp(driver, deps, m);
       if (out.status === "filed") await tell(m.from, `Thank you. We have your message for job card ${out.jobNo}. The fleet office will enter it.`);
       else if (out.status === "no_context" && (await allowShared(driver, `inbound-wa-hint:${m.from}`, 1, 3600))) await tell(m.from, "To answer a request from Fleet OTG, please use Reply on that message, so we know which job it is for.");

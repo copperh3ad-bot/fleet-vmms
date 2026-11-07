@@ -1,6 +1,6 @@
 # ADR-061: Raising a job card by WhatsApp (V1.1)
 
-Status: **accepted as the V1.1 plan (Pro only), 2026-11-07**. Nothing is built; building starts when the owner says go. Owner direction: "In V1.1 we enable job card submissions through WhatsApp." Chosen with the owner: registered employees only, identified by phone number; one free-form message read by the AI into a draft the sender confirms; the card then goes in as Requested and follows the normal approval. Builds on ADR-042 (inbound WhatsApp), ADR-034 and ADR-043 (the AI reader), ADR-035 (Basic and Pro) and ADR-050 (identifying a sender by phone).
+Status: **accepted as the V1.1 plan (Pro only), 2026-11-07; built the same day, not deployed** (platform migration 0016 and tenant migration 0035 not run on live). See "As built" below. Owner direction: "In V1.1 we enable job card submissions through WhatsApp." Chosen with the owner: registered employees only, identified by phone number; one free-form message read by the AI into a draft the sender confirms; the card then goes in as Requested and follows the normal approval. Builds on ADR-042 (inbound WhatsApp), ADR-034 and ADR-043 (the AI reader), ADR-035 (Basic and Pro) and ADR-050 (identifying a sender by phone).
 
 ## The flow
 1. An employee sends the Fleet OTG WhatsApp number one message, for example: "LHR-1001 brake noise, front left, needs looking at today", with up to 3 photos in the same message or the next few minutes.
@@ -11,6 +11,16 @@ Status: **accepted as the V1.1 plan (Pro only), 2026-11-07**. Nothing is built; 
 6. The sender is told the job card number. When a manager approves, rejects or closes it, the sender is told in the same chat **only if the person wrote in the last 24 hours** (Meta's free-form window). Outside that window nothing is sent in V1.1; the status stays in the app.
 
 Approval, estimates, invoices and every state change stay in the app and in `transitionJobCard` (CLAUDE.md rule 4). WhatsApp only raises the request.
+
+## As built (differences from the plan below)
+- **No phone-hash index.** Finding the sender scans only the organizations that have switched this on (a flag on `public.tenants`, platform migration 0016: `wa_jobcards_enabled`, `wa_jobcards_by`, `wa_jobcards_at`) and matches the last ten digits of the number against active employees with a login in each. The control plane stores no phone numbers and nothing needs keeping in step. Revisit if many companies switch it on (a message costs one small query per enabled company).
+- **The switch lives on the platform row, not in the company's settings**, beside the AI documents switch, and is on the Vendors page next to it. Switching on needs the Pro plan and the administrator.
+- A number that matches nobody is not answered here at all: the older WhatsApp flows run as before.
+- A number matching two employees in one company is never guessed: the message is left to the other flows.
+- Several companies: the message starts with the company's name and a colon, or the person has a draft open in one.
+- The AI call is `readJobCardMessage` in `src/lib/ai/claude.ts` (schema and checks in `jobcard-draft.ts`); the conversation is `src/lib/wa-jobcards/service.ts`; the webhook calls it after the odometer flow and before the workshop flow. A failure inside it is answered kindly and never retried.
+- Tenant migration 0035: `whatsapp_intake` (also holds the model, tokens and the outcome of each read) and `job_cards.source`, shown as "Raised by WhatsApp".
+- Limits as planned: 20 messages an hour and 10 drafts a day per sender, the plan's daily cap per company, 3 photos of at most 5 MB, images only.
 
 ## Who is the sender
 - A new control-plane index `public.wa_phone_index (phone_hash, tenant_id)` maps a sender to the organizations where an active employee has that number. `phone_hash` is a keyed hash (HMAC-SHA256 of the normalized E.164 number with a server secret), so the control plane never stores numbers. It is kept in step with `employees.phone` by the same code that keeps `user_orgs` in step, and every query on it names the organization (CLAUDE.md rule 9).

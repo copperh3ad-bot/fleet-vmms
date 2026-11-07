@@ -4,6 +4,7 @@
 // src/lib/ai/document.ts checks. The key is read from the server's environment by the SDK, never logged, never sent to a browser.
 import Anthropic from "@anthropic-ai/sdk";
 import { checkPolicyDraft, POLICY_PROMPT, POLICY_SCHEMA, type PolicyDraft } from "./policy-draft";
+import { checkJobCardDraft, JOBCARD_PROMPT, JOBCARD_SCHEMA, type JobCardDraft } from "./jobcard-draft";
 import { checkDraft, DOCUMENT_SCHEMA, SYSTEM_PROMPT, type Draft, type Expectation } from "./document";
 
 export const aiConfigured = () => !!process.env.ANTHROPIC_API_KEY && process.env.AI_DOCUMENT_READING !== "off";
@@ -122,6 +123,46 @@ export async function readPolicyFile(file: AiFile, create: CreateMessage = realC
     return { status: "ok", draft, ...usage };
   } catch (e) {
     const why = e instanceof Anthropic.RateLimitError ? "The AI service is busy. Try again in a minute." : e instanceof Anthropic.APIError ? `The AI service refused the request (${e.status}).` : "The AI service could not be reached.";
+    return { status: "failed", reason: why, ...noUsage(model) };
+  }
+}
+
+export type JobCardReadResult = ({ status: "ok"; draft: JobCardDraft } & Usage) | ({ status: "unreadable" | "refused" | "failed"; reason: string } & Usage);
+
+/**
+ * The one model call for a job card raised by WhatsApp (ADR-061). It gets the sender's message, up to three photos, and, on a correction, the draft it made before: nothing about
+ * the company, its people or its other vehicles. `create` is passed in so tests need no network. Only ordinary photos are read; a PDF or anything else is left out.
+ */
+export async function readJobCardMessage(req: { text: string; previous: JobCardDraft | null; files: AiFile[] }, create: CreateMessage = realCreate): Promise<JobCardReadResult> {
+  const model = aiModel();
+  const photos = req.files.filter((f) => IMAGE_TYPES.has(f.mime));
+  const { use, skipped } = usableFiles(photos);
+  const text = req.text.trim().slice(0, 2000);
+  if (text.length < 3 && use.length === 0) return { status: "unreadable", reason: "There is nothing to read.", ...noUsage(model) };
+  const blocks: Anthropic.Beta.BetaContentBlockParam[] = use.map((f): Anthropic.Beta.BetaContentBlockParam => ({
+    type: "image", source: { type: "base64", media_type: f.mime as "image/jpeg" | "image/png" | "image/webp" | "image/gif", data: Buffer.from(f.bytes).toString("base64") },
+  }));
+  blocks.push({ type: "text", text: JSON.stringify({ message: text, previous_draft: req.previous, photos: use.length }) });
+  try {
+    const res = await create({
+      model, max_tokens: 2000,
+      output_config: { effort: "low", format: { type: "json_schema", schema: JOBCARD_SCHEMA as unknown as Record<string, unknown> } },
+      system: [{ type: "text", text: JOBCARD_PROMPT, cache_control: { type: "ephemeral" } }],
+      messages: [{ role: "user", content: blocks }],
+    });
+    const usage: Usage = { model, inputTokens: res.usage?.input_tokens ?? 0, outputTokens: res.usage?.output_tokens ?? 0, cacheWriteTokens: res.usage?.cache_creation_input_tokens ?? 0, cacheReadTokens: res.usage?.cache_read_input_tokens ?? 0 };
+    if (res.stop_reason === "refusal") return { status: "refused", reason: "I could not read that message. Please raise the job card in the app.", ...usage };
+    if (res.stop_reason === "max_tokens") return { status: "failed", reason: "That message was too long to read. Please send it shorter, or raise the job card in the app.", ...usage };
+    const answer = res.content.find((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")?.text ?? "";
+    let raw: unknown;
+    try { raw = JSON.parse(answer); } catch { return { status: "failed", reason: "I could not understand that. Please try again, or raise the job card in the app.", ...usage }; }
+    const draft = checkJobCardDraft(raw);
+    for (const s of skipped) draft.warnings.push(`Not read: ${s}.`);
+    if (!draft.readable) return { status: "unreadable", reason: draft.warnings[0] ?? "That does not read as a vehicle problem.", ...usage };
+    return { status: "ok", draft, ...usage };
+  } catch (e) {
+    // Never the key, the message or the photos: only the kind of failure.
+    const why = e instanceof Anthropic.RateLimitError ? "The AI service is busy. Please try again in a minute." : "I could not read that just now. Please try again, or raise the job card in the app.";
     return { status: "failed", reason: why, ...noUsage(model) };
   }
 }
