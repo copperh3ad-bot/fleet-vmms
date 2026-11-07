@@ -15,8 +15,8 @@ import { fmtMinor } from "./tax";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
-type Row = [string, string];
-function shell(i: { to: string; replyTo?: string; subject: string; title: string; intro: string; rows: Row[]; outro?: string; cta?: { label: string; url: string } }): Mail {
+export type Row = [string, string];
+export function shell(i: { to: string; replyTo?: string; subject: string; title: string; intro: string; rows: Row[]; outro?: string; cta?: { label: string; url: string } }): Mail {
   const text = [i.title, "", i.intro, "", ...i.rows.map(([k, v]) => `${k}: ${v}`), ...(i.cta ? ["", `${i.cta.label}: ${i.cta.url}`] : []), ...(i.outro ? ["", i.outro] : []), "", "Fleet OTG", SITE_URL].join("\n");
   const html = `<!doctype html><html lang="en"><body style="margin:0;background:#f3f5f6;font-family:Arial,Helvetica,sans-serif;color:#14202b">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f5f6;padding:24px 12px"><tr><td align="center">

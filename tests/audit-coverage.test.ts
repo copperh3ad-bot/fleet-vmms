@@ -11,6 +11,7 @@ const NOT_AUDITED: Record<string, string> = {
   job_card_events: "append-only history that is its own audit trail",
   notifications: "messages, high volume, rebuilt from the changes that caused them",
   document_reminders: "bookkeeping written only by the reminder job, no business decision",
+  pm_reminders: "bookkeeping written only by the reminder job, no business decision",
   vehicle_status_history: "written only by the trigger on vehicles.status; the vehicles table is audited, and this is the history of one column of it",
   trip_events: "append-only history of who moved a trip between states; its own audit trail, like job_card_events",
   vehicle_request_events: "append-only history of who moved a vehicle request between states; its own audit trail, like trip_events",

@@ -16,7 +16,7 @@ const sendReminders = async () => {
   const driver = routingDriver({ control: pgDriver(url), makeDriver: (u) => pgDriver(u, { max: 1 }), decrypt: (b) => envSecretBox().decrypt(b) });
   try {
     const runs = await runDocumentReminders(driver);
-    for (const r of runs) console.log(`${r.schema}: ${r.error ? "FAILED " + r.error : `${r.sent} reminder${r.sent === 1 ? "" : "s"}`}`);
+    for (const r of runs) console.log(`${r.schema}: ${r.error ? "FAILED " + r.error : `${r.sent} reminder${r.sent === 1 ? "" : "s"}${r.emailed ? `, ${r.emailed} email${r.emailed === 1 ? "" : "s"}` : ""}`}`);
     const billing = await runBillingReminders(driver);
     const purged = await purgeUnconfirmedJoinRequests(driver);          // requests nobody confirmed, with their licence numbers (ADR-055)
     if (purged) console.log(`join requests: removed ${purged} that were never confirmed`);
