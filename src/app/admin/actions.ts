@@ -8,6 +8,7 @@ import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { UserError } from "@/lib/master/service";
 import { confirmClaim, deleteOrganization, extendTrial, proofLink, recordManualPayment, rejectClaim, setComped, setSuspended } from "@/lib/billing/operator";
 import { savePlatformSetting } from "@/lib/billing/settings";
+import { notifyClaimDecided } from "@/lib/billing/payment-mails";
 import { setOrgPlan, setPlanPrice, setProBands } from "@/lib/billing/plans";
 import { markContactHandled } from "@/lib/contact";
 import { recordCertificate, saveTaxRule, setOrgCountry, setOrgWithholding } from "@/lib/billing/tax-data";
@@ -32,11 +33,20 @@ async function run(fn: (operatorId: string) => Promise<string>): Promise<FormSta
 const text = (f: FormData, k: string) => String(f.get(k) ?? "");
 
 export async function confirmClaimAction(claimId: string, _p: FormState, f: FormData): Promise<FormState> {
-  return run(async (op) => { const r = await confirmClaim(getDriver(), op, claimId, { months: Number(text(f, "months")) || undefined, note: text(f, "note") || undefined }); return `Confirmed. Invoice ${r.number}.`; });
+  return run(async (op) => {
+    const note = text(f, "note") || undefined;
+    const r = await confirmClaim(getDriver(), op, claimId, { months: Number(text(f, "months")) || undefined, note });
+    await notifyClaimDecided(getDriver(), claimId, { kind: "confirmed", invoiceNumber: r.number, periodEnd: r.periodEnd, note });          // the customer and the Billing mailbox are told; a mail problem never undoes this
+    return `Confirmed. Invoice ${r.number}.`;
+  });
 }
 
 export async function rejectClaimAction(claimId: string, _p: FormState, f: FormData): Promise<FormState> {
-  return run(async (op) => { await rejectClaim(getDriver(), op, claimId, text(f, "note")); return "Rejected."; });
+  return run(async (op) => {
+    await rejectClaim(getDriver(), op, claimId, text(f, "note"));
+    await notifyClaimDecided(getDriver(), claimId, { kind: "rejected", why: text(f, "note").trim() });
+    return "Rejected.";
+  });
 }
 
 export async function extendTrialAction(tenantId: string, _p: FormState, f: FormData): Promise<FormState> {

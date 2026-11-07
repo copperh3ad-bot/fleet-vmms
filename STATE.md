@@ -411,3 +411,6 @@ Vehicle list shows the vehicle's own department with a Department filter (and "N
 
 ## 2026-11-07: ADR-050 the monthly odometer request on WhatsApp (built, not deployed)
 Tenant migration 0032 and control migration 0016 (neither on live), `src/lib/odometer/whatsapp.ts`, scheduled function `odometer-whatsapp.mts`, the reply handled in the WhatsApp webhook, settings `odometer_whatsapp` and `odometer_send_day`, `tests/odometer-whatsapp.test.ts` (12). Hour-meter vehicles excluded. Template `fleetotg_odometer` NOT yet created in Meta and `WHATSAPP_ODOMETER_TEMPLATE` not set. Gate passes move to migration 0033.
+
+## 2026-11-07: ADR-051 payment emails (built, not deployed) and template fleetotg_odometer submitted
+Control migration 0017 (`payment_claims.submitter_email`, not on live), `src/lib/billing/payment-mails.ts`, wired into the Billing "I have paid" action and the operator's confirm and reject; `tests/payment-mails.test.ts` (9). Billing mailbox is `billing_email` (finance@fleetotg.com on live). WhatsApp template `fleetotg_odometer` submitted as Utility (id 1202664728769977), pending Meta review; `WHATSAPP_ODOMETER_TEMPLATE` not yet set.

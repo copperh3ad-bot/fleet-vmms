@@ -38,7 +38,7 @@ export type ClaimRow = {
 export type InvoiceRow = { id: string; number: string; period_start: string; period_end: string; months: number; amount_cents: string; currency: string; issued_at: string };
 
 /** Records that the organization says it has paid. One claim waits at a time. */
-export async function submitClaim(driver: Driver, store: BlobStore, m: Membership, input: ClaimInput, proof?: { name: string; bytes: Uint8Array }): Promise<{ id: string }> {
+export async function submitClaim(driver: Driver, store: BlobStore, m: Membership, input: ClaimInput, proof?: { name: string; bytes: Uint8Array }, opts: { submitterEmail?: string } = {}): Promise<{ id: string }> {
   await authorized(driver, m, BILLING_PERMISSION, async () => undefined);
   const r = claimSchema.safeParse(input);
   if (!r.success) throw new UserError("Fix the highlighted fields.", fieldErrors(r.error));
@@ -55,9 +55,9 @@ export async function submitClaim(driver: Driver, store: BlobStore, m: Membershi
     return await withPlatform(driver, async (q) => {
       await q.query("select set_config('app.user_id', $1, true)", [m.userId]);
       return (await q.query<{ id: string }>(
-        `insert into public.payment_claims(tenant_id, submitted_by, amount_minor, currency, paid_on, bank_reference, months, note, proof_path)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9) returning id`,
-        [m.tenantId, m.userId, Math.round(c.amount * 100), c.currency, c.paid_on, c.bank_reference, c.months, c.note ?? null, path])).rows[0];
+        `insert into public.payment_claims(tenant_id, submitted_by, amount_minor, currency, paid_on, bank_reference, months, note, proof_path, submitter_email)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) returning id`,
+        [m.tenantId, m.userId, Math.round(c.amount * 100), c.currency, c.paid_on, c.bank_reference, c.months, c.note ?? null, path, opts.submitterEmail?.trim().slice(0, 200) || null])).rows[0];
     });
   } catch (e) {
     if (path) await store.remove(path).catch(() => undefined);      // no receipt without a claim

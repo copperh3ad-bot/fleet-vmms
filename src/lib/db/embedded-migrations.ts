@@ -154,6 +154,11 @@ export const CONTROL_MIGRATIONS: Migration[] = [
     "name": "0016_odometer_reply_route.sql",
     "sql": "-- Control-plane migration 0016: a driver's WhatsApp reply to the monthly odometer request finds its organization the way a workshop's reply does (ADR-050). Idempotent.\nalter table public.link_routes drop constraint if exists link_routes_kind_check;\nalter table public.link_routes add constraint link_routes_kind_check check (kind in ('invite', 'odometer', 'quotation', 'invoice', 'reply', 'odoreply'));\n",
     "checksum": "5b84b664f16143f09bf2d6e276cbedcbcb950e3520fca761d2b1c44169164a9a"
+  },
+  {
+    "name": "0017_claim_submitter_email.sql",
+    "sql": "-- Control-plane migration 0017: remember where to send the answer to a payment claim (ADR-051). Idempotent.\n-- The address is the signed-in person's own, taken from their session when they press \"I have paid\". It is used for one email, the answer to that claim.\nalter table public.payment_claims add column if not exists submitter_email text;\n",
+    "checksum": "5d4257c958a7687f6f667096652ed19a11c785b49fdf835454fbd69e3f0e28a4"
   }
 ];
 
