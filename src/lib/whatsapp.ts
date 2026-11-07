@@ -119,6 +119,30 @@ export function verifyChallenge(q: { mode: string | null; token: string | null; 
   return a.length === b.length && timingSafeEqual(a, b) ? q.challenge : null;
 }
 
+export type FailedStatus = { code: number | null; title: string };
+
+/**
+ * A message Meta accepted can still fail to arrive; it says so afterwards in a status call. Only the failures, only the code and a short title, only for our number:
+ * enough to tell "no payment method" (131042) from "held back for this person" (131049) from "not on WhatsApp" (131026). Never a number, a message id or a body.
+ */
+export function failedStatuses(payload: unknown, ourPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID): FailedStatus[] {
+  const out: FailedStatus[] = [];
+  const entries = (payload as { entry?: unknown })?.entry;
+  if (!Array.isArray(entries)) return out;
+  for (const e of entries) for (const c of (Array.isArray((e as { changes?: unknown })?.changes) ? (e as { changes: unknown[] }).changes : [])) {
+    const v = (c as { field?: string; value?: { metadata?: { phone_number_id?: string }; statuses?: unknown } })?.value;
+    if ((c as { field?: string })?.field !== "messages" || !v || v.metadata?.phone_number_id !== ourPhoneNumberId || !Array.isArray(v.statuses)) continue;
+    for (const s of v.statuses as { status?: unknown; errors?: unknown }[]) {
+      if (!s || s.status !== "failed" || !Array.isArray(s.errors)) continue;
+      for (const er of s.errors as { code?: unknown; title?: unknown; message?: unknown }[]) {
+        const text = String(er?.title ?? er?.message ?? "").replace(/\d{7,}/g, "#").replace(/\b[A-Za-z0-9_-]{30,}\b/g, "#").slice(0, 120);
+        out.push({ code: typeof er?.code === "number" ? er.code : null, title: text });
+      }
+    }
+  }
+  return out;
+}
+
 export type InboundMedia = { id: string; filename: string | null; mime: string | null };
 export type InboundMessage = { id: string; from: string; contextId: string | null; text: string; media: InboundMedia[] };
 

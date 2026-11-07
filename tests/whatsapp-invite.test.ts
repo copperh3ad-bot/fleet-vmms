@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { WhatsAppNotConfigured, sendWhatsAppInvite, whatsappInviteConfigured } from "@/lib/whatsapp";
+import { WhatsAppNotConfigured, failedStatuses, sendWhatsAppInvite, whatsappInviteConfigured } from "@/lib/whatsapp";
 
 // ADR-049: the app sends the invitation itself, from its own WhatsApp number, with an approved template whose button is the only place the token goes.
 const KEYS = ["WHATSAPP_FILE", "ALLOW_FILE_MAILER", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_TEMPLATE_LANG", "WHATSAPP_INVITE_TEMPLATE"];
@@ -58,6 +58,16 @@ describe("sending an invitation from the app's number", () => {
     expect((err as Error).message).toContain("whatsapp invite failed: 400 (code 131042/2494: Business eligibility payment issue");
     expect((err as Error).message).not.toContain("923001234567");
     expect((err as Error).message).not.toContain("x".repeat(40));
+  });
+
+  it("reads why an accepted message did not arrive from the status call, for our number only, with no numbers in it", () => {
+    const hook = (id: string, statuses: unknown[]) => ({ entry: [{ changes: [{ field: "messages", value: { metadata: { phone_number_id: id }, statuses } }] }] });
+    const failed = { status: "failed", recipient_id: "923001234567", id: "wamid.XYZ", errors: [{ code: 131042, title: "Business eligibility payment issue", message: "x 923001234567" }] };
+    expect(failedStatuses(hook("111", [failed, { status: "delivered" }, { status: "read" }]), "111")).toEqual([{ code: 131042, title: "Business eligibility payment issue" }]);
+    expect(failedStatuses(hook("222", [failed]), "111")).toEqual([]);          // another number
+    expect(failedStatuses({ entry: "nonsense" }, "111")).toEqual([]);
+    expect(failedStatuses(null, "111")).toEqual([]);
+    expect(JSON.stringify(failedStatuses(hook("111", [{ status: "failed", errors: [{ code: 1, message: "to 923001234567 failed" }] }]), "111"))).not.toContain("923001234567");
   });
 
   it("writes to the test file instead of sending, only when file mode is allowed", async () => {

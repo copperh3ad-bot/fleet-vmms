@@ -7,7 +7,7 @@ import { getDriver } from "@/lib/db";
 import { allowShared } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
-import { fetchMedia, parseWebhook, sendReplyText, verifyChallenge, verifyMetaSignature, whatsappInboundConfigured } from "@/lib/whatsapp";
+import { failedStatuses, fetchMedia, parseWebhook, sendReplyText, verifyChallenge, verifyMetaSignature, whatsappInboundConfigured } from "@/lib/whatsapp";
 import { processInboundWhatsApp } from "@/lib/vendorflow/whatsapp-inbound";
 
 const MAX_BODY = 200_000;
@@ -28,7 +28,11 @@ export async function POST(req: NextRequest) {
   if (!verifyMetaSignature(process.env.WHATSAPP_APP_SECRET!, body, req.headers.get("x-hub-signature-256"))) return reply(401, { error: "not allowed" });
 
   let messages;
-  try { messages = parseWebhook(JSON.parse(body)).slice(0, MAX_MESSAGES); } catch { return reply(400, { error: "unreadable" }); }
+  try {
+    const parsed = JSON.parse(body);
+    for (const f of failedStatuses(parsed).slice(0, 10)) console.error(`whatsapp message not delivered: code ${f.code ?? "?"}: ${f.title}`);          // why an accepted message did not arrive
+    messages = parseWebhook(parsed).slice(0, MAX_MESSAGES);
+  } catch { return reply(400, { error: "unreadable" }); }
   if (messages.length === 0) return reply(200, { ignored: true });                // delivery and read receipts, other numbers
 
   const driver = getDriver();
