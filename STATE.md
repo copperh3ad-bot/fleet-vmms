@@ -438,3 +438,6 @@ Live is commit 12d1019 with every migration applied (platform 0015, control 0016
 
 ## 2026-11-07: ADR-057 yearly offer, ADR-058 SMS removed, ADR-059 HR vehicle requests (built, not deployed)
 PKR 43,000 a month (entered by the owner in Admin, Plans) with 12 months for the price of 11 (`billedMonths`). SMS code removed; SMS_* Netlify values unset. HR vehicle requests: new `hr` role, tenant migration 0034 (not on live), pages under /w/<slug>/vehicle-requests, deciders are the administrator and fleet manager, one open request per employee. Two Destinsolutions test organizations and their logins deleted from live. Checks: 1,008 unit tests pass, build OK, 0 lint errors.
+
+## 2026-11-08: V1.1 job cards by WhatsApp and daily maintenance reminders deployed; resume point updated
+Live is commit a5648e2 (tag fleet-otg-resume-2026-11-08) with platform 0016, tenant 0035 and 0036 applied. ADR-061 (job cards by WhatsApp, Pro only; never tried with real WhatsApp, needs ANTHROPIC_API_KEY and a Pro company with the switch on) and ADR-062 (maintenance-due reminders, one reminder email a day once a mail service is set up). 1,041 unit tests, browser suite 229 passed and 0 failed, 0 lint errors. V1.0 is tag v1.0.0 (294e3f9); V1.1 is not tagged yet. See docs/RESUME.md, section "Update 2026-11-08".

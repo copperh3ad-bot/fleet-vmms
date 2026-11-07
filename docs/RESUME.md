@@ -1,8 +1,39 @@
 # Fleet OTG: where we stopped (resume point)
 
-Written 2026-10-29, updated 2026-11-07 (the section "Update 2026-11-07" below overrides anything older here). Read this first in the next session, then `STATE.md` (history, append-only), `CLAUDE.md` (rules), `docs/OWNER-CHECKLIST.md` (the owner's to-do list) and `docs/WHATSAPP-SETUP.md` (the WhatsApp set-up steps).
+Written 2026-10-29, updated 2026-11-08 (the section "Update 2026-11-08" below overrides anything older here). Read this first in the next session, then `STATE.md` (history, append-only), `CLAUDE.md` (rules), `docs/OWNER-CHECKLIST.md` (the owner's to-do list) and `docs/WHATSAPP-SETUP.md` (the WhatsApp set-up steps).
 
-## Update 2026-11-07 (READ THIS FIRST; it overrides everything older in this file)
+## Update 2026-11-08 (READ THIS FIRST; it overrides everything older in this file)
+**Live = commit `a5648e2` (deployed 2026-11-08, all migrations applied).** Git tags: **`v1.0.0`** = the V1.0 lock (commit 294e3f9, locked by the owner 2026-11-07; local only, the repo has no remote); **`fleet-otg-resume-2026-11-08`** = the current live state. V1.1 is **not tagged yet**: the owner has not said it is locked. Checks at this point: **1,041 unit tests pass, browser suite 229 passed / 0 failed (8 known findings)**, type-check clean, `next build` OK, **0 lint errors**. Working tree clean (only untracked stray files in the repo root).
+
+### Migrations applied on live (1 company schema, `beta`, 0 dedicated databases)
+platform 0016 (WhatsApp job card switch) | control 0018 | tenant 0036. Next free numbers: **tenant 0037, platform 0017, control 0019**.
+
+### Built and deployed since the 2026-11-07 morning (ADRs 057 to 062 in `docs/adr/`)
+- **057** monthly price **PKR 43,000**, and **12 months paid at once cost 11** (`billedMonths`). The amount is entered by the owner in Admin, Plans (never in code); CLAUDE.md rule 7 now names it. **Not entered yet.** Existing customers keep the price they joined at.
+- **058** SMS code removed (invitation codes go by WhatsApp or email); the four `SMS_*` Netlify values were unset.
+- **059** HR vehicle requests: `hr` role, administrator and fleet manager decide, give a vehicle nobody holds or approve a purchase (tenant 0034). Invite an HR person on the Users page to use it.
+- **060** every date shown as dd/mm/yy (`src/lib/format/date.ts`); date pickers, stored values, exports and month labels unchanged.
+- **061 (V1.1)** job cards raised by WhatsApp, **Pro only**: an employee's one message is read by the AI into a draft, YES creates the card as Requested ("Raised by WhatsApp"), a manager approves in the app. Off until a Pro company's administrator switches it on (Vendors page). Needs `ANTHROPIC_API_KEY` in Netlify. Sender found by phone among the enabled companies (tenant 0035, platform 0016). **Never tried with real WhatsApp.**
+- **062** daily maintenance-due reminders (holder and fleet managers; tenant 0036) and one reminder email a day per person (documents, licences, maintenance) once `SMTP_URL` and `EMAIL_FROM` are set and the person has an email on their employee record. Licence and document reminders already ran daily.
+- Also: lint errors cleared (10 to 0); flyer refreshed (`marketing/flyer/`); the two Destinsolutions test organizations and their logins were deleted from live, so only Fleet OTG (`beta`, comped, legacy plan) remains.
+- **Decisions:** licence rule stays for invited employees only; gate passes (ADR-045 5b/5c) **deferred** by the owner; flyer left without a price or WhatsApp number.
+
+### The owner's to-do list now
+1. **Admin, Plans:** Price `43000`, Currency `PKR`. SRB tax rule and rate (Admin, Tax), the SRB registration number (Settings), each customer's NTN (Billing; confirming a payment is refused without it).
+2. **Netlify:** `ANTHROPIC_API_KEY` (WhatsApp job cards); `SMTP_URL` and `EMAIL_FROM` (reminder emails, still the open mail-service choice); the six workshop WhatsApp template variables after Meta approves them; `WHATSAPP_ODOMETER_TEMPLATE` on the owner's word.
+3. **Meta:** submit the Utility appeal for `fleetotg_request` (wording drafted in the chat; WhatsApp Manager, Request review). Optional: two Utility templates for WhatsApp reminders (licence expiring, service due), not built.
+4. **Try it live:** put a company on Pro, switch on job cards by WhatsApp, test with a **Pakistani** number (Indonesia is refused, code 130497). Also still open from before: a real join with a WhatsApp code, a real invite, the payment emails, an odometer reply, the workshop WhatsApp request.
+5. **Lawyer review** of Terms and Privacy, governing-law wording, then remove the Draft banner.
+6. **Small:** users-table keyboard scroll and `/job-cards/new` landmark notes; the ledger date flake (`tests/ledger.test.ts`); stray files in the repo root (PDFs, images, the design zip); whether to tag V1.1.
+7. **Not built:** gate passes (deferred), plan switching by payment.
+
+### Quirks learned (add to those below)
+- The commit-validate hook blocks **any** Bash command that contains a heredoc, even unrelated ones: use the Write or Edit tools for files and scripts.
+- Finder keeps making copies like `routes.d 3.ts` in `.next/types` (and `.next 2/`): run `find .next -name "* [0-9]*" -delete` before type-checking, or `tsc` reports duplicate identifiers.
+- Netlify env listing is blocked by the auto-mode classifier (it prints secrets); `netlify env:unset NAME --context production` works.
+- Built-in organization delete refuses shared-schema companies; the two test orgs were removed with a one-off script (drop schema, delete control rows and Supabase Auth logins).
+
+## Update 2026-11-07 (older; the 2026-11-08 section above overrides it)
 **Live = commit `12d1019` (deployed 2026-11-07, all migrations applied).** Git tag **`fleet-otg-resume-2026-11-07`** marks it. Checks at this point: **1,004 unit tests pass, browser suite 229 passed / 0 failed**, type-check clean, `next build` OK, lint at its old 10 errors. Working tree clean.
 
 ### Migrations applied on live (3 company schemas, 0 dedicated databases)
