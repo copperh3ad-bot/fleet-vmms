@@ -27,6 +27,7 @@ export function GET() {
     "## What it does",
     "- Job cards with approvals: whoever raises a request cannot approve it, and every step is recorded with the person and the time.",
     "- Workshops and quotations: a workshop's estimate is recorded against the job card number and checked against its invoice before payment.",
+    "- Departments and hour meters: vehicles can belong to an operating department that looks after its own jobs, and loaders or forklifts can be serviced by engine hours as well as kilometres and months.",
     "- Servicing, budgets and papers: what is due or overdue, spend per vehicle against its budget, and insurance, fitness, token tax, accident and fine records with expiry reminders.",
     "",
     "## Pages",

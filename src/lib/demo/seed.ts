@@ -64,6 +64,8 @@ export async function seedDemo(driver: Driver, tenant: { tenantId: string; schem
   const vLea = await veh("LEA-118", "Suzuki", "Bolan", 2019, "van", "petrol", 91800, farah, 10, [["registration", 500], ["fitness", 22], ["token_tax", 330]]);
   const vTruck = await veh("LEB-770", "Hino", "500", 2018, "truck", "diesel", 204500, null, 40, [["registration", 60], ["fitness", 15], ["route_permit", 130]]);
   await veh("ICT-452", "Honda", "City", 2023, "car", "petrol", 12700, null, null, [["registration", 700]]);
+  // operating departments (ADR-048): logistics runs the pickup, the older Hilux and the truck; operations has the van
+  for (const [id, dept] of [[v245, "Logistics"], [v302, "Logistics"], [vTruck, "Logistics"], [vLea, "Operations"]] as const) await master.setVehicleDepartment(driver, admin, id, dept);
   await raw(admin, (q) => q.query("insert into insurance_policies(vehicle_id, insurer, policy_no, valid_from, valid_to, premium) values ($1, 'EFU General', 'POL-245-26', $2, $3, 62000), ($4, 'Jubilee General', 'POL-300-26', $5, $6, 58000)", [v245, day(-300), day(65), v300, day(-340), day(25)]));
 
   // ---- budgets ----

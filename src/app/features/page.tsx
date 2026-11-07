@@ -11,7 +11,7 @@ export const metadata = pageMeta(TITLE, DESCRIPTION);
 
 // Static text (ADR-031). Each block is a problem a company with a fleet meets, and the thing in the product that answers it today.
 // Nothing here is a statistic, a customer claim or a price.
-const ICONS = ["approve", "papers", "workshop", "phone", "budget", "odometer", "service", "shield"];
+const ICONS = ["approve", "papers", "workshop", "phone", "budget", "odometer", "service", "shield", "workshop", "odometer"];
 const SOLVES: { problem: string; answer: string }[] = [
   { problem: "Nobody can say who approved a repair", answer: "Job cards, quotations and invoices are approved with the person's name and the time. Whoever raises a request cannot approve it, and every step is recorded." },
   { problem: "Repair history is scattered across spreadsheets and chats", answer: "Each repair is one job card with a clear status and a full history of who did what and when. Drivers and fleet officers raise jobs, and managers approve them." },
@@ -21,6 +21,8 @@ const SOLVES: { problem: string; answer: string }[] = [
   { problem: "The same fault keeps coming back", answer: "Every job records a reason, and a repeat repair on the same vehicle is flagged, so you can see what keeps failing and why." },
   { problem: "Servicing and papers are missed", answer: "Set the servicing rules once and see what is overdue, coming up, or has no history at all. Insurance, fitness, token tax, accidents and fines are kept in one place with reminders before they expire." },
   { problem: "Employees borrow each other's logins", answer: "Every sign-in is tied to an employee code and a role, so each action traces to a real person. Drivers who only report readings need no account." },
+  { problem: "One department runs its own vehicles", answer: "Mark vehicles as belonging to a department such as Logistics or Operations. A person in that department raises, approves and follows jobs on its own vehicles only, with a spending limit above which a fleet manager decides, while the rest of the fleet and the company's money stay out of sight." },
+  { problem: "Loaders and forklifts are serviced by hours, not kilometres", answer: "Switch on an hour meter for a vehicle and enter readings or add them to a job card. Service rules can be in hours, kilometres, months or any mix, and cost per engine hour appears beside cost per kilometre in the reports." },
 ];
 
 const STEPS: [string, string][] = [
