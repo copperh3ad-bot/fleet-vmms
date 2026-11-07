@@ -25,10 +25,11 @@ const NOTES: Record<(typeof VEHICLE_CSV_COLUMNS)[number], string> = {
   holding_since: "When that person started holding it, as a date like 2026-01-31.",
   last_oil_change: "Date of the last oil change, like 2026-01-31. It starts the oil change reminder.",
   last_oil_change_km: "Odometer reading at that oil change.",
+  department: "Optional. The operating department that runs the vehicle, for example Logistics. Leave empty for the general fleet.",
 };
 
-const EXAMPLE = ["BKL-245", "Isuzu", "NPR", 2021, "truck", "diesel", "", "", "White", "Lahore depot", 48200, "E-001", "2026-01-01", "2026-09-01", 47000];
-const WIDTH: Record<string, number> = { registration_no: 16, make: 14, model: 14, year: 8, vehicle_class: 14, fuel_type: 12, vin: 22, engine_no: 16, colour: 12, base_location: 18, odometer_km: 14, employee_no: 14, holding_since: 15, last_oil_change: 16, last_oil_change_km: 18 };
+const EXAMPLE = ["BKL-245", "Isuzu", "NPR", 2021, "truck", "diesel", "", "", "White", "Lahore depot", 48200, "E-001", "2026-01-01", "2026-09-01", 47000, ""];
+const WIDTH: Record<string, number> = { registration_no: 16, make: 14, model: 14, year: 8, vehicle_class: 14, fuel_type: 12, vin: 22, engine_no: 16, colour: 12, base_location: 18, odometer_km: 14, employee_no: 14, holding_since: 15, last_oil_change: 16, last_oil_change_km: 18, department: 16 };
 
 export async function buildVehicleSheet(trialLimit?: number): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();

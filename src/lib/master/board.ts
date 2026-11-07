@@ -9,7 +9,9 @@ export const FILTERS: ServiceFilter[] = ["all", "overdue", "due_soon", "schedule
 
 export type BoardRow = {
   id: string; registration_no: string; make: string | null; model: string | null; year: number | null; status: string;
-  holder: string | null; department: string | null;
+  holder: string | null;
+  /** the vehicle's operating department (ADR-048), not the holder's */
+  department: string | null;
   odometer_km: number; odometer_age_days: number | null; odometer_stale: boolean;
   service: ServiceFilter; service_label: string | null; last_done_on: string | null; due_on: string | null; days_remaining: number | null; open_job_no: string | null;
   spent: number; budget: number | null; pct: number | null;
@@ -22,14 +24,19 @@ export type BoardRow = {
 export type Board = {
   rows: BoardRow[]; total: number; page: number; pages: number;
   counts: Record<ServiceFilter, number>; warnDays: number; staleDays: number; ruleText: string | null;
+  /** departments among the vehicles this person can see, and whether some have none; the filter shows only when there is a choice */
+  departments: string[]; hasGeneral: boolean; dept: string;
 };
+
+/** The filter value for vehicles that belong to no department. */
+export const NO_DEPARTMENT = "_none";
 
 const FLAG_TEXT: Record<string, { text: string; tone: "bad" | "warn" }> = {
   over_budget: { text: "Over budget", tone: "bad" }, near_budget: { text: "Near budget limit", tone: "warn" },
   repeat_repair: { text: "Repeat repair", tone: "warn" }, too_many_jobs: { text: "Many jobs", tone: "warn" }, cost_vs_peers: { text: "Costly vs similar vehicles", tone: "warn" }, replacement_due: { text: "Due for replacement", tone: "warn" },
 };
 
-export function getBoard(driver: Driver, m: Membership, opts: { q?: string; filter?: string; page?: number } = {}): Promise<Board> {
+export function getBoard(driver: Driver, m: Membership, opts: { q?: string; filter?: string; page?: number; dept?: string } = {}): Promise<Board> {
   const filter = (FILTERS as string[]).includes(opts.filter ?? "") ? (opts.filter as ServiceFilter) : "all";
   const page = Math.max(1, Math.floor(opts.page ?? 1));
   return authorized(driver, m, "vehicle.read", async (q) => {
@@ -40,13 +47,16 @@ export function getBoard(driver: Driver, m: Membership, opts: { q?: string; filt
       params.push(`%${opts.q.replace(/[%_\\]/g, "\\$&").slice(0, 80)}%`);
       where.push(`(v.registration_no ilike $${params.length} or v.make ilike $${params.length} or v.model ilike $${params.length} or h.full_name ilike $${params.length})`);
     }
+    const deptWanted = (opts.dept ?? "").trim().slice(0, 60);
+    if (deptWanted === NO_DEPARTMENT) where.push("(v.department is null or btrim(v.department) = '')");
+    else if (deptWanted) { params.push(deptWanted); where.push(`lower(btrim(v.department)) = lower($${params.length})`); }
     const warnDays = Number((await q.query<{ d: string }>("select setting_num('pm_warning_days', 14)::text d")).rows[0].d);
     const staleDays = Number((await q.query<{ d: string }>("select setting_num('odometer_stale_days', 45)::text d")).rows[0].d);
 
     const base = `
       with base as (
         select v.id, v.registration_no, v.make, v.model, v.year, v.status, v.odometer_km, v.odometer_updated_at,
-               h.full_name as holder, h.department,
+               h.full_name as holder, nullif(btrim(v.department), '') as department,
                coalesce((select p.pm_status from v_pm_status p where p.vehicle_id = v.id
                  order by case p.pm_status when 'overdue' then 0 when 'due_soon' then 1 when 'no_history' then 2 when 'scheduled' then 3 else 4 end, coalesce(p.days_remaining, 99999) limit 1), 'ok') as service
           from vehicles v
@@ -54,6 +64,14 @@ export function getBoard(driver: Driver, m: Membership, opts: { q?: string; filt
           left join employees h on h.id = c.employee_id
          where ${where.join(" and ")}
       )`;
+    // the choices for the department filter: what this person can see, before any department is picked
+    const seen = (await q.query<{ d: string | null }>(
+      `select distinct on (lower(btrim(coalesce(v.department, '')))) nullif(btrim(v.department), '') as d
+         from vehicles v left join vehicle_custody c on c.vehicle_id = v.id and c.to_date is null left join employees h on h.id = c.employee_id
+        where v.status in ('active','in_workshop') and dept_ok(v.id)${m.vehicleScope === "own" ? " and h.user_id = $1" : ""}
+        order by lower(btrim(coalesce(v.department, ''))), 1`, m.vehicleScope === "own" ? [m.userId] : [])).rows;
+    const departments = seen.map((r) => r.d).filter((d): d is string => d !== null).sort((a, b) => a.localeCompare(b));
+    const hasGeneral = seen.some((r) => r.d === null);
     const countRows = (await q.query<{ service: string | null; c: number }>(`${base} select service, count(*)::int c from base group by service`, params)).rows;
     const counts: Record<ServiceFilter, number> = { all: 0, overdue: 0, due_soon: 0, scheduled: 0, no_history: 0, ok: 0 };
     for (const r of countRows) { counts.all += r.c; counts[(r.service ?? "ok") as ServiceFilter] += r.c; }   // a vehicle no rule applies to counts as on track
@@ -102,6 +120,6 @@ export function getBoard(driver: Driver, m: Membership, opts: { q?: string; filt
     const rule = (await q.query<{ label: string; interval_months: number | null; interval_km: string | null }>(
       "select label, interval_months, interval_km::text from service_types where active and is_preventive order by label limit 1")).rows[0];
     const ruleText = rule ? `${rule.label.toLowerCase()} rule: every ${[rule.interval_months ? `${rule.interval_months} months` : null, rule.interval_km ? `${Number(rule.interval_km).toLocaleString("en-US")} km` : null].filter(Boolean).join(" or ")}` : null;
-    return { rows: out, total, page: cur, pages, counts, warnDays, staleDays, ruleText };
+    return { rows: out, total, page: cur, pages, counts, warnDays, staleDays, ruleText, departments, hasGeneral, dept: deptWanted };
   });
 }

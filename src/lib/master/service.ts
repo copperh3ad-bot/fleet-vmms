@@ -220,10 +220,10 @@ export function setVendorStatus(driver: Driver, m: Membership, id: string, statu
 
 export const VEHICLE_CSV_COLUMNS = [
   "registration_no", "make", "model", "year", "vehicle_class", "fuel_type", "vin", "engine_no", "colour", "base_location",
-  "odometer_km", "employee_no", "holding_since", "last_oil_change", "last_oil_change_km",
+  "odometer_km", "employee_no", "holding_since", "last_oil_change", "last_oil_change_km", "department",
 ] as const;
 
-export type ImportRowResult = { row: number; plate: string; errors: string[]; input?: VehicleInput };
+export type ImportRowResult = { row: number; plate: string; errors: string[]; input?: VehicleInput; /** the operating department to set once the vehicle exists (ADR-048) */ department?: string };
 export type ImportPreview = { total: number; ok: number; failed: number; unknownColumns: string[]; rows: ImportRowResult[]; /** set while a free trial limits the fleet: what is allowed and what is already there */ trial?: { cap: number; existing: number; room: number; note: string | null } };
 
 /** Vehicles that count towards a limit: everything except those disposed of. */
@@ -250,7 +250,7 @@ async function validateImport(q: Queryable, text: string): Promise<ImportPreview
     const errors: string[] = [];
     const plate = values.registration_no ?? "";
     const raw: Record<string, unknown> = {};
-    for (const k of VEHICLE_CSV_COLUMNS) if (values[k] !== undefined && !["employee_no", "last_oil_change", "last_oil_change_km"].includes(k)) raw[k] = values[k];
+    for (const k of VEHICLE_CSV_COLUMNS) if (values[k] !== undefined && !["employee_no", "last_oil_change", "last_oil_change_km", "department"].includes(k)) raw[k] = values[k];
 
     if (values.employee_no) {
       const e = emps.get(values.employee_no.toLowerCase());
@@ -262,6 +262,8 @@ async function validateImport(q: Queryable, text: string): Promise<ImportPreview
       if (!oil) errors.push("last_oil_change: this workspace has no oil change service type");
       else raw.baselines = [{ service_type_key: "oil_change", last_done_on: values.last_oil_change, last_odometer_km: values.last_oil_change_km || undefined }];
     }
+    const department = (values.department ?? "").trim().replace(/\s+/g, " ");
+    if (department.length > 60) errors.push("department: keep the name under 60 letters");
     const p = vehicleSchema.safeParse(raw);
     if (!p.success) for (const i of p.error.issues) errors.push(`${String(i.path[0] ?? "row").replace("baselines", "last_oil_change")}: ${i.message}`);
 
@@ -272,7 +274,7 @@ async function validateImport(q: Queryable, text: string): Promise<ImportPreview
       if (first !== undefined) errors.push(`registration_no: same plate as row ${first} in this file`);
       else seen.set(key, line);
     }
-    return { row: line, plate, errors, input: errors.length === 0 && p.success ? p.data : undefined };
+    return { row: line, plate, errors, input: errors.length === 0 && p.success ? p.data : undefined, department: department || undefined };
   });
   const failed = rows.filter((r) => r.errors.length).length;
   return { total: rows.length, ok: rows.length - failed, failed, unknownColumns: parsed.headers.filter((h) => h && !known.has(h)), rows };
@@ -302,8 +304,10 @@ export async function commitVehicleImport(driver: Driver, m: Membership, text: s
     }
     if (pre.failed) throw new UserError(`${pre.failed} row(s) have errors. Fix them and upload again; nothing was imported.`);
     for (const r of pre.rows) {
-      try { await q.query("select onboard_vehicle($1::jsonb, $2::uuid)", [toDbVehicle(r.input!), m.userId]); }
-      catch (e) { friendly(e); }
+      try {
+        const id = (await q.query<{ id: string }>("select onboard_vehicle($1::jsonb, $2::uuid) as id", [toDbVehicle(r.input!), m.userId])).rows[0].id;
+        if (r.department) await setDepartmentIn(q, id, r.department);
+      } catch (e) { friendly(e); }
     }
     return { imported: pre.rows.length };
   });
@@ -324,11 +328,13 @@ export function setVehicleDepartment(driver: Driver, m: Membership, vehicleId: s
   const name = department.trim().replace(/\s+/g, " ");
   if (name.length > 60) return Promise.reject(new UserError("Keep the department name under 60 letters.", { department: "Too long" }));
   return authorized(driver, m, "vehicle.write", async (q) => {
-    // a name already in use keeps its spelling, so "logistics" and "Logistics" stay one department
-    const known = name ? (await q.query<{ d: string }>("select d from (select department as d from vehicles union all select department from role_departments) x where lower(btrim(d)) = lower($1) limit 1", [name])).rows[0]?.d : undefined;
-    try {
-      const r = await q.query("update vehicles set department = $2 where id = $1 returning id", [vehicleId, known ?? (name || null)]);
-      if (r.rows.length === 0) throw new UserError("Vehicle not found.");
-    } catch (e) { friendly(e); }
+    try { await setDepartmentIn(q, vehicleId, name); } catch (e) { friendly(e); }
   });
+}
+
+/** A name already in use keeps its spelling, so "logistics" and "Logistics" stay one department, in a form and in an import alike. */
+async function setDepartmentIn(q: Queryable, vehicleId: string, name: string): Promise<void> {
+  const known = name ? (await q.query<{ d: string }>("select d from (select department as d from vehicles union all select department from role_departments) x where lower(btrim(d)) = lower($1) limit 1", [name])).rows[0]?.d : undefined;
+  const r = await q.query("update vehicles set department = $2 where id = $1 returning id", [vehicleId, known ?? (name || null)]);
+  if (r.rows.length === 0) throw new UserError("Vehicle not found.");
 }

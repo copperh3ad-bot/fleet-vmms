@@ -36,7 +36,7 @@ describe("vehicle board", () => {
   it("each row carries what the design shows", async () => {
     const b = await getBoard(d, mem("fleet_manager"));
     const r = (plate: string) => b.rows.find((x) => x.registration_no === plate)!;
-    expect(r("BKL-245")).toMatchObject({ holder: "Imran Ali", department: "Logistics", make: "Isuzu", model: "D-Max", year: 2021, odometer_km: 48210 });
+    expect(r("BKL-245")).toMatchObject({ holder: "Imran Ali", department: null, make: "Isuzu", model: "D-Max", year: 2021, odometer_km: 48210 });
     expect(r("BKL-302").budget).toBe(60000);                                                           // the vehicle's own budget
     expect(r("BKL-302").pct).toBeGreaterThan(0);
     expect(r("BKL-302").spent).toBeGreaterThan(0);

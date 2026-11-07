@@ -9,7 +9,7 @@ import { costPerHourIn, costPerKmIn, downtimeIn } from "@/lib/analytics/fleet-us
 
 export const MAX_EXPORT_ROWS = 50_000;
 
-type Filters = { q?: string; status?: string; type?: string; months?: string };
+type Filters = { dept?: string; q?: string; status?: string; type?: string; months?: string };
 type Ctx = { q: Queryable; held: Set<string>; m: Membership; f: Filters };
 type Def = { perms: string[]; run: (c: Ctx) => Promise<Record<string, unknown>[]>; columns: Column<Record<string, unknown>>[] };
 
@@ -21,14 +21,16 @@ const DEFS: Record<string, Def> = {
   vehicles: {
     perms: ["vehicle.read"],
     columns: [col("Registration", "registration_no"), col("Make", "make"), col("Model", "model"), col("Year", "year"), col("Class", "vehicle_class"), col("Fuel", "fuel_type"),
-      col("Status", "status"), col("Odometer km", "odometer_km"), col("Base location", "base_location"), col("Held by", "holder"), col("Employee ID", "holder_no"), col("Worst service status", "pm_worst")],
+      col("Status", "status"), col("Odometer km", "odometer_km"), col("Base location", "base_location"), col("Department", "department"), col("Held by", "holder"), col("Employee ID", "holder_no"), col("Worst service status", "pm_worst")],
     async run({ q, m, f }) {
       const where: string[] = ["dept_ok(v.id)"], p: unknown[] = [];
       if (m.vehicleScope === "own") { p.push(m.userId); where.push(`h.user_id = $${p.length}`); }
       if (f.status) { p.push(f.status); where.push(`v.status = $${p.length}`); }
+      if (f.dept === "_none") where.push("(v.department is null or btrim(v.department) = '')");
+      else if (f.dept) { p.push(f.dept); where.push(`lower(btrim(v.department)) = lower($${p.length})`); }
       if (f.q) { p.push(like(f.q)); where.push(`(v.registration_no ilike $${p.length} or v.make ilike $${p.length} or v.model ilike $${p.length} or h.full_name ilike $${p.length})`); }
       return (await q.query(
-        `select v.registration_no, v.make, v.model, v.year, v.vehicle_class, v.fuel_type, v.status, v.odometer_km::text, v.base_location, h.full_name as holder, h.employee_no as holder_no,
+        `select v.registration_no, v.make, v.model, v.year, v.vehicle_class, v.fuel_type, v.status, v.odometer_km::text, v.base_location, v.department, h.full_name as holder, h.employee_no as holder_no,
                 (select case min(case x.pm_status when 'overdue' then 0 when 'due_soon' then 1 when 'no_history' then 2 when 'scheduled' then 3 else 4 end)
                           when 0 then 'overdue' when 1 then 'due_soon' when 2 then 'no_history' when 3 then 'scheduled' when 4 then 'ok' end from v_pm_status x where x.vehicle_id = v.id) as pm_worst
            from vehicles v left join vehicle_custody c on c.vehicle_id = v.id and c.to_date is null left join employees h on h.id = c.employee_id
@@ -167,7 +169,7 @@ export const isExportKind = (k: string) => Object.prototype.hasOwnProperty.call(
 export async function exportCsv(driver: Driver, m: Membership, kind: string, filters: Filters = {}): Promise<{ fileName: string; csv: string; rows: number }> {
   if (!isExportKind(kind)) throw new UserError("Unknown export.");
   const def = DEFS[kind];
-  const f: Filters = { q: filters.q?.slice(0, 80) || undefined, status: filters.status?.slice(0, 30) || undefined, type: filters.type?.slice(0, 30) || undefined, months: filters.months?.slice(0, 3) || undefined };
+  const f: Filters = { q: filters.q?.slice(0, 80) || undefined, status: filters.status?.slice(0, 30) || undefined, type: filters.type?.slice(0, 30) || undefined, months: filters.months?.slice(0, 3) || undefined, dept: filters.dept?.slice(0, 60) || undefined };
   return authorizedAny(driver, m, def.perms, async (q, held) => {
     const rows = await def.run({ q, held, m, f });
     if (rows.length > MAX_EXPORT_ROWS) throw new UserError(`Too many rows to export at once (more than ${MAX_EXPORT_ROWS.toLocaleString("en-US")}). Narrow it with a filter.`);

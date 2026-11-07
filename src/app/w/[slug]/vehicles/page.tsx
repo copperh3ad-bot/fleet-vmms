@@ -3,7 +3,7 @@ import { ExportLink } from "@/components/export-link";
 import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
-import { getBoard, type BoardRow, type ServiceFilter } from "@/lib/master/board";
+import { NO_DEPARTMENT, getBoard, type BoardRow, type ServiceFilter } from "@/lib/master/board";
 import { planUsage } from "@/lib/admin/service";
 import { PageHeader, Pill, Plate, btn, btnPrimary, money, type Tone } from "@/components/ui";
 import { DOC_LABEL } from "@/lib/compliance/schemas";
@@ -31,14 +31,14 @@ function service(r: BoardRow): { tone: Tone; text: string; sub: string } {
 async function Vehicles({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug } = await params;
   const sp = await searchParams;
-  const q = one(sp.q).slice(0, 80), filter = one(sp.filter), page = Number(one(sp.page)) || 1;
+  const q = one(sp.q).slice(0, 80), filter = one(sp.filter), page = Number(one(sp.page)) || 1, dept = one(sp.dept).slice(0, 60);
   const m = await requireMembership(slug, { fullScope: true });
   const driver = getDriver();
-  const [b, perms, plan] = await Promise.all([getBoard(driver, m, { q: q || undefined, filter, page }), permissionsOf(driver, m), planUsage(driver, m)]);
+  const [b, perms, plan] = await Promise.all([getBoard(driver, m, { q: q || undefined, filter, page, dept: dept || undefined }), permissionsOf(driver, m), planUsage(driver, m)]);
   const canWrite = perms.has("vehicle.write");
   const active = (["all", "overdue", "due_soon", "scheduled", "no_history", "ok"] as ServiceFilter[]).includes(filter as ServiceFilter) ? (filter as ServiceFilter) : "all";
   const href = (over: Record<string, string>) => {
-    const p = new URLSearchParams({ ...(q ? { q } : {}), ...(active !== "all" ? { filter: active } : {}), ...over });
+    const p = new URLSearchParams({ ...(q ? { q } : {}), ...(active !== "all" ? { filter: active } : {}), ...(b.dept ? { dept: b.dept } : {}), ...over });
     for (const [k, v] of [...p]) if (!v) p.delete(k);
     return `/w/${slug}/vehicles${p.size ? `?${p}` : ""}`;
   };
@@ -51,7 +51,7 @@ async function Vehicles({ params, searchParams }: { params: Promise<{ slug: stri
   return (
     <main className="space-y-5 p-6 text-zinc-900">
       <PageHeader title="Vehicles" sub={sub} actions={<>
-        <ExportLink slug={slug} kind="vehicles" query={{ q, status: "" }} />
+        <ExportLink slug={slug} kind="vehicles" query={{ q, status: "", dept: b.dept }} />
         {canWrite && <a href={`/w/${slug}/vehicles/import`} className={btnPrimary}>Import data</a>}
         {canWrite && <a href={`/w/${slug}/vehicles/new`} className={btnPrimary}>Add vehicle</a>}
       </>} />
@@ -63,8 +63,21 @@ async function Vehicles({ params, searchParams }: { params: Promise<{ slug: stri
             {label} <span className="font-mono">{b.counts[k]}</span>
           </a>
         ))}
-        <form className="ml-auto" role="search">
+        {(b.departments.length > 1 || (b.departments.length === 1 && b.hasGeneral) || b.dept) && (
+          <form className="ml-auto flex items-center gap-2 text-sm" aria-label="Filter by department">
+            {q && <input type="hidden" name="q" value={q} />}{active !== "all" && <input type="hidden" name="filter" value={active} />}
+            <label htmlFor="dept" className="text-zinc-600">Department</label>
+            <select id="dept" name="dept" defaultValue={b.dept} className="h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm">
+              <option value="">All</option>
+              {b.departments.map((d) => <option key={d} value={d}>{d}</option>)}
+              {b.hasGeneral && <option value={NO_DEPARTMENT}>No department</option>}
+            </select>
+            <button className="h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium hover:bg-zinc-50">Show</button>
+          </form>
+        )}
+        <form className={b.departments.length > 1 || b.hasGeneral || b.dept ? "" : "ml-auto"} role="search">
           {active !== "all" && <input type="hidden" name="filter" value={active} />}
+          {b.dept && <input type="hidden" name="dept" value={b.dept} />}
           <input name="q" defaultValue={q} placeholder="Plate, model or driver" aria-label="Search vehicles" className="h-10 w-64 rounded-md border border-zinc-300 bg-white px-3 text-sm" />
         </form>
       </div>
@@ -86,8 +99,8 @@ async function Vehicles({ params, searchParams }: { params: Promise<{ slug: stri
                   const over = (r.pct ?? 0) >= 100;
                   return (
                     <tr key={r.id} className="border-b border-zinc-100 align-top last:border-0">
-                      <td className="px-5 py-4"><a href={`/w/${slug}/vehicles/${r.id}`}><Plate>{r.registration_no}</Plate></a><span className="mt-1 block text-xs text-zinc-500">{[r.make, r.model, r.year].filter(Boolean).join(" ")}</span></td>
-                      <td className="py-4 pr-3">{r.holder ?? <span className="text-zinc-600">Unassigned</span>}{r.department && <span className="block text-xs text-zinc-500">{r.department}</span>}</td>
+                      <td className="px-5 py-4"><a href={`/w/${slug}/vehicles/${r.id}`}><Plate>{r.registration_no}</Plate></a><span className="mt-1 block text-xs text-zinc-500">{[r.make, r.model, r.year].filter(Boolean).join(" ")}</span>{r.department && <span className="mt-1 block text-xs font-medium text-zinc-700">{r.department}</span>}</td>
+                      <td className="py-4 pr-3">{r.holder ?? <span className="text-zinc-600">Unassigned</span>}</td>
                       <td className="py-4 pr-3 text-right"><span className="font-mono">{money(r.odometer_km)} km</span>
                         <span className="mt-1 block text-xs text-zinc-500">{r.odometer_age_days === null ? "no reading yet" : r.odometer_stale ? <Pill tone="warn">Stale · {r.odometer_age_days} days</Pill> : `updated ${plural(r.odometer_age_days, "day")} ago`}</span></td>
                       <td className="py-4 pl-6 pr-3"><Pill tone={s.tone}>{s.text}</Pill>{s.sub && <span className="mt-1 block text-xs text-zinc-500">{s.sub}</span>}</td>

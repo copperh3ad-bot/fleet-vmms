@@ -9,6 +9,7 @@ const all = [
   ["companies", () => import("./s2-companies.mjs").then((m) => m.companies(S))],
   ["workspace", () => import("./s3-workspace.mjs").then((m) => m.workspace(S))],
   ["people", () => import("./s4-people.mjs").then((m) => m.people(S))],
+  ["departments", () => import("./s8-departments.mjs").then((m) => m.departments(S))],
   ["billing", () => import("./s5-billing.mjs").then((m) => m.billing(S))],
   ["lock", () => import("./s6-lock-isolation.mjs").then((m) => m.lockAndIsolation(S))],
   ["quality", () => import("./s7-quality.mjs").then((m) => m.quality(S))],
