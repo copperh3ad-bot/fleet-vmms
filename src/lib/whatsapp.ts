@@ -6,6 +6,7 @@
 //   WHATSAPP_OTP_TEMPLATE      the name of the approved authentication template that carries the code (WhatsApp lets a business start a conversation only with an
 //                              approved template; without one the code is sent as plain text, which only reaches people who messaged the business in the last 24 hours)
 //   WHATSAPP_TEMPLATE_LANG     the template's language code; en if empty
+//   WHATSAPP_ODOMETER_TEMPLATE the approved template that asks a holder for the month's odometer reading, answered by a reply (ADR-050)
 //   WHATSAPP_INVITE_TEMPLATE   the approved template that carries an invitation link (ADR-049). With it, the app sends the link itself from the business number and no
 //                              one in the company ever holds the link; without it, the administrator gets the old phone buttons.
 // And to take replies from workshops and drivers (ADR-042):
@@ -97,6 +98,41 @@ export async function sendWhatsAppInvite(e164: string, m: { name: string; org: s
     signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) throw await refusal(res, "whatsapp invite failed");
+}
+
+/** Can the app send the monthly odometer request itself? Needs the business number and the approved template. */
+export const whatsappOdometerConfigured = () => !!process.env.WHATSAPP_ODOMETER_TEMPLATE && whatsappConfigured();
+
+/**
+ * Asks a holder for this month's odometer reading (ADR-050) and returns the id of the message sent, which is what a "reply" to it carries back. The template says who it is
+ * for, which vehicle and which month; the answer is the number typed in the reply. A reminder uses the same template.
+ */
+export async function sendWhatsAppOdometerRequest(e164: string, m: { name: string; plate: string; month: string; reminder?: boolean }, fetchImpl: typeof fetch = fetch): Promise<string> {
+  const file = testFile();
+  if (file) {
+    const id = `file.${Math.random().toString(36).slice(2, 12)}`;
+    appendFileSync(file, JSON.stringify({ to: e164, body: `${m.reminder ? "Reminder: " : ""}Odometer for ${m.plate} (${m.month}), ${m.name}: reply with the reading`, id }) + "\n");
+    return id;
+  }
+  const id = process.env.WHATSAPP_PHONE_NUMBER_ID, token = process.env.WHATSAPP_ACCESS_TOKEN, template = process.env.WHATSAPP_ODOMETER_TEMPLATE;
+  if (!id || !token || !template) throw new WhatsAppNotConfigured();
+  const clean = (s: string) => s.replace(/[\r\n\t]+/g, " ").replace(/ {2,}/g, " ").trim().slice(0, 60);
+  const res = await fetchImpl(`${GRAPH}/${encodeURIComponent(id)}/messages`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messaging_product: "whatsapp", to: e164.replace(/\D/g, ""), type: "template",
+      template: {
+        name: template, language: { code: process.env.WHATSAPP_TEMPLATE_LANG || "en" },
+        components: [{ type: "body", parameters: [{ type: "text", text: clean(m.name) || "there" }, { type: "text", text: clean(m.plate) }, { type: "text", text: clean(m.month) }] }],
+      },
+    }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw await refusal(res, "whatsapp odometer request failed");
+  const sent = ((await res.json().catch(() => ({}))) as { messages?: { id?: unknown }[] }).messages?.[0]?.id;
+  if (typeof sent !== "string" || !sent) throw new Error("whatsapp odometer request: no message id came back");
+  return sent;
 }
 
 // ---------------------------------------------------------------------------------------------- replies from workshops and drivers (ADR-042)

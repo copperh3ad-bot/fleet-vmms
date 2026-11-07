@@ -408,3 +408,6 @@ Vehicle list shows the vehicle's own department with a Department filter (and "N
 
 ## 2026-11-07: ADR-048 engine hours through the driver link (migration 0031)
 `0031_hours_link.sql` (not applied to live), the link page asks for the hour meter for vehicles that track hours (odometer optional for them), approval writes the hour reading, bulk approval skips submissions with hours. `tests/hours-link.test.ts` (9). Gate passes move to migration 0032. 938 unit tests pass; browser suite not yet run on this. Not deployed.
+
+## 2026-11-07: ADR-050 the monthly odometer request on WhatsApp (built, not deployed)
+Tenant migration 0032 and control migration 0016 (neither on live), `src/lib/odometer/whatsapp.ts`, scheduled function `odometer-whatsapp.mts`, the reply handled in the WhatsApp webhook, settings `odometer_whatsapp` and `odometer_send_day`, `tests/odometer-whatsapp.test.ts` (12). Hour-meter vehicles excluded. Template `fleetotg_odometer` NOT yet created in Meta and `WHATSAPP_ODOMETER_TEMPLATE` not set. Gate passes move to migration 0033.

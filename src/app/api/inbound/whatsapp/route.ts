@@ -9,6 +9,7 @@ import { clientIp } from "@/lib/client-ip";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { failedStatuses, fetchMedia, statusKinds, parseWebhook, sendReplyText, verifyChallenge, verifyMetaSignature, whatsappInboundConfigured } from "@/lib/whatsapp";
 import { processInboundWhatsApp } from "@/lib/vendorflow/whatsapp-inbound";
+import { processOdometerReply } from "@/lib/odometer/whatsapp";
 
 const MAX_BODY = 200_000;
 const MAX_MESSAGES = 20;
@@ -44,6 +45,8 @@ export async function POST(req: NextRequest) {
   const tell = (to: string, text: string) => sendReplyText(to, text).catch(() => undefined);          // a failed acknowledgement never undoes the filing
   try {
     for (const m of messages) {
+      const odo = await processOdometerReply(driver, m);          // a driver's answer to the monthly odometer request (ADR-050)
+      if (odo.handled) { if (odo.reply) await tell(m.from, odo.reply); continue; }
       const out = await processInboundWhatsApp(driver, deps, m);
       if (out.status === "filed") await tell(m.from, `Thank you. We have your message for job card ${out.jobNo}. The fleet office will enter it.`);
       else if (out.status === "no_context" && (await allowShared(driver, `inbound-wa-hint:${m.from}`, 1, 3600))) await tell(m.from, "To answer a request from Fleet OTG, please use Reply on that message, so we know which job it is for.");

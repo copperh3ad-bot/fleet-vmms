@@ -60,6 +60,7 @@ export type Verdict = "normal" | "lower" | "too_fast";
 export type SubmissionRow = {
   id: string; vehicle_id: string; registration_no: string; make: string | null; model: string | null; year: number | null;
   holder_name: string | null; holder_phone: string | null;
+  /** when the monthly WhatsApp request was sent for this vehicle (ADR-050), if it was */ wa_sent_at: string | null;
   status: string; reading_km: string | null; /** hour meter sent with the reading, for a vehicle that tracks hours */ reading_hours: string | null; note: string | null; submitted_at: string | null; review_note: string | null; reviewed_at: string | null;
   last_km: string; last_read_at: string | null; stale_days: number | null; link_expires_at: string | null; last_link_at: string | null;
   /** only for readings waiting for review: how the reading compares with what is on file */
@@ -89,7 +90,8 @@ export function getCycle(driver: Driver, m: Membership, cycleId: string): Promis
               (current_date - v.odometer_updated_at::date)::int as stale_days,
               (select max(l.expires_at)::text from public.odometer_links l
                 where l.tenant_id = $2 and l.submission_id = s.id and l.used_at is null and l.revoked_at is null and l.expires_at > now()) as link_expires_at,
-              (select max(l.created_at)::text from public.odometer_links l where l.tenant_id = $2 and l.submission_id = s.id) as last_link_at
+              (select max(l.created_at)::text from public.odometer_links l where l.tenant_id = $2 and l.submission_id = s.id) as last_link_at,
+              (select min(w.sent_at)::text from odometer_wa_messages w where w.submission_id = s.id) as wa_sent_at
          from odometer_submissions s join vehicles v on v.id = s.vehicle_id left join employees e on e.id = s.assigned_to
         where s.cycle_id = $1 order by v.registration_no`, [cycleId, m.tenantId])).rows;
     const rows: SubmissionRow[] = raw.map((r) => {

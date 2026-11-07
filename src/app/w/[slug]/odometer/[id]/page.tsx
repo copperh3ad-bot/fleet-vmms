@@ -80,7 +80,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
                       {vehicle}{driver}
                       <td className="py-4 pr-3 text-right"><span className="font-mono">{km(r.last_km)}</span>
                         <span className="mt-1 block text-xs">{r.stale_days !== null && r.stale_days > d.rules.staleDays ? <Pill tone="warn">{r.stale_days} days ago · stale</Pill> : <span className="text-zinc-500">{r.last_read_at ? dayMonth(r.last_read_at) : "no reading yet"}</span>}</span></td>
-                      <td className="py-4 pl-6 pr-3 text-zinc-600">{r.status === "rejected" ? <Pill tone="warn">Sent back</Pill> : null}{r.last_link_at ? `Sent ${dayMonth(r.last_link_at)}` : "Not sent"}
+                      <td className="py-4 pl-6 pr-3 text-zinc-600">{r.status === "rejected" ? <Pill tone="warn">Sent back</Pill> : null}{r.last_link_at ? `Sent ${dayMonth(r.last_link_at)}` : r.wa_sent_at ? `Asked on WhatsApp ${dayMonth(r.wa_sent_at)}` : "Not sent"}
                         {r.link_expires_at && <span className="mt-1 block text-xs text-zinc-500">Link live · <RevokeButton slug={slug} submissionId={r.id} /></span>}</td>
                       <td className="px-5 py-4">{open && <div className="space-y-2"><RemindOne slug={slug} cycleId={id} submissionId={r.id} /><EnterReading slug={slug} submissionId={r.id} /></div>}</td>
                     </tr>);

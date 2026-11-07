@@ -92,6 +92,7 @@ async function Privacy() {
       <ul>
         <li><strong>Invitations</strong> to join an organization&apos;s workspace, sent from the Fleet OTG WhatsApp number. The message names the person, names the organization, and carries a link that works once and expires.</li>
         <li><strong>One-time codes</strong> that confirm an invitation.</li>
+        <li><strong>Monthly odometer requests</strong>, if the organization switches them on: a message to the person who holds a vehicle, naming the vehicle and the month and asking them to reply with the odometer reading. We keep the number they type, the number it came from (to check it is theirs) and the time, on the organization&apos;s odometer record, for the organization to review.</li>
         <li><strong>Requests to workshops</strong> to send an estimate or an invoice for a job card, and a short acknowledgement of a reply.</li>
       </ul>
       <p>We do not send advertising or promotions on WhatsApp, we do not message anyone who has not been named by an organization we serve, and we do not sell, rent or share these numbers or messages, or use them to train any model. We use only what is needed to deliver the message and file the reply. The organization is responsible for entering only numbers of people it has reason to contact for its fleet.</p>
