@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fleet OTG investor brief: cost to run one 200-vehicle company</title>
+<style>
+  /* Two A4 pages, same industrial look as marketing/flyer. Every capability named is one the product has today. The cost figures are planning estimates from the stated
+     assumptions, not quotes (docs/adr/ADR-064). No subscription price appears here: the price lives in the plans table (CLAUDE.md rule 7). */
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --ink: #15191d; --ink2: #20262c; --gold: #ffc20e; --rust: #c2410c; --mist: #aab3b9; --soft: #d3d9dd; }
+  html, body { width: 210mm; }
+  body { font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif; background: var(--ink); color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .cond { font-family: "IBM Plex Sans Condensed", "Arial Narrow", "Helvetica Neue Condensed", "Roboto Condensed", Arial, sans-serif; font-stretch: condensed; }
+  .page { width: 210mm; height: 297mm; padding: 0 14mm 10mm; position: relative; overflow: hidden; page-break-after: always;
+    background:
+      linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px) 0 0 / 8mm 8mm,
+      linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px) 0 0 / 8mm 8mm,
+      radial-gradient(110mm 90mm at 92% 6%, rgba(255,194,14,.18), transparent 70%),
+      linear-gradient(180deg, var(--ink) 0%, var(--ink2) 100%); }
+  .page:last-child { page-break-after: auto; }
+  .hazard { height: 4.5mm; margin: 0 -14mm; background: repeating-linear-gradient(-45deg, var(--gold) 0 4mm, var(--ink) 4mm 8mm); }
+  .top { display: flex; justify-content: space-between; align-items: center; margin-top: 4mm; }
+  .logo { height: 11mm; display: block; }
+  .tag { font-size: 7.5pt; letter-spacing: .18em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+  .kicker { margin-top: 3.5mm; font-size: 9pt; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+  h1 { margin-top: 1.2mm; font-size: 21pt; line-height: 1.04; font-weight: 700; text-transform: uppercase; }
+  h1 em { font-style: normal; color: var(--gold); }
+  .lede { margin-top: 2mm; font-size: 9pt; line-height: 1.35; color: var(--soft); max-width: 160mm; }
+  h2 { font-size: 11.5pt; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 2mm; }
+  h2 small { font-size: 7.5pt; letter-spacing: .08em; color: var(--mist); font-weight: 400; margin-left: 2mm; }
+
+  .box { background: rgba(255,255,255,.06); border: .3mm solid rgba(255,255,255,.16); border-left: 1.2mm solid var(--gold); padding: 3mm 4mm; }
+  .cols { display: grid; gap: 4mm; }
+  .c2 { grid-template-columns: 1fr 1fr; }
+  .assume { margin-top: 3.5mm; }
+  .assume ul { list-style: none; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5mm 4mm; font-size: 8.6pt; color: var(--soft); }
+  .assume li b { color: #fff; font-size: 10.5pt; display: block; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 8.8pt; }
+  th { text-align: left; font-size: 7pt; letter-spacing: .12em; text-transform: uppercase; color: var(--mist); font-weight: 600; padding: 1mm 0; border-bottom: .3mm solid rgba(255,255,255,.2); }
+  th.r, td.r { text-align: right; }
+  td { padding: 1.3mm 0; border-bottom: .2mm solid rgba(255,255,255,.1); vertical-align: top; color: var(--soft); }
+  td b { color: #fff; font-weight: 600; }
+  td small { display: block; color: var(--mist); font-size: 7.4pt; line-height: 1.25; }
+  td.v { color: #fff; font-weight: 700; white-space: nowrap; padding-left: 2mm; }
+  tr.sum td { white-space: nowrap; border-bottom: 0; border-top: .4mm solid var(--gold); color: var(--gold); font-weight: 700; padding-top: 2mm; }
+
+  .scen { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin-top: 2.5mm; }
+  .sc { background: rgba(255,194,14,.09); border: .4mm solid var(--gold); padding: 3mm 4mm; }
+  .sc.mid { background: var(--gold); color: var(--ink); }
+  .sc .n { font-size: 7.4pt; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; }
+  .sc .big { font-size: 17pt; font-weight: 700; line-height: 1.05; margin: 1mm 0; }
+  .sc .s { font-size: 7.8pt; line-height: 1.3; opacity: .85; }
+  .sc.mid .n, .sc.mid .s { color: var(--ink); }
+
+  .mix { margin-top: 3mm; }
+  .bar { display: flex; height: 8mm; margin-top: 1.5mm; }
+  .bar span { display: flex; align-items: center; justify-content: center; font-size: 7.5pt; font-weight: 700; color: var(--ink); }
+  .legend { margin-top: 1.5mm; font-size: 7.6pt; color: var(--mist); display: flex; gap: 5mm; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 2.6mm; height: 2.6mm; margin-right: 1.2mm; vertical-align: -.4mm; }
+
+  .moves { margin-top: 4mm; }
+  .moves ul { list-style: none; font-size: 8pt; line-height: 1.32; color: var(--soft); }
+  .moves li { padding-left: 4mm; position: relative; margin-bottom: 1mm; }
+  .moves li::before { content: ""; position: absolute; left: 0; top: 1.5mm; width: 1.8mm; height: 1.8mm; background: var(--rust); }
+  .moves b { color: #fff; }
+  .note { position: absolute; left: 14mm; right: 14mm; bottom: 8mm; font-size: 7pt; line-height: 1.35; color: var(--mist); border-top: .25mm solid rgba(255,255,255,.18); padding-top: 2mm; }
+  .note b { color: var(--soft); }
+
+  .feat { display: grid; grid-template-columns: 1fr 1fr; gap: 2.4mm 4mm; margin-top: 3mm; }
+  .f { display: grid; grid-template-columns: 6.5mm 1fr; gap: 2.5mm; align-items: start; }
+  .f i { width: 6.5mm; height: 6.5mm; background: var(--rust); display: flex; align-items: center; justify-content: center; font-style: normal; font-weight: 800; font-size: 8pt; }
+  .f.pro i { background: var(--gold); color: var(--ink); }
+  .f b { display: block; font-size: 8.8pt; text-transform: uppercase; letter-spacing: .02em; }
+  .f span { display: block; font-size: 7.9pt; line-height: 1.3; color: var(--mist); }
+  .f span.proTag { display: inline-block; font-size: 6.6pt; background: var(--gold); color: var(--ink); padding: .2mm 1.2mm; margin-left: 1.5mm; letter-spacing: .08em; vertical-align: 1px; }
+
+  .uses { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; margin-top: 3mm; }
+  .u { padding: 2.6mm 3.5mm; }
+  .u b { display: block; font-size: 9.4pt; text-transform: uppercase; letter-spacing: .02em; margin-bottom: .8mm; }
+  .u span { display: block; font-size: 8pt; line-height: 1.32; color: var(--soft); }
+  .u em { display: block; margin-top: 1mm; font-style: normal; font-size: 7.3pt; color: var(--gold); }
+
+  .plans { margin-top: 4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; }
+  .plans .box b { color: var(--gold); text-transform: uppercase; font-size: 9pt; letter-spacing: .05em; }
+  .plans .box span { display: block; font-size: 8.2pt; line-height: 1.35; color: var(--soft); margin-top: .8mm; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin-top: 2.5mm; }
+  .st { border-top: .8mm solid var(--gold); padding-top: 2mm; }
+  .st b { display: block; font-size: 10pt; text-transform: uppercase; letter-spacing: .02em; }
+  .st span { display: block; margin-top: .8mm; font-size: 7.8pt; line-height: 1.32; color: var(--soft); }
+  .cta { position: absolute; left: 14mm; right: 14mm; bottom: 17mm; display: flex; justify-content: space-between; align-items: flex-end; }
+  .cta .url { font-size: 17pt; font-weight: 700; color: var(--gold); }
+  .cta .sub { font-size: 8.5pt; color: var(--mist); text-align: right; }
+</style>
+</head>
+<body>
+
+<!-- ===================== PAGE 1: the cost ===================== -->
+<div class="page">
+  <div class="hazard"></div>
+  <div class="top"><img class="logo" src="../../public/fleetotg-logo.png" alt="Fleet OTG"><span class="tag">Investor brief · Unit cost</span></div>
+  <div class="kicker">What it costs to run</div>
+  <h1 class="cond">One company with <em>200 vehicles</em>: the monthly operating cost</h1>
+  <p class="lede">Fleet OTG is multi-tenant: every company has its own workspace on one shared platform. So most cost is a small fixed platform bill that every extra company shares, and only a thin slice grows with each company. These are planning estimates from stated assumptions, in US dollars a month.</p>
+
+  <div class="box assume">
+    <h2 class="cond" style="margin-bottom:1.5mm">The company we priced <small>assumptions</small></h2>
+    <ul>
+      <li><b>200 vehicles</b>cars, vans, trucks, loaders</li>
+      <li><b>~50 people</b>managers, officers, drivers</li>
+      <li><b>~200 job cards</b>a month</li>
+      <li><b>~400 documents</b>workshop estimates and invoices read by the AI</li>
+      <li><b>~200 messages</b>monthly odometer request on WhatsApp</li>
+      <li><b>Pro plan</b>AI and WhatsApp job cards on</li>
+    </ul>
+  </div>
+
+  <div class="cols c2" style="margin-top:3.5mm">
+    <div>
+      <h2 class="cond">Grows with the company <small>per month</small></h2>
+      <table>
+        <thead><tr><th>Item</th><th class="r">USD</th></tr></thead>
+        <tbody>
+          <tr><td><b>WhatsApp messages</b><small>~600 to 1,000 business-started template messages at about 1 to 5 cents each. Replies within 24 hours are free.</small></td><td class="v r">10 – 40</td></tr>
+          <tr><td><b>AI reading</b><small>Claude Haiku 5.5, about 400 documents and 200 job card drafts.</small></td><td class="v r">&lt; 2</td></tr>
+          <tr><td><b>Email</b><small>Reminder digests, invitations, payment mails.</small></td><td class="v r">0 – 2</td></tr>
+          <tr><td><b>Files and data</b><small>About 400 MB of photos and PDFs a month; the records themselves are tiny.</small></td><td class="v r">&lt; 1</td></tr>
+          <tr class="sum"><td>Subtotal</td><td class="r">≈ 10 – 45</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h2 class="cond">Shared by every company <small>per month</small></h2>
+      <table>
+        <thead><tr><th>Item</th><th class="r">USD</th></tr></thead>
+        <tbody>
+          <tr><td><b>Database, login, storage</b><small>Supabase Pro, plus a larger compute tier as load grows.</small></td><td class="v r">25 – 60</td></tr>
+          <tr><td><b>Hosting and scheduled jobs</b><small>Netlify.</small></td><td class="v r">19 – 40</td></tr>
+          <tr><td><b>Domain, live chat, mail service</b><small>Small fixed items.</small></td><td class="v r">5 – 20</td></tr>
+          <tr class="sum"><td>Subtotal</td><td class="r">≈ 60 – 100</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h2 class="cond" style="margin-top:3.5mm">Cost per company, by how many companies share the platform</h2>
+  <div class="scen">
+    <div class="sc"><div class="n">1 company</div><div class="big cond">$70 – 145</div><div class="s">The whole platform bill lands on one customer.</div></div>
+    <div class="sc mid"><div class="n">10 companies</div><div class="big cond">$16 – 55</div><div class="s">Platform share is $6 to $10 each.</div></div>
+    <div class="sc"><div class="n">25 companies</div><div class="big cond">$12 – 49</div><div class="s">Platform share falls to $2 to $4 each.</div></div>
+  </div>
+
+  <div class="mix">
+    <h2 class="cond" style="margin-bottom:0">Where the money goes <small>10 companies, middle of each range, about $36</small></h2>
+    <div class="bar"><span style="width:69%;background:var(--gold)">WhatsApp 69%</span><span style="width:22%;background:var(--rust);color:#fff">Platform 22%</span><span style="width:9%;background:#8a949b">9%</span></div>
+    <div class="legend"><span><i style="background:var(--gold)"></i>WhatsApp messages</span><span><i style="background:var(--rust)"></i>Shared platform</span><span><i style="background:#8a949b"></i>AI, email, storage</span></div>
+  </div>
+
+  <div class="moves box" style="margin-top:3mm">
+    <h2 class="cond">What moves the number</h2>
+    <ul>
+      <li><b>WhatsApp is the lever.</b> Fewer status messages, or leaving the monthly odometer request off, cuts the largest line. The Meta rate for Pakistan is the figure to confirm.</li>
+      <li><b>The platform steps up, it does not scale per company.</b> Expect a larger database tier somewhere past 25 to 50 busy companies.</li>
+      <li><b>AI stays small</b> unless many large PDFs are read every day.</li>
+      <li><b>Not counted:</b> staff time, support, taxes, and any paid plan for live chat.</li>
+    </ul>
+  </div>
+
+  <div class="note"><b>Planning estimates, not quotes.</b> Built from the usage assumptions above and the price lists as understood at the time of writing (2026-11-08), which have not been checked against invoices. To be replaced by measured costs once several companies are live. No revenue or subscription price is shown on this page.</div>
+</div>
+
+<!-- ===================== PAGE 2: what it offers ===================== -->
+<div class="page">
+  <div class="hazard"></div>
+  <div class="top"><img class="logo" src="../../public/fleetotg-logo.png" alt="Fleet OTG"><span class="tag">Investor brief · The product</span></div>
+  <div class="kicker">What the application offers</div>
+  <h1 class="cond" style="font-size:19pt">Every repair on record. <em>Every cost on the right vehicle.</em></h1>
+
+  <div class="feat">
+    <div class="f"><i>1</i><div><b class="cond">Job cards with recorded approvals</b><span>Every step carries the person's name and the time. Whoever raises a request cannot approve it.</span></div></div>
+    <div class="f"><i>2</i><div><b class="cond">Workshops never sign up</b><span>Estimates and invoices arrive by a one-time phone link or an email reply, filed on the job card.</span></div></div>
+    <div class="f"><i>3</i><div><b class="cond">Invoices checked first</b><span>Each invoice is checked against the approved quotation, and not by whoever approved the job.</span></div></div>
+    <div class="f"><i>4</i><div><b class="cond">Servicing and papers</b><span>Rules by months, kilometres or engine hours; insurance, fitness, token tax and licence reminders.</span></div></div>
+    <div class="f"><i>5</i><div><b class="cond">Odometer without an app</b><span>Drivers send readings and engine hours from a phone link, with no account and no password.</span></div></div>
+    <div class="f"><i>6</i><div><b class="cond">Costs and budgets</b><span>Spend per vehicle, kilometre and department against budgets, following who held the vehicle.</span></div></div>
+    <div class="f"><i>7</i><div><b class="cond">Departments and vehicle requests</b><span>Departments run their own vehicles under a spending limit; HR requests a vehicle and a manager decides.</span></div></div>
+    <div class="f"><i>8</i><div><b class="cond">Trips (optional module)</b><span>Request, approve and record a trip, with the odometer out and back.</span></div></div>
+    <div class="f pro"><i>P</i><div><b class="cond">AI reads workshop paperwork<span class="proTag">PRO</span></b><span>The AI fills in the form from an emailed estimate or invoice; a person always checks and saves.</span></div></div>
+    <div class="f pro"><i>P</i><div><b class="cond">Job cards by WhatsApp<span class="proTag">PRO</span></b><span>An employee sends one message, the AI drafts it, they confirm, a manager approves in the app.</span></div></div>
+  </div>
+
+  <h2 class="cond" style="margin-top:5mm">Where it is used <small>use cases</small></h2>
+  <div class="uses">
+    <div class="box u"><b class="cond">Delivery and logistics fleets</b><span>Vans and trucks on the road all day. Job cards with approvals, repeat-repair flags, odometer by phone link.</span><em>Fewer repairs paid twice.</em></div>
+    <div class="box u"><b class="cond">Manufacturers and exporters</b><span>Pool cars and staff transport. HR vehicle requests, optional trip requests, cost by department.</span><em>One record of who had which vehicle.</em></div>
+    <div class="box u"><b class="cond">Warehouses, yards and construction</b><span>Loaders and forklifts serviced by engine hours as well as kilometres and months.</span><em>Service on hours, not guesswork.</em></div>
+    <div class="box u"><b class="cond">Distribution and field sales</b><span>Many drivers, few office staff. Readings and papers tracked, reminders before anything expires.</span><em>Papers and licences never lapse unseen.</em></div>
+    <div class="box u"><b class="cond">Companies with many workshops</b><span>Workshops send estimates from their own phones. Quotations compared with invoices before payment.</span><em>No workshop has to learn a system.</em></div>
+    <div class="box u"><b class="cond">Multi-department organisations</b><span>Each department looks after its own vehicles within a limit, while finance sees the whole fleet.</span><em>Approvals match who is accountable.</em></div>
+  </div>
+
+  <div class="plans">
+    <div class="box"><b class="cond">Basic</b><span>Every feature above except the two marked Pro. One price for the whole company, no per-user charges, free trial with no card.</span></div>
+    <div class="box"><b class="cond">Pro</b><span>Basic plus the AI document reading and job cards by WhatsApp, for companies that raise many job cards a day. Priced by fleet size.</span></div>
+  </div>
+
+  <h2 class="cond" style="margin-top:5mm">Built to run many companies on one platform <small>why the cost per company falls</small></h2>
+  <div class="stats">
+    <div class="st"><b class="cond">Kept apart</b><span>Each company's data lives in its own schema, or its own database on request. Companies never see each other.</span></div>
+    <div class="st"><b class="cond">Every change traced</b><span>Each change to business data is written to an audit log with the person and the time.</span></div>
+    <div class="st"><b class="cond">Self-serve</b><span>A company signs up, gets a free trial and is set up without our staff. Payments are confirmed and invoiced in the app.</span></div>
+    <div class="st"><b class="cond">Tested</b><span>More than 1,000 automated checks and a 229-check browser suite pass before each release.</span></div>
+  </div>
+
+  <div class="cta"><div class="url cond">www.fleetotg.com</div><div class="sub">sales@fleetotg.com<br>Fleet maintenance for companies that run their own vehicles</div></div>
+  <div class="note"><b>Capabilities shown are in the product today.</b> The AI and WhatsApp job cards are built and live but not yet proven with a paying company. Cost figures on page 1 are planning estimates, not quotes.</div>
+</div>
+
+</body>
+</html>
