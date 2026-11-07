@@ -1,6 +1,7 @@
 // The tax side of billing (ADR-017): the authorities and their rates (the operator's), a customer's own tax details (the
 // customer's), the figures an invoice is made with, and the certificates withholding customers owe us. The arithmetic is in
 // tax.ts. Nothing here knows a rate: no rule, no registration number, no exchange rate means no tax is charged.
+import { billedMonths } from "@/lib/billing/months";
 import { z } from "zod";
 import type { Driver, Queryable } from "@/lib/db/types";
 import { withPlatform } from "@/lib/db/tenant";
@@ -201,7 +202,7 @@ export async function saveTaxProfile(driver: Driver, m: Membership, input: Recor
 
 /** What the customer will be asked to pay for some months, before it pays: the same arithmetic the invoice will use. Null when no tax applies. */
 export function quoteTax(driver: Driver, m: Membership, priceCents: number, currency: string, months: number): Promise<{ result: TaxResult; snapshot: TaxSnapshot } | null> {
-  return authorized(driver, m, BILLING_PERMISSION, async () => undefined).then(() => withPlatform(driver, (q) => taxFor(q, m.tenantId, priceCents * months, currency)));
+  return authorized(driver, m, BILLING_PERMISSION, async () => undefined).then(() => withPlatform(driver, (q) => taxFor(q, m.tenantId, priceCents * billedMonths(months), currency)));
 }
 
 // ------------------------------------------------------------------------------------------ certificates

@@ -64,7 +64,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
         <div className="grid gap-5 xl:grid-cols-[1fr_1.2fr]">
           <Panel title="How to pay">
             <div className="space-y-3 text-sm">
-              <p>Send <strong>{formatPrice(a.priceCents, a.currency)}</strong>{pkr ? <> (about <strong>Rs {pkr.toLocaleString("en-US")}</strong>)</> : null} for each month you want to pay for.</p>
+              <p>Send <strong>{formatPrice(a.priceCents, a.currency)}</strong>{pkr ? <> (about <strong>Rs {pkr.toLocaleString("en-US")}</strong>)</> : null} for each month you want to pay for. Pay for 12 months at once and the twelfth month is free: you pay for 11.</p>
               {settings.bank_details?.trim() ? <><p className="text-zinc-600">Press the button and we email you the bill with the bank account to pay into.</p><RequestBillForm slug={slug} /></> : <p className="text-zinc-600">Payment details have not been set up yet.</p>}
               <p>Write your payment reference <span className="font-mono font-semibold">{paymentReference(m.tenantId)}</span>, then fill in the form on this page once you have paid.</p>
               {settings.payment_note && <p className="whitespace-pre-wrap text-zinc-600">{settings.payment_note}</p>}

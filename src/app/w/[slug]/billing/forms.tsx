@@ -14,7 +14,7 @@ export function ClaimForm({ slug, defaultAmount, defaultCurrency, today }: { slu
       <div className="grid gap-4 sm:grid-cols-3">
         <Input name="amount" label="Amount you sent" state={s} required inputMode="decimal" />
         <Select name="currency" label="Currency" state={s} blank="Choose" required options={[["USD", "US dollars (USD)"], ["PKR", "Pakistani rupees (PKR)"]]} />
-        <Input name="months" label="Months paid for" state={s} inputMode="numeric" hint="1 to 12." />
+        <Input name="months" label="Months paid for" state={s} inputMode="numeric" hint="1 to 12. For 12, the amount is 11 months' price." />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Input name="paid_on" label="Date of the transfer" type="date" state={s} required />

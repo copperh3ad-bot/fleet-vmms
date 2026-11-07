@@ -1,6 +1,7 @@
 // What the operator (the person who runs the platform) can do about organizations and payments (ADR-014). Every function
 // checks that the signed-in person is in platform_admins inside the same transaction that does the work, writes their
 // id as the actor so the audit trail names them, and never returns a connection string or any business data.
+import { billedMonths } from "@/lib/billing/months";
 import type { Driver, Queryable } from "@/lib/db/types";
 import { withPlatform } from "@/lib/db/tenant";
 import { UserError } from "@/lib/master/service";
@@ -124,7 +125,7 @@ async function settle(q: Queryable, operatorId: string, tenantId: string, months
             (greatest(coalesce($1::timestamptz, now()), now()) + ($2 || ' months')::interval)::text as end`, [b.current_period_end, String(months)])).rows[0];
   await q.query(
     `update public.org_billing set status = 'active', current_period_end = $2::timestamptz, updated_at = now() where tenant_id = $1`, [tenantId, period.end]);
-  const tax = await taxFor(q, tenantId, b.price_cents * months, b.currency, { paymentDate: opts.paymentDate });
+  const tax = await taxFor(q, tenantId, b.price_cents * billedMonths(months), b.currency, { paymentDate: opts.paymentDate });
   const t = tax?.result;
   const inv = (await q.query<{ id: string; number: string }>(
     `insert into public.invoices(number, tenant_id, claim_id, billed_to, period_start, period_end, months, amount_cents, currency, received_minor, received_currency, issued_by, note,
@@ -132,7 +133,7 @@ async function settle(q: Queryable, operatorId: string, tenantId: string, months
      values ('INV-' || to_char(now(), 'YYYY') || '-' || lpad(nextval('public.invoice_number_seq')::text, 6, '0'), $1, $2, $3, $4::date, $5::timestamptz::date, $6, $7, $8, $9, $10, $11, $12,
              $13, $14, $15, $16, $17, $18, $19, $20, $21::jsonb)
      returning id, number`,
-    [tenantId, opts.claimId ?? null, b.name, period.start, period.end, months, b.price_cents * months, b.currency, opts.received?.minor ?? null, opts.received?.currency ?? null, operatorId, opts.note ?? null,
+    [tenantId, opts.claimId ?? null, b.name, period.start, period.end, months, b.price_cents * billedMonths(months), b.currency, opts.received?.minor ?? null, opts.received?.currency ?? null, operatorId, opts.note ?? null,
      t?.pkrPerUsd ?? null, t?.subtotalMinor ?? null, t?.salesTaxPct ?? null, t?.salesTaxMinor ?? null, t?.totalMinor ?? null, t?.whtIncomeMinor ?? null, t?.whtSalesMinor ?? null, t?.netExpectedMinor ?? null,
      tax ? JSON.stringify(tax.snapshot) : null])).rows[0];
   await postInvoiceJournal(q, inv.id, operatorId);                      // the ledger entry is part of the same transaction: no invoice without it
@@ -153,7 +154,7 @@ export function previewClaimTax(driver: Driver, operatorId: string, claimId: str
     if (!c) throw new UserError("Payment not found.");
     const b = (await q.query<{ price_cents: number; currency: string }>("select price_cents, currency from public.org_billing where tenant_id = $1", [c.tenant_id])).rows[0];
     if (!b) return null;
-    const tax = await taxFor(q, c.tenant_id, b.price_cents * (months ?? c.months), b.currency, { paymentDate: c.paid_on });
+    const tax = await taxFor(q, c.tenant_id, b.price_cents * billedMonths(months ?? c.months), b.currency, { paymentDate: c.paid_on });
     if (!tax) return null;
     const r = tax.result;
     return {

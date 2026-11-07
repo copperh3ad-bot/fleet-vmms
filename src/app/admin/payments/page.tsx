@@ -1,3 +1,4 @@
+import { billedMonths } from "@/lib/billing/months";
 import { Suspense } from "react";
 import { requireOperator } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
@@ -31,7 +32,7 @@ async function Inner({ searchParams }: { searchParams: Promise<Record<string, st
       </nav>
       {claims.length === 0 && <p className="rounded-md border border-dashed border-zinc-300 bg-white p-6 text-sm text-zinc-500">No payments waiting.</p>}
       {claims.map((c) => {
-        const expected = c.price_cents * c.months;
+        const expected = c.price_cents * billedMonths(c.months);
         const expectedPkr = c.billing_currency === "USD" && rate > 0 ? Math.round((expected / 100) * rate) : null;
         return (
           <Panel key={c.id} title={<a className="underline" href={`/admin/orgs/${c.tenant_id}`}>{c.org_name}</a>} sub={`Sent ${dmy(c.paid_on)} · filed ${dmy(c.created_at)}`}
