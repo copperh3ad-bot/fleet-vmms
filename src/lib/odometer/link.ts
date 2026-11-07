@@ -13,7 +13,7 @@ const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
 export const newToken = () => randomBytes(32).toString("base64url");
 export const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
-export type LinkView = { plate: string; period: string; due_on: string };
+export type LinkView = { plate: string; period: string; due_on: string; /** the vehicle has an hour meter, so the page also asks for the hours (ADR-048) */ tracksHours: boolean };
 
 async function schemaOf(driver: Driver, token: string): Promise<{ schema: string; submissionId: string } | null> {
   if (!TOKEN_RE.test(token)) return null;
@@ -32,24 +32,28 @@ export async function lookupLink(driver: Driver, token: string): Promise<LinkVie
   const link = await schemaOf(driver, token);
   if (!link) return null;
   return withLinkContext(driver, link.schema, async (q) => {
-    const r = (await q.query<{ registration_no: string; period: string; due_on: string }>(
-      "select registration_no, period::text, due_on::text from link_submission_info($1)", [link.submissionId])).rows[0];
-    return r ? { plate: r.registration_no, period: r.period, due_on: r.due_on } : null;
+    const r = (await q.query<{ registration_no: string; period: string; due_on: string; tracks_hours: boolean }>(
+      "select registration_no, period::text, due_on::text, tracks_hours from link_submission_info($1)", [link.submissionId])).rows[0];
+    return r ? { plate: r.registration_no, period: r.period, due_on: r.due_on, tracksHours: r.tracks_hours } : null;
   });
 }
 
 export type LinkResult = "ok" | "invalid" | "bad_value";
 
-/** Accepts one reading. The database function marks the link used and saves the reading in one step, so a failure burns nothing. */
-export async function submitViaLink(driver: Driver, token: string, raw: string): Promise<LinkResult> {
-  const text = raw.trim().replace(/,/g, "");
-  if (!/^\d{1,7}(\.\d)?$/.test(text)) return "bad_value";
-  const reading = Number(text);
+/** Accepts one submission: the odometer, the hour meter, or both. The database function marks the link used and saves it in one step, so a failure burns nothing. */
+export async function submitViaLink(driver: Driver, token: string, raw: string, rawHours = ""): Promise<LinkResult> {
+  const num = (v: string): number | null | undefined => {          // null: left empty; undefined: not a number
+    const t = v.trim().replace(/,/g, "");
+    if (t === "") return null;
+    return /^\d{1,7}(\.\d)?$/.test(t) ? Number(t) : undefined;
+  };
+  const reading = num(raw), hours = num(rawHours);
+  if (reading === undefined || hours === undefined || (reading === null && hours === null)) return "bad_value";
   const link = await schemaOf(driver, token);
   if (!link) return "invalid";
   try {
     return await withLinkContext(driver, link.schema, async (q) => {
-      await q.query("select submit_odometer_via_link($1, $2, $3)", [link.submissionId, reading, hashToken(token)]);
+      await q.query("select submit_odometer_via_link($1, $2::numeric, $3, $4::numeric)", [link.submissionId, reading, hashToken(token), hours]);
       return "ok" as const;
     });
   } catch (e) {

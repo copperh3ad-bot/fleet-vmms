@@ -86,7 +86,7 @@ describe("using a link", () => {
   it("shows only the plate and month", async () => {
     const { tokenOf } = await freshCycle();
     const view = await lookupLink(d, tokenOf("BKL-245"));
-    expect(Object.keys(view!).sort()).toEqual(["due_on", "period", "plate"]);
+    expect(Object.keys(view!).sort()).toEqual(["due_on", "period", "plate", "tracksHours"]);          // the plate, the month, and whether to ask for the hour meter: nothing about people, money or other vehicles
     expect(view!.plate).toBe("BKL-245");
   });
 

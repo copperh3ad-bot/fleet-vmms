@@ -35,7 +35,7 @@ async function Inner({ params }: { params: Promise<{ token: string }> }) {
             <div className="rounded-xl border border-zinc-200 bg-white p-5">
               <span className="inline-block rounded-md border-[1.5px] border-zinc-900 px-3 py-1 font-mono text-lg tracking-wider">{view.plate}</span>
             </div>
-            <ReadingForm token={token} />
+            <ReadingForm token={token} tracksHours={view.tracksHours} />
           </>
         ) : (
           <p role="status" className="rounded-xl border border-zinc-200 bg-white p-5 text-base">{DEAD_LINK}</p>

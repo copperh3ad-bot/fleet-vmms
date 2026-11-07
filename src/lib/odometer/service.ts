@@ -60,7 +60,7 @@ export type Verdict = "normal" | "lower" | "too_fast";
 export type SubmissionRow = {
   id: string; vehicle_id: string; registration_no: string; make: string | null; model: string | null; year: number | null;
   holder_name: string | null; holder_phone: string | null;
-  status: string; reading_km: string | null; note: string | null; submitted_at: string | null; review_note: string | null; reviewed_at: string | null;
+  status: string; reading_km: string | null; /** hour meter sent with the reading, for a vehicle that tracks hours */ reading_hours: string | null; note: string | null; submitted_at: string | null; review_note: string | null; reviewed_at: string | null;
   last_km: string; last_read_at: string | null; stale_days: number | null; link_expires_at: string | null; last_link_at: string | null;
   /** only for readings waiting for review: how the reading compares with what is on file */
   change_km: number | null; km_per_day: number | null; days_between: number | null; verdict: Verdict | null;
@@ -84,7 +84,7 @@ export function getCycle(driver: Driver, m: Membership, cycleId: string): Promis
     const maxKmPerDay = Number((await q.query<{ v: string }>("select setting_num('odometer_max_km_per_day', 800)::text v")).rows[0].v);
     const staleDays = Number((await q.query<{ v: string }>("select setting_num('odometer_stale_days', 45)::text v")).rows[0].v);
     const raw = (await q.query<Omit<SubmissionRow, "change_km" | "km_per_day" | "days_between" | "verdict">>(
-      `select s.id, s.vehicle_id, v.registration_no, v.make, v.model, v.year, e.full_name as holder_name, e.phone as holder_phone, s.status, s.reading_km::text, s.note,
+      `select s.id, s.vehicle_id, v.registration_no, v.make, v.model, v.year, e.full_name as holder_name, e.phone as holder_phone, s.status, s.reading_km::text, s.reading_hours::text, s.note,
               s.submitted_at::text, s.review_note, s.reviewed_at::text, v.odometer_km::text as last_km, v.odometer_updated_at::text as last_read_at,
               (current_date - v.odometer_updated_at::date)::int as stale_days,
               (select max(l.expires_at)::text from public.odometer_links l
@@ -111,7 +111,7 @@ export function getCycle(driver: Driver, m: Membership, cycleId: string): Promis
   });
 }
 
-/** Approves every waiting reading that is not held. Held readings need a person to look and write a note. */
+/** Approves every waiting reading that is not held. Held readings need a person to look and write a note; a submission that carries hours is looked at by a person too. */
 export function approveNormalReadings(driver: Driver, m: Membership, cycleId: string): Promise<number> {
   return authorized(driver, m, PERM, async (q) => {
     const open = (await q.query("select 1 from odometer_cycles where id = $1 and status = 'open'", [cycleId])).rows.length > 0;
@@ -119,7 +119,7 @@ export function approveNormalReadings(driver: Driver, m: Membership, cycleId: st
     const maxKmPerDay = Number((await q.query<{ v: string }>("select setting_num('odometer_max_km_per_day', 800)::text v")).rows[0].v);
     const ok = (await q.query<{ id: string }>(
       `select s.id from odometer_submissions s join vehicles v on v.id = s.vehicle_id
-        where s.cycle_id = $1 and s.status = 'submitted' and s.reading_km >= v.odometer_km
+        where s.cycle_id = $1 and s.status = 'submitted' and s.reading_km >= v.odometer_km and s.reading_hours is null
           and (s.reading_km - v.odometer_km) / greatest(1, ceil(extract(epoch from (now() - coalesce(v.odometer_updated_at, now() - interval '1 day'))) / 86400.0)) <= $2
         order by s.id`, [cycleId, maxKmPerDay])).rows;
     for (const r of ok) {

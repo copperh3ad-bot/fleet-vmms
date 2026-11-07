@@ -405,3 +405,6 @@ Vehicle list shows the vehicle's own department with a Department filter (and "N
 
 ## 2026-11-07: ADR-049 the app sends invitations from its own WhatsApp number
 `sendWhatsAppInvite` and `WHATSAPP_INVITE_TEMPLATE`; the administrator is never handed the link when it is set. Template `fleetotg_invite` submitted to Meta (pending; id 3658937344263786). Not deployed, and the Netlify variable is not set: owner to confirm approval and a payment method on the account first. Tests in `tests/whatsapp-invite.test.ts` (5).
+
+## 2026-11-07: ADR-048 engine hours through the driver link (migration 0031)
+`0031_hours_link.sql` (not applied to live), the link page asks for the hour meter for vehicles that track hours (odometer optional for them), approval writes the hour reading, bulk approval skips submissions with hours. `tests/hours-link.test.ts` (9). Gate passes move to migration 0032. 938 unit tests pass; browser suite not yet run on this. Not deployed.

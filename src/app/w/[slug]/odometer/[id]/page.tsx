@@ -86,12 +86,12 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
                     </tr>);
                   if (tab === "approved") return (
                     <tr key={r.id} className="border-b border-zinc-100 last:border-0">{vehicle}{driver}
-                      <td className="py-4 pr-3 text-right font-mono">{r.reading_km ? km(r.reading_km) : "—"}</td><td className="py-4 pl-6 text-zinc-600">{r.reviewed_at ? dayMonth(r.reviewed_at) : "—"}{r.review_note && <span className="block text-xs text-zinc-500">{r.review_note}</span>}</td></tr>);
+                      <td className="py-4 pr-3 text-right font-mono">{r.reading_km ? km(r.reading_km) : r.reading_hours ? "—" : "—"}{r.reading_hours && <span className="block text-xs text-zinc-500">{r.reading_hours} h</span>}</td><td className="py-4 pl-6 text-zinc-600">{r.reviewed_at ? dayMonth(r.reviewed_at) : "—"}{r.review_note && <span className="block text-xs text-zinc-500">{r.review_note}</span>}</td></tr>);
                   return (
                     <tr key={r.id} className={`border-b border-zinc-100 align-top last:border-0 ${held ? "bg-red-50" : ""}`}>
                       {vehicle}{driver}
                       <td className="py-4 pr-3 text-right"><span className="font-mono">{km(r.last_km)}</span><span className="mt-1 block text-xs text-zinc-500">{r.last_read_at ? dayMonth(r.last_read_at) : ""}</span></td>
-                      <td className="py-4 pr-3 text-right"><span className="font-mono">{r.reading_km ? km(r.reading_km) : "—"}</span><span className="mt-1 block text-xs text-zinc-500">{r.submitted_at ? dayMonth(r.submitted_at) : ""}</span></td>
+                      <td className="py-4 pr-3 text-right"><span className="font-mono">{r.reading_km ? km(r.reading_km) : "—"}</span>{r.reading_hours && <span className="mt-1 block font-mono text-xs text-zinc-700">{r.reading_hours} h</span>}<span className="mt-1 block text-xs text-zinc-500">{r.submitted_at ? dayMonth(r.submitted_at) : ""}</span></td>
                       <td className="py-4 pr-3 text-right"><span className={`font-mono ${held ? "font-semibold text-red-700" : ""}`}>{r.change_km !== null ? `${r.change_km >= 0 ? "+" : ""}${Number(r.change_km).toLocaleString("en-US", { maximumFractionDigits: 1 })} km` : "—"}</span>
                         {r.km_per_day !== null && r.change_km !== null && r.change_km > 0 && <span className="mt-1 block text-xs text-zinc-500">{r.km_per_day} km a day</span>}</td>
                       <td className="py-4 pl-6 pr-3">{r.verdict === "lower" ? <Pill tone="bad">Lower than last</Pill> : r.verdict === "too_fast" ? <Pill tone="bad">Too far, too fast</Pill> : <Pill tone="info">Submitted</Pill>}
