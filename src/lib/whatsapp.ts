@@ -119,6 +119,22 @@ export function verifyChallenge(q: { mode: string | null; token: string | null; 
   return a.length === b.length && timingSafeEqual(a, b) ? q.challenge : null;
 }
 
+/** The kinds of delivery status in one webhook call for our number ("sent", "delivered", "read", "failed"), as a count each. Words and counts only. */
+export function statusKinds(payload: unknown, ourPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID): Record<string, number> {
+  const out: Record<string, number> = {};
+  const entries = (payload as { entry?: unknown })?.entry;
+  if (!Array.isArray(entries)) return out;
+  for (const e of entries) for (const c of (Array.isArray((e as { changes?: unknown })?.changes) ? (e as { changes: unknown[] }).changes : [])) {
+    const v = (c as { value?: { metadata?: { phone_number_id?: string }; statuses?: unknown } })?.value;
+    if (!v || v.metadata?.phone_number_id !== ourPhoneNumberId || !Array.isArray(v.statuses)) continue;
+    for (const s of v.statuses as { status?: unknown }[]) {
+      const k = typeof s?.status === "string" && /^[a-z_]{1,20}$/.test(s.status) ? s.status : "other";
+      out[k] = (out[k] ?? 0) + 1;
+    }
+  }
+  return out;
+}
+
 export type FailedStatus = { code: number | null; title: string };
 
 /**
@@ -131,7 +147,7 @@ export function failedStatuses(payload: unknown, ourPhoneNumberId = process.env.
   if (!Array.isArray(entries)) return out;
   for (const e of entries) for (const c of (Array.isArray((e as { changes?: unknown })?.changes) ? (e as { changes: unknown[] }).changes : [])) {
     const v = (c as { field?: string; value?: { metadata?: { phone_number_id?: string }; statuses?: unknown } })?.value;
-    if ((c as { field?: string })?.field !== "messages" || !v || v.metadata?.phone_number_id !== ourPhoneNumberId || !Array.isArray(v.statuses)) continue;
+    if (!["messages", "message_statuses"].includes(String((c as { field?: string })?.field)) || !v || v.metadata?.phone_number_id !== ourPhoneNumberId || !Array.isArray(v.statuses)) continue;
     for (const s of v.statuses as { status?: unknown; errors?: unknown }[]) {
       if (!s || s.status !== "failed" || !Array.isArray(s.errors)) continue;
       for (const er of s.errors as { code?: unknown; title?: unknown; message?: unknown }[]) {

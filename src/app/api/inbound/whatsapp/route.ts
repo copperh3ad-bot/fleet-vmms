@@ -7,7 +7,7 @@ import { getDriver } from "@/lib/db";
 import { allowShared } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
-import { failedStatuses, fetchMedia, parseWebhook, sendReplyText, verifyChallenge, verifyMetaSignature, whatsappInboundConfigured } from "@/lib/whatsapp";
+import { failedStatuses, fetchMedia, statusKinds, parseWebhook, sendReplyText, verifyChallenge, verifyMetaSignature, whatsappInboundConfigured } from "@/lib/whatsapp";
 import { processInboundWhatsApp } from "@/lib/vendorflow/whatsapp-inbound";
 
 const MAX_BODY = 200_000;
@@ -30,6 +30,8 @@ export async function POST(req: NextRequest) {
   let messages;
   try {
     const parsed = JSON.parse(body);
+    const kinds = statusKinds(parsed);
+    if (Object.keys(kinds).length) console.log(`whatsapp delivery status: ${JSON.stringify(kinds)}`);
     for (const f of failedStatuses(parsed).slice(0, 10)) console.error(`whatsapp message not delivered: code ${f.code ?? "?"}: ${f.title}`);          // why an accepted message did not arrive
     messages = parseWebhook(parsed).slice(0, MAX_MESSAGES);
   } catch { return reply(400, { error: "unreadable" }); }
