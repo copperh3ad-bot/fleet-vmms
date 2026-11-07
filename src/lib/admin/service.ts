@@ -7,6 +7,7 @@ import type { Driver } from "@/lib/db/types";
 import { assertCan, authorized, authorizedAny, type Membership } from "@/lib/auth/can";
 import { withOrgPlatform, withTenant } from "@/lib/db/tenant";
 import { findTenantByInvitation, findTenantByToken, forgetMember, indexInvitation, rememberMember, routeToken, tenantsInvitingEmail, unindexInvitation, unrouteToken } from "@/lib/orgs";
+import { learnerAllowed, licenceProblem } from "@/lib/compliance/licences";
 import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
 import { checkRecoveryCode, checkUsername, deleteLoginName, hashRecoveryCode, loginNameByUserId, loginNameByUsername, loginNamesFor, newLoginEmail, recordLoginName, setRecoveryHash, usernameTaken, verifyRecoveryCode } from "@/lib/auth/login-names";
@@ -291,6 +292,8 @@ export const newEmployeeSchema = z.object({
   /** a valid driving licence is needed for every person invited (ADR-054): its number and expiry; the class is optional */
   licence_no: z.string().trim().min(3, "Enter the driving licence number").max(40, "That number is too long"),
   licence_class: z.preprocess(blank, z.string().trim().max(40, "That is too long").optional()),
+  /** a full licence, or a learner's permit if the company accepts them (ADR-055) */
+  licence_type: z.preprocess(blank, z.enum(["full", "learner"], "Choose the type of licence").default("full")),
   licence_expires_on: z.iso.date("Enter the licence expiry date"),
 });
 
@@ -302,7 +305,6 @@ export async function addEmployeeWithInvite(driver: Driver, m: Membership, input
   const r = newEmployeeSchema.safeParse(input);
   if (!r.success) throw new UserError("Fix the highlighted fields.", fieldErrors(r.error));
   const d = r.data;
-  if (d.licence_expires_on < new Date().toISOString().slice(0, 10)) throw new UserError("That driving licence has expired. A valid licence is needed.", { licence_expires_on: "Already expired" });
   const phone = normalizePhone(d.phone);
   if (!phone.ok) throw new UserError(phone.message, { phone: phone.message });
   let username: string | undefined;
@@ -312,11 +314,13 @@ export async function addEmployeeWithInvite(driver: Driver, m: Membership, input
   }
   const inv = await authorized(driver, m, "admin.users", async (q) => {
     await assertCan(q, m.role, "employee.manage");
+    const bad = licenceProblem({ type: d.licence_type, expires_on: d.licence_expires_on }, await learnerAllowed(q));
+    if (bad) throw new UserError(bad.message, { [bad.field]: bad.message });
     if ((await q.query("select 1 from employees where lower(employee_no) = lower($1)", [d.employee_no])).rows.length) throw new UserError("Another employee already has this employee number.", { employee_no: "Already used" });
     if (d.email && (await q.query("select 1 from employees where lower(email) = lower($1)", [d.email])).rows.length) throw new UserError("Another employee already has this email.", { email: "Already used" });
     const emp = (await q.query<{ id: string }>("insert into employees(full_name, employee_no, department, email, phone) values ($1, $2, $3, $4, $5) returning id", [d.full_name, d.employee_no, d.department, d.email ?? null, phone.e164])).rows[0];
     // the licence is part of the same step: no employee is made without one (ADR-054), and if the invitation fails the licence goes with the record
-    await q.query("insert into driver_licences(employee_id, licence_no, licence_class, expires_on) values ($1, $2, $3, $4)", [emp.id, d.licence_no, d.licence_class ?? null, d.licence_expires_on]);
+    await q.query("insert into driver_licences(employee_id, licence_no, licence_class, expires_on, licence_type) values ($1, $2, $3, $4, $5)", [emp.id, d.licence_no, d.licence_class ?? null, d.licence_expires_on, d.licence_type]);
     // the invitation finds the record just made by its employee number; any problem with it (plan limit, an open invitation for this email) rolls the record back too
     return createInvite(q, m, { full_name: d.full_name, employee_no: d.employee_no, email: d.email, username, phone: phone.e164, role: d.role, vehicle_scope: d.vehicle_scope });
   });

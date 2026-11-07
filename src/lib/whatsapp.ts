@@ -102,6 +102,9 @@ export async function sendWhatsAppInvite(e164: string, m: { name: string; org: s
   if (!res.ok) throw await refusal(res, "whatsapp invite failed");
 }
 
+/** Can the app send a join confirmation code on WhatsApp? Needs the business number and the approved authentication template (the same one the invitation code uses). */
+export const whatsappCodeConfigured = () => !!process.env.WHATSAPP_OTP_TEMPLATE && whatsappConfigured();
+
 /** Can the app send the monthly odometer request itself? Needs the business number and the approved template. */
 export const whatsappOdometerConfigured = () => !!process.env.WHATSAPP_ODOMETER_TEMPLATE && whatsappConfigured();
 

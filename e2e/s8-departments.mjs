@@ -1,4 +1,4 @@
-import { body, check, confirmEmail, fill, finding, go, has, persona, press, scenario, sql, step, uniq, userId, waitText } from "./lib.mjs";
+import { body, check, confirmEmail, confirmJoinOnWhatsApp, fill, finding, go, has, persona, phoneFor, press, scenario, sql, step, uniq, userId, waitText } from "./lib.mjs";
 
 // ADR-048 phase 48c: operating departments in the browser. A logistics login reaches only the Logistics vehicles; the
 // department shows on the vehicle list and filters it; the department user cannot import, move vehicles or see the cost reports.
@@ -58,10 +58,12 @@ export async function departments(S) {
     check(code, "the company code could not be switched on");
     await go(lg, `/join?code=${code}`);
     await fill(lg, "#full_name", "Naveed Iqbal"); await fill(lg, "#email", lg.email); await fill(lg, "#note", "Logistics.");
+    await fill(lg, "#phone", phoneFor(lg.email)); await fill(lg, "#licence_no", "LHR-4455667"); await fill(lg, "#licence_expires_on", "2099-12-31");
     await fill(lg, "#password", PW); await fill(lg, "#confirm", PW);
     await lg.page.check("input[name=terms]");
     await press(lg, "Ask to join", { wait: 1500 });
     check(lg.page.url().includes("/join/sent"), `after asking: ${lg.page.url()} :: ${(await body(lg)).replace(/\s+/g, " ").slice(0, 400)}`);
+    await confirmJoinOnWhatsApp(lg);
     const { code: confirm } = await confirmEmail(lg.email);
     await go(lg, `/auth/callback?code=${confirm}`);
     await waitText(lg, "Waiting for approval");

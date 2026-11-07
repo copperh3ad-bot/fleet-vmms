@@ -99,3 +99,30 @@ describe("a driving licence is compulsory at invite (ADR-054)", () => {
     expect(await count("select count(*) c from employees where employee_no = 'E-811'")).toBe(0);
   });
 });
+
+describe("learner's permits at invite (ADR-055)", () => {
+  const typeOf = (no: string) => tenant(async (q) => (await q.query<{ t: string }>("select l.licence_type t from driver_licences l join employees e on e.id = l.employee_id where e.employee_no = $1", [no])).rows[0]?.t);
+
+  it("are refused unless the company has switched learner permits on, and a full licence is the default", async () => {
+    const e = await ad.addEmployeeWithInvite(d, admin(), full({ employee_no: "E-820", email: "lp1@example.com", licence_type: "learner" })).catch((x) => x);
+    expect(e).toBeInstanceOf(UserError);
+    expect(e.fields.licence_type).toMatch(/full driving licences only/);
+    expect(await count("select count(*) c from employees where employee_no = 'E-820'")).toBe(0);
+    await ad.addEmployeeWithInvite(d, admin(), full({ employee_no: "E-821", email: "lp2@example.com" }));
+    expect(await typeOf("E-821")).toBe("full");
+  });
+
+  it("are accepted, and recorded as learner permits, once the company switches them on", async () => {
+    await tenant((q) => q.query("update settings set value = '1' where key = 'allow_learner_licence'"));
+    await ad.addEmployeeWithInvite(d, admin(), full({ employee_no: "E-822", email: "lp3@example.com", licence_type: "learner" }));
+    expect(await typeOf("E-822")).toBe("learner");
+    const bad = await ad.addEmployeeWithInvite(d, admin(), full({ employee_no: "E-823", email: "lp4@example.com", licence_type: "learner", licence_expires_on: "2020-01-01" })).catch((x) => x);
+    expect(bad.fields.licence_expires_on).toMatch(/expired/);          // even a permitted learner permit must be in date
+    await tenant((q) => q.query("update settings set value = '0' where key = 'allow_learner_licence'"));
+  });
+
+  it("the setting is off by default and only accepts 0 or 1", async () => {
+    expect((await tenant(async (q) => (await q.query<{ value: string }>("select value from settings where key = 'allow_learner_licence'")).rows[0])).value).toBe("0");
+    await expect(tenant((q) => q.query("update settings set value = 'yes' where key = 'allow_learner_licence'"))).rejects.toThrow(/must be 0 or 1/);
+  });
+});

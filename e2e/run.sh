@@ -11,6 +11,9 @@ export DATABASE_URL="postgres:///${E2E_DB}?host=${E2E_PGHOST}"
 export SUPABASE_SERVICE_ROLE_KEY="e2e-only-service-key"   # the stand-in login service accepts any key; this switches the feature on for the run
 export E2E_OUTBOX="${E2E_OUTBOX:-/tmp/fleet-otg-e2e-outbox.jsonl}"
 rm -f "$E2E_OUTBOX"
+# WhatsApp is written to a file instead of sent (ADR-055: joining with a code needs a confirmation on WhatsApp). Invitation codes stay off here, as before.
+export E2E_WHATSAPP="${E2E_WHATSAPP:-/tmp/fleet-otg-e2e-whatsapp.jsonl}" WHATSAPP_FILE="${E2E_WHATSAPP:-/tmp/fleet-otg-e2e-whatsapp.jsonl}" WHATSAPP_OTP_TEMPLATE="fleetotg_code" INVITE_CODE_CHANNEL="off"
+rm -f "$E2E_WHATSAPP"
 export AUTH_HOOK_SECRET="v1,whsec_$(printf "e2e-only-hook-secret-0123456789" | base64)" SMTP_URL="file:${E2E_OUTBOX}" EMAIL_FROM="Fleet OTG <noreply@example.test>" ALLOW_FILE_MAILER=1
 psql -h "$E2E_PGHOST" -d postgres -c "drop database if exists ${E2E_DB}" -c "create database ${E2E_DB}" >/dev/null
 npx tsx scripts/migrate-tenants.mts >/dev/null

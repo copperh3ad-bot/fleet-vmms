@@ -426,3 +426,9 @@ Confirming or recording a payment is refused without the customer's NTN (Pakista
 
 ## 2026-11-07: ADR-056 workshop WhatsApp templates (built, not deployed)
 Six Utility templates submitted to Meta (estimate request, invoice request, estimate approved/declined, invoice accepted/queried); `src/lib/vendorflow/whatsapp-notify.ts`, wired into the quotation and invoice decisions and the request button; `WHATSAPP_REQUEST_TEMPLATE=fleetotg_request` set on Netlify production (takes effect at the next deploy). `tests/workshop-whatsapp.test.ts` (5). The six per-event settings are not yet set: wait for approval.
+
+## 2026-11-07: ADR-055 joining with a code is confirmed by WhatsApp and needs a valid licence (built, not deployed)
+Platform migration 0015, control migration 0018, tenant migration 0033 (none on live). Public confirm page `/join/confirm/<token>` (added to the public paths and CLAUDE.md rule 5), `fleetotg_confirm` template NOT yet created in Meta, `WHATSAPP_JOIN_CONFIRM_TEMPLATE` not set: until both, nobody can join with a code. Learner permits are a per-company setting (`allow_learner_licence`, off) for joins and invites. Unit and browser tests updated.
+
+## 2026-11-07: ADR-055 correction: the join confirmation is a code, not a link (built, not deployed)
+Meta rejected the link templates (`fleetotg_confirm` as Utility, `fleetotg_join_confirm` as Marketing: "incorrect category"). The confirmation is now a 6-digit code sent with the already-approved `fleetotg_code` template and typed on the "request sent" page; a cookie reference ties the page to its request. The confirm-link page, its public path and the CLAUDE.md rule 5 addition were removed. Platform migration 0015 (edited before it ever reached live), control 0018, tenant 0033 still to be run on live. No new Meta template and no new Netlify setting are needed.

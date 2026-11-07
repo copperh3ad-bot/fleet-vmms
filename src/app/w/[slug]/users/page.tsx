@@ -6,6 +6,7 @@ import { getRoleMatrix, listInvitations, listMembers, listRoles, planUsage } fro
 import { listVendors } from "@/lib/master/service";
 import { plural } from "@/lib/labels";
 import { getJoinCode, listJoinRequests } from "@/lib/orgs/join";
+import { getLearnerAllowed } from "@/lib/compliance/licences";
 import { origin } from "@/lib/origin";
 import { InviteForm, MemberControls, PendingActions, ReplaceLogin, ResetLink } from "./forms";
 import { JoinCodePanel, JoinRequestActions } from "./join-forms";
@@ -39,9 +40,9 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const sp = await searchParams;
   const m = await requireMembership(slug, { fullScope: true });
   const driver = getDriver();
-  const [members, invites, roles, use, vendors, matrix, joinCode, requests, base] = await Promise.all([
+  const [members, invites, roles, use, vendors, matrix, joinCode, requests, base, allowLearner] = await Promise.all([
     listMembers(driver, m), listInvitations(driver, m), listRoles(driver, m), planUsage(driver, m), listVendors(driver, m).catch(() => []), getRoleMatrix(driver, m),
-    getJoinCode(driver, m), listJoinRequests(driver, m), origin(),
+    getJoinCode(driver, m), listJoinRequests(driver, m), origin(), getLearnerAllowed(driver, m).catch(() => false),
   ]);
   // Workshops never sign up and are not given logins (ADR-033), so the role is not offered. People already holding it keep it until removed.
   const roleOpts = roles.filter((r) => r.key !== "vendor").map((r) => [r.key, r.name] as [string, string]);
@@ -66,6 +67,12 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
                       <p className="font-medium">{r.kind === "workshop" ? r.workshop_name : r.full_name} <Pill tone={r.kind === "workshop" ? "info" : "neutral"}>{r.kind === "workshop" ? "Workshop" : "Staff"}</Pill></p>
                       <p className="text-zinc-600">{r.kind === "workshop" ? `${r.full_name} · ` : ""}{r.email}{r.phone ? ` · ${r.phone}` : ""}</p>
                       {r.note && <p className="text-zinc-700">“{r.note}”</p>}
+                      {r.kind === "staff" && (
+                        <p className="text-xs text-zinc-700">
+                          {r.licence ? <>Licence: {r.licence.type === "learner" ? "learner's permit" : "full"} ending <span className="font-mono">{r.licence.ends}</span>, expires {dmy(r.licence.expires_on)}</> : <span className="text-red-700">No driving licence on this request: decline it and ask them to ask again.</span>}
+                          {" · "}{r.phone_confirmed ? "number confirmed on WhatsApp" : "number not confirmed on WhatsApp"}
+                        </p>
+                      )}
                       <p className="text-xs text-zinc-500">Asked on {dmy(r.created_at)}</p>
                     </div>
                     <JoinRequestActions slug={slug} id={r.id} kind={r.kind} roles={roleOpts} />
@@ -124,7 +131,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
             </Panel>
           ) : (
             <Panel title="Invite a person" sub="Each invitation is for one employee code and one role, and the link is sent to the person's phone number only. They create their account with their email, or with a sign-in name you give them if they have no email. Workshops are invited here too, with the role Vendor. People can also ask to join with your company code, below.">
-              <InviteForm stack slug={slug} roles={roleOpts} vendors={vendors.filter((v) => v.status === "active").map((v) => [v.id, v.name])} />
+              <InviteForm stack slug={slug} allowLearner={allowLearner} roles={roleOpts} vendors={vendors.filter((v) => v.status === "active").map((v) => [v.id, v.name])} />
             </Panel>
           )}
           <Panel title="Company code" sub="So people can ask to join without waiting for an invitation">

@@ -90,6 +90,24 @@ export async function overflow(p) { return p.page.evaluate(() => document.docume
 export const mock = async (p, init) => (await fetch(`${MOCK}${p}`, init)).json();
 export const confirmEmail = (email) => mock(`/__test/confirm?email=${encodeURIComponent(email)}`);
 export const userId = async (email) => (await mock(`/__test/user?email=${encodeURIComponent(email)}`)).id;
+/** A made-up Pakistani mobile number that is the same for the same seed and different for different ones (the join form limits how many messages one number may get). */
+export function phoneFor(seed) {
+  let h = 7; for (const c of String(seed)) h = (h * 31 + c.charCodeAt(0)) % 1_000_000_000;
+  return `03${String(h).padStart(9, "0")}`;
+}
+
+/** Types the 6-digit code the app "sent on WhatsApp" (read from the test outbox) on the page the person is on after asking to join, as they would from their phone (ADR-055). */
+export async function confirmJoinOnWhatsApp(p) {
+  const lines = fs.readFileSync(process.env.E2E_WHATSAPP, "utf8").trim().split("\n").filter(Boolean).map((l) => JSON.parse(l));
+  const last = [...lines].reverse().find((m) => /code \d{6} to join/.test(m.body ?? ""));
+  check(last, "no WhatsApp code was sent");
+  const code = (last.body.match(/code (\d{6}) to join/) ?? [])[1];
+  await p.page.getByRole("heading", { name: /type the code from WhatsApp/i }).waitFor({ timeout: 10000 });
+  await p.page.locator("#join-code").fill(code);
+  await p.page.getByRole("button", { name: "Confirm", exact: true }).click();
+  await p.page.getByText(/you are confirmed/i).waitFor({ timeout: 10000 });
+}
+
 export function sql(q) { return execFileSync("psql", ["-h", PGHOST, "-d", DB, "-At", "-F", "|", "-c", q], { encoding: "utf8" }).trim(); }
 export const fixture = (n) => path.join(REPO, "tests/fixtures", n);
 export const uniq = () => Math.random().toString(36).slice(2, 7);

@@ -7,6 +7,7 @@ import { routingDriver } from "../../src/lib/db/router";
 import { envSecretBox } from "../../src/lib/crypto/secretbox";
 import { runDocumentReminders } from "../../src/lib/compliance/reminders";
 import { runBillingReminders } from "../../src/lib/billing/reminders";
+import { purgeUnconfirmedJoinRequests } from "../../src/lib/orgs/join";
 
 const sendReminders = async () => {
   const url = process.env.DATABASE_URL;
@@ -17,6 +18,8 @@ const sendReminders = async () => {
     const runs = await runDocumentReminders(driver);
     for (const r of runs) console.log(`${r.schema}: ${r.error ? "FAILED " + r.error : `${r.sent} reminder${r.sent === 1 ? "" : "s"}`}`);
     const billing = await runBillingReminders(driver);
+    const purged = await purgeUnconfirmedJoinRequests(driver);          // requests nobody confirmed, with their licence numbers (ADR-055)
+    if (purged) console.log(`join requests: removed ${purged} that were never confirmed`);
     for (const r of billing) console.log(`${r.schema}: billing ${r.error ? "FAILED " + r.error : r.sent}`);
     if (runs.some((r) => r.error) || billing.some((r) => r.error)) throw new Error("Some workspaces failed, see the lines above.");
   } finally { await driver.end(); }

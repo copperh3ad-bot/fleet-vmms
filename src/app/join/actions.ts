@@ -3,13 +3,15 @@
 // repeats, write one request that an administrator must approve, and ask Supabase to create the login and send the
 // confirmation email. Nothing here gives access to anything.
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { getDriver } from "@/lib/db";
 import { allowShared } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
 import { origin } from "@/lib/origin";
 import { supabaseServer } from "@/lib/supabase/server";
 import { UserError } from "@/lib/master/service";
-import { parseJoin, submitJoinRequest, type JoinKind } from "@/lib/orgs/join";
+import { JOIN_REF_COOKIE, parseJoin, submitJoinRequest, type JoinKind } from "@/lib/orgs/join";
+import { normalizePhone } from "@/lib/phone";
 import type { FormState } from "@/app/w/[slug]/actions-util";
 
 const HOUR = 3600;
@@ -25,7 +27,7 @@ export async function joinAction(kind: JoinKind, _prev: FormState, form: FormDat
   const driver = getDriver();
   let input;
   try {
-    input = parseJoin(Object.fromEntries(["code", "full_name", "email", "phone", "workshop_name", "note", "terms"].map((k) => [k, form.get(k) ?? undefined])), kind);
+    input = parseJoin(Object.fromEntries(["code", "full_name", "email", "phone", "licence_type", "licence_no", "licence_expires_on", "workshop_name", "note", "terms"].map((k) => [k, form.get(k) ?? undefined])), kind);
   } catch (e) {
     if (e instanceof UserError) return { error: e.message, fields: e.fields, values: keep(form) };
     throw e;
@@ -35,14 +37,22 @@ export async function joinAction(kind: JoinKind, _prev: FormState, form: FormDat
   if (password !== String(form.get("confirm") ?? "")) return { error: "Fix the highlighted fields.", fields: { confirm: "The two passwords do not match" }, values: keep(form) };
 
   // Every try counts, right or wrong, so a code cannot be guessed by trying many.
-  const [ipOk, mailOk] = await Promise.all([
+  // and so that nobody can use this form to send WhatsApp messages to a stranger over and over: the number counts too
+  const digits = normalizePhone(input.phone);
+  const [ipOk, mailOk, phoneOk] = await Promise.all([
     allowShared(driver, `join-ip:${await clientIp()}`, 10, HOUR),
     allowShared(driver, `join-email:${input.email}`, 4, HOUR),
+    digits.ok ? allowShared(driver, `join-phone:${digits.digits}`, 3, HOUR) : Promise.resolve(true),
   ]);
-  if (!ipOk || !mailOk) return { error: "Too many tries. Wait a little and try again.", values: keep(form) };
+  if (!ipOk || !mailOk || !phoneOk) return { error: "Too many tries. Wait a little and try again.", values: keep(form) };
 
-  try { await submitJoinRequest(driver, kind, input); }
-  catch (e) {
+  let sentTo = "";
+  try {
+    const sent = await submitJoinRequest(driver, kind, input);
+    sentTo = sent.phoneEnds;
+    // the browser's own reference to this request: the code typed on the next page is matched to it (ADR-055). Never readable by scripts.
+    (await cookies()).set(JOIN_REF_COOKIE, sent.ref, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/join", maxAge: 3 * 24 * 3600 });
+  } catch (e) {
     if (e instanceof UserError) return { error: e.message, fields: e.fields, values: keep(form) };
     throw e;
   }
@@ -58,5 +68,5 @@ export async function joinAction(kind: JoinKind, _prev: FormState, form: FormDat
   }
   // The request is saved. A person who already has a login simply signs in; their request is waiting either way.
   const existing = !!error || (Array.isArray(data?.user?.identities) && data.user.identities.length === 0);   // Supabase hides an existing login behind a success with no identities
-  redirect(data?.session ? "/" : `/join/sent${existing ? "?existing=1" : ""}`);
+  redirect(`/join/sent?to=${encodeURIComponent(sentTo)}${existing || data?.session ? "&existing=1" : ""}`);
 }

@@ -208,6 +208,7 @@ export async function publicPages(S) {
   await step("joining with a wrong code says so, and records nothing", async () => {
     await go(v, "/join");
     await fill(v, "#code", "ZZZZZZZZZZ"); await fill(v, "#full_name", "Nobody Here"); await fill(v, "#email", "nobody-join@example.com");
+    await fill(v, "#phone", "0300 5550100"); await fill(v, "#licence_no", "LHR-0000000"); await fill(v, "#licence_expires_on", "2099-12-31");          // the form needs these (ADR-055)
     await fill(v, "#password", "a-long-enough-password"); await fill(v, "#confirm", "a-long-enough-password");
     await v.page.check("input[name=terms]");
     await press(v, "Ask to join", { wait: 800 });

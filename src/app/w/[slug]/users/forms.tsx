@@ -47,7 +47,7 @@ export function LinkBox({ invite }: { invite: InviteResult }) {
   );
 }
 
-export function InviteForm({ slug, roles, vendors, stack }: { stack?: boolean; slug: string; roles: [string, string][]; vendors: [string, string][] }) {
+export function InviteForm({ slug, roles, vendors, stack, allowLearner = false }: { stack?: boolean; slug: string; roles: [string, string][]; vendors: [string, string][]; allowLearner?: boolean }) {
   const [state, setState] = useState<InviteState>({});
   const [pending, setPending] = useState(false);
   const [role, setRole] = useState("");
@@ -78,7 +78,8 @@ export function InviteForm({ slug, roles, vendors, stack }: { stack?: boolean; s
         <Input name="full_name" label="Full name" state={state} required />
         {!isVendor && <Input name="department" label="Department" state={state} required />}
         {!isVendor && <Input name="licence_no" label="Driving licence number" state={state} required autoComplete="off" hint="A valid driving licence is needed for everyone invited." />}
-        {!isVendor && <Input name="licence_expires_on" label="Licence expiry date" type="date" state={state} required />}
+        {!isVendor && <Select name="licence_type" label="Type of licence" state={{ ...state, values: { licence_type: state.values?.licence_type ?? "" } }} blank="Full driving licence" options={allowLearner ? [["learner", "Learner's permit"]] : []} />}
+        {!isVendor && <Input name="licence_expires_on" label="Licence expiry date" type="date" state={state} required hint="It must not have expired." />}
         {!isVendor && <Input name="licence_class" label="Licence class" state={state} hint="Optional, for example LTV or HTV." />}
         <div>
           <label htmlFor="role" className="mb-1 block text-xs font-medium text-zinc-600">Role <span className="text-red-700">*</span></label>

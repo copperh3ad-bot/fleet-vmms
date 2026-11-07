@@ -1,6 +1,6 @@
 // Asking to join a company with its code (ADR-016): the code, the public request, the administrator's decision, and the rule
 // that one company never sees, approves or reaches another's requests.
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { routingDriver, type RoutingDriver } from "@/lib/db/router";
 import { ForbiddenError, listWorkspaces, resolveMembership, type Membership } from "@/lib/auth/can";
 import * as master from "@/lib/master/service";
@@ -11,7 +11,7 @@ import { getNavCounts } from "@/lib/dashboard/service";
 import { advanceProvisioning, type ProvisionDeps } from "@/lib/orgs/provision";
 import { claimSignup, parseSignup, recordSignup } from "@/lib/orgs/signup";
 import {
-  approveJoinRequest, declineJoinRequest, findTenantByJoinCode, formatCode, getJoinCode, listJoinRequests, MAX_WAITING, newJoinCode, normalizeCode,
+  approveJoinRequest, confirmJoinWithCode, declineJoinRequest, findTenantByJoinCode, formatCode, getJoinCode, listJoinRequests, MAX_WAITING, newJoinCode, normalizeCode,
   parseJoin, setJoinCode, submitJoinRequest, waitingRequestsFor,
 } from "@/lib/orgs/join";
 import { newControl, platformMigrations, stripExt, tenantMigrations, testDriver } from "./helpers";
@@ -26,7 +26,12 @@ let deps: ProvisionDeps;
 type Org = { tenantId: string; schema: string; slug: string; admin: Membership };
 let A: Org, B: Org;
 
+const KEYS = ["WHATSAPP_OTP_TEMPLATE", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_ACCESS_TOKEN"];
+const before = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
+afterAll(() => { for (const k of KEYS) { if (before[k] === undefined) delete process.env[k]; else process.env[k] = before[k]; } });
+
 beforeAll(async () => {
+  Object.assign(process.env, { WHATSAPP_OTP_TEMPLATE: "fleetotg_code", WHATSAPP_PHONE_NUMBER_ID: "1", WHATSAPP_ACCESS_TOKEN: "stand-in" });
   control = process.env.TEST_DATABASE_URL ? await testDriver() : await newControl();
   router = routingDriver({ control, makeDriver: () => { throw new Error("no dedicated databases here"); }, decrypt: unavailable });
   deps = {
@@ -47,8 +52,15 @@ async function signUp(n: number, org: string): Promise<Org> {
   return { ...t, slug, admin: { tenantId: t.tenantId, schema: t.schema, userId: U(n), role: "tenant_admin", vehicleScope: "all", tenantName: org } };
 }
 const member = (o: Org, role: string, n: number): Membership => ({ tenantId: o.tenantId, schema: o.schema, userId: U(n), role, vehicleScope: "all" });
-const form = (code: string, over: Record<string, unknown> = {}) => ({ code, full_name: "Sana Malik", email: "Sana@Example.com", phone: "", workshop_name: "", note: "", terms: "on", ...over });
-const ask = (code: string, kind: "staff" | "workshop", over: Record<string, unknown> = {}) => submitJoinRequest(router, kind, parseJoin(form(code, over), kind));
+const form = (code: string, over: Record<string, unknown> = {}) => ({ code, full_name: "Sana Malik", email: "Sana@Example.com", phone: "0300 1234567", licence_no: "LHR-1234567", licence_expires_on: "2099-12-31", workshop_name: "", note: "", terms: "on", ...over });
+// A request is invisible to the administrator until the person types the code sent to their WhatsApp (ADR-055): this sends it with a stand-in sender and types the code, so the older tests see it as before.
+const sentCodes: string[] = [];
+const fakeSend = (async (_to: string, m: { code: string }) => { sentCodes.push(m.code); }) as never;
+const ask = async (code: string, kind: "staff" | "workshop", over: Record<string, unknown> = {}) => {
+  const r = await submitJoinRequest(router, kind, parseJoin(form(code, over), kind), fakeSend);
+  await confirmJoinWithCode(router, r.ref, sentCodes[sentCodes.length - 1]);
+  return r;
+};
 const pending = async (o: Org) => (await listJoinRequests(router, o.admin)).map((r) => r.email);
 const indexed = async (email: string) => waitingRequestsFor(router, email);
 
@@ -247,7 +259,8 @@ describe("telling the administrator", () => {
     const code = (await getJoinCode(router, A.admin))!;
     const before = (await notices(A.admin)).length;
     await ask(code, "workshop", { email: "notice2@example.com", full_name: "Imran", workshop_name: "Quick Fix Garage" });
-    await ask(code, "workshop", { email: "notice2@example.com", full_name: "Imran", workshop_name: "Quick Fix Garage", note: "added a note" });
+    // asking again changes the details and has to be confirmed again; until it is, the administrator is not told a second time
+    await submitJoinRequest(router, "workshop", parseJoin(form(code, { email: "notice2@example.com", full_name: "Imran", workshop_name: "Quick Fix Garage", note: "added a note" }), "workshop"), fakeSend);
     const list = await notices(A.admin);
     expect(list).toHaveLength(before + 1);
     expect(list[0].payload.text).toBe("Quick Fix Garage asked to join as a workshop.");

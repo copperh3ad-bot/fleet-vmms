@@ -1,15 +1,18 @@
-import { body, check, confirmEmail, fill, finding, go, has, persona, press, scenario, signInAs, sql, step, uniq, userId, waitSql, waitText } from "./lib.mjs";
+import { body, check, confirmEmail, confirmJoinOnWhatsApp, fill, finding, go, has, persona, phoneFor, press, scenario, signInAs, sql, step, uniq, userId, waitSql, waitText } from "./lib.mjs";
 
 const PW = ["a", "long", "test", "password", "1"].join("-");
 const schemaOf = (slug) => sql(`select schema_name from public.tenants where slug = '${slug}'`);
 
+/** Asks to join with the code: the WhatsApp number and driving licence the form now needs, then, if it was accepted, the confirmation from the person's own phone (ADR-055). */
 async function askToJoin(p, { path, code, name, email, shop }) {
   await go(p, `${path}?code=${code}`);
   if (shop) await fill(p, "#workshop_name", shop);
   await fill(p, "#full_name", name); await fill(p, "#email", email); await fill(p, "#note", "Please add me.");
+  await fill(p, "#phone", phoneFor(email)); await fill(p, "#licence_no", `LIC-${phoneFor(email)}`); await fill(p, "#licence_expires_on", "2099-12-31");
   await fill(p, "#password", PW); await fill(p, "#confirm", PW);
   await p.page.check("input[name=terms]");
   await press(p, "Ask to join", { wait: 1500 });
+  if (p.page.url().includes("/join/sent")) await confirmJoinOnWhatsApp(p);
 }
 
 export async function people(S) {
@@ -33,7 +36,7 @@ export async function people(S) {
   await step("a member of staff asks to join with the code", async () => {
     await askToJoin(S.staff, { path: "/join", code: S.code, name: "Bilal Ahmed", email: S.staff.email });
     check(S.staff.page.url().includes("/join/sent"), `after asking: ${S.staff.page.url()}`);
-    check(has(await body(S.staff), "Request sent"), "no confirmation");
+    check(has(await body(S.staff), "Request sent") || has(await body(S.staff), "type the code from WhatsApp") || has(await body(S.staff), "you are confirmed"), "the page does not say what happens next");
     check(sql(`select count(*) from public.join_requests where tenant_id = (select id from public.tenants where slug = '${slug}') and status = 'pending' and email = '${S.staff.email}'`) === "1", "the request was not recorded");
   });
   await step("until the email is confirmed they cannot sign in, and nothing is built for them", async () => {
