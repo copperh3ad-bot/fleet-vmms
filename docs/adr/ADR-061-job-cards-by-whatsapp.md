@@ -1,6 +1,6 @@
 # ADR-061: Raising a job card by WhatsApp (V1.1)
 
-Status: **proposed**, 2026-11-07. Nothing is built. Owner direction: "In V1.1 we enable job card submissions through WhatsApp." Chosen with the owner: registered employees only, identified by phone number; one free-form message read by the AI into a draft the sender confirms; the card then goes in as Requested and follows the normal approval. Builds on ADR-042 (inbound WhatsApp), ADR-034 and ADR-043 (the AI reader), ADR-035 (Basic and Pro) and ADR-050 (identifying a sender by phone).
+Status: **accepted as the V1.1 plan (Pro only), 2026-11-07**. Nothing is built; building starts when the owner says go. Owner direction: "In V1.1 we enable job card submissions through WhatsApp." Chosen with the owner: registered employees only, identified by phone number; one free-form message read by the AI into a draft the sender confirms; the card then goes in as Requested and follows the normal approval. Builds on ADR-042 (inbound WhatsApp), ADR-034 and ADR-043 (the AI reader), ADR-035 (Basic and Pro) and ADR-050 (identifying a sender by phone).
 
 ## The flow
 1. An employee sends the Fleet OTG WhatsApp number one message, for example: "LHR-1001 brake noise, front left, needs looking at today", with up to 3 photos in the same message or the next few minutes.
@@ -35,8 +35,8 @@ Approval, estimates, invoices and every state change stay in the app and in `tra
 - No number, message or photo is logged. Delivery failures are logged by code only, as ADR-042 does.
 - A reply to a prompt the app sent must only ever be matched to its own pending intake row (by sender and open status), never by a guess.
 
-## Plan gating (open for the owner)
-This uses the AI, which ADR-035 makes the Pro feature. **Recommended:** Pro only, switched on by the administrator. Alternative: allow Basic with a small monthly cap so every company can try it. Decide before building.
+## Plan gating (decided by the owner, 2026-11-07: Pro only)
+This uses the AI, which ADR-035 makes the Pro feature. **It is a Pro feature**, and also switched on per company by its administrator (`whatsapp_jobcards`). A Basic company that tries it is told this is a Pro feature and is pointed to the app. The offer follows ADR-035: the same "offered to organizations that enter many job cards a day" rule and the same Pro plan, with no separate price. The per-company daily cap comes from the Pro plan.
 
 ## Meta
 No new template is needed: the employee starts the conversation, and every reply is free-form inside the 24-hour window. The app's webhook already receives `messages`. (Out-of-window status updates would need a Utility template; deferred.)
