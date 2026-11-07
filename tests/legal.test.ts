@@ -35,7 +35,7 @@ describe("who we are comes from Settings", () => {
 
 describe("what the pages say matches what the service does", () => {
   it("names every provider that handles personal data, and no payment-card or tracking provider", () => {
-    for (const p of ["Supabase", "Netlify", "Resend", "Zoho", "Anthropic", "Zoho SalesIQ"]) expect(privacy).toContain(p);
+    for (const p of ["Supabase", "Netlify", "Resend", "Zoho", "Anthropic", "Zoho SalesIQ", "WhatsApp Business Platform", "Meta Platforms"]) expect(privacy).toContain(p);
     expect(privacy).not.toMatch(/Stripe|Google Analytics|Facebook|Meta Pixel/i);
     expect(read("package.json")).not.toMatch(/stripe|posthog|segment|mixpanel|@sentry|gtag/i);
   });
@@ -50,7 +50,7 @@ describe("what the pages say matches what the service does", () => {
   });
   it("covers what a customer and the owner each need: ownership and export for you, limits and payment for us", () => {
     for (const t of ["belong to you", "export your data", "as is", "limited to the fees", "Governing law"]) expect(terms.toLowerCase()).toContain(t.toLowerCase());
-    for (const t of ["Two roles", "do not sell personal information", "Your choices and rights", "Cookies", "Children"]) expect(privacy).toContain(t);
+    for (const t of ["Two roles", "do not sell personal information", "Your choices and rights", "Cookies", "Children", "WhatsApp messages", "Deleting your data", "To stop receiving them"]) expect(privacy).toContain(t);
   });
   it("links the two pages to each other", () => {
     expect(terms).toContain('href="/privacy"');
