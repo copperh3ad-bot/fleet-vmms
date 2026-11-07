@@ -441,3 +441,6 @@ PKR 43,000 a month (entered by the owner in Admin, Plans) with 12 months for the
 
 ## 2026-11-08: V1.1 job cards by WhatsApp and daily maintenance reminders deployed; resume point updated
 Live is commit a5648e2 (tag fleet-otg-resume-2026-11-08) with platform 0016, tenant 0035 and 0036 applied. ADR-061 (job cards by WhatsApp, Pro only; never tried with real WhatsApp, needs ANTHROPIC_API_KEY and a Pro company with the switch on) and ADR-062 (maintenance-due reminders, one reminder email a day once a mail service is set up). 1,041 unit tests, browser suite 229 passed and 0 failed, 0 lint errors. V1.0 is tag v1.0.0 (294e3f9); V1.1 is tag v1.1.0 (a5648e2). See docs/RESUME.md, section "Update 2026-11-08".
+
+## 2026-11-08: Compare plans page deployed
+Live is commit 91e54a1: the public /compare page (ADR-063, no price in the page, plan names and figures read from the plans table) plus the investor flyer in marketing/investor-flyer (ADR-064, docs only). No migrations. 230 browser checks passed.
