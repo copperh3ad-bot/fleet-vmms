@@ -11,7 +11,6 @@ import { loadPlatformSettings } from "@/lib/billing/settings";
 import { getTaxProfile, quoteTax } from "@/lib/billing/tax-data";
 import { fmtMinor } from "@/lib/billing/tax";
 import { ClaimForm, RequestBillForm } from "./forms";
-import { countryOptions } from "@/lib/orgs/countries";
 import { TaxProfileForm } from "./tax-form";
 
 export default function BillingPage({ params }: PageProps<"/w/[slug]/billing">) {
@@ -83,8 +82,8 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
           </Panel>
 
           {taxView && (
-            <Panel title="Your tax details" sub="For the invoice we issue to you. Tell us where your company is; if it is in Pakistan, also where you are registered for sales tax.">
-              <TaxProfileForm slug={slug} profile={taxView.profile} rules={taxView.rules} countries={countryOptions()} />
+            <Panel title="Your company details" sub="For the invoice we issue to you. We need your registered company name and your NTN before we can issue it.">
+              <TaxProfileForm slug={slug} profile={taxView.profile} />
             </Panel>
           )}
 

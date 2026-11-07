@@ -115,6 +115,9 @@ async function settle(q: Queryable, operatorId: string, tenantId: string, months
   const b = (await q.query<{ price_cents: number; currency: string; current_period_end: string | null; name: string }>(
     `select b.price_cents, b.currency, b.current_period_end::text, t.name from public.org_billing b join public.tenants t on t.id = b.tenant_id where b.tenant_id = $1 for update of b`, [tenantId])).rows[0];
   if (!b) throw new UserError("That organization has no billing record.");
+  // No invoice without the customer's NTN (ADR-053). A customer abroad is not asked for one.
+  const t0 = (await q.query<{ country: string | null; ntn: string | null }>("select country, ntn from public.org_tax where tenant_id = $1", [tenantId])).rows[0];
+  if ((!t0?.country || t0.country === "PK") && !t0?.ntn?.trim()) throw new UserError("This customer has not entered its NTN yet. An invoice cannot be issued until it does: ask it to fill in its tax details on the Billing page.");
   // A paid period runs on from where the last one ended, or from today if there was none or it has already run out.
   const period = (await q.query<{ start: string; end: string }>(
     `select greatest(coalesce($1::timestamptz, now()), now())::date::text as start,

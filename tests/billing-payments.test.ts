@@ -11,6 +11,7 @@ import { checkPlatformSetting, loadPlatformSettings, savePlatformSetting } from 
 import { advanceProvisioning, type ProvisionDeps } from "@/lib/orgs/provision";
 import { claimSignup, parseSignup, recordSignup } from "@/lib/orgs/signup";
 import type { BlobStore } from "@/lib/jobcards/attachments";
+import { saveTaxProfile } from "@/lib/billing/tax-data";
 import { requestBill } from "@/lib/billing/request-details";
 import { mkdtempSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -45,6 +46,7 @@ async function makeOrg(n: number, name: string): Promise<{ tenantId: string; sch
   expect((await advanceProvisioning(deps, t.tenantId)).state).toBe("ready");
   const slug = (await control.transaction(async (q) => (await q.query<{ slug: string }>("select slug from public.tenants where id = $1", [t.tenantId])).rows[0])).slug;
   const base = { tenantId: t.tenantId, schema: t.schema, vehicleScope: "all" as const };
+  await saveTaxProfile(router, { ...base, userId: U(n), role: "tenant_admin" }, { legal_name: `${name} Pvt Ltd`, ntn: "9999999-9", withholding_agent: false });          // an invoice needs the NTN (ADR-053)
   return { ...t, slug, admin: { ...base, userId: U(n), role: "tenant_admin" }, requester: { ...base, userId: U(n + 500), role: "requester" } };
 }
 

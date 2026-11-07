@@ -417,3 +417,6 @@ Control migration 0017 (`payment_claims.submitter_email`, not on live), `src/lib
 
 ## 2026-11-07: ADR-052 rupee pricing support and Add vehicle drop-downs (built, not deployed)
 `taxFor` handles a plan priced in PKR (rate 1, no conversion), the invoice page no longer says "at Rs X to the dollar" for a rupee plan, `tests/pkr-plan.test.ts` (4). The live plan price is still USD 149: the owner sets the rupee amount and currency in Admin, Plans. Add vehicle: Make, Model (by make) and Year are drop-downs with Other, `src/lib/master/vehicle-catalog.ts`, `tests/vehicle-catalog.test.ts` (4). Browser suite 232 passed.
+
+## 2026-11-07: ADR-053 NTN required for invoices, one tax authority, no withholding (built, not deployed)
+Confirming or recording a payment is refused without the customer's NTN (Pakistan). The Billing page asks for company name, NTN and address only; withholding is always off; a customer with no chosen authority falls under the single active one. `tests/ntn-required.test.ts` (6). Owner still has to enter the SRB rule and rate, the SRB registration number and the rupee plan price in Admin.

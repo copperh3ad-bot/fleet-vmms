@@ -33,6 +33,7 @@ async function makeOrg(n: number, name: string): Promise<{ tenantId: string; sch
   const t = (await claimSignup(control, { id: U(n), email, emailConfirmed: true }))!;
   expect((await advanceProvisioning(deps, t.tenantId)).state).toBe("ready");
   const base = { tenantId: t.tenantId, schema: t.schema, vehicleScope: "all" as const };
+  await saveTaxProfile(router, { ...base, userId: U(n), role: "tenant_admin" }, { legal_name: `${name} Pvt Ltd`, ntn: "9999999-9", withholding_agent: false });          // an invoice needs the NTN (ADR-053)
   return { ...t, admin: { ...base, userId: U(n), role: "tenant_admin" }, requester: { ...base, userId: U(n + 500), role: "requester" } };
 }
 const set = (k: string, v: string) => savePlatformSetting(control, OP, k, v);
@@ -75,7 +76,9 @@ describe("nothing is taxed until it is set up", () => {
     expect(await quoteTax(router, A.admin, 14900, "USD", 1)).toBeNull();                         // no exchange rate
     await set("pkr_per_usd", "280");
     await saveTaxProfile(router, A.admin, profile({ tax_rule_code: "" }));
-    expect(await quoteTax(router, A.admin, 14900, "USD", 1)).toBeNull();                         // customer has not said where it is registered
+    await saveTaxRule(control, OP, { code: "SRB", label: "Sindh", sales_tax_pct: "13", active: true });
+    expect(await quoteTax(router, A.admin, 14900, "USD", 1)).toBeNull();                         // two authorities in force and the customer has not said which (with one, it falls under it: ADR-053)
+    await saveTaxRule(control, OP, { code: "SRB", label: "Sindh", sales_tax_pct: "13", active: false });
     await saveTaxProfile(router, A.admin, profile());
     await saveTaxRule(control, OP, { code: "PRA", label: "Punjab", sales_tax_pct: "16", active: false });
     expect(await quoteTax(router, A.admin, 14900, "USD", 1)).toBeNull();                         // that authority is off
@@ -114,7 +117,7 @@ describe("the customer's own tax details", () => {
   });
 
   it("one customer never sees or changes another's details", async () => {
-    expect((await getTaxProfile(router, B.admin)).profile).toBeNull();
+    expect(JSON.stringify(await getTaxProfile(router, B.admin))).not.toContain("Alpha");          // B has its own details (a name and NTN from set-up), none of A's
     await saveTaxProfile(router, B.admin, profile({ tax_rule_code: "PRA", legal_name: "Bravo Foods Ltd", ntn: "7654321-0" }));
     expect((await getTaxProfile(router, A.admin)).profile?.legal_name).toBe("Alpha Textiles Pvt Ltd");
     expect(JSON.stringify(await getTaxProfile(router, A.admin))).not.toContain("Bravo");

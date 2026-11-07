@@ -40,7 +40,8 @@ export async function harness() {
     expect((await advanceProvisioning(deps, t.tenantId)).state).toBe("ready");
     const base = { tenantId: t.tenantId, schema: t.schema, vehicleScope: "all" as const };
     const made: Org = { ...t, admin: { ...base, userId: U(n), role: "tenant_admin" }, requester: { ...base, userId: U(n + 5000), role: "requester" } };
-    if (o.profile) await saveTaxProfile(router, made.admin, o.profile);
+    // an invoice needs the customer's name and NTN (ADR-053); without a country this adds no tax, so tests that expect none still hold
+    await saveTaxProfile(router, made.admin, o.profile ?? { legal_name: `${name} Pvt Ltd`, ntn: "9999999-9", withholding_agent: false });
     return made;
   }
   const set = (k: string, v: string) => savePlatformSetting(control, OP, k, v);

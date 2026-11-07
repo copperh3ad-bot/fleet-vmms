@@ -40,9 +40,14 @@ export async function taxFor(q: Queryable, tenantId: string, subtotalUsdCents: n
   // A plan priced in dollars is converted to rupees at the rate of the payment date; a plan priced in rupees (ADR-052) already is in rupees: the same arithmetic with a rate of 1.
   if (currency !== "USD" && currency !== "PKR") return null;
   const inRupees = currency === "PKR";
-  const p = (await q.query<{ country: string | null; legal_name: string | null; ntn: string | null; strn: string | null; address: string | null; withholding_agent: boolean; wht_income_pct: string | null; wht_sales_share_pct: string | null; code: string | null; label: string | null; sales_tax_pct: string | null }>(
-    `select o.country, o.legal_name, o.ntn, o.strn, o.address, o.withholding_agent, o.wht_income_pct::text, o.wht_sales_share_pct::text, r.code, r.label, r.sales_tax_pct::text
+  const p = (await q.query<{ country: string | null; legal_name: string | null; ntn: string | null; strn: string | null; address: string | null; withholding_agent: boolean; wht_income_pct: string | null; wht_sales_share_pct: string | null; code: string | null; label: string | null; sales_tax_pct: string | null; chosen: string | null }>(
+    `select o.country, o.legal_name, o.ntn, o.strn, o.address, o.withholding_agent, o.wht_income_pct::text, o.wht_sales_share_pct::text, r.code, r.label, r.sales_tax_pct::text, o.tax_rule_code as chosen
        from public.org_tax o left join public.tax_rules r on r.code = o.tax_rule_code and r.active where o.tenant_id = $1`, [tenantId])).rows[0];
+  // One authority in force (ADR-053): a customer who has not picked one falls under it. With several, the customer still has to say which.
+  if (p && !p.code && !p.chosen) {          // only for a customer who has not picked one: if its own authority was switched off it stays untaxed
+    const only = (await q.query<{ code: string; label: string; sales_tax_pct: string }>("select code, label, sales_tax_pct::text from public.tax_rules where active order by code limit 2")).rows;
+    if (only.length === 1) { p.code = only[0].code; p.label = only[0].label; p.sales_tax_pct = only[0].sales_tax_pct; }
+  }
   const sc = await resolveScenario(q, p?.country);
   if (!p || !sc) return null;
   const st = Object.fromEntries((await q.query<{ key: string; value: string }>("select key, value from public.platform_settings where key = any($1::text[])", [SETTING_KEYS])).rows.map((r) => [r.key, r.value]));
@@ -176,8 +181,10 @@ export async function saveTaxProfile(driver: Driver, m: Membership, input: Recor
   const r = profileSchema.safeParse(input);
   if (!r.success) throw new UserError("Fix the highlighted fields.", fieldErrors(r.error));
   const d = r.data;
-  if (d.tax_rule_code && !(d.legal_name && d.ntn)) {
-    throw new UserError("To be charged sales tax we need your registered name and your NTN.", { legal_name: d.legal_name ? "" : "Enter your registered name", ntn: d.ntn ? "" : "Enter your NTN" });
+  // An invoice cannot be issued without the customer's registered name and NTN (ADR-053), so they are asked for together; a customer abroad is not asked.
+  const inPakistan = !d.country || d.country === "PK";
+  if ((d.tax_rule_code || inPakistan) && !(d.legal_name && d.ntn)) {
+    throw new UserError("To get your invoice we need your registered company name and your NTN.", { legal_name: d.legal_name ? "" : "Enter your registered name", ntn: d.ntn ? "" : "Enter your NTN" });
   }
   await withPlatform(driver, async (q) => {
     await q.query("select set_config('app.user_id', $1, true)", [m.userId]);
