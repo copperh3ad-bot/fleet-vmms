@@ -181,13 +181,14 @@ export async function saveTaxProfile(driver: Driver, m: Membership, input: Recor
   const r = profileSchema.safeParse(input);
   if (!r.success) throw new UserError("Fix the highlighted fields.", fieldErrors(r.error));
   const d = r.data;
-  // An invoice cannot be issued without the customer's registered name and NTN (ADR-053), so they are asked for together; a customer abroad is not asked.
-  const inPakistan = !d.country || d.country === "PK";
-  if ((d.tax_rule_code || inPakistan) && !(d.legal_name && d.ntn)) {
-    throw new UserError("To get your invoice we need your registered company name and your NTN.", { legal_name: d.legal_name ? "" : "Enter your registered name", ntn: d.ntn ? "" : "Enter your NTN" });
-  }
   await withPlatform(driver, async (q) => {
     await q.query("select set_config('app.user_id', $1, true)", [m.userId]);
+    // An invoice cannot be issued without the customer's registered name and NTN (ADR-053), so they are asked for together. A customer abroad is not asked: its country is the one it
+    // gave at sign-up (or this call's), never a default.
+    const country = d.country ?? (await q.query<{ country: string | null }>("select country from public.org_tax where tenant_id = $1", [m.tenantId])).rows[0]?.country ?? null;
+    if ((d.tax_rule_code || !country || country === "PK") && !(d.legal_name && d.ntn)) {
+      throw new UserError("To get your invoice we need your registered company name and your NTN.", { legal_name: d.legal_name ? "" : "Enter your registered name", ntn: d.ntn ? "" : "Enter your NTN" });
+    }
     if (d.tax_rule_code && (await q.query("select 1 from public.tax_rules where code = $1 and active", [d.tax_rule_code])).rows.length === 0)
       throw new UserError("Choose where you are registered.", { tax_rule_code: "Choose from the list" });
     await q.query(

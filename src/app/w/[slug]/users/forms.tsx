@@ -77,6 +77,9 @@ export function InviteForm({ slug, roles, vendors, stack }: { stack?: boolean; s
         {!isVendor && <Input name="employee_no" label="Employee number" state={state} required value={code} onChange={(e) => setCode(e.target.value)} hint="Their code on the employee record. It is made now, with the invitation." />}
         <Input name="full_name" label="Full name" state={state} required />
         {!isVendor && <Input name="department" label="Department" state={state} required />}
+        {!isVendor && <Input name="licence_no" label="Driving licence number" state={state} required autoComplete="off" hint="A valid driving licence is needed for everyone invited." />}
+        {!isVendor && <Input name="licence_expires_on" label="Licence expiry date" type="date" state={state} required />}
+        {!isVendor && <Input name="licence_class" label="Licence class" state={state} hint="Optional, for example LTV or HTV." />}
         <div>
           <label htmlFor="role" className="mb-1 block text-xs font-medium text-zinc-600">Role <span className="text-red-700">*</span></label>
           <select id="role" name="role" value={role} onChange={(e) => setRole(e.target.value)} className="h-10 w-full rounded-md border border-zinc-300 bg-white px-3 text-zinc-900" aria-invalid={!!state.fields?.role}>

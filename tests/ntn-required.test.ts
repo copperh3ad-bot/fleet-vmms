@@ -44,6 +44,15 @@ describe("an invoice needs the customer's NTN", () => {
   });
 });
 
+describe("a customer abroad", () => {
+  it("saving its details without a country keeps its own country and asks for no NTN", async () => {
+    const o = await h.org("Overseas Co", { country: "US" });
+    await saveTaxProfile(h.router, o.admin, { legal_name: "Overseas Co LLC", withholding_agent: false });          // what the Billing form sends: no country
+    const country = await h.control.transaction(async (q) => { await q.query("set local search_path = public"); return (await q.query<{ country: string }>("select country from public.org_tax where tenant_id = $1", [o.tenantId])).rows[0].country; });
+    expect(country).toBe("US");
+  });
+});
+
 describe("the one sales tax authority in force", () => {
   it("applies to a customer that picked none, at the rate the owner entered, and nothing is withheld", async () => {
     await saveTaxRule(h.control, OP, { code: "PRA", label: "Punjab", sales_tax_pct: "16", active: false });          // the set-up helper made one; only SRB is in force

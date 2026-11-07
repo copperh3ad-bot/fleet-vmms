@@ -14,7 +14,7 @@ const mem = (role: string, n: number): Membership => ({ ...t, userId: U(n), role
 const admin = () => mem("tenant_admin", 1);
 const tenant = <T,>(fn: (q: import("@/lib/db/types").Queryable) => Promise<T>) => withTenant(d, admin(), fn);
 const plat = <T,>(fn: (q: import("@/lib/db/types").Queryable) => Promise<T>) => withPlatform(d, fn);
-const full = (over: Record<string, unknown> = {}) => ({ full_name: "Sana Malik", employee_no: "E-500", department: "Operations", phone: "0300 1234567", email: "sana@example.com", role: "requester", ...over });
+const full = (over: Record<string, unknown> = {}) => ({ full_name: "Sana Malik", employee_no: "E-500", department: "Operations", phone: "0300 1234567", email: "sana@example.com", role: "requester", licence_no: "LHR-1234567", licence_expires_on: "2099-12-31", ...over });
 const count = (sql: string, args: unknown[] = []) => tenant(async (q) => Number((await q.query<{ c: string }>(sql, args)).rows[0].c));
 
 beforeAll(async () => {
@@ -66,5 +66,36 @@ describe("adding an employee with an invitation", () => {
     for (const role of ["fleet_manager", "finance", "requester", "auditor"])
       await expect(ad.addEmployeeWithInvite(d, mem(role, 40), full({ employee_no: "E-700", email: "perm@example.com" }))).rejects.toBeInstanceOf(ForbiddenError);
     expect(await count("select count(*) c from employees where employee_no = 'E-700'")).toBe(0);
+  });
+});
+
+describe("a driving licence is compulsory at invite (ADR-054)", () => {
+  it("is saved with the employee in the same step: the number, the expiry and the optional class", async () => {
+    await ad.addEmployeeWithInvite(d, admin(), full({ employee_no: "E-800", email: "lic1@example.com", licence_no: "  LHR-7654321 ", licence_class: "LTV", licence_expires_on: "2099-01-31" }));
+    const l = await tenant(async (q) => (await q.query<Record<string, string | null>>(
+      "select l.licence_no, l.licence_class, l.expires_on::text from driver_licences l join employees e on e.id = l.employee_id where e.employee_no = 'E-800'")).rows[0]);
+    expect(l).toEqual({ licence_no: "LHR-7654321", licence_class: "LTV", expires_on: "2099-01-31" });
+    await ad.addEmployeeWithInvite(d, admin(), full({ employee_no: "E-801", email: "lic2@example.com", licence_class: "" }));
+    expect((await tenant(async (q) => (await q.query<{ c: string | null }>("select l.licence_class c from driver_licences l join employees e on e.id = l.employee_id where e.employee_no = 'E-801'")).rows[0])).c).toBeNull();
+  });
+
+  it("is required: no number or no expiry date means no employee and no invitation, each named", async () => {
+    for (const [field, want] of [["licence_no", "licence_no"], ["licence_expires_on", "licence_expires_on"]] as const) {
+      const e = await ad.addEmployeeWithInvite(d, admin(), full({ employee_no: "E-810", email: "lic3@example.com", [field]: "" })).catch((x) => x);
+      expect(e).toBeInstanceOf(UserError);
+      expect(e.fields[want]).toBeTruthy();
+    }
+    const bad = await ad.addEmployeeWithInvite(d, admin(), full({ employee_no: "E-810", email: "lic3@example.com", licence_no: "ab" })).catch((x) => x);
+    expect(bad.fields.licence_no).toBeTruthy();          // too short to be a licence number
+    expect(await count("select count(*) c from employees where employee_no = 'E-810'")).toBe(0);
+    expect(await count("select count(*) c from driver_licences")).toBe(3);          // E-500, E-800 and E-801 only: a refused invite leaves none behind
+  });
+
+  it("refuses a licence that has already expired, and a date that is not a date", async () => {
+    const past = await ad.addEmployeeWithInvite(d, admin(), full({ employee_no: "E-811", email: "lic4@example.com", licence_expires_on: "2020-01-01" })).catch((x) => x);
+    expect(past.fields.licence_expires_on).toBeTruthy();
+    const junk = await ad.addEmployeeWithInvite(d, admin(), full({ employee_no: "E-811", email: "lic4@example.com", licence_expires_on: "tomorrow" })).catch((x) => x);
+    expect(junk.fields.licence_expires_on).toBeTruthy();
+    expect(await count("select count(*) c from employees where employee_no = 'E-811'")).toBe(0);
   });
 });

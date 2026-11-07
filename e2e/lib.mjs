@@ -125,6 +125,7 @@ export async function addEmployee(p, slug, { name, code, email, department = "Op
   const f = p.page.locator("form:has(#employee_no)").first();
   await f.locator("#employee_no").fill(code); await f.locator("#full_name").fill(name); await f.locator("#department").fill(department);
   await f.locator("#role").selectOption(role); await f.locator("#phone").fill(phone); await f.locator("#email").fill(email);
+  await f.locator("#licence_no").fill(`LIC-${code}`); await f.locator("#licence_expires_on").fill(new Date(Date.now() + 400 * 864e5).toISOString().slice(0, 10));          // a valid driving licence is needed (ADR-054)
   await press(p, "Add and invite", { wait: 1500 });
   check(has(await body(p), "Employee added and invited"), `the employee was not added: ${(await p.page.locator("[role=alert], [role=status]").allInnerTexts()).join(" | ")}`);
   // the link is also emailed (ADR-041): the screen says so, and the test outbox holds the message with a one-time link

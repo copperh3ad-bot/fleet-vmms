@@ -420,3 +420,6 @@ Control migration 0017 (`payment_claims.submitter_email`, not on live), `src/lib
 
 ## 2026-11-07: ADR-053 NTN required for invoices, one tax authority, no withholding (built, not deployed)
 Confirming or recording a payment is refused without the customer's NTN (Pakistan). The Billing page asks for company name, NTN and address only; withholding is always off; a customer with no chosen authority falls under the single active one. `tests/ntn-required.test.ts` (6). Owner still has to enter the SRB rule and rate, the SRB registration number and the rupee plan price in Admin.
+
+## 2026-11-07: ADR-054 driving licence compulsory at invite (built, not deployed)
+`addEmployeeWithInvite` requires licence number and a valid expiry (class optional) and saves it in the same transaction; the invite form has the three boxes. Not asked: workshops, approved join requests, existing people.

@@ -28,7 +28,7 @@ export async function submitClaimAction(slug: string, _prev: FormState, form: Fo
 export async function saveTaxProfileAction(slug: string, _prev: FormState, form: FormData): Promise<FormState> {
   const state = await runAction(slug, async (m) => {
     // Pakistan only; the sales tax authority is the one in force and nobody withholds (ADR-053), so those are not asked.
-    await saveTaxProfile(getDriver(), m, { ...Object.fromEntries(["legal_name", "ntn", "address"].map((k) => [k, str(form, k)])), country: "PK", withholding_agent: false });
+    await saveTaxProfile(getDriver(), m, { ...Object.fromEntries(["legal_name", "ntn", "address"].map((k) => [k, str(form, k)])), withholding_agent: false });
     return "Saved. We can now issue your invoice.";
   }, { allowLocked: true });
   if (state.ok) { refresh(); return state; }

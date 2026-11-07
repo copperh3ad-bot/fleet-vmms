@@ -37,7 +37,7 @@ const confirmNow = async (op, orgName) => {
 };
 
 export async function billing(S) {
-  scenario("5. Paying, tax invoices, withholding and certificates");
+  scenario("5. Paying, tax invoices and the NTN");
   const op = S.op, pk = S.pk, us = S.us, slug = S.pkSlug, usSlug = S.usSlug;
   check(op && pk && us, "earlier scenarios did not run");
 
@@ -70,9 +70,8 @@ export async function billing(S) {
 
   await step("the Pakistani customer fills in its tax details and sees what to send", async () => {
     await go(pk, `/w/${slug}/billing`);
-    await pk.page.selectOption("#country", "PK"); await pk.page.selectOption("#tax_rule_code", "PRA");
     await fill(pk, "#legal_name", "Lahore Fleet Pvt Ltd"); await fill(pk, "#ntn", "1234567-8"); await fill(pk, "#address", "Gulberg, Lahore");
-    await press(pk, "Save tax details", { wait: 1200 });
+    await press(pk, "Save details", { wait: 1200 });
     await waitText(pk, "Saved", 6000);
     await go(pk, `/w/${slug}/billing`);
     check(has(await body(pk), "I have paid"), "no payment form");
@@ -117,68 +116,32 @@ export async function billing(S) {
     check(anon.status() !== 200 || !/^Entry,/.test(await anon.text()), "a customer downloaded the operator's ledger");
   });
 
-  // ---------- withholding and the certificate
-  await step("a customer that withholds is told to send less, and keeps the certificate it must prepare", async () => {
-    await setSetting(op, "wht_income_pct_default", "8");
-    await setSetting(op, "wht_sales_share_pct_default", "50");
+  // ---------- no withholding, no authority to pick (ADR-053)
+  await step("the customer's form asks for company name, NTN and address only: no withholding, STRN, country or authority", async () => {
     await go(pk, `/w/${slug}/billing`);
-    await pk.page.locator("input[name=withholding_agent]").check();
-    await press(pk, "Save tax details", { wait: 1200 });
-    await waitText(pk, "Saved", 6000);
+    for (const sel of ["input[name=withholding_agent]", "#strn", "#country", "#tax_rule_code"]) check(await pk.page.locator(sel).count() === 0, `the form still offers ${sel}`);
+    for (const sel of ["#legal_name", "#ntn", "#address"]) check(await pk.page.locator(sel).count() === 1, `the form lacks ${sel}`);
     const bill = await requestBillNow(pk, slug);
-    check(bill.text.includes("Send us"), "no net amount in the bill");
-    check(/Send us: Rs 41,720\.00/.test(bill.text), `the amount to send is not Rs 41,720.00: ${bill.text.slice(bill.text.indexOf("Send us") - 100, bill.text.indexOf("Send us") + 80)}`);
-    await claimNow(pk, slug, { amount: "41720", currency: "PKR", ref: "BANK-REF-1002" });
+    check(!bill.text.includes("Send us") && !has(bill.text, "keep back"), "the bill mentions withholding");
+  });
+  await step("a customer with no NTN cannot be invoiced, and can once it enters one", async () => {
+    sql(`update public.org_tax set ntn = null where tenant_id = (select id from public.tenants where slug = '${slug}')`);
+    await claimNow(pk, slug, { amount: "48395.20", currency: "PKR", ref: "BANK-REF-NONTN" });
     await go(op, "/admin/payments");
-    check(has(await body(op), "They keep back"), "the operator is not shown the withholding");
+    await confirmNow(op, S.pkName);
+    await waitText(op, "has not entered its NTN", 6000);
+    await go(pk, `/w/${slug}/billing`);
+    await fill(pk, "#legal_name", "Lahore Fleet Pvt Ltd"); await fill(pk, "#ntn", "1234567-8");
+    await press(pk, "Save details", { wait: 1200 });
+    await waitText(pk, "Saved", 6000);
+    await go(op, "/admin/payments");
     await confirmNow(op, S.pkName);
     await waitSql(`select count(*) from public.invoices where tenant_id = (select id from public.tenants where slug = '${slug}')`, "2");
-  });
-  await step("the operator's Tax page lists the certificate that is owed", async () => {
-    await go(op, "/admin/tax");
-    const t = await body(op);
-    check(has(t, "Withholding certificates to collect") && t.includes("Lahore Fleet"), "the owed certificate is not listed");
-    check(await op.page.getByRole("button", { name: "Issue one for the customer" }).count() > 0, "no way to issue one for the customer");
-  });
-  await step("the customer prepares the certificate from its invoice, and it carries the invoice's figures", async () => {
-    await go(pk, `/w/${slug}/billing`);
-    await pk.page.getByRole("link", { name: /^INV-/ }).first().click();
-    await pk.page.waitForLoadState("networkidle");
-    await pk.page.getByRole("link", { name: /Prepare the certificate/i }).click();
-    await pk.page.waitForLoadState("networkidle");
-    await fill(pk, "#deposit_reference", "CPR-2026-0042"); await fill(pk, "#deposit_date", iso());
-    await press(pk, "Prepare the certificate", { wait: 1800 });
-    await waitText(pk, "Withholding tax certificate", 8000);
-    const t = await body(pk);
-    for (const w of ["WHC-", "Lahore Fleet Pvt Ltd", "Test Seller", "Rs 3,337.60", "Rs 6,675.20", "CPR-2026-0042", "does not replace any statement"]) check(t.includes(w) || w === "Rs 6,675.20", `the certificate lacks "${w}": ${t.replace(/\s+/g, " ").slice(0, 200)}`);
-    check(await pk.page.getByRole("button", { name: /print/i }).count() > 0, "no print button");
-    S.certNumber = (t.match(/WHC-\d{4}-\d{6}/) ?? [])[0];
-    check(S.certNumber, "no certificate number");
-  });
-  await step("the operator sees it, it is no longer owed, and a voided one becomes owed again", async () => {
-    await go(op, "/admin/tax");
-    const t = await body(op);
-    check(t.includes(S.certNumber), "the certificate is not in the register");
-    await op.page.getByRole("link", { name: S.certNumber }).click();
-    await op.page.waitForLoadState("networkidle");
-    check(has(await body(op), "does not replace any statement"), "the operator's view lacks the disclaimer");
-    await fill(op, "input[name=reason]", "Deposit reference entered wrongly");
-    await press(op, "Void", { wait: 1500 });
-    await go(op, "/admin/tax");
-    check(has(await body(op), "Withholding certificates to collect") && sql(`select count(*) from public.wht_certificates where status = 'void' and tenant_id = (select id from public.tenants where slug = '${slug}')`) === "1", "the void did not take");
-    check(sql(`select count(*) from public.invoice_certificates c join public.invoices i on i.id = c.invoice_id where i.tenant_id = (select id from public.tenants where slug = '${slug}')`) === "0", "the voided certificate is still counted as held");
-  });
-  await step("a customer that withholds nothing is not offered a certificate", async () => {
-    await go(pk, S.pkInvoice);
-    check(!has(await body(pk), "Prepare the certificate"), "a certificate link on an invoice with no withholding");
   });
 
   // ---------- abroad
   await step("a customer outside Pakistan sees no tax, pays in dollars and gets a plain invoice", async () => {
     await go(us, `/w/${usSlug}/billing`);
-    await us.page.selectOption("#country", "US");
-    await press(us, "Save tax details", { wait: 1200 });
-    await waitText(us, "Saved", 6000);
     const bill = await requestBillNow(us, usSlug);
     check(bill.text.includes("$149") && !bill.text.includes("Rs ") && !has(bill.text, "sales tax"), `the dollar customer's bill: ${bill.text.slice(0, 300)}`);
     await claimNow(us, usSlug, { amount: "149", currency: "USD", ref: "WIRE-US-1" });

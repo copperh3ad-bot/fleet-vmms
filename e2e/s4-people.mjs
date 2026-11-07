@@ -221,6 +221,7 @@ export async function people(S) {
     await f.locator("#full_name").fill(noMail.name);
     await f.locator("#role").selectOption("requester");
     await f.locator("#department").fill("Drivers");
+    await f.locator("#licence_no").fill(`LIC-${noMail.code}`); await f.locator("#licence_expires_on").fill(new Date(Date.now() + 400 * 864e5).toISOString().slice(0, 10));
     await f.getByLabel("With a sign-in name (no email)").check();
     await press(o, "Add and invite", { wait: 1200 });
     check(has(await body(o), "Enter the phone number"), "an invitation with no phone number was accepted");
