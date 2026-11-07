@@ -24,6 +24,19 @@ export class WhatsAppNotConfigured extends Error {
 const GRAPH = "https://graph.facebook.com/v21.0";
 const testFile = () => (process.env.ALLOW_FILE_MAILER === "1" ? process.env.WHATSAPP_FILE : undefined);
 
+/**
+ * Meta says why it refused in the body of the answer: a code, sometimes a subcode, and a sentence. That is what tells "no payment method" from "wrong number id" from
+ * "not allowed to message this person", so it goes into the error. Long runs of digits (a phone number could be in the sentence) and anything token-shaped are removed.
+ */
+async function refusal(res: Response, what: string): Promise<Error> {
+  let more = "";
+  try {
+    const e = ((await res.json()) as { error?: { code?: number; error_subcode?: number; message?: string } }).error;
+    if (e) more = ` (code ${e.code ?? "?"}${e.error_subcode ? `/${e.error_subcode}` : ""}: ${String(e.message ?? "").replace(/\d{7,}/g, "#").replace(/\b[A-Za-z0-9_-]{30,}\b/g, "#").slice(0, 160)})`;
+  } catch { /* the answer was not JSON; the status is all there is */ }
+  return new Error(`${what}: ${res.status}${more}`);
+}
+
 export const whatsappConfigured = () => !!testFile() || (!!process.env.WHATSAPP_PHONE_NUMBER_ID && !!process.env.WHATSAPP_ACCESS_TOKEN);
 
 /** `e164` is the number in international form (+923001234567). With a `template`, `code` fills its body and its copy-code button; otherwise `body` goes as plain text. */
@@ -52,7 +65,7 @@ export async function sendWhatsApp(e164: string, m: { body: string; template?: s
     body: JSON.stringify(payload),
     signal: AbortSignal.timeout(8000),
   });
-  if (!res.ok) throw new Error(`whatsapp failed: ${res.status}`);
+  if (!res.ok) throw await refusal(res, "whatsapp failed");
 }
 
 /** Can the app send invitations itself? Needs the business number and the approved invitation template. */
@@ -83,7 +96,7 @@ export async function sendWhatsAppInvite(e164: string, m: { name: string; org: s
     }),
     signal: AbortSignal.timeout(8000),
   });
-  if (!res.ok) throw new Error(`whatsapp invite failed: ${res.status}`);
+  if (!res.ok) throw await refusal(res, "whatsapp invite failed");
 }
 
 // ---------------------------------------------------------------------------------------------- replies from workshops and drivers (ADR-042)

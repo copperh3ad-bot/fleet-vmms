@@ -50,6 +50,16 @@ describe("sending an invitation from the app's number", () => {
     await expect(sendWhatsAppInvite("+923001234567", { name: "A", org: "B", token: LINK_ID, siteUrl: "x" })).rejects.toBeInstanceOf(WhatsAppNotConfigured);
   });
 
+  it("puts Meta's reason in the error, without phone numbers or token-shaped strings", async () => {
+    setEnv(cfg);
+    const body = { error: { code: 131042, error_subcode: 2494, message: "Business eligibility payment issue for 923001234567 " + "x".repeat(40) } };
+    const f = (async () => new Response(JSON.stringify(body), { status: 400 })) as unknown as typeof fetch;
+    const err = await sendWhatsAppInvite("+923001234567", { name: "A", org: "B", token: LINK_ID, siteUrl: "x" }, f).catch((e: Error) => e);
+    expect((err as Error).message).toContain("whatsapp invite failed: 400 (code 131042/2494: Business eligibility payment issue");
+    expect((err as Error).message).not.toContain("923001234567");
+    expect((err as Error).message).not.toContain("x".repeat(40));
+  });
+
   it("writes to the test file instead of sending, only when file mode is allowed", async () => {
     setEnv({ WHATSAPP_FILE: "/dev/null", ALLOW_FILE_MAILER: "1" });
     await expect(sendWhatsAppInvite("+923001234567", { name: "A", org: "B", token: LINK_ID, siteUrl: "https://s.test" }, fake(500).f)).resolves.toBeUndefined();
