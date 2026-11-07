@@ -399,3 +399,9 @@ Migration 0029 (not applied to live), dept_ok on read paths, write guards, pool-
 
 ## 2026-11-07: ADR-048 phase 48b built (engine hours)
 Migration 0030 (applied nowhere yet: not on live), src/lib/hours, hours on the vehicle page, job card form and wizard, service rules and Settings, cost per hour on Reports and as an export, tests/engine-hours.test.ts (15). Also removed a duplicate `module_trips` entry from the settings list. 910 unit tests pass (the known ledger date flake apart), build OK. Not deployed; run migration 0030 on live with the deploy.
+
+## 2026-11-07: ADR-048 phase 48c built (department on vehicle lists)
+Vehicle list shows the vehicle's own department with a Department filter (and "No department"); vehicles export has a Department column and filter; CSV and Excel import take an optional `department` column. `tests/dept-lists.test.ts` (7), browser scenario 8 (`e2e/s8-departments.mjs`). Cost by department and a department field on Add vehicle are not built. 48b migration 0030 and its code are live (deployed 2026-11-07); 48c is code only, no migration.
+
+## 2026-11-07: ADR-049 the app sends invitations from its own WhatsApp number
+`sendWhatsAppInvite` and `WHATSAPP_INVITE_TEMPLATE`; the administrator is never handed the link when it is set. Template `fleetotg_invite` submitted to Meta (pending; id 3658937344263786). Not deployed, and the Netlify variable is not set: owner to confirm approval and a payment method on the account first. Tests in `tests/whatsapp-invite.test.ts` (5).

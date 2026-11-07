@@ -6,6 +6,8 @@
 //   WHATSAPP_OTP_TEMPLATE      the name of the approved authentication template that carries the code (WhatsApp lets a business start a conversation only with an
 //                              approved template; without one the code is sent as plain text, which only reaches people who messaged the business in the last 24 hours)
 //   WHATSAPP_TEMPLATE_LANG     the template's language code; en if empty
+//   WHATSAPP_INVITE_TEMPLATE   the approved template that carries an invitation link (ADR-049). With it, the app sends the link itself from the business number and no
+//                              one in the company ever holds the link; without it, the administrator gets the old phone buttons.
 // And to take replies from workshops and drivers (ADR-042):
 //   WHATSAPP_APP_SECRET        the app secret (Meta app, Settings, Basic): every call Meta makes to us is signed with it, and we refuse any that is not
 //   WHATSAPP_VERIFY_TOKEN      a long random string you make up and also type into Meta's webhook page, so Meta can prove it is calling the right address
@@ -51,6 +53,37 @@ export async function sendWhatsApp(e164: string, m: { body: string; template?: s
     signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) throw new Error(`whatsapp failed: ${res.status}`);
+}
+
+/** Can the app send invitations itself? Needs the business number and the approved invitation template. */
+export const whatsappInviteConfigured = () => !!process.env.WHATSAPP_INVITE_TEMPLATE && whatsappConfigured();
+
+/**
+ * Sends an invitation from the business number (ADR-049): the template greets the person by name, says which company invited them, and its button opens
+ * `/invite/<token>` on our own site. The token is the only variable in the button, so the message can never point anywhere else.
+ */
+export async function sendWhatsAppInvite(e164: string, m: { name: string; org: string; token: string; siteUrl: string }, fetchImpl: typeof fetch = fetch): Promise<void> {
+  const file = testFile();
+  if (file) { appendFileSync(file, JSON.stringify({ to: e164, body: `Invitation for ${m.name} to join ${m.org}: ${m.siteUrl}/invite/${m.token}` }) + "\n"); return; }
+  const id = process.env.WHATSAPP_PHONE_NUMBER_ID, token = process.env.WHATSAPP_ACCESS_TOKEN, template = process.env.WHATSAPP_INVITE_TEMPLATE;
+  if (!id || !token || !template) throw new WhatsAppNotConfigured();
+  const clean = (s: string) => s.replace(/[\r\n\t]+/g, " ").replace(/ {2,}/g, " ").trim().slice(0, 60);       // template variables cannot hold line breaks or long runs of spaces
+  const res = await fetchImpl(`${GRAPH}/${encodeURIComponent(id)}/messages`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messaging_product: "whatsapp", to: e164.replace(/\D/g, ""), type: "template",
+      template: {
+        name: template, language: { code: process.env.WHATSAPP_TEMPLATE_LANG || "en" },
+        components: [
+          { type: "body", parameters: [{ type: "text", text: clean(m.name) || "there" }, { type: "text", text: clean(m.org) || "your company" }] },
+          { type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: m.token }] },
+        ],
+      },
+    }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`whatsapp invite failed: ${res.status}`);
 }
 
 // ---------------------------------------------------------------------------------------------- replies from workshops and drivers (ADR-042)

@@ -15,6 +15,17 @@ export function LinkBox({ invite }: { invite: InviteResult }) {
     : byName
       ? `You are invited to join our fleet system. Your sign-in name is ${invite.username}. Open this link to choose your password (works once, valid 7 days): ${invite.url}`
       : `You are invited to join our fleet system. Create your account here (works once, valid 7 days): ${invite.url}`;
+  if (invite.whatsapp === "sent" && phone?.ok) return (
+    <div role="status" className="space-y-2 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-zinc-900">
+      <p>The invitation was sent on WhatsApp to <span className="font-medium">{invite.full_name}</span> on <span className="rounded bg-white px-1.5 py-0.5 font-mono font-medium">{phone.display}</span>, from the Fleet OTG number. It works once and is valid for 7 days.</p>
+      {byName && <p>Their sign-in name is <span className="rounded bg-white px-1.5 py-0.5 font-mono font-medium">{invite.username}</span>.</p>}
+      {invite.emailed === true && <p className="rounded bg-white px-2 py-1 text-green-900">We also emailed it to <span className="font-medium">{invite.email}</span>.</p>}
+      <p className="text-xs text-zinc-700">Nobody in your company is given the link, so nobody can sign up in their place. Check the number is right; if it is not, cancel the invitation and invite again.</p>
+    </div>
+  );
+  if (invite.whatsapp === "failed") return (
+    <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">The invitation could not be sent on WhatsApp to {phone?.ok ? phone.display : "that number"}. Use <span className="font-medium">Send a new link</span> beside it in the list below to try again, or check the number is on WhatsApp.</p>
+  );
   if (!phone || !phone.ok) return <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">This invitation has no phone number, so it cannot be sent. Cancel it and invite again with a phone number.</p>;
   const btn = "inline-flex h-9 items-center rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-900 hover:bg-zinc-50";
   return (
