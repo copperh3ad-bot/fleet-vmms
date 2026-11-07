@@ -1,3 +1,4 @@
+import { dmy } from "@/lib/format/date";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { requireOperator } from "@/lib/auth/session";
@@ -14,7 +15,6 @@ export default function OrgPage({ params }: PageProps<"/admin/orgs/[id]">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} /></Suspense>;
 }
 
-const dmy = (s: string | null) => (s ? new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "—");
 
 async function Inner({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

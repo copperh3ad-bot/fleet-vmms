@@ -1,3 +1,4 @@
+import { dmyTime as when, dmy as day } from "@/lib/format/date";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/auth/session";
@@ -11,8 +12,6 @@ export default function VehicleRequestPage({ params }: PageProps<"/w/[slug]/vehi
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} /></Suspense>;
 }
 
-const when = (s: string) => new Date(s).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
-const day = (s: string) => new Date(s).toLocaleDateString("en-GB", { dateStyle: "medium", timeZone: "UTC" });
 
 async function Inner({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;

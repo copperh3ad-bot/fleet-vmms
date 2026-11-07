@@ -1,3 +1,4 @@
+import { dmyTime as when } from "@/lib/format/date";
 import { Suspense } from "react";
 import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
@@ -11,7 +12,6 @@ export default function TripsPage({ params, searchParams }: PageProps<"/w/[slug]
 }
 
 const TONE: Record<string, Tone> = { requested: "warn", approved: "info", started: "info", completed: "ok", rejected: "bad", cancelled: "neutral" };
-const when = (s: string) => new Date(s).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
 
 async function Inner({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug } = await params;

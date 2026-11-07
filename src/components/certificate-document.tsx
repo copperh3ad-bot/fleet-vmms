@@ -1,7 +1,7 @@
+import { dmy } from "@/lib/format/date";
 import { CERTIFICATE_DISCLAIMER, type Certificate } from "@/lib/billing/certificates";
 import { fmtMinor } from "@/lib/billing/tax";
 
-const dmy = (s: string) => new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
 /** The certificate as a page to print or save as PDF. Used by the customer's and the operator's screens. */
 export function CertificateDocument({ c }: { c: Certificate }) {

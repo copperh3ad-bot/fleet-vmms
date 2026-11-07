@@ -1,3 +1,4 @@
+import { dmy } from "@/lib/format/date";
 import { billedMonths } from "@/lib/billing/months";
 import { Suspense } from "react";
 import { requireOperator } from "@/lib/auth/session";
@@ -14,7 +15,6 @@ export default function PaymentsPage({ searchParams }: PageProps<"/admin/payment
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner searchParams={searchParams} /></Suspense>;
 }
 
-const dmy = (s: string) => new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 async function Inner({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;

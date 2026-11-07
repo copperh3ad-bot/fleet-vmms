@@ -9,6 +9,7 @@ import { withPlatform } from "@/lib/db/tenant";
 import { emailConfigured, mailFailure, sendMail } from "@/lib/email/send";
 import type { Mail } from "@/lib/email/templates";
 import { SITE_URL } from "@/lib/site";
+import { dmy } from "@/lib/format/date";
 import { loadPlatformSettings } from "./settings";
 import { fmtMinor } from "./tax";
 
@@ -38,7 +39,7 @@ export function buildClaimAlertMail(to: string, c: ClaimFacts): Mail {
   return shell({
     to, replyTo: c.by ?? undefined, subject: `Payment to confirm: ${c.org} (${c.reference})`,
     title: "A customer says it has paid", intro: `${c.org} has filed a payment on the Billing page. Check it in the bank, then confirm or reject it on the Payments screen.`,
-    rows: [["Organization", c.org], ["Reference on the transfer", c.reference], ["Amount", fmtMinor(c.amountMinor, c.currency)], ["Paid on", c.paidOn], ["Months", String(c.months)], ["Receipt uploaded", c.hasProof ? "Yes, on the Payments screen" : "No"], ...(c.note ? [["Their note", c.note] as Row] : []), ...(c.by ? [["Filed by", c.by] as Row] : [])],
+    rows: [["Organization", c.org], ["Reference on the transfer", c.reference], ["Amount", fmtMinor(c.amountMinor, c.currency)], ["Paid on", dmy(c.paidOn)], ["Months", String(c.months)], ["Receipt uploaded", c.hasProof ? "Yes, on the Payments screen" : "No"], ...(c.note ? [["Their note", c.note] as Row] : []), ...(c.by ? [["Filed by", c.by] as Row] : [])],
     cta: { label: "Open Payments", url: `${SITE_URL}/admin/payments` },
   });
 }
@@ -48,7 +49,7 @@ export function buildPaymentConfirmedMail(to: string, replyTo: string | undefine
   return shell({
     to, replyTo, subject: `Payment confirmed: Fleet OTG invoice ${d.invoiceNumber}`,
     title: "Your payment is confirmed", intro: `Thank you. We have received your payment for ${c.org} and issued your invoice. Your subscription is paid up to the date below.`,
-    rows: [["Invoice", d.invoiceNumber], ["Amount received", fmtMinor(c.amountMinor, c.currency)], ["Your reference", c.reference], ["Months credited", String(c.months)], ["Paid up to", d.periodEnd], ...(d.note ? [["Note from us", d.note] as Row] : [])],
+    rows: [["Invoice", d.invoiceNumber], ["Amount received", fmtMinor(c.amountMinor, c.currency)], ["Your reference", c.reference], ["Months credited", String(c.months)], ["Paid up to", dmy(d.periodEnd)], ...(d.note ? [["Note from us", d.note] as Row] : [])],
     cta: c.slug ? { label: "Open Billing", url: `${SITE_URL}/w/${encodeURIComponent(c.slug)}/billing` } : undefined,
     outro: "Your invoice is on the Billing page. Reply to this email if anything looks wrong.",
   });

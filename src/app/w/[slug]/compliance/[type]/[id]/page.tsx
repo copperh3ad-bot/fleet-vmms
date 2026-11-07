@@ -1,3 +1,4 @@
+import { dmy } from "@/lib/format/date";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/auth/session";
@@ -35,8 +36,8 @@ async function Inner({ params }: { params: Promise<{ slug: string; type: string;
         <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
           <div><dt className="text-xs font-medium text-zinc-600">{doc.doc_type === "insurance" ? "Policy number" : "Reference"}</dt><dd>{doc.reference ?? "—"}</dd></div>
           <div><dt className="text-xs font-medium text-zinc-600">{doc.doc_type === "insurance" ? "Insurer" : "Issued by"}</dt><dd>{doc.issued_by ?? "—"}</dd></div>
-          <div><dt className="text-xs font-medium text-zinc-600">Valid from</dt><dd>{doc.valid_from ?? "—"}</dd></div>
-          <div><dt className="text-xs font-medium text-zinc-600">Expires on</dt><dd>{doc.expires_on}</dd></div>
+          <div><dt className="text-xs font-medium text-zinc-600">Valid from</dt><dd>{dmy(doc.valid_from)}</dd></div>
+          <div><dt className="text-xs font-medium text-zinc-600">Expires on</dt><dd>{dmy(doc.expires_on)}</dd></div>
           {doc.amount && <div><dt className="text-xs font-medium text-zinc-600">{doc.doc_type === "insurance" ? "Premium" : "Cost"}</dt><dd className="tabular-nums">{Number(doc.amount).toLocaleString("en-US", { maximumFractionDigits: 2 })}</dd></div>}
         </dl>
       </Card>
@@ -57,7 +58,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; type: string;
       {doc.history.length > 1 && (
         <Card title="History">
           <ul className="space-y-1 text-sm">{doc.history.map((h) => (
-            <li key={h.id}>{h.id === id ? <span className="font-medium">{h.reference ?? "No reference"} · until {h.expires_on}</span> : <a className="text-sky-800 hover:underline" href={`/w/${slug}/compliance/${h.entity_type}/${h.id}`}>{h.reference ?? "No reference"} · until {h.expires_on}</a>}</li>
+            <li key={h.id}>{h.id === id ? <span className="font-medium">{h.reference ?? "No reference"} · until {dmy(h.expires_on)}</span> : <a className="text-sky-800 hover:underline" href={`/w/${slug}/compliance/${h.entity_type}/${h.id}`}>{h.reference ?? "No reference"} · until {h.expires_on}</a>}</li>
           ))}</ul>
         </Card>
       )}

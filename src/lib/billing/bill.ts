@@ -3,6 +3,7 @@
 // issued when the payment is confirmed. Pure text building, no sending. The bank details live only in Admin, Settings and
 // leave the system only in this email.
 import { fmtMinor, type TaxResult } from "./tax";
+import { dmy } from "@/lib/format/date";
 import type { Mail } from "@/lib/email/templates";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -40,7 +41,7 @@ export function buildBillMail(i: BillInput): Mail {
     `Open Billing in your workspace, press "I have paid" and add your receipt.`,
   ];
   const text = [
-    `Bill ${no}`, `Date: ${i.date}`, `For: ${i.orgName}`, `Payment reference: ${i.reference}`, "",
+    `Bill ${no}`, `Date: ${dmy(i.date)}`, `For: ${i.orgName}`, `Payment reference: ${i.reference}`, "",
     ...rows.map(([k, v]) => `${k}: ${v}`), "",
     ...steps.map((s, n) => `${n + 1}. ${s}`), "", "Pay to:", i.bankDetails, ...(i.paymentNote ? ["", i.paymentNote] : []), "",
     "This is a request for payment. Your invoice is issued when we confirm the payment.", "", i.seller, i.siteUrl,
@@ -52,7 +53,7 @@ export function buildBillMail(i: BillInput): Mail {
 <tr><td style="background:#15191d;padding:18px 24px"><img src="${esc(i.siteUrl)}/fleetotg-logo.png" alt="Fleet OTG" width="160" height="40" style="display:block;border:0"></td></tr>
 <tr><td style="padding:28px 24px">
 <h1 style="margin:0 0 6px;font-size:20px">Bill ${esc(no)}</h1>
-<p style="margin:0 0 16px;font-size:14px;color:#3d4a55">${esc(i.date)} · ${esc(i.orgName)}<br>Payment reference: <b>${esc(i.reference)}</b></p>
+<p style="margin:0 0 16px;font-size:14px;color:#3d4a55">${esc(dmy(i.date))} · ${esc(i.orgName)}<br>Payment reference: <b>${esc(i.reference)}</b></p>
 <table role="presentation" width="100%" cellpadding="6" cellspacing="0" style="font-size:15px;border-top:1px solid #dde3e7">${rows.map(([k, v], n) => { const b = n === last && i.tax ? ' style="font-weight:bold"' : ""; return `<tr style="border-bottom:1px solid #dde3e7"><td${b}>${esc(k)}</td><td align="right"${b}>${esc(v)}</td></tr>`; }).join("")}</table>
 <ol style="margin:18px 0 12px;padding-left:20px;font-size:15px;line-height:1.5">${steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
 <p style="margin:0 0 4px;font-size:14px;color:#3d4a55">Pay to:</p>

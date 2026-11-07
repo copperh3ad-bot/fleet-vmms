@@ -1,3 +1,4 @@
+import { dmy as long } from "@/lib/format/date";
 import { Suspense } from "react";
 import { ExportLink } from "@/components/export-link";
 import { requireMembership } from "@/lib/auth/session";
@@ -12,7 +13,6 @@ export default function BreakingPage({ params, searchParams }: PageProps<"/w/[sl
 
 const GROUP_LABEL: Record<string, string> = { driver: "Driver", vehicle: "Vehicle", workshop: "Workshop" };
 const PERIOD_LABEL: Record<number, string> = { 30: "Last 30 days", 90: "Last 90 days", 180: "Last 6 months", 365: "Last 12 months" };
-const long = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 const mil = (cur: string, n: number) => (n >= 1_000_000 ? `${cur} ${(n / 1_000_000).toFixed(2)} million` : `${cur} ${money(n)}`);
 
 async function Inner({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {

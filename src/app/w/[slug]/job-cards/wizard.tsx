@@ -1,4 +1,5 @@
 "use client";
+import { dm } from "@/lib/format/date";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { Notice, inputCls } from "@/components/form";
@@ -18,7 +19,6 @@ const CATEGORY: Record<string, string> = { repair: "corrective", service: "preve
 const PRIORITIES: [string, string][] = [["low", "Low"], ["normal", "Normal"], ["high", "High"], ["urgent", "Urgent"]];
 const KINDS: [string, string][] = [["part", "Part"], ["labour", "Labour"], ["service", "Service"], ["other", "Other"]];
 const money = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
-const dm = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 const lbl = "mb-1.5 block text-sm font-medium text-zinc-900";
 const big = `${inputCls} h-12 text-base`;
 

@@ -1,3 +1,4 @@
+import { dmy } from "@/lib/format/date";
 import { Suspense } from "react";
 import { ExportLink } from "@/components/export-link";
 import { requireMembership } from "@/lib/auth/session";
@@ -14,7 +15,6 @@ export default function AccidentsPage({ params, searchParams }: PageProps<"/w/[s
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} searchParams={searchParams} /></Suspense>;
 }
 
-const dmy = (s: string) => new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 const CHALLAN: Record<string, { label: string; tone: Tone }> = { open: { label: "Unpaid", tone: "warn" }, paid: { label: "Paid", tone: "ok" }, disputed: { label: "Disputed", tone: "info" } };
 
 async function Inner({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {

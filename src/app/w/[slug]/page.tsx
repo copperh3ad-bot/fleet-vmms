@@ -1,3 +1,4 @@
+import { dmy } from "@/lib/format/date";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { requireMembership } from "@/lib/auth/session";
@@ -36,7 +37,7 @@ async function Workspace({ params }: { params: Promise<{ slug: string }> }) {
   const unfinished = start !== null && start.doneCount < start.steps.length;
   const hidden = (await cookies()).get(onboardingCookie(slug))?.value === "1";
   const to = (href: string) => `/w/${slug}/${href}`;
-  const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  const today = `${new Date().toLocaleDateString("en-GB", { weekday: "long", timeZone: "UTC" })} ${dmy(new Date())}`;
 
   const actions = (
     <>

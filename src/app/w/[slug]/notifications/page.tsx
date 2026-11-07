@@ -1,3 +1,4 @@
+import { dmyTime } from "@/lib/format/date";
 import { Suspense } from "react";
 import { requireMembership } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
@@ -63,7 +64,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
                     </>
                   )}
                 </span>
-                <span className="ml-auto text-xs font-normal text-zinc-500">{new Date(n.created_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })} UTC</span>
+                <span className="ml-auto text-xs font-normal text-zinc-500">{dmyTime(n.created_at)}</span>
               </li>
             ))}
           </ul>

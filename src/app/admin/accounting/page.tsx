@@ -1,4 +1,5 @@
 /* eslint-disable @next/next/no-html-link-for-pages -- the two export links are file downloads served by a route handler, not pages */
+import { dmy } from "@/lib/format/date";
 import { Suspense } from "react";
 import { requireOperator } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
@@ -13,7 +14,6 @@ export default function AccountingPage() {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner /></Suspense>;
 }
 
-const dmy = (s: string) => new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 async function Inner() {
   const op = await requireOperator();

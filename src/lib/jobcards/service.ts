@@ -1,5 +1,6 @@
 // Job cards. Every function checks the permission first (CLAUDE.md rule 3). Status changes happen only in
 // transitionJobCard (rule 4), which calls the SQL function that also writes job_card_events.
+import { dm } from "@/lib/format/date";
 import type { Driver, Queryable } from "@/lib/db/types";
 import { authorized, authorizedAny, ForbiddenError, type Membership } from "@/lib/auth/can";
 import { UserError } from "@/lib/master/service";
@@ -217,7 +218,7 @@ export function getReviewContext(driver: Driver, m: Membership, jobId: string): 
       `select vn.id, vn.name, s.jobs, s.avg_days::text, s.quote_vs_bill_pct::text as qb, s.rework_pct::text as rw
          from vendors vn left join workshop_scorecard(90) s on s.vendor_id = vn.id where vn.status = 'active' order by coalesce(s.jobs, 0) desc, vn.name`)).rows.map((r) => ({
       id: r.id, name: r.name, jobs: r.jobs ?? 0, avg_days: r.avg_days === null ? null : Number(r.avg_days), quote_vs_bill_pct: r.qb === null ? null : Number(r.qb), rework_pct: r.rw === null ? null : Number(r.rw),
-      warning: repeat && repeat.vendor_id === r.id ? `Did the ${new Date(`${repeat.created_at.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })} ${repeat.reason.toLowerCase()} job. Ask about guarantee.` : null,
+      warning: repeat && repeat.vendor_id === r.id ? `Did the ${dm(repeat.created_at)} ${repeat.reason.toLowerCase()} job. Ask about guarantee.` : null,
     })) : [];
 
     // the queue this person works through

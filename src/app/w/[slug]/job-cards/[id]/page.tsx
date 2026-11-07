@@ -1,3 +1,4 @@
+import { dmy, dmyTime } from "@/lib/format/date";
 import { Suspense } from "react";
 import { QuoteLink } from "./quote-link";
 import { whatsappConfigured } from "@/lib/whatsapp";
@@ -22,7 +23,7 @@ export default function JobCardPage({ params, searchParams }: PageProps<"/w/[slu
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} searchParams={searchParams} /></Suspense>;
 }
 
-const stamp = (s: string) => new Date(s).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC", hour12: false }).replace(",", "");
+const stamp = (s: string) => dmyTime(s).replace(" UTC", "");
 
 async function Inner({ params, searchParams }: { params: Promise<{ slug: string; id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug, id } = await params;
@@ -53,7 +54,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
   const total = c.lines.reduce((s, l) => s + Number(l.qty) * Number(l.unit_cost), 0);
   const lastReturn = c.status === "returned_for_edit" ? [...c.events].reverse().find((e) => e.to_status === "returned_for_edit") : null;
   const waiting = c.status === "submitted" ? c.age_days : null;
-  const raised = new Date(c.created_at).toLocaleString("en-GB", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC", hour12: false }).replace(",", " at");
+  const raised = dmyTime(c.created_at).replace(" UTC", "").replace(" ", " at ");
   const odo = c.odometer_km ? Number(c.odometer_km) : null;
   const delta = odo !== null && ctx?.previousReading ? odo - ctx.previousReading.km : null;
   const year = new Date().getUTCFullYear();
@@ -150,7 +151,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
               {["quotation_approved", "in_progress", "completed"].includes(c.status) && c.vendor_name && (perms.has("jobcard.assign_vendor") || perms.has("quotation.approve") || perms.has("invoice.verify")) && <QuoteLink whatsappFromServer={whatsappConfigured() && !!process.env.WHATSAPP_REQUEST_TEMPLATE} slug={slug} jobId={id} vendor={c.vendor_name} kind="invoice" />}
               {flow.quotations.map((qt) => (
                 <div key={qt.id} className="mb-4 rounded-md border border-zinc-200 p-4 text-sm">
-                  <p className="font-medium">{qt.vendor_name} <span className="font-normal text-zinc-500">· {qt.status} · <span className="font-mono">{money(Number(qt.amount))}</span>{qt.days_needed ? ` · ${qt.days_needed} days` : ""}{qt.warranty_months ? ` · ${qt.warranty_months} months warranty` : ""}{qt.valid_until ? ` · valid until ${qt.valid_until}` : ""}</span></p>
+                  <p className="font-medium">{qt.vendor_name} <span className="font-normal text-zinc-500">· {qt.status} · <span className="font-mono">{money(Number(qt.amount))}</span>{qt.days_needed ? ` · ${qt.days_needed} days` : ""}{qt.warranty_months ? ` · ${qt.warranty_months} months warranty` : ""}{qt.valid_until ? ` · valid until ${dmy(qt.valid_until)}` : ""}</span></p>
                   {qt.details && <p className="mt-1 whitespace-pre-wrap text-zinc-700">{qt.details}</p>}
                   <ul className="mt-2 text-zinc-700">{qt.lines.map((l) => <li key={l.id}>{l.description} · {Number(l.qty)} × <span className="font-mono">{money(Number(l.unit_cost))}</span></li>)}</ul>
                   {canDecideQuote && qt.status === "submitted" && <QuoteDecision slug={slug} quotationId={qt.id} />}

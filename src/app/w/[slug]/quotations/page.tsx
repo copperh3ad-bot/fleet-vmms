@@ -1,3 +1,4 @@
+import { dmy } from "@/lib/format/date";
 import { Suspense } from "react";
 import { requireMembership } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
@@ -9,7 +10,6 @@ export default function QuotationsPage({ params, searchParams }: PageProps<"/w/[
 }
 
 const LABEL: Record<string, string> = { submitted: "Awaiting a decision", approved: "Approved", rejected: "Rejected" };
-const dmy = (s: string) => new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 async function Inner({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug } = await params;

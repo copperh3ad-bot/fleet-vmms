@@ -1,4 +1,5 @@
 "use client";
+import { dm } from "@/lib/format/date";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { Notice, inputCls } from "@/components/form";
@@ -14,7 +15,6 @@ const blankLine = (): Line => ({ kind: "service", description: "", qty: "1", uni
 const TYPES: [string, string][] = [["corrective", "Repair"], ["preventive", "Preventive service"], ["accident", "Accident"], ["inspection", "Inspection"]];
 const PRIORITIES: [string, string][] = [["low", "Low"], ["normal", "Normal"], ["high", "High"], ["urgent", "Urgent, vehicle unsafe"]];
 const money = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
-const dm = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 
 export type JobCardFormProps = {
   slug: string; id?: string; currency?: string;

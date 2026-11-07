@@ -25,7 +25,7 @@ describe("what the emails say", () => {
     expect(m.to).toBe("finance@fleetotg.test");
     expect(m.replyTo).toBe("boss@acme.example");
     expect(m.subject).toBe("Payment to confirm: Acme Fleet (TRX-1)");
-    for (const needle of ["Acme Fleet", "TRX-1", "$149.00", "2026-11-07", "/admin/payments"]) expect(m.text).toContain(needle);
+    for (const needle of ["Acme Fleet", "TRX-1", "$149.00", "07/11/26", "/admin/payments"]) expect(m.text).toContain(needle);
     expect(m.text).not.toMatch(/IBAN|account number|bank details/i);
   });
 
@@ -33,7 +33,7 @@ describe("what the emails say", () => {
     const m = buildPaymentConfirmedMail("boss@acme.example", "finance@fleetotg.test", facts(), { invoiceNumber: "FV-2026-0007", periodEnd: "2026-12-07", note: null });
     expect(m.subject).toBe("Payment confirmed: Fleet OTG invoice FV-2026-0007");
     expect(m.replyTo).toBe("finance@fleetotg.test");
-    for (const needle of ["FV-2026-0007", "2026-12-07", "$149.00", "TRX-1", "/w/acme-fleet/billing"]) expect(m.text).toContain(needle);
+    for (const needle of ["FV-2026-0007", "07/12/26", "$149.00", "TRX-1", "/w/acme-fleet/billing"]) expect(m.text).toContain(needle);
   });
 
   it("gives the customer the reason a payment was rejected, and says nothing was charged", () => {

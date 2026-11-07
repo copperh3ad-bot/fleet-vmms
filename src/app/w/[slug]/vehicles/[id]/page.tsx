@@ -1,3 +1,4 @@
+import { dmy as long } from "@/lib/format/date";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/auth/session";
@@ -21,7 +22,6 @@ export default function VehiclePage({ params, searchParams }: PageProps<"/w/[slu
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TABS = [["history", "History"], ["costs", "Costs"], ["odometer", "Odometer"], ["documents", "Documents"], ["drivers", "Driver history"]] as const;
-const long = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 const SOURCE: Record<string, string> = { tracker: "Tracker", monthly_entry: "Monthly entry", job_card: "Job card", manual: "Entered by hand", baseline: "Starting value" };
 
 function dueTone(s: RecordService): { tone: Tone; text: string } {

@@ -1,3 +1,4 @@
+import { dmy as long } from "@/lib/format/date";
 import { Suspense } from "react";
 import { ExportLink } from "@/components/export-link";
 import { requireMembership } from "@/lib/auth/session";
@@ -18,7 +19,6 @@ const STATUS: Record<BudgetStatus, { tone: Tone; label: string; bar: string }> =
   near: { tone: "warn", label: "Near limit", bar: "bg-amber-500" },
   ok: { tone: "ok", label: "On track", bar: "bg-sky-700" },
 };
-const long = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
 async function Inner({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug } = await params;

@@ -1,3 +1,4 @@
+import { dmy as day } from "@/lib/format/date";
 import { Suspense } from "react";
 import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
@@ -17,7 +18,6 @@ export default function PolicyPage({ params }: PageProps<"/w/[slug]/policy">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} /></Suspense>;
 }
 
-const day = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

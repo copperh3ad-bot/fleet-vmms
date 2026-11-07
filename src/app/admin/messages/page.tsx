@@ -1,3 +1,4 @@
+import { dmyTime as when } from "@/lib/format/date";
 import { Suspense } from "react";
 import { requireOperator } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
@@ -11,7 +12,6 @@ export default function MessagesPage() {
 }
 
 const TOPIC: Record<string, string> = { sales: "Before signing up", support: "Account help", billing: "Payment or invoice", other: "Other" };
-const when = (s: string) => new Date(s).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) + " UTC";
 
 async function Inner() {
   const op = await requireOperator();

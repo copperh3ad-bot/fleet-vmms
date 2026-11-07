@@ -1,3 +1,4 @@
+import { dmy } from "@/lib/format/date";
 import { Suspense } from "react";
 import { ExportLink } from "@/components/export-link";
 import { requireMembership } from "@/lib/auth/session";
@@ -10,7 +11,6 @@ export default function InvoicesPage({ params, searchParams }: PageProps<"/w/[sl
 }
 
 const LABEL: Record<string, string> = { submitted: "To check", verified: "Checked", disputed: "Returned", paid: "Paid" };
-const dmy = (s: string) => new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 async function Inner({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug } = await params;

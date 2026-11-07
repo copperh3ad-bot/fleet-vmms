@@ -1,3 +1,4 @@
+import { dmy } from "@/lib/format/date";
 import { Suspense } from "react";
 import { requireMembership } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
@@ -16,7 +17,6 @@ export default function UsersPage({ params, searchParams }: PageProps<"/w/[slug]
 }
 
 const usage = (u: { used: number; limit: number | null }) => (u.limit === null ? `${u.used}` : `${u.used} of ${u.limit}`);
-const dmy = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 // What the read-only table lists: a plain sentence and the permissions that give it. Anything that holds one of them gets a Yes.
 const CAPABILITIES: [string, string[]][] = [

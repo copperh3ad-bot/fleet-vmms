@@ -1,3 +1,4 @@
+import { dmy } from "@/lib/format/date";
 import { Suspense } from "react";
 import { ExportLink } from "@/components/export-link";
 import { requireMembership } from "@/lib/auth/session";
@@ -17,7 +18,6 @@ export default function CompliancePage({ params, searchParams }: PageProps<"/w/[
 }
 
 const TONE: Record<string, Tone> = { expired: "bad", due_30: "warn", due_90: "info", ok: "ok" };
-const dmy = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 const left = (d: number) => (d < 0 ? `Expired ${-d} days` : d === 0 ? "Expires today" : `${d} days`);
 const CHIP_TYPES = ["insurance", "registration", "fitness", "token_tax", "route_permit"] as const;
 

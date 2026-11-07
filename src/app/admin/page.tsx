@@ -1,3 +1,4 @@
+import { dmy } from "@/lib/format/date";
 import { Suspense } from "react";
 import { requireOperator } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
@@ -13,7 +14,6 @@ const STATE: Record<string, { label: string; tone: Tone }> = {
   trial: { label: "Trial", tone: "info" }, active: { label: "Paying", tone: "ok" }, grace: { label: "Overdue", tone: "warn" },
   ending: { label: "Ending", tone: "warn" }, locked: { label: "Locked", tone: "bad" }, comped: { label: "No charge", tone: "neutral" },
 };
-const dmy = (s: string) => new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 async function Inner() {
   const op = await requireOperator();

@@ -1,3 +1,4 @@
+import { dmy } from "@/lib/format/date";
 import { Suspense } from "react";
 import { requireOperator } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
@@ -14,7 +15,6 @@ export default function TaxPage() {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner /></Suspense>;
 }
 
-const dmy = (s: string) => new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 const MODE: Record<string, string> = { none: "No tax", authority: "Rate of the customer's authority", fixed: "One fixed rate" };
 
 async function Inner() {

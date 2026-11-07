@@ -1,3 +1,4 @@
+import { dmyTime } from "@/lib/format/date";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/auth/session";
@@ -31,7 +32,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
       </div>
       <Card>
         <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-          <div><dt className="text-xs font-medium text-zinc-600">When</dt><dd>{new Date(a.occurred_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })} UTC</dd></div>
+          <div><dt className="text-xs font-medium text-zinc-600">When</dt><dd>{dmyTime(a.occurred_at)}</dd></div>
           <div><dt className="text-xs font-medium text-zinc-600">Where</dt><dd>{a.location ?? "—"}</dd></div>
           <div><dt className="text-xs font-medium text-zinc-600">Driver</dt><dd>{a.driver_name ?? "Not known"}</dd></div>
           <div><dt className="text-xs font-medium text-zinc-600">At fault</dt><dd>{a.fault ? FAULT[a.fault] : "Not known yet"}</dd></div>

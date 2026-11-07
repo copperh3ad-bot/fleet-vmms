@@ -1,3 +1,4 @@
+import { dmy } from "@/lib/format/date";
 import { Suspense } from "react";
 import { forbidden } from "next/navigation";
 import { requireMembership } from "@/lib/auth/session";
@@ -21,7 +22,6 @@ const STATE: Record<string, { label: string; tone: Tone }> = {
   ending: { label: "Ending", tone: "warn" }, locked: { label: "Locked", tone: "bad" }, comped: { label: "No charge", tone: "ok" },
 };
 const CLAIM: Record<string, { label: string; tone: Tone }> = { pending: { label: "Waiting for confirmation", tone: "warn" }, confirmed: { label: "Confirmed", tone: "ok" }, rejected: { label: "Not accepted", tone: "bad" } };
-const dmy = (s: string) => new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 const minor = (v: string, cur: string) => formatPrice(Number(v), cur);
 
 async function Inner({ params }: { params: Promise<{ slug: string }> }) {

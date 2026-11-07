@@ -1,3 +1,4 @@
+import { dmy as day } from "@/lib/format/date";
 import { Suspense } from "react";
 import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
@@ -10,7 +11,6 @@ export default function VehicleRequestsPage({ params, searchParams }: PageProps<
 }
 
 const TONE: Record<string, Tone> = { requested: "warn", purchase_approved: "info", assigned: "ok", rejected: "bad", cancelled: "neutral" };
-const day = (s: string) => new Date(s).toLocaleDateString("en-GB", { dateStyle: "medium", timeZone: "UTC" });
 
 async function Inner({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug } = await params;
