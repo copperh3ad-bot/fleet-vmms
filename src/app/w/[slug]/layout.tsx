@@ -66,6 +66,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
     { href: to("/job-cards"), label: "Job cards", show: sees, badge: counts.approvals },
     { href: to("/vehicles"), label: "Vehicles", show: has("vehicle.read"), exclude: [to("/vehicles/new"), to("/vehicles/import")] },
     { href: to("/trips"), label: "Trips", show: tripsOn },
+    { href: to("/vehicle-requests"), label: "Vehicle requests", show: has("vreq.request", "vreq.decide", "vreq.read_all") },
     { href: to("/odometer"), label: "Odometer", show: has("odometer.review"), badge: counts.odometer },
     { href: to("/vendors"), label: "Vendors", show: has("vendor.manage") },
     { href: to("/policy"), label: "Maintenance policy", show: has("policy.read") },
@@ -94,7 +95,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
     { title: "Analysis and money", items: money.filter(keep) },
     { title: "Admin", items: admin.filter(keep) },
   ].filter((g) => g.items.length);
-  const notices = sees || has("quotation.submit", "invoice.verify", "compliance.manage", "trip.request", "trip.approve", "trip.dispatch");
+  const notices = sees || has("quotation.submit", "invoice.verify", "compliance.manage", "trip.request", "trip.approve", "trip.dispatch", "vreq.request", "vreq.decide");
 
   // Workshops get the slimmer "vendor portal" bar from the design, not the full sidebar.
   if (m.role === "vendor") {

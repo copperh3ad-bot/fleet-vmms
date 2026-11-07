@@ -435,3 +435,6 @@ Meta rejected the link templates (`fleetotg_confirm` as Utility, `fleetotg_join_
 
 ## 2026-11-07: session end, resume point
 Live is commit 12d1019 with every migration applied (platform 0015, control 0016 to 0018, tenant 0030 to 0033). 1,004 unit tests and the browser suite (229) pass. See docs/RESUME.md, section "Update 2026-11-07", for what is live, the WhatsApp/Meta state, the pending list and the standing rules. Tag fleet-otg-resume-2026-11-07.
+
+## 2026-11-07: ADR-057 yearly offer, ADR-058 SMS removed, ADR-059 HR vehicle requests (built, not deployed)
+PKR 43,000 a month (entered by the owner in Admin, Plans) with 12 months for the price of 11 (`billedMonths`). SMS code removed; SMS_* Netlify values unset. HR vehicle requests: new `hr` role, tenant migration 0034 (not on live), pages under /w/<slug>/vehicle-requests, deciders are the administrator and fleet manager, one open request per employee. Two Destinsolutions test organizations and their logins deleted from live. Checks: 1,008 unit tests pass, build OK, 0 lint errors.
