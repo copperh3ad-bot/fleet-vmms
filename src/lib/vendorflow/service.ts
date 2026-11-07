@@ -87,7 +87,7 @@ export function getJobFlow(driver: Driver, m: Membership, jobId: string): Promis
   });
 }
 
-export function decideQuotation(driver: Driver, m: Membership, quotationId: string, decision: "approve" | "reject", note?: string): Promise<void> {
+export function decideQuotation(driver: Driver, m: Membership, quotationId: string, decision: "approve" | "reject", note?: string): Promise<{ jobId: string }> {
   return authorized(driver, m, "quotation.approve", async (q) => {
     const jobId = (await q.query<{ job_card_id: string }>("select qt.job_card_id from quotations qt join job_cards jc on jc.id = qt.job_card_id where qt.id = $1 and dept_ok(jc.vehicle_id)", [quotationId])).rows[0]?.job_card_id;
     if (!jobId) throw new UserError("Quotation not found.");
@@ -97,11 +97,22 @@ export function decideQuotation(driver: Driver, m: Membership, quotationId: stri
     } catch (e) { friendly(e); }
     if (decision === "approve") await notifyAfter(q, m, jobId, "quotation_approved");
     else await notify(q, [await vendorUserOfJob(q, jobId)], "quotation.rejected", { job_card_id: jobId, job_no: (await q.query<{ job_no: string }>("select job_no from job_cards where id = $1", [jobId])).rows[0].job_no }, m.userId);
+    return { jobId };
+  });
+}
+
+/** Who to tell on WhatsApp about a job card's estimate or invoice (ADR-056): the workshop on it, its mobile number made international, and the job number. Null when it has no mobile number. */
+export function workshopContact(driver: Driver, m: Membership, jobId: string): Promise<{ vendor_name: string; phone: string; job_no: string } | null> {
+  return authorizedAny(driver, m, INVOICE_LINK_PERMS, async (q) => {
+    const r = (await q.query<{ job_no: string; name: string | null; phone: string | null }>(
+      "select jc.job_no, vn.name, vn.phone from job_cards jc left join vendors vn on vn.id = jc.vendor_id where jc.id = $1 and dept_ok(jc.vehicle_id)", [jobId])).rows[0];
+    const p = r?.phone ? normalizePhone(r.phone) : null;
+    return r && r.name && p?.ok ? { vendor_name: r.name, phone: p.e164, job_no: r.job_no } : null;
   });
 }
 
 export type WorkshopLinkKind = "quotation" | "invoice";
-export type NewQuoteLink = { kind: WorkshopLinkKind; token: string; replyCode: string | null; expires_at: string; job_no: string; vendor_name: string; vendor_email: string | null; phone: { e164: string; digits: string; display: string } };
+export type NewQuoteLink = { kind: WorkshopLinkKind; plate: string; token: string; replyCode: string | null; expires_at: string; job_no: string; vendor_name: string; vendor_email: string | null; phone: { e164: string; digits: string; display: string } };
 const QUOTE_LINK_HOURS = 168;
 const QUOTE_LINK_PERMS = ["jobcard.assign_vendor", "quotation.approve"];
 const INVOICE_LINK_PERMS = ["jobcard.assign_vendor", "quotation.approve", "invoice.verify"];
@@ -116,8 +127,8 @@ const LINK_STATUSES: Record<WorkshopLinkKind, string[]> = { quotation: ["vendor_
 export async function createWorkshopLink(driver: Driver, m: Membership, jobId: string, kind: WorkshopLinkKind, opts: { withReply?: boolean } = {}): Promise<NewQuoteLink> {
   const perms = kind === "quotation" ? QUOTE_LINK_PERMS : INVOICE_LINK_PERMS;
   const made = await authorizedAny(driver, m, perms, async (q) => {
-    const j = (await q.query<{ job_no: string; status: string; vendor_id: string | null; vendor_name: string | null; phone: string | null; email: string | null }>(
-      "select jc.job_no, jc.status, jc.vendor_id, vn.name as vendor_name, vn.phone, vn.email from job_cards jc left join vendors vn on vn.id = jc.vendor_id where jc.id = $1 and dept_ok(jc.vehicle_id)", [jobId])).rows[0];
+    const j = (await q.query<{ job_no: string; status: string; vendor_id: string | null; vendor_name: string | null; phone: string | null; email: string | null; plate: string }>(
+      "select jc.job_no, jc.status, jc.vendor_id, vn.name as vendor_name, vn.phone, vn.email, v.registration_no as plate from job_cards jc join vehicles v on v.id = jc.vehicle_id left join vendors vn on vn.id = jc.vendor_id where jc.id = $1 and dept_ok(jc.vehicle_id)", [jobId])).rows[0];
     if (!j) throw new UserError("Job card not found.");
     if (!j.vendor_id || !LINK_STATUSES[kind].includes(j.status)) throw new UserError(kind === "quotation" ? "This job card is not waiting for a workshop estimate." : "This job card has no approved estimate waiting to be invoiced.");
     if (kind === "invoice" && (await q.query("select 1 from work_orders wo where wo.job_card_id = $1 and wo.vendor_id = $2 and wo.status in ('issued','in_progress','completed') and not exists (select 1 from invoices i where i.work_order_id = wo.id and i.status in ('submitted','verified','paid'))", [jobId, j.vendor_id])).rows.length === 0)
@@ -131,7 +142,7 @@ export async function createWorkshopLink(driver: Driver, m: Membership, jobId: s
       `insert into public.quotation_links(token_hash, tenant_id, job_card_id, vendor_id, created_by, expires_at, kind, reply_code_hash)
        values ($1, $2, $3, $4, $5, now() + ($6 || ' hours')::interval, $7, $8) returning expires_at::text as e`,
       [hashToken(token), m.tenantId, jobId, j.vendor_id, m.userId, String(QUOTE_LINK_HOURS), kind, replyCode ? replyCodeHash(replyCode) : null])).rows[0].e;
-    return { kind, token, replyCode, expires_at: exp, job_no: j.job_no, vendor_name: j.vendor_name ?? "", vendor_email: j.email,
+    return { kind, plate: j.plate, token, replyCode, expires_at: exp, job_no: j.job_no, vendor_name: j.vendor_name ?? "", vendor_email: j.email,
              phone: phone.ok ? { e164: phone.e164, digits: phone.digits, display: phone.display } : { e164: "", digits: "", display: "" } };
   });
   // The control plane learns which organization the link belongs to; without that it would not open.
@@ -292,7 +303,7 @@ export function getInvoiceReview(driver: Driver, m: Membership, id: string): Pro
   });
 }
 
-export function verifyInvoice(driver: Driver, m: Membership, id: string, decision: string, note?: string): Promise<void> {
+export function verifyInvoice(driver: Driver, m: Membership, id: string, decision: string, note?: string): Promise<{ jobId: string }> {
   return authorized(driver, m, "invoice.verify", async (q) => {
     const jobId = (await q.query<{ job_card_id: string }>("select wo.job_card_id from invoices i join work_orders wo on wo.id = i.work_order_id where i.id = $1", [id])).rows[0]?.job_card_id;
     if (!jobId) throw new UserError("Invoice not found.");
@@ -300,6 +311,7 @@ export function verifyInvoice(driver: Driver, m: Membership, id: string, decisio
     try { await q.query("select verify_invoice($1, $2, $3, $4)", [id, m.userId, decision, note?.trim() || null]); } catch (e) { friendly(e); }
     const job_no = (await q.query<{ job_no: string }>("select job_no from job_cards where id = $1", [jobId])).rows[0].job_no;
     await notify(q, [await vendorUserOfJob(q, jobId)], decision === "return" ? "invoice.returned" : "invoice.verified", { job_card_id: jobId, job_no }, m.userId);
+    return { jobId };
   });
 }
 

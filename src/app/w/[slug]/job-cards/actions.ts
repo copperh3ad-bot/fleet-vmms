@@ -8,7 +8,8 @@ import { ForbiddenError } from "@/lib/auth/can";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { addJobCardAttachment, removeJobCardAttachment } from "@/lib/jobcards/attachments";
 import { UserError } from "@/lib/master/service";
-import { createWorkshopLink, decideQuotation, setWorkshopEmailStatus, type WorkshopLinkKind } from "@/lib/vendorflow/service";
+import { createWorkshopLink, decideQuotation, setWorkshopEmailStatus, workshopContact, type WorkshopLinkKind } from "@/lib/vendorflow/service";
+import { notifyWorkshop } from "@/lib/vendorflow/whatsapp-notify";
 import { enterForWorkshop } from "@/lib/vendorflow/entry";
 import { readEmailDocument, setAiDocuments } from "@/lib/ai/service";
 import { estimateFromForm, invoiceFromForm } from "@/lib/vendorflow/form";
@@ -92,7 +93,9 @@ export async function removeAttachmentAction(slug: string, attachmentId: string)
 
 export async function decideQuotationAction(slug: string, quotationId: string, decision: "approve" | "reject", _prev: FormState, form: FormData): Promise<FormState> {
   const state = await runAction(slug, async (m) => {
-    await decideQuotation(getDriver(), m, quotationId, decision, str(form, "comment") || undefined);
+    const { jobId } = await decideQuotation(getDriver(), m, quotationId, decision, str(form, "comment") || undefined);
+    // the workshop is told on WhatsApp too (ADR-056); a message problem never undoes the decision
+    await notifyWorkshop(decision === "approve" ? "estimate_approved" : "estimate_declined", await workshopContact(getDriver(), m, jobId).catch(() => null), m.tenantName || "A Fleet OTG customer", str(form, "comment"));
     return decision === "approve" ? "Quotation approved. Work order issued." : "Quotation rejected. The vendor can send a new one.";
   });
   if (state.ok) refresh();
@@ -181,13 +184,17 @@ export async function emailWorkshopLinkAction(slug: string, jobId: string, kind:
  */
 export async function whatsappWorkshopLinkAction(slug: string, jobId: string, kind: WorkshopLinkKind, _prev: QuoteLinkState): Promise<QuoteLinkState> {
   const state = await runAction(slug, async (m) => {
-    const template = process.env.WHATSAPP_REQUEST_TEMPLATE;
+    const specific = process.env[kind === "quotation" ? "WHATSAPP_ESTIMATE_REQUEST_TEMPLATE" : "WHATSAPP_INVOICE_REQUEST_TEMPLATE"];
+    const template = specific || process.env.WHATSAPP_REQUEST_TEMPLATE;
     if (!whatsappConfigured() || !template) throw new UserError("Sending on WhatsApp from Fleet OTG is not set up yet. Use the phone buttons.");
     const l = await createWorkshopLink(getDriver(), m, jobId, kind);
     if (!l.phone.e164) throw new UserError(`${l.vendor_name} has no mobile number a message can reach. Add it under Vendors, or send the link by email.`);
     let messageId: string;
     try {
-      messageId = await sendTemplate(l.phone.e164, { name: template, params: [l.vendor_name, m.tenantName || "A Fleet OTG customer", kind === "quotation" ? "estimate" : "invoice", l.job_no], buttonUrlSuffix: l.token });
+      const org = m.tenantName || "A Fleet OTG customer";
+      // the specific templates read: estimate "{workshop}, {company} asks for your estimate for vehicle {plate} (job card {no})"; invoice "{workshop}, the work on job card {no} for {company} is done"
+      const params = !specific ? [l.vendor_name, org, kind === "quotation" ? "estimate" : "invoice", l.job_no] : kind === "quotation" ? [l.vendor_name, org, l.plate, l.job_no] : [l.vendor_name, l.job_no, org];
+      messageId = await sendTemplate(l.phone.e164, { name: template, params, buttonUrlSuffix: l.token });
     } catch (e) {
       console.error(`workshop whatsapp request failed: ${e instanceof Error ? e.message.slice(0, 80) : "unknown"}`);   // never the number or the link
       throw new UserError("The WhatsApp message could not be sent. Try again, or use the phone buttons.");

@@ -12,7 +12,9 @@
 // And to take replies from workshops and drivers (ADR-042):
 //   WHATSAPP_APP_SECRET        the app secret (Meta app, Settings, Basic): every call Meta makes to us is signed with it, and we refuse any that is not
 //   WHATSAPP_VERIFY_TOKEN      a long random string you make up and also type into Meta's webhook page, so Meta can prove it is calling the right address
-//   WHATSAPP_REQUEST_TEMPLATE  the approved utility template that asks a workshop for an estimate or invoice
+//   WHATSAPP_REQUEST_TEMPLATE  the approved template that asks a workshop for an estimate or invoice (the generic one)
+//   WHATSAPP_ESTIMATE_REQUEST_TEMPLATE, WHATSAPP_INVOICE_REQUEST_TEMPLATE  one approved template for each kind of request; used instead of the generic one when set (ADR-056)
+//   WHATSAPP_ESTIMATE_APPROVED_TEMPLATE, WHATSAPP_ESTIMATE_DECLINED_TEMPLATE, WHATSAPP_INVOICE_ACCEPTED_TEMPLATE, WHATSAPP_INVOICE_QUERIED_TEMPLATE  what a workshop is told afterwards (ADR-056)
 // For the browser and unit tests only: WHATSAPP_FILE=/path writes the message to that file instead of sending it, and is refused unless ALLOW_FILE_MAILER=1.
 // A phone number, a token or a message body is never logged.
 import { appendFileSync } from "node:fs";

@@ -423,3 +423,6 @@ Confirming or recording a payment is refused without the customer's NTN (Pakista
 
 ## 2026-11-07: ADR-054 driving licence compulsory at invite (built, not deployed)
 `addEmployeeWithInvite` requires licence number and a valid expiry (class optional) and saves it in the same transaction; the invite form has the three boxes. Not asked: workshops, approved join requests, existing people.
+
+## 2026-11-07: ADR-056 workshop WhatsApp templates (built, not deployed)
+Six Utility templates submitted to Meta (estimate request, invoice request, estimate approved/declined, invoice accepted/queried); `src/lib/vendorflow/whatsapp-notify.ts`, wired into the quotation and invoice decisions and the request button; `WHATSAPP_REQUEST_TEMPLATE=fleetotg_request` set on Netlify production (takes effect at the next deploy). `tests/workshop-whatsapp.test.ts` (5). The six per-event settings are not yet set: wait for approval.
