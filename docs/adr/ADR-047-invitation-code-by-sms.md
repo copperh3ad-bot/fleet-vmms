@@ -1,6 +1,6 @@
 # ADR-047: The invitation code can go by text message (SMS)
 
-Status: accepted, 2026-11-06 (built, not run against a real provider, not deployed). Extends ADR-046. Owner choice: SMS is the route for people invited without an email, because WhatsApp is blocked on Meta's side and email cannot reach them.
+Status: superseded by ADR-058 (removed 2026-11-07). Was: accepted, 2026-11-06 (built, not run against a real provider, not deployed). Extends ADR-046. Owner choice: SMS is the route for people invited without an email, because WhatsApp is blocked on Meta's side and email cannot reach them.
 
 ## Decision
 1. **SMS is a third channel for the code** beside WhatsApp and email. `src/lib/sms.ts` sends one text through a provider by plain REST, no library, written the same way as `src/lib/whatsapp.ts`: off until set up, a file hook for tests (`SMS_FILE`, refused unless `ALLOW_FILE_MAILER=1`), and nothing sensitive logged (an error says only `sms failed: <status>`).

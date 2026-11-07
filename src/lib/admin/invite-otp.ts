@@ -10,7 +10,6 @@ import { UserError } from "@/lib/master/service";
 import { hashInviteToken } from "./service";
 import { allowShared } from "@/lib/rate-limit";
 import { sendWhatsApp } from "@/lib/whatsapp";
-import { sendSms } from "@/lib/sms";
 import { sendMail, mailFailure } from "@/lib/email/send";
 import { buildInviteCodeMail } from "@/lib/email/invitation";
 import { SITE_URL } from "@/lib/site";
@@ -63,9 +62,6 @@ export async function sendInviteCode(driver: Driver, token: string, ip: string):
   try {
     if (channel === "email") {
       await sendMail(buildInviteCodeMail({ to: row.email!, fullName: row.full_name, orgName: row.workspace, code, minutes: OTP_MINUTES, siteUrl: SITE_URL }));
-    } else if (channel === "sms") {
-      // short on purpose: one text segment, and every segment is paid for. No workspace name.
-      await sendSms(row.phone!, `Fleet OTG code ${code}. It works for ${OTP_MINUTES} minutes. Do not share it.`);
     } else {
       await sendWhatsApp(row.phone!, {
         body: `Fleet OTG code ${code} to join ${row.workspace}. It works for ${OTP_MINUTES} minutes. Enter it only if you asked to join.`,

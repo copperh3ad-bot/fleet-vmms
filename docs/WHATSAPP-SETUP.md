@@ -40,4 +40,3 @@ If nothing arrives: the webhook must show a green tick in Meta's page; check the
 ## If the template is not approved yet (ADR-046)
 With the WhatsApp variables set but no approved `WHATSAPP_OTP_TEMPLATE`, the invitation code cannot be sent and no invited person can finish. Set `INVITE_CODE_CHANNEL` in Netlify and redeploy: `email` sends the code to the invited email address (people invited by sign-in name still get WhatsApp), `off` asks for no code. Unset it again once Meta approves the template.
 
-Or send the code by text message instead (ADR-047): set `SMS_PROVIDER` (`twilio` or `plivo`), `SMS_ACCOUNT_ID`, `SMS_AUTH_TOKEN` and `SMS_FROM` in Netlify, and `INVITE_CODE_CHANNEL=sms`. This reaches people invited without an email, which email cannot.
