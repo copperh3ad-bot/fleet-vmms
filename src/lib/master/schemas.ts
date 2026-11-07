@@ -19,6 +19,8 @@ export const vehicleSchema = z.object({
   fuel_type: z.preprocess((v) => (typeof v === "string" ? blank(v.trim().toLowerCase()) : v), z.enum(FUEL_TYPES).optional()),
   vehicle_class: z.preprocess((v) => (typeof v === "string" ? blank(v.trim().toLowerCase()) : v), z.enum(VEHICLE_CLASSES).optional()),
   vin: text(40), engine_no: text(40), colour: text(40), base_location: text(),
+  /** the operating department that runs the vehicle (ADR-048); saved after the vehicle, with one spelling per name */
+  department: text(60),
   odometer_km: num(),
   employee_id: z.preprocess(blank, z.uuid().optional()),
   holding_since: date,

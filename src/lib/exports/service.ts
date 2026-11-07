@@ -111,14 +111,17 @@ const DEFS: Record<string, Def> = {
   },
   "costs-by-vehicle": {
     perms: ["report.view"],
-    columns: [col("Vehicle", "registration_no"), col("Make", "make"), col("Model", "model"), col("Job cards (12 months)", "jobs"), col("Cost (12 months)", "cost"), col("Job cards (all time)", "jobs_all"), col("Cost (all time)", "cost_all")],
-    async run({ q }) {
+    columns: [col("Vehicle", "registration_no"), col("Make", "make"), col("Model", "model"), col("Department", "department"), col("Job cards (12 months)", "jobs"), col("Cost (12 months)", "cost"), col("Job cards (all time)", "jobs_all"), col("Cost (all time)", "cost_all")],
+    async run({ q, f }) {
+      const p: unknown[] = [];
+      const where = f.dept === "_none" ? "where (v.department is null or btrim(v.department) = '')"
+        : f.dept ? (p.push(f.dept), "where lower(btrim(v.department)) = lower($1)") : "";
       return (await q.query(
-        `select v.registration_no, v.make, v.model,
+        `select v.registration_no, v.make, v.model, v.department,
                 count(c.job_card_id) filter (where c.created_at > now() - interval '12 months')::int as jobs,
                 coalesce(sum(c.cost) filter (where c.created_at > now() - interval '12 months'), 0)::text as cost,
                 count(c.job_card_id)::int as jobs_all, coalesce(sum(c.cost), 0)::text as cost_all
-           from vehicles v left join v_vehicle_job_cost c on c.vehicle_id = v.id group by v.id order by 5 desc, v.registration_no ${cap}`)).rows;
+           from vehicles v left join v_vehicle_job_cost c on c.vehicle_id = v.id ${where} group by v.id order by 6 desc, v.registration_no ${cap}`, p)).rows;
     },
   },
   "repeat-repairs": {

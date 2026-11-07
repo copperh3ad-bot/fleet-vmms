@@ -2,6 +2,7 @@
 // the payable invoice amount once verified, otherwise the estimate. Cards that are drafts, cancelled or rejected
 // are not counted.
 import type { Driver } from "@/lib/db/types";
+import { NO_DEPARTMENT } from "@/lib/master/board";
 import { authorized, type Membership } from "@/lib/auth/can";
 
 const PERM = "report.view";
@@ -18,20 +19,29 @@ export type CostOverview = {
   months: number; total: number; jobs: number; average: number;
   byMonth: { month: string; cost: number; jobs: number }[];
   byCategory: Slice[]; byVehicle: (Slice & { vehicle_id: string })[]; byVendor: Slice[]; byDriver: Slice[];
+  /** spending by operating department (ADR-048); "No department" is the general fleet. Always for the whole fleet, whatever department is picked. */
+  byDepartment: Slice[];
+  /** the department the other figures are limited to, "" for all */
+  dept: string;
 };
 
 const monthKey = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 
 /** Spending over the last N whole months (this month counts as the last one). */
-export function costOverview(driver: Driver, m: Membership, months = 12): Promise<CostOverview> {
+export function costOverview(driver: Driver, m: Membership, months = 12, deptIn = ""): Promise<CostOverview> {
   const n = [3, 6, 12, 24].includes(months) ? months : 12;
+  const dept = deptIn.trim().slice(0, 60);
   return authorized(driver, m, PERM, async (q) => {
     const from = `(date_trunc('month', now()) - interval '${n - 1} months')`;
-    const slices = async (sql: string) => (await q.query<{ label: string; cost: string; jobs: number; vehicle_id?: string }>(sql)).rows
+    // Limits a query on v_vehicle_job_cost (aliased c) to one department; the name is a bound parameter, never part of the SQL text.
+    const only = dept === NO_DEPARTMENT ? " and exists (select 1 from vehicles dv where dv.id = c.vehicle_id and (dv.department is null or btrim(dv.department) = ''))"
+      : dept ? " and exists (select 1 from vehicles dv where dv.id = c.vehicle_id and lower(btrim(dv.department)) = lower($1))" : "";
+    const args = dept && dept !== NO_DEPARTMENT ? [dept] : [];
+    const slices = async (sql: string) => (await q.query<{ label: string; cost: string; jobs: number; vehicle_id?: string }>(sql, args)).rows
       .map((r) => ({ label: r.label, cost: Number(r.cost), jobs: r.jobs, ...(r.vehicle_id ? { vehicle_id: r.vehicle_id } : {}) }));
     const monthly = (await q.query<{ month: string; cost: string; jobs: number }>(
-      `select to_char(date_trunc('month', created_at), 'YYYY-MM') as month, sum(cost)::text as cost, count(*)::int as jobs
-         from v_vehicle_job_cost where created_at >= ${from} group by 1`)).rows;
+      `select to_char(date_trunc('month', c.created_at), 'YYYY-MM') as month, sum(c.cost)::text as cost, count(*)::int as jobs
+         from v_vehicle_job_cost c where c.created_at >= ${from}${only} group by 1`, args)).rows;
     const byMonth: CostOverview["byMonth"] = [];
     const now = new Date();
     for (let i = n - 1; i >= 0; i--) {
@@ -43,14 +53,19 @@ export function costOverview(driver: Driver, m: Membership, months = 12): Promis
     return {
       months: n, total, jobs, average: jobs ? total / jobs : 0, byMonth,
       byCategory: await slices(`select rc.category as label, sum(c.cost)::text as cost, count(*)::int as jobs
-        from v_vehicle_job_cost c join reason_codes rc on rc.id = c.reason_code_id where c.created_at >= ${from} group by 1 order by sum(c.cost) desc`),
+        from v_vehicle_job_cost c join reason_codes rc on rc.id = c.reason_code_id where c.created_at >= ${from}${only} group by 1 order by sum(c.cost) desc`),
       byVehicle: await slices(`select v.registration_no as label, v.id as vehicle_id, sum(c.cost)::text as cost, count(*)::int as jobs
-        from v_vehicle_job_cost c join vehicles v on v.id = c.vehicle_id where c.created_at >= ${from} group by v.id order by sum(c.cost) desc limit 10`) as CostOverview["byVehicle"],
+        from v_vehicle_job_cost c join vehicles v on v.id = c.vehicle_id where c.created_at >= ${from}${only} group by v.id order by sum(c.cost) desc limit 10`) as CostOverview["byVehicle"],
       byVendor: await slices(`select coalesce(vn.name, 'No vendor') as label, sum(c.cost)::text as cost, count(*)::int as jobs
         from v_vehicle_job_cost c join job_cards jc on jc.id = c.job_card_id left join vendors vn on vn.id = jc.vendor_id
-        where c.created_at >= ${from} group by 1 order by sum(c.cost) desc limit 10`),
+        where c.created_at >= ${from}${only} group by 1 order by sum(c.cost) desc limit 10`),
       byDriver: await slices(`select coalesce(e.full_name, 'No driver assigned') as label, sum(c.cost)::text as cost, count(*)::int as jobs
-        from v_vehicle_job_cost c left join employees e on e.id = c.custodian_id where c.created_at >= ${from} group by 1 order by sum(c.cost) desc limit 10`),
+        from v_vehicle_job_cost c left join employees e on e.id = c.custodian_id where c.created_at >= ${from}${only} group by 1 order by sum(c.cost) desc limit 10`),
+      byDepartment: (await q.query<{ label: string; cost: string; jobs: number }>(
+        `select coalesce(min(nullif(btrim(v.department), '')), 'No department') as label, sum(c.cost)::text as cost, count(*)::int as jobs
+           from v_vehicle_job_cost c join vehicles v on v.id = c.vehicle_id where c.created_at >= ${from} group by lower(btrim(coalesce(v.department, ''))) order by sum(c.cost) desc`)).rows
+        .map((r) => ({ label: r.label, cost: Number(r.cost), jobs: r.jobs })),
+      dept,
     };
   });
 }

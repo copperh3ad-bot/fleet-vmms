@@ -3,6 +3,7 @@ import { ExportLink } from "@/components/export-link";
 import { requireMembership } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
 import { Kpi, PageHeader, Panel } from "@/components/ui";
+import { NO_DEPARTMENT } from "@/lib/master/board";
 import { costOverview, getFlags } from "@/lib/analytics/service";
 import { costPerHour, costPerKm, downtime } from "@/lib/analytics/fleet-use";
 import { Bars, FlagList, money } from "./shared";
@@ -21,20 +22,27 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const { slug } = await params;
   const sp = await searchParams;
   const months = [3, 6, 12, 24].includes(Number(sp.months)) ? Number(sp.months) : 12;
+  const dept = (typeof sp.dept === "string" ? sp.dept : "").slice(0, 60);
   const m = await requireMembership(slug, { fullScope: true });
   const cur = m.currency || "PKR";
   const driver = getDriver();
-  const [r, flags, perKm, perHour, down] = await Promise.all([costOverview(driver, m, months), getFlags(driver, m), costPerKm(driver, m, months), costPerHour(driver, m, months), downtime(driver, m, months)]);
+  const [r, flags, perKm, perHour, down] = await Promise.all([costOverview(driver, m, months, dept), getFlags(driver, m), costPerKm(driver, m, months), costPerHour(driver, m, months), downtime(driver, m, months)]);
+  const depts = r.byDepartment.length > 1 || r.byDepartment.some((x) => x.label !== "No department") ? r.byDepartment : [];
   const money2 = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const sel = "h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm";
   return (
     <main className="space-y-5 p-6 text-zinc-900">
-      <PageHeader title="Reports" sub={`Costs over the last ${months} months`} actions={
+      <PageHeader title="Reports" sub={`Costs over the last ${months} months${r.dept ? ` · ${r.dept === NO_DEPARTMENT ? "No department" : r.dept}` : ""}`} actions={
         <>
-          <form className="flex items-center gap-2 text-sm"><label htmlFor="months" className="text-zinc-600">Last</label>
+          <form className="flex flex-wrap items-center gap-2 text-sm"><label htmlFor="months" className="text-zinc-600">Last</label>
             <select id="months" name="months" defaultValue={months} className={sel}>{[3, 6, 12, 24].map((n) => <option key={n} value={n}>{n} months</option>)}</select>
+            {depts.length > 0 && <><label htmlFor="dept" className="text-zinc-600">Department</label>
+              <select id="dept" name="dept" defaultValue={r.dept} className={sel}>
+                <option value="">All</option>
+                {depts.map((d) => <option key={d.label} value={d.label === "No department" ? NO_DEPARTMENT : d.label}>{d.label}</option>)}
+              </select></>}
             <button className={`${sel} font-medium hover:bg-zinc-50`}>Show</button></form>
-          <ExportLink slug={slug} kind="costs-by-vehicle" label="Export costs by vehicle" /><ExportLink slug={slug} kind="flags" label="Export flags" />
+          <ExportLink slug={slug} kind="costs-by-vehicle" query={{ dept: r.dept }} label="Export costs by vehicle" /><ExportLink slug={slug} kind="flags" label="Export flags" />
           <ExportLink slug={slug} kind="cost-per-km" query={{ months: String(months) }} label="Export cost per km" />{perHour.rows.length > 0 && <ExportLink slug={slug} kind="cost-per-hour" query={{ months: String(months) }} label="Export cost per hour" />}<ExportLink slug={slug} kind="workshop-time" query={{ months: String(months) }} label="Export workshop time" />
         </>} />
 
@@ -50,6 +58,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
         <Panel title="Needs a look" sub={`${flags.length} flagged`}><FlagList slug={slug} flags={flags} empty="Nothing is flagged." /></Panel>
       </div>
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        {depts.length > 0 && <Panel title="By department" sub="Whole fleet, whichever department is picked above"><Bars rows={r.byDepartment.map((x) => ({ label: x.label, value: x.cost, note: `${x.jobs}` }))} /></Panel>}
         <Panel title="By reason"><Bars rows={r.byCategory.map((x) => ({ label: CATEGORY[x.label] ?? x.label, value: x.cost, note: `${x.jobs}` }))} /></Panel>
         <Panel title="Costliest vehicles">{r.byVehicle.length === 0 ? <p className="text-sm text-zinc-500">No spending yet.</p> : <Bars rows={r.byVehicle.map((x) => ({ label: x.label, value: x.cost, note: `${x.jobs}` }))} />}</Panel>
         <Panel title="By workshop"><Bars rows={r.byVendor.map((x) => ({ label: x.label, value: x.cost, note: `${x.jobs}` }))} /></Panel>

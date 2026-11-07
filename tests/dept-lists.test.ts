@@ -98,3 +98,27 @@ describe("department in the vehicle import", () => {
     expect(await master.commitVehicleImport(d, owner(), "registration_no\nIMP-20")).toEqual({ imported: 1 });
   });
 });
+
+describe("department on the Add vehicle form", () => {
+  const dept = async (id: string) => (await withTenant(d, owner(), (q) => q.query<{ department: string | null }>("select department from vehicles where id = $1", [id]))).rows[0].department;
+
+  it("saves the operating department with the vehicle, one spelling per name, and empty means the general fleet", async () => {
+    const a = await master.addVehicle(d, owner(), { registration_no: "ADD-1", make: "M", model: "M", vehicle_class: "truck", department: "logistics" });
+    const b = await master.addVehicle(d, owner(), { registration_no: "ADD-2", make: "M", model: "M", vehicle_class: "truck", department: "  Fresh   Produce " });
+    const c = await master.addVehicle(d, owner(), { registration_no: "ADD-3", make: "M", model: "M", vehicle_class: "truck", department: "fresh produce" });
+    const e = await master.addVehicle(d, owner(), { registration_no: "ADD-4", make: "M", model: "M", vehicle_class: "truck", department: "" });
+    expect(await dept(a.id)).toBe("Logistics");          // an existing spelling wins
+    expect(await dept(b.id)).toBe("Fresh Produce");
+    expect(await dept(c.id)).toBe("Fresh Produce");
+    expect(await dept(e.id)).toBeNull();
+  });
+
+  it("refuses a name over 60 letters and saves nothing", async () => {
+    await expect(master.addVehicle(d, owner(), { registration_no: "ADD-5", make: "M", model: "M", vehicle_class: "truck", department: "x".repeat(61) })).rejects.toThrow(/highlighted/);
+    expect((await withTenant(d, owner(), (q) => q.query("select 1 from vehicles where registration_no = 'ADD-5'"))).rows).toHaveLength(0);
+  });
+
+  it("a logistics login still cannot add a vehicle, with or without a department", async () => {
+    await expect(master.addVehicle(d, log(), { registration_no: "ADD-6", make: "M", model: "M", vehicle_class: "truck", department: "Logistics" })).rejects.toThrow();
+  });
+});

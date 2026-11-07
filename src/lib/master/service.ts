@@ -90,7 +90,7 @@ export function getVehicle(driver: Driver, m: Membership, id: string): Promise<V
 }
 
 function toDbVehicle(v: VehicleInput) {
-  return JSON.stringify(Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined)));
+  return JSON.stringify(Object.fromEntries(Object.entries(v).filter(([k, x]) => x !== undefined && k !== "department")));          // the department is set after the vehicle exists
 }
 
 /** The "Add a vehicle" save: one transaction through onboard_vehicle(). */
@@ -103,6 +103,7 @@ export async function addVehicle(driver: Driver, m: Membership, raw: unknown): P
     if (trialCap !== null && (await countLiveVehicles(q)) >= trialCap) throw new UserError(trialFullMessage(trialCap));
     try {
       const r = await q.query<{ id: string }>("select onboard_vehicle($1::jsonb, $2::uuid) as id", [toDbVehicle(parsed.data), m.userId]);
+      if (parsed.data.department) await setDepartmentIn(q, r.rows[0].id, parsed.data.department.replace(/\s+/g, " "));
       return { id: r.rows[0].id };
     } catch (e) { friendly(e); }
   });

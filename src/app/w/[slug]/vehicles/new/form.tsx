@@ -42,7 +42,7 @@ function checklist(v: Record<string, string>, serviceTypes: { key: string; label
   ];
 }
 
-export function AddVehicleForm({ slug, employees, serviceTypes, year, currency = "PKR" }: { slug: string; employees: Employee[]; serviceTypes: { key: string; label: string }[]; year: number; currency?: string }) {
+export function AddVehicleForm({ slug, employees, departments = [], serviceTypes, year, currency = "PKR" }: { slug: string; employees: Employee[]; departments?: string[]; serviceTypes: { key: string; label: string }[]; year: number; currency?: string }) {
   const [state, action] = useActionState<FormState, FormData>(createVehicleAction.bind(null, slug), {});
   const [snap, setSnap] = useState<Record<string, string>>({});
   const holder = employees.find((e) => e.id === snap.employee_id);
@@ -72,10 +72,14 @@ export function AddVehicleForm({ slug, employees, serviceTypes, year, currency =
           <Panel title="Who has it">
             <div className={three}>
               <Select name="employee_id" label="Driver or custodian" state={state} blank="No one yet" options={employees.map((e) => [e.id, e.employee_no ? `${e.full_name} (${e.employee_no})` : e.full_name])} />
-              <Field label="Department" name="department">
+              <Field label="Holder's department" name="holder_department">
                 <p className={`${inputCls} flex items-center bg-zinc-50 text-zinc-600`}>{holder ? holder.department ?? "Not set" : "From the person you choose"}</p>
               </Field>
               {f("base_location", "Base location")}
+            </div>
+            <div className={`${three} mt-3`}>
+              <Input name="department" label="Operating department" state={state} list="departments" hint="Which department runs this vehicle, for example Logistics or Operations. Empty is the general fleet." />
+              <datalist id="departments">{departments.map((d) => <option key={d} value={d} />)}</datalist>
             </div>
             <div className="mt-3">{f("holding_since", "Holding since", { type: "date" }, "Past holders stay on the record, and costs go to whoever held the vehicle at the time.")}</div>
           </Panel>

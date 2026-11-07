@@ -16,7 +16,7 @@ function vehicleFromForm(f: FormData) {
   const baselineKeys = [...f.keys()].map((k) => k.match(/^baseline_(.+)_date$/)?.[1]).filter((k): k is string => !!k && str(f, `baseline_${k}_date`) !== "");
   const docTypes = DOC_TYPES.filter((t) => str(f, `doc_${t}_expires`) !== "");
   const raw: Record<string, unknown> = {};
-  for (const k of ["registration_no", "make", "model", "year", "vehicle_class", "fuel_type", "vin", "engine_no", "colour", "base_location", "odometer_km", "employee_id", "holding_since", "budget_amount", "budget_from", "budget_to"]) raw[k] = str(f, k);
+  for (const k of ["registration_no", "make", "model", "year", "vehicle_class", "fuel_type", "vin", "engine_no", "colour", "base_location", "department", "odometer_km", "employee_id", "holding_since", "budget_amount", "budget_from", "budget_to"]) raw[k] = str(f, k);
   raw.baselines = baselineKeys.map((k) => ({ service_type_key: k, last_done_on: str(f, `baseline_${k}_date`), last_odometer_km: str(f, `baseline_${k}_km`) }));
   raw.documents = docTypes.map((t) => ({ doc_type: t, reference: str(f, `doc_${t}_ref`), expires_on: str(f, `doc_${t}_expires`) }));
   // The board asks only for the insurance expiry. A policy needs an insurer and a start, so when they are not given the

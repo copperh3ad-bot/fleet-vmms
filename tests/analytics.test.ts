@@ -7,6 +7,7 @@ import * as master from "@/lib/master/service";
 import { UserError } from "@/lib/master/service";
 import * as jc from "@/lib/jobcards/service";
 import * as cs from "@/lib/compliance/service";
+import { exportCsv } from "@/lib/exports/service";
 import * as an from "@/lib/analytics/service";
 import * as ct from "@/lib/control/service";
 
@@ -215,6 +216,31 @@ describe("cost report", () => {
       await q.query("insert into invoices(work_order_id, invoice_no, invoice_date, amount, tax_amount, status, payable_amount) values ($1, 'I-1', current_date, 1100, 0, 'verified', 900)", [wo]);
     });
     expect((await an.costOverview(d, mgr(), 3)).total).toBe(900);
+  });
+
+  it("splits spending by operating department and limits every figure to one when asked (ADR-048)", async () => {
+    await clearJobs();
+    await master.setVehicleDepartment(d, owner(), car["H-1"], "Logistics");
+    await master.setVehicleDepartment(d, owner(), car["H-2"], "Operations");
+    await job(car["H-1"], "WEAR_BRAKES", 2, 1000);
+    await job(car["H-1"], "WEAR_TYRES", 3, 500);
+    await job(car["H-2"], "WEAR_BRAKES", 2, 300);
+    await job(car["I-1"], "WEAR_BRAKES", 2, 200);          // no department
+    const all = await an.costOverview(d, mgr(), 12);
+    expect(all.total).toBe(2000);
+    expect(all.byDepartment).toEqual([{ label: "Logistics", cost: 1500, jobs: 2 }, { label: "Operations", cost: 300, jobs: 1 }, { label: "No department", cost: 200, jobs: 1 }]);
+    const lg = await an.costOverview(d, mgr(), 12, "logistics");          // case does not matter
+    expect([lg.total, lg.jobs, lg.dept]).toEqual([1500, 2, "logistics"]);
+    expect(lg.byVehicle.map((x) => x.label)).toEqual(["H-1"]);
+    expect(lg.byMonth.reduce((s, x) => s + x.cost, 0)).toBe(1500);
+    expect(lg.byDepartment).toEqual(all.byDepartment);          // the split always shows the whole fleet
+    const none = await an.costOverview(d, mgr(), 12, "_none");
+    expect([none.total, none.byVehicle.map((x) => x.label)]).toEqual([200, ["I-1"]]);
+    expect((await an.costOverview(d, mgr(), 12, "Nowhere")).total).toBe(0);
+    expect((await an.costOverview(d, mgr(), 12, "x' or '1'='1")).total).toBe(0);          // a name is a value, never SQL
+    const csv = (await exportCsv(d, mgr(), "costs-by-vehicle", { dept: "Operations" }));
+    expect(csv.csv.split("\n")[0]).toContain("Department");
+    expect(csv.rows).toBe(1);
   });
 });
 
