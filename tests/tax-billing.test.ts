@@ -81,7 +81,7 @@ describe("nothing is taxed until it is set up", () => {
     expect(await quoteTax(router, A.admin, 14900, "USD", 1)).toBeNull();                         // that authority is off
     await saveTaxRule(control, OP, { code: "PRA", label: "Punjab", sales_tax_pct: "16", active: true });
     expect(await quoteTax(router, A.admin, 14900, "USD", 1)).not.toBeNull();
-    expect(await quoteTax(router, A.admin, 14900, "PKR", 1)).toBeNull();                         // only dollar plans are taxed this way
+    expect(await quoteTax(router, A.admin, 14900, "EUR", 1)).toBeNull();                         // only dollar and rupee plans are taxed this way (ADR-052)
   });
 });
 

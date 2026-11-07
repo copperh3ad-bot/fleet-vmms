@@ -14,7 +14,7 @@ export async function departments(S) {
   const [mine1, mine2, other] = ["LHR-1001", "LHR-1002", "DPT-3001"];
   await step("a third vehicle, for the general fleet, is added with the form", async () => {
     await go(o, `${base}/vehicles/new`);
-    await fill(o, "#registration_no", other); await fill(o, "#make", "Suzuki"); await fill(o, "#model", "Bolan"); await fill(o, "#year", "2020");
+    await fill(o, "#registration_no", other); await o.page.selectOption("#make", "Suzuki"); await o.page.selectOption("#model", "Bolan"); await o.page.selectOption("#year", String("2020"));
     await o.page.selectOption("#fuel_type", { index: 1 });
     await fill(o, "#odometer_km", "30000");
     await press(o, "Save vehicle", { wait: 1500 });

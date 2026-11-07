@@ -414,3 +414,6 @@ Tenant migration 0032 and control migration 0016 (neither on live), `src/lib/odo
 
 ## 2026-11-07: ADR-051 payment emails (built, not deployed) and template fleetotg_odometer submitted
 Control migration 0017 (`payment_claims.submitter_email`, not on live), `src/lib/billing/payment-mails.ts`, wired into the Billing "I have paid" action and the operator's confirm and reject; `tests/payment-mails.test.ts` (9). Billing mailbox is `billing_email` (finance@fleetotg.com on live). WhatsApp template `fleetotg_odometer` submitted as Utility (id 1202664728769977), pending Meta review; `WHATSAPP_ODOMETER_TEMPLATE` not yet set.
+
+## 2026-11-07: ADR-052 rupee pricing support and Add vehicle drop-downs (built, not deployed)
+`taxFor` handles a plan priced in PKR (rate 1, no conversion), the invoice page no longer says "at Rs X to the dollar" for a rupee plan, `tests/pkr-plan.test.ts` (4). The live plan price is still USD 149: the owner sets the rupee amount and currency in Admin, Plans. Add vehicle: Make, Model (by make) and Year are drop-downs with Other, `src/lib/master/vehicle-catalog.ts`, `tests/vehicle-catalog.test.ts` (4). Browser suite 232 passed.

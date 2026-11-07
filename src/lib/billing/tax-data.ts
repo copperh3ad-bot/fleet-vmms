@@ -37,7 +37,9 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
  * `paymentDate` is the day the customer paid: the exchange rate is the one for that day.
  */
 export async function taxFor(q: Queryable, tenantId: string, subtotalUsdCents: number, currency: string, opts: { paymentDate?: string } = {}): Promise<{ result: TaxResult; snapshot: TaxSnapshot } | null> {
-  if (currency !== "USD") return null;
+  // A plan priced in dollars is converted to rupees at the rate of the payment date; a plan priced in rupees (ADR-052) already is in rupees: the same arithmetic with a rate of 1.
+  if (currency !== "USD" && currency !== "PKR") return null;
+  const inRupees = currency === "PKR";
   const p = (await q.query<{ country: string | null; legal_name: string | null; ntn: string | null; strn: string | null; address: string | null; withholding_agent: boolean; wht_income_pct: string | null; wht_sales_share_pct: string | null; code: string | null; label: string | null; sales_tax_pct: string | null }>(
     `select o.country, o.legal_name, o.ntn, o.strn, o.address, o.withholding_agent, o.wht_income_pct::text, o.wht_sales_share_pct::text, r.code, r.label, r.sales_tax_pct::text
        from public.org_tax o left join public.tax_rules r on r.code = o.tax_rule_code and r.active where o.tenant_id = $1`, [tenantId])).rows[0];
@@ -62,7 +64,7 @@ export async function taxFor(q: Queryable, tenantId: string, subtotalUsdCents: n
     if (!taxReg) return null;
     salesTaxPct = Number(sc.sales_tax_pct ?? 0); authority = sc.tax_name ?? sc.label;
   }
-  if (sc.currency === "PKR") {
+  if (sc.currency === "PKR" && !inRupees) {
     const dated = await rateFor(q, paid, side);
     const fallback = Number(st.pkr_per_usd);
     if (dated) { rate = dated.rate; fx = { rate, rate_date: dated.date, payment_date: paid, source: dated.source, side }; }
@@ -72,7 +74,7 @@ export async function taxFor(q: Queryable, tenantId: string, subtotalUsdCents: n
   const result = computeTax({ subtotalUsdCents, pkrPerUsd: rate, salesTaxPct, withholdingAgent: buyer.withholding_agent, whtIncomePct: Number(income), whtSalesSharePct: Number(share), whtIncomeBase: base });
   return {
     result,
-    snapshot: { currency: sc.currency, country: p.country, scenario: meta, fx, seller: { ...seller, tax_reg: taxReg }, buyer: { ...buyer, authority_code: authorityCode, authority }, wht: { income_pct: Number(income), sales_share_pct: Number(share), income_base: base } },
+    snapshot: { currency: inRupees ? "PKR" : sc.currency, country: p.country, scenario: meta, fx, seller: { ...seller, tax_reg: taxReg }, buyer: { ...buyer, authority_code: authorityCode, authority }, wht: { income_pct: Number(income), sales_share_pct: Number(share), income_base: base } },
   };
 }
 

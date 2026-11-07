@@ -49,7 +49,7 @@ export async function workspace(S) {
   await step("two vehicles are added with the form", async () => {
     for (const [plate, year] of [["LHR-1001", "2017"], ["LHR-1002", "2025"]]) {
       await go(o, `${base}/vehicles/new`);
-      await fill(o, "#registration_no", plate); await fill(o, "#make", "Toyota"); await fill(o, "#model", "Hilux"); await fill(o, "#year", year);
+      await fill(o, "#registration_no", plate); await o.page.selectOption("#make", "Toyota"); await o.page.selectOption("#model", "Hilux"); await o.page.selectOption("#year", String(year));
       await o.page.selectOption("#fuel_type", { index: 1 });
       await fill(o, "#odometer_km", "42000");
       await press(o, "Save vehicle", { wait: 1500 });
@@ -60,7 +60,7 @@ export async function workspace(S) {
 
   await step("a vehicle that is added twice is refused with a plain message", async () => {
     await go(o, `${base}/vehicles/new`);
-    await fill(o, "#registration_no", "lhr 1001"); await fill(o, "#make", "Toyota"); await fill(o, "#model", "Hilux"); await fill(o, "#year", "2020"); await fill(o, "#odometer_km", "1000");
+    await fill(o, "#registration_no", "lhr 1001"); await o.page.selectOption("#make", "Toyota"); await o.page.selectOption("#model", "Hilux"); await o.page.selectOption("#year", String("2020")); await fill(o, "#odometer_km", "1000");
     await o.page.selectOption("#fuel_type", { index: 1 });
     await press(o, "Save vehicle", { wait: 1200 });
     await waitText(o, "already", 6000);

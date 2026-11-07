@@ -4,6 +4,7 @@ import { refresh } from "next/cache";
 import { getDriver } from "@/lib/db";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { addVehicleFile, removeVehicleFile, type VehicleFileKind } from "@/lib/master/files";
+import { resolveChoice } from "@/lib/master/vehicle-catalog";
 import { UserError, addVehicle, changeCustody, endCustody, setVehicleDepartment, updateVehicleStatus, previewVehicleImport, commitVehicleImport, type ImportPreview } from "@/lib/master/service";
 import { recordEngineHours, setTracksHours } from "@/lib/hours/service";
 import { runAction, str, typed, type FormState } from "../actions-util";
@@ -55,10 +56,19 @@ function renameFields(fields: Record<string, string> | undefined, baselineKeys: 
 /** What the "Add a vehicle" board marks as needed. The service itself only needs the plate, so imports stay light. */
 const NEEDED: [string, string][] = [["make", "Enter the make"], ["model", "Enter the model"], ["year", "Enter the year"], ["fuel_type", "Choose the fuel"], ["odometer_km", "Enter the odometer reading"]];
 
-export async function createVehicleAction(slug: string, _prev: FormState, form: FormData): Promise<FormState> {
+/** The make and model come from a drop-down, or are typed when "Other" is chosen (ADR-052). This is the form as the rest of the action reads it: the name to save in `make` and `model`. */
+function resolved(form: FormData): FormData {
+  const out = new FormData();
+  for (const [k, v] of form.entries()) if (k !== "make_other" && k !== "model_other") out.append(k, v);
+  for (const k of ["make", "model"] as const) out.set(k, resolveChoice(str(form, k), str(form, `${k}_other`)));
+  return out;
+}
+
+export async function createVehicleAction(slug: string, _prev: FormState, original: FormData): Promise<FormState> {
+  const form = resolved(original);
   const { raw, baselineKeys, docTypes } = vehicleFromForm(form);
   const missing = Object.fromEntries(NEEDED.filter(([k]) => str(form, k).trim() === "").map(([k, msg]) => [k, msg]));
-  if (Object.keys(missing).length) return { error: "Fill in the fields marked with a star.", fields: missing, values: typed(form) };
+  if (Object.keys(missing).length) return { error: "Fill in the fields marked with a star.", fields: missing, values: typed(original) };
   let id: string | undefined;
   const notes: string[] = [];
   const state = await runAction(slug, async (m) => {
@@ -77,7 +87,7 @@ export async function createVehicleAction(slug: string, _prev: FormState, form: 
     const note = notes.length ? `&note=${encodeURIComponent(notes.join(" "))}` : "";
     redirect(another ? `/w/${encodeURIComponent(slug)}/vehicles/new?added=${encodeURIComponent(str(form, "registration_no").trim().toUpperCase())}${note}` : `/w/${encodeURIComponent(slug)}/vehicles/${id}`);
   }
-  return { ...state, fields: renameFields(state.fields, baselineKeys, docTypes), values: typed(form) };
+  return { ...state, fields: renameFields(state.fields, baselineKeys, docTypes), values: typed(original) };
 }
 
 export async function changeCustodyAction(slug: string, vehicleId: string, _prev: FormState, form: FormData): Promise<FormState> {

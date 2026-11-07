@@ -6,6 +6,8 @@ import { FileInput } from "@/components/file-input";
 import { Panel, Pill, btn, btnPrimary, type Tone } from "@/components/ui";
 import type { FormState } from "../../actions-util";
 import { createVehicleAction } from "../actions";
+import { MakeModelYear } from "./make-model-year";
+import { OTHER } from "@/lib/master/vehicle-catalog";
 
 const CLASSES = ["car", "pickup", "van", "truck", "bus", "motorcycle", "forklift", "other"];
 const FUELS = ["petrol", "diesel", "cng", "lpg", "hybrid", "electric"];
@@ -29,7 +31,9 @@ function Buttons() {
 function checklist(v: Record<string, string>, serviceTypes: { key: string; label: string }[]): Check[] {
   const has = (k: string) => (v[k] ?? "").trim() !== "";
   const list = (xs: string[]) => xs.join(", ");
-  const missingIdentity = [["registration_no", "plate"], ["make", "make"], ["model", "model"], ["year", "year"], ["fuel_type", "fuel"]].filter(([k]) => !has(k)).map(([, l]) => l);
+  // a make or model chosen as "Other" counts once the name is typed
+  const named = (k: string) => has(k) && (v[k] !== OTHER || has(`${k}_other`));
+  const missingIdentity = [["registration_no", "plate"], ["make", "make"], ["model", "model"], ["year", "year"], ["fuel_type", "fuel"]].filter(([k]) => !(k === "make" || k === "model" ? named(k) : has(k))).map(([, l]) => l);
   const dated = serviceTypes.filter((s) => has(`baseline_${s.key}_date`));
   const noKm = dated.filter((s) => !has(`baseline_${s.key}_km`)).map((s) => `${s.label.toLowerCase()} km`);
   const base: string[] = [...(has("odometer_km") ? [] : ["odometer"]), ...(dated.length ? noKm : ["no service history yet"])];
@@ -58,8 +62,7 @@ export function AddVehicleForm({ slug, employees, departments = [], serviceTypes
           <Panel title="Identity">
             <div className={three}>
               {f("registration_no", "Registration number *", { autoComplete: "off" })}
-              {f("make", "Make *")}{f("model", "Model *")}
-              {f("year", "Year *", { inputMode: "numeric" })}
+              <MakeModelYear state={state} thisYear={year} />
               <Select name="fuel_type" label="Fuel *" state={state} blank="Choose" options={FUELS.map((c) => [c, fuelLabel(c)])} />
               {f("vin", "Chassis number")}
               {f("engine_no", "Engine number")}
