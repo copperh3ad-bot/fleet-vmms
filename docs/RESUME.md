@@ -1,6 +1,41 @@
 # Fleet OTG: where we stopped (resume point)
 
-Written 2026-10-29, updated 2026-11-04 (the section "Update 2026-11-04" below overrides anything older here). Read this first in the next session, then `STATE.md` (history, append-only), `CLAUDE.md` (rules), `docs/OWNER-CHECKLIST.md` (the owner's to-do list) and `docs/WHATSAPP-SETUP.md` (the WhatsApp set-up steps).
+Written 2026-10-29, updated 2026-11-07 (the section "Update 2026-11-07" below overrides anything older here). Read this first in the next session, then `STATE.md` (history, append-only), `CLAUDE.md` (rules), `docs/OWNER-CHECKLIST.md` (the owner's to-do list) and `docs/WHATSAPP-SETUP.md` (the WhatsApp set-up steps).
+
+## Update 2026-11-07 (READ THIS FIRST; it overrides everything older in this file)
+**Live = commit `12d1019` (deployed 2026-11-07, all migrations applied).** Git tag **`fleet-otg-resume-2026-11-07`** marks it. Checks at this point: **1,004 unit tests pass, browser suite 229 passed / 0 failed**, type-check clean, `next build` OK, lint at its old 10 errors. Working tree clean.
+
+### Migrations applied on live (3 company schemas, 0 dedicated databases)
+platform 0015 (join confirmation) | control 0016, 0017, 0018 | tenant 0030 to 0033. Next free numbers: **tenant 0034, platform 0016, control 0019** (gate passes and HR requests will use them).
+
+### What was built and deployed this session (ADRs 048 to 056 in `docs/adr/`)
+- **048** departments and logistics (48a scope, 48b engine hours, 48c department column/filter/import, cost by department, department on Add vehicle). **Hours through the driver link** (migration 0031).
+- **050** monthly odometer request on WhatsApp, answered by a reply (hour-meter vehicles excluded). Built and live but **switched off**: needs `WHATSAPP_ODOMETER_TEMPLATE=fleetotg_odometer` in Netlify (template APPROVED) and the company setting `odometer_whatsapp` = 1.
+- **051** payment emails: finance@fleetotg.com is told when a customer files a payment; the customer (reply-to and copy finance@) is told when the operator confirms or rejects.
+- **052** plan can be priced in PKR (tax straight from the rupee price); Add vehicle has Make/Model/Year drop-downs with Other. **053** NTN required before an invoice, one tax authority (SRB, entered by the owner), no withholding.
+- **054/055** driving licence compulsory at invite; joining with the company code needs a valid licence and a **6-digit WhatsApp code** (uses the approved `fleetotg_code` template; the link versions were rejected by Meta); learner permits only if the company setting `allow_learner_licence` = 1 (off by default).
+- **049** the app sends invitations itself from its WhatsApp number (no wa.me link to the admin). **056** six workshop WhatsApp templates and the code that sends them (switched on per template by Netlify settings; see below).
+- Privacy page rewritten for WhatsApp, deletion (`/privacy#delete-data`), trips, licences. Features page, demo seed, STATE.md, ADR index updated.
+
+### WhatsApp / Meta state (business `981208148372124`, number +1 940-560-0739, number id `1471993539322498`, app `1421146756805248` is LIVE, webhook callback set to `/api/inbound/whatsapp` with fields messages + message_statuses)
+- **Netlify production variables set:** `WHATSAPP_ACCESS_TOKEN` (masked, unreadable via CLI), `WHATSAPP_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_OTP_TEMPLATE=fleetotg_code`, `WHATSAPP_INVITE_TEMPLATE=fleetotg_invite`, `WHATSAPP_REQUEST_TEMPLATE=fleetotg_request`, `INVITE_CODE_CHANNEL=auto`. **Not set yet:** `WHATSAPP_ODOMETER_TEMPLATE`, and the six workshop ones (`WHATSAPP_ESTIMATE_REQUEST_TEMPLATE`, `WHATSAPP_INVOICE_REQUEST_TEMPLATE`, `WHATSAPP_ESTIMATE_APPROVED_TEMPLATE`, `WHATSAPP_ESTIMATE_DECLINED_TEMPLATE`, `WHATSAPP_INVOICE_ACCEPTED_TEMPLATE`, `WHATSAPP_INVOICE_QUERIED_TEMPLATE`).
+- **Templates:** APPROVED: `fleetotg_code` (authentication), `fleetotg_request`, `fleetotg_invite` (both Marketing), `fleetotg_odometer` (Utility), `hello_world`. PENDING (Utility, submitted 2026-11-07): `fleetotg_estimate_request`, `fleetotg_invoice_request`, `fleetotg_estimate_approved`, `fleetotg_estimate_declined`, `fleetotg_invoice_accepted`, `fleetotg_invoice_queried`. REJECTED by Meta (incorrect category, unused): `fleetotg_confirm`, `fleetotg_join_confirm`.
+- **Facts learned:** an invite to the owner's own number worked end to end (sent and delivered). WhatsApp refuses messages to **Indonesia (+62), code 130497**; test only with Pakistani numbers. Delivery failures appear in the Netlify function log (`npx netlify-cli logs --since 15m --source functions`) as "whatsapp message not delivered: code ...". Profile pictures for the number are ready in the scratchpad (the F-arrow mark, 640x640); the owner uploads them in WhatsApp Manager and checks the display-name status.
+
+### Still to do (the owner's list, in the order I would take it)
+1. **Build:** HR vehicle requests (new `hr` role; the admin assigns a vehicle from the pool or approves a purchase; design agreed in chat, owner has not said "go"; open question: may fleet managers decide too). Date format dd/mm/yy everywhere (waiting for the owner's answer about the browser date pickers). Gate passes (ADR-045 5b/5c).
+2. **Owner entries in Admin:** PKR plan price (Admin, Plans, currency PKR), the SRB tax rule and rate (Admin, Tax), the SRB registration number (Settings), each customer's NTN on its Billing page (confirming a payment is refused without it, the owner's own company included). Update CLAUDE.md rule 7 (still says USD 149) once the price is set. Governing-law wording for the Terms. Lawyer review of Terms and Privacy, then remove the Draft banner (check the 7 and 30 day deletion promise).
+3. **After Meta approves the six workshop templates:** set their six Netlify variables and redeploy. Set `WHATSAPP_ODOMETER_TEMPLATE` on the owner's word.
+4. **Live tests that need a person:** a real join with a WhatsApp code; a real invite; the payment emails; an odometer reply; the workshop WhatsApp request.
+5. **Decisions open:** should workshops and existing people also need a licence; remove the unused Twilio/SMS code and the `SMS_*` Netlify values.
+6. **Small:** whether `fleetotg_request` can be Utility; verify the old "owner can't approve job cards" finding is stale; design pass on About/Contact/Sign-up/Join; users-table keyboard scroll and `/job-cards/new` landmark notes; 10 lint errors; the ledger date flake (`tests/ledger.test.ts`); rotate the webhook verify token if Netlify log access is shared; stray files in the repo root (`.next 2/`, `.next 3/`, PDFs, images, design zip).
+
+### Standing rules and quirks (this session)
+- **Never** set Netlify variables, run live migrations or deploy to production without the owner's explicit yes; create Meta templates only with an explicit yes to the exact wording (the auto-mode blocks it otherwise). Never print or store tokens.
+- Commands: tests `npx vitest run`; browser suite `bash e2e/run.sh` (about 9 minutes, run it in the background; it needs Chromium 1248, `npx playwright-core install chromium`); live migrations `npx tsx --env-file=.env.local scripts/migrate-tenants.mts`; deploy `find .next -name "* [0-9]*" -delete; npx netlify-cli deploy --build --prod --context production`; after adding a route run `rm -rf .next/types; npx next typegen` before type-checking; after editing `db/` run `npx tsx scripts/embed-migrations.mts`.
+- A commit-validate hook blocks some shell heredocs: write scripts and commit messages with the Write tool, then `git commit -F file`.
+- Dynamic route pages must use a plain `<p>` as their Suspense fallback (not `SiteShell`) or the build fails prerendering. A `"use server"` file may export only async functions. Setting a settings key needs its guard function replaced in the same migration BEFORE the insert.
+- Rollback deploy if ever needed: republish `6aec7d4dcdb4acd7c062d1df` (older; it predates several migrations, all of which only add things).
 
 ## Fallback points
 - Git tag **`fleet-otg-resume-2026-11-04`** marks the latest state. Live production is commit `fcdbc80` (deployed 2026-11-04); the tag is two commits ahead (`9267e69` landing and login design work, not deployed, and the docs commit).

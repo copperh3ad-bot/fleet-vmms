@@ -432,3 +432,6 @@ Platform migration 0015, control migration 0018, tenant migration 0033 (none on 
 
 ## 2026-11-07: ADR-055 correction: the join confirmation is a code, not a link (built, not deployed)
 Meta rejected the link templates (`fleetotg_confirm` as Utility, `fleetotg_join_confirm` as Marketing: "incorrect category"). The confirmation is now a 6-digit code sent with the already-approved `fleetotg_code` template and typed on the "request sent" page; a cookie reference ties the page to its request. The confirm-link page, its public path and the CLAUDE.md rule 5 addition were removed. Platform migration 0015 (edited before it ever reached live), control 0018, tenant 0033 still to be run on live. No new Meta template and no new Netlify setting are needed.
+
+## 2026-11-07: session end, resume point
+Live is commit 12d1019 with every migration applied (platform 0015, control 0016 to 0018, tenant 0030 to 0033). 1,004 unit tests and the browser suite (229) pass. See docs/RESUME.md, section "Update 2026-11-07", for what is live, the WhatsApp/Meta state, the pending list and the standing rules. Tag fleet-otg-resume-2026-11-07.
