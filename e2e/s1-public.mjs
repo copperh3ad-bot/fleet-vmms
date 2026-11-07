@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import { APP, MOCK, axe, body, check, finding, fill, go, has, mock, overflow, persona, press, scenario, sql, step, uniq, waitText } from "./lib.mjs";
 
-const PUBLIC = ["/", "/pricing", "/signup", "/signup/check-email", "/join", "/join/sent", "/login", "/forgot-password", "/about", "/contact", "/terms", "/privacy"];
+const PUBLIC = ["/", "/pricing", "/compare", "/signup", "/signup/check-email", "/join", "/join/sent", "/login", "/forgot-password", "/about", "/contact", "/terms", "/privacy"];
 
 export async function publicPages(S) {
   scenario("1. Public pages, signed out");

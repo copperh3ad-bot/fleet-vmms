@@ -11,7 +11,7 @@ export function useSignedIn(): boolean {
   return useSyncExternalStore(never, () => FLAG.test(document.cookie), () => false);
 }
 
-type Active = "signup" | "login" | "pricing" | "join" | "about" | "contact" | "features" | undefined;
+type Active = "signup" | "login" | "pricing" | "compare" | "join" | "about" | "contact" | "features" | undefined;
 
 /** The two buttons at the right of the public header. */
 export function HeaderAuth({ active }: { active: Active }) {

@@ -70,6 +70,7 @@ async function Inner() {
           </div>
 
           <section aria-labelledby="pay">
+            <p className="mb-6 rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700">Want to see exactly what each plan includes? <a href="/compare" className="font-medium text-brand underline">Compare Basic and Pro</a>.</p>
             <h2 id="pay" className="text-xl font-semibold">How paying works</h2>
             <ol className="mt-4 space-y-4">
               {STEPS.map(([t, d], i) => (

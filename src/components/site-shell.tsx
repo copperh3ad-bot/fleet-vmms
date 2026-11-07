@@ -5,10 +5,10 @@ import { HeaderAuth } from "@/components/auth-links";
 import { PublicMenu } from "@/components/public-menu";
 import { OPERATOR_NAME } from "@/lib/site";
 
-type Page = "signup" | "login" | "pricing" | "join" | "about" | "contact" | "features";
+type Page = "signup" | "login" | "pricing" | "compare" | "join" | "about" | "contact" | "features";
 
 const FOOTER: { title: string; links: [string, string][] }[] = [
-  { title: "Fleet OTG", links: [["/features", "Features"], ["/pricing", "Pricing"], ["/about", "About us"], ["/contact", "Contact us"]] },
+  { title: "Fleet OTG", links: [["/features", "Features"], ["/pricing", "Pricing"], ["/compare", "Compare plans"], ["/about", "About us"], ["/contact", "Contact us"]] },
   { title: "Get started", links: [["/signup", "Start a free trial"], ["/login", "Sign in"], ["/join", "Join your company"]] },
   { title: "Legal", links: [["/terms", "Terms"], ["/privacy", "Privacy"]] },
 ];

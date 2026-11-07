@@ -19,7 +19,7 @@ export function chatConfig(s: Record<string, string | undefined>): ChatConfig | 
 }
 
 /** Where the button may appear: the pages anyone can open and the signed-in workspace. Never the operator's area, the one-time-link pages, or the pages that handle a sign-in code or a password. */
-const PUBLIC_CHAT_PATHS = ["/", "/pricing", "/features", "/about", "/contact", "/signup", "/login", "/join", "/terms", "/privacy", "/forgot-password"];
+const PUBLIC_CHAT_PATHS = ["/", "/pricing", "/compare", "/features", "/about", "/contact", "/signup", "/login", "/join", "/terms", "/privacy", "/forgot-password"];
 export function chatAllowedOn(pathname: string): boolean {
   if (pathname === "/w" || pathname.startsWith("/w/")) return true;
   return PUBLIC_CHAT_PATHS.some((p) => pathname === p || (p !== "/" && pathname.startsWith(`${p}/`)));

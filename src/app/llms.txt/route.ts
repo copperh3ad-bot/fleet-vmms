@@ -7,6 +7,7 @@ const PAGES: Record<string, [string, string]> = {
   "/": ["Home", "What Fleet OTG is, what you get, and common questions."],
   "/features": ["Features", "How a repair moves through Fleet OTG, and the fleet problems it solves."],
   "/pricing": ["Pricing", "The plan, how the free trial works, and how paying works."],
+  "/compare": ["Compare plans", "What Basic and Pro include, side by side."],
   "/about": ["About us", "Why Fleet OTG exists and how the team works."],
   "/contact": ["Contact us", "Ask a question before signing up, or get help with an account or a payment."],
   "/signup": ["Start a free trial", "Create a company workspace."],

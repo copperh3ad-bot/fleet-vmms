@@ -7,7 +7,7 @@ describe("guard", () => {
       expect(guardDecision(p, false)).toEqual({ action: "redirect", to: "/login" });
   });
   it("leaves only the named public pages open when signed out (ADR-014)", () => {
-    for (const p of ["/", "/login", "/forgot-password", "/about", "/contact", "/api/health", "/signup", "/signup/check-email", "/terms", "/privacy", "/auth/callback", "/robots.txt", "/sitemap.xml", "/llms.txt", "/features", "/.well-known/security.txt", "/api/auth/send-email", "/api/inbound/email", "/api/inbound/whatsapp", "/api/chat-config", "/vehicle-sheet.xlsx", "/vehicle-sheet.csv"])
+    for (const p of ["/", "/login", "/forgot-password", "/about", "/contact", "/api/health", "/signup", "/signup/check-email", "/terms", "/privacy", "/auth/callback", "/robots.txt", "/sitemap.xml", "/llms.txt", "/compare", "/features", "/.well-known/security.txt", "/api/auth/send-email", "/api/inbound/email", "/api/inbound/whatsapp", "/api/chat-config", "/vehicle-sheet.xlsx", "/vehicle-sheet.csv"])
       expect(guardDecision(p, false)).toEqual({ action: "next" });
   });
   it("keeps the choose-a-new-password page behind a session (ADR-019)", () => {

@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.fleetotg.com").replace(/\/+$/, "");
 
 /** Pages that search engines may list: the ones anyone can open and that say something. Sign-in and reset pages are left out. */
-export const INDEXABLE_PATHS = ["/", "/features", "/about", "/pricing", "/contact", "/signup", "/join", "/terms", "/privacy"] as const;
+export const INDEXABLE_PATHS = ["/", "/features", "/about", "/pricing", "/compare", "/contact", "/signup", "/join", "/terms", "/privacy"] as const;
 
 /** Never to be crawled: private workspaces, the operator, one-person links, and the plumbing. */
 export const PRIVATE_PREFIXES = ["/w/", "/admin", "/o/", "/q/", "/invite/", "/setup", "/auth/", "/api/", "/reset-password", "/forgot-password"] as const;
