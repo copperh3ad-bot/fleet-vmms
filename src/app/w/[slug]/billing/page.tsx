@@ -9,7 +9,6 @@ import { formatPrice } from "@/lib/billing/offer";
 import { listClaims, listInvoices, paymentReference, BILLING_PERMISSION } from "@/lib/billing/payments";
 import { loadPlatformSettings } from "@/lib/billing/settings";
 import { getTaxProfile, quoteTax } from "@/lib/billing/tax-data";
-import { fmtMinor } from "@/lib/billing/tax";
 import { ClaimForm, RequestBillForm } from "./forms";
 import { TaxProfileForm } from "./tax-form";
 

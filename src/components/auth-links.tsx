@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useSyncExternalStore } from "react";
 
 // Whether someone is signed in, from the readable flag cookie the proxy keeps (src/lib/supabase/proxy.ts). The public pages are
@@ -14,7 +15,7 @@ type Active = "signup" | "login" | "pricing" | "join" | "about" | "contact" | "f
 
 /** The two buttons at the right of the public header. */
 export function HeaderAuth({ active }: { active: Active }) {
-  if (useSignedIn()) return <a href="/" className="rounded-md bg-badge px-4 py-2 font-medium text-side hover:opacity-90">Open workspace</a>;
+  if (useSignedIn()) return <Link href="/" prefetch={false} className="rounded-md bg-badge px-4 py-2 font-medium text-side hover:opacity-90">Open workspace</Link>;
   return (
     <>
       <a href="/login" aria-current={active === "login" ? "page" : undefined}

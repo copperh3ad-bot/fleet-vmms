@@ -18,7 +18,6 @@ import { saveVendor } from "@/lib/master/service";
 import { inviteUser } from "@/lib/admin/service";
 import { findTenantByToken, routeToken, unrouteToken, type TenantRef } from "./index";
 import { normalizePhone } from "@/lib/phone";
-import { SITE_URL } from "@/lib/site";
 import { hashToken, newToken } from "@/lib/odometer/link";
 import { learnerAllowed, licenceProblem } from "@/lib/compliance/licences";
 import { sendWhatsApp, whatsappCodeConfigured } from "@/lib/whatsapp";

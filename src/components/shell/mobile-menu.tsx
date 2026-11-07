@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
 /** The phone and tablet menu: folded away until opened, and folded again as soon as a link in it is used. The layout stays
@@ -7,7 +7,8 @@ import { usePathname } from "next/navigation";
 export function MobileMenu({ bar, children }: { bar: ReactNode; children: ReactNode }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
-  useEffect(() => setOpen(false), [path]);
+  const [seen, setSeen] = useState(path);
+  if (seen !== path) { setSeen(path); setOpen(false); }
   return (
     <details className="group" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
       <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3">{bar}</summary>

@@ -16,7 +16,8 @@ export function PublicMenu() {
   const links = signedIn ? [["/", "Open workspace"] as [string, string], ...LINKS.slice(2)] : LINKS;
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
-  useEffect(() => setOpen(false), [path]);
+  const [seen, setSeen] = useState(path);
+  if (seen !== path) { setSeen(path); setOpen(false); }
   useEffect(() => {
     if (!open) return;
     const away = (e: Event) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };

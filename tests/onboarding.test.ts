@@ -35,7 +35,7 @@ describe("get-started walk-through", () => {
     const emp = await master.saveEmployee(d, owner(), { full_name: "Driver One", employee_no: "E-1" });
     expect((await status(owner())).people).toBe(true);
     const veh = await master.addVehicle(d, owner(), { registration_no: "WALK-1", make: "Toyota", model: "Hilux", employee_id: emp.id, holding_since: "2026-01-01" });
-    let s = await status(owner());
+    const s = await status(owner());
     expect(s.vehicles).toBe(true);
     expect(s.drivers).toBe(true);                     // a driver was named when the vehicle was added
     expect(s.history).toBe(false);                    // but nobody has said when it was last serviced
