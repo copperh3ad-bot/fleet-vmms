@@ -72,7 +72,7 @@ export function Landing({ price }: { price: ReactNode }) {
 
       <section className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 pb-16">
         <h2 className="text-2xl font-semibold">What you get</h2>
-        <p className="mt-2 max-w-2xl text-zinc-600">Everything below except the two marked Pro is in Basic. <a href="/compare" className="font-medium text-brand underline">Compare Basic and Pro</a>.</p>
+        <p className="mt-2 max-w-2xl text-zinc-600">Everything below except the two marked Pro is in Basic. <a href="/compare" className="font-medium text-zinc-900 underline">Compare Basic and Pro</a>.</p>
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
             <div key={f.title} className="reveal lift group rounded-2xl border border-zinc-200 bg-white p-6 shadow-[var(--shadow-card)]">
