@@ -521,3 +521,7 @@ Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the lan
 ## 2026-11-08 Admin decides own work only when alone (ADR-072); clean checked test builds
 - Tenant 0038 (admin_may_decide_own) built, deployed with the app; apply on live after the owner says so. Until applied the database keeps the old rule and the screens fall back to it.
 - Render-time logging no longer uses after() (logSoon); ACTIVITY_LOG=off kill switch. e2e builds from scratch and checks for missing script files (e2e/check-build.mjs). Full browser suite 237 passed, 0 failed.
+
+## 2026-11-08 Live: tenant 0038 applied (ADR-072)
+- Applied to beta and destinsolutions. Each has one active member who can approve (the administrator), so the administrator may still decide their own work; the moment a second approver is added the exception ends. Function closed to PUBLIC (0037 kept).
+- Still held: nothing pending on live. Open on the owner: valid service key in Netlify then press Admin > Settings > Check file storage; Zoho mail values; Utility appeal.
