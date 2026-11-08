@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+export const metadata = { robots: { index: false, follow: false } };
+
 // Shown when a signed-in person opens a page their role has no permission for. (Hiding the link is only tidiness;
 // the permission is checked on every page and action, and this is what they see when it fails.)
 export default function Forbidden() {

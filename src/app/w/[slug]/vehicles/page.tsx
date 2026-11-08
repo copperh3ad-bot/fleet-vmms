@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import { ExportLink } from "@/components/export-link";
 import { requireMembership } from "@/lib/auth/session";
-import { permissionsOf } from "@/lib/auth/can";
+import { departmentOf, permissionsOf } from "@/lib/auth/can";
+import { DepartmentNote } from "@/components/department-note";
 import { getDriver } from "@/lib/db";
 import { NO_DEPARTMENT, getBoard, type BoardRow, type ServiceFilter } from "@/lib/master/board";
 import { planUsage } from "@/lib/admin/service";
@@ -34,7 +35,7 @@ async function Vehicles({ params, searchParams }: { params: Promise<{ slug: stri
   const q = one(sp.q).slice(0, 80), filter = one(sp.filter), page = Number(one(sp.page)) || 1, dept = one(sp.dept).slice(0, 60);
   const m = await requireMembership(slug, { fullScope: true });
   const driver = getDriver();
-  const [b, perms, plan] = await Promise.all([getBoard(driver, m, { q: q || undefined, filter, page, dept: dept || undefined }), permissionsOf(driver, m), planUsage(driver, m)]);
+  const [b, perms, plan, myDepartment] = await Promise.all([getBoard(driver, m, { q: q || undefined, filter, page, dept: dept || undefined }), permissionsOf(driver, m), planUsage(driver, m), departmentOf(driver, m)]);
   const canWrite = perms.has("vehicle.write");
   const active = (["all", "overdue", "due_soon", "scheduled", "no_history", "ok"] as ServiceFilter[]).includes(filter as ServiceFilter) ? (filter as ServiceFilter) : "all";
   const href = (over: Record<string, string>) => {
@@ -84,6 +85,7 @@ async function Vehicles({ params, searchParams }: { params: Promise<{ slug: stri
       {b.rows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-600">
           {q || active !== "all" ? "No vehicle matches." : "No vehicles yet."} {canWrite && !q && active === "all" && <>Start with <a className="text-brand underline" href={`/w/${slug}/vehicles/new`}>Add vehicle</a> or <a className="text-brand underline" href={`/w/${slug}/vehicles/import`}>import a CSV</a>.</>}
+          {!q && active === "all" && <DepartmentNote department={myDepartment} what="vehicles" />}
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">

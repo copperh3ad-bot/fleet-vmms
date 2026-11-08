@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { requireMembership } from "@/lib/auth/session";
-import { permissionsOf } from "@/lib/auth/can";
+import { departmentOf, permissionsOf } from "@/lib/auth/can";
+import { DepartmentNote } from "@/components/department-note";
 import { getDriver } from "@/lib/db";
 import { listEmployeeOptions, listVehicles } from "@/lib/master/service";
 import { listReasonCodes, listServiceTags } from "@/lib/jobcards/service";
@@ -17,12 +18,20 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const sp = await searchParams;
   const m = await requireMembership(slug);
   const driver = getDriver();
-  const perms = await permissionsOf(driver, m);
+  const [perms, myDepartment] = await Promise.all([permissionsOf(driver, m), departmentOf(driver, m)]);
   const [vehicles, reasons, people, serviceTags] = await Promise.all([
     listVehicles(driver, m), listReasonCodes(driver, m), perms.has("vehicle.write") ? listEmployeeOptions(driver, m) : Promise.resolve(undefined), listServiceTags(driver, m),
   ]);
   const vehicleOpts = vehicles.filter((v) => v.status !== "disposed").map((v) => ({ id: v.id, registration_no: v.registration_no, label: `${v.registration_no}${v.make ? ` · ${[v.make, v.model].filter(Boolean).join(" ")}` : ""}` }));
   const vehicle = typeof sp.vehicle === "string" ? sp.vehicle : "";
+  if (vehicleOpts.length === 0 && myDepartment) {
+    return (
+      <main className="space-y-5 p-6 text-zinc-900">
+        <PageHeader crumb={<><a className="underline" href={`/w/${slug}/job-cards`}>Job cards</a> / New</>} title="New job card" />
+        <div className="rounded-lg border border-dashed border-zinc-300 bg-white p-6 text-sm text-zinc-700"><p>There is no vehicle to raise a job card for.</p><DepartmentNote department={myDepartment} what="choices" /></div>
+      </main>
+    );
+  }
   return (
     <main className="space-y-5 p-6 text-zinc-900">
       <PageHeader crumb={<><a className="underline" href={`/w/${slug}/job-cards`}>Job cards</a> / New</>} title="New job card" sub={<>No connection in the field? <a className="underline" href={`/w/${slug}/job-cards/import`}>Fill the offline form</a> and upload it later.</>} />

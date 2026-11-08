@@ -292,3 +292,12 @@ describe("the administrator deciding their own card when the only other approver
     });
   });
 });
+
+describe("which department a role is tied to (for the empty-page notes)", () => {
+  it("names the department for a department role and is null for every other role", async () => {
+    const { departmentOf } = await import("@/lib/auth/can");
+    expect(await departmentOf(d, l1())).toBe("Logistics");
+    expect(await departmentOf(d, mgr())).toBeNull();
+    expect(await departmentOf(d, owner())).toBeNull();
+  });
+});

@@ -115,3 +115,12 @@ export async function adminMayDecideOwn(driver: Driver, m: Membership, permissio
     try { return await run("select admin_may_decide_own($1) as ok", [permission]); } catch { return true; }
   }
 }
+
+/**
+ * The department this person's role is tied to (ADR-048), or null for a role that sees the whole company. A department login sees only the vehicles whose own
+ * department is this one, whatever department the person is listed under as an employee, so the empty pages use this name to say why they look empty.
+ */
+export async function departmentOf(driver: Driver, m: Membership): Promise<string | null> {
+  try { return await withTenant(driver, m, async (q) => (await q.query<{ department: string }>("select department from role_departments where role_key = $1", [m.role])).rows[0]?.department ?? null); }
+  catch { return null; }
+}

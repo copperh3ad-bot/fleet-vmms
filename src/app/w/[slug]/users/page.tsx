@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { requireMembership } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
 import { PageHeader, Panel, Pill, btnPrimary, type Tone } from "@/components/ui";
-import { getRoleMatrix, listInvitations, listMembers, listRoles, planUsage } from "@/lib/admin/service";
+import { getRoleMatrix, listInvitations, listMembers, listRoleDepartments, listRoles, planUsage } from "@/lib/admin/service";
 import { listVendors } from "@/lib/master/service";
 import { plural } from "@/lib/labels";
 import { getJoinCode, listJoinRequests } from "@/lib/orgs/join";
@@ -40,9 +40,9 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const sp = await searchParams;
   const m = await requireMembership(slug, { fullScope: true });
   const driver = getDriver();
-  const [members, invites, roles, use, vendors, matrix, joinCode, requests, base, allowLearner] = await Promise.all([
+  const [members, invites, roles, use, vendors, matrix, joinCode, requests, base, allowLearner, roleDepts] = await Promise.all([
     listMembers(driver, m), listInvitations(driver, m), listRoles(driver, m), planUsage(driver, m), listVendors(driver, m).catch(() => []), getRoleMatrix(driver, m),
-    getJoinCode(driver, m), listJoinRequests(driver, m), origin(), getLearnerAllowed(driver, m).catch(() => false),
+    getJoinCode(driver, m), listJoinRequests(driver, m), origin(), getLearnerAllowed(driver, m).catch(() => false), listRoleDepartments(driver, m).catch(() => ({} as Record<string, string>)),
   ]);
   // Workshops never sign up and are not given logins (ADR-033), so the role is not offered. People already holding it keep it until removed.
   const roleOpts = roles.filter((r) => r.key !== "vendor").map((r) => [r.key, r.name] as [string, string]);
@@ -90,7 +90,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
                     <td className="px-5 py-3 font-medium">{p.full_name ?? p.vendor_name ?? "Unnamed"}{p.is_me && <span className="ml-2 text-xs font-normal text-zinc-500">You</span>}</td>
                     <td className="py-3 font-mono text-xs">{p.employee_no ?? "—"}</td>
                     <td className="py-3">{p.email ?? (p.username ? <span><span className="font-mono">{p.username}</span><span className="block text-xs text-zinc-500">Sign-in name</span></span> : p.vendor_name ? p.vendor_name : "—")}</td>
-                    <td className="py-3">{p.role_name}{p.vehicle_scope === "own" && p.role !== "vendor" && <span className="block text-xs text-zinc-500">Own vehicle only</span>}</td>
+                    <td className="py-3">{p.role_name}{p.role_department ? <span className="block text-xs text-zinc-500">{p.role_department} vehicles only</span> : p.vehicle_scope === "own" && p.role !== "vendor" && <span className="block text-xs text-zinc-500">Own vehicle only</span>}</td>
                     <td className="py-3"><Pill tone={status(p.status).tone}>{status(p.status).label}</Pill></td>
                     <td className="py-3 whitespace-nowrap">{dmy(p.since)}</td>
                     <td className="py-3 pr-5 text-right">{!p.is_me && <a className="text-sky-800 underline" href={`/w/${slug}/users?edit=${p.user_id}#invite`}>Change</a>}{!p.is_me && p.username && p.status === "active" && <div className="mt-1 space-y-1 text-left"><ResetLink slug={slug} userId={p.user_id} /><ReplaceLogin slug={slug} userId={p.user_id} name={p.full_name ?? p.username} /></div>}</td>
@@ -127,11 +127,11 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
         <div className="space-y-5" id="invite">
           {editing ? (
             <Panel title="Change access" sub={editing.full_name ?? editing.vendor_name ?? undefined} action={<a className="text-sm text-zinc-600 underline" href={`/w/${slug}/users`}>Close</a>}>
-              <MemberControls key={editing.user_id} slug={slug} userId={editing.user_id} role={editing.role} scope={editing.vehicle_scope} status={editing.status} roles={roleOpts} isMe={editing.is_me} isVendor={editing.role === "vendor"} />
+              <MemberControls key={editing.user_id} slug={slug} userId={editing.user_id} role={editing.role} scope={editing.vehicle_scope} status={editing.status} roles={roleOpts} roleDepts={roleDepts} isMe={editing.is_me} isVendor={editing.role === "vendor"} />
             </Panel>
           ) : (
             <Panel title="Invite a person" sub="Each invitation is for one employee code and one role, and the link is sent to the person's phone number only. They create their account with their email, or with a sign-in name you give them if they have no email. Workshops are not invited here: add them on the Vendors page, and they work from the links we email them, with no account and no licence. People can also ask to join with your company code, below.">
-              <InviteForm stack slug={slug} allowLearner={allowLearner} roles={roleOpts} vendors={vendors.filter((v) => v.status === "active").map((v) => [v.id, v.name])} />
+              <InviteForm stack slug={slug} allowLearner={allowLearner} roles={roleOpts} roleDepts={roleDepts} vendors={vendors.filter((v) => v.status === "active").map((v) => [v.id, v.name])} />
             </Panel>
           )}
           <Panel title="Company code" sub="So people can ask to join without waiting for an invitation">

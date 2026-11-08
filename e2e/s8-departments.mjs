@@ -106,6 +106,26 @@ export async function departments(S) {
     check(has(csv, "Department") && has(csv, mine1) && !has(csv, other), "the vehicles export leaks other departments");
   });
 
+  await step("the Users page says the Logistics person sees Logistics vehicles only, not all vehicles", async () => {
+    await go(o, `${base}/users`);
+    const row = o.page.locator("tr", { hasText: "Logistics" }).filter({ hasText: lg.email.split("@")[0] }).first();
+    const text = (await row.count()) ? await row.innerText() : await body(o);
+    check(has(text, "Logistics vehicles only"), "the Users page does not say that a Logistics login sees Logistics vehicles only");
+  });
+
+  await step("with no vehicles in its department, a Logistics login is told why the lists look empty", async () => {
+    sql(`set search_path = ${sch}, public; update vehicles set department = 'Operations' where lower(department) = 'logistics'`);          // nothing is left in Logistics for the moment
+    try {
+      await go(lg, `${base}/vehicles`);
+      const t = await body(lg);
+      check(has(t, "No vehicles yet") && has(t, "sees only vehicles in the Logistics department"), `the empty vehicle list does not explain itself: ${t.slice(0, 200)}`);
+      await go(lg, `${base}/job-cards/new`);
+      check(has(await body(lg), "sees only vehicles in the Logistics department"), "the new job card page does not explain why there is no vehicle to choose");
+    } finally {
+      sql(`set search_path = ${sch}, public; update vehicles set department = 'Logistics' where registration_no in ('${mine1}', '${mine2}')`);
+    }
+  });
+
   const issuesOfLogistics = (await import("./lib.mjs")).issues.get("logistics") ?? [];
   if (issuesOfLogistics.length) finding("quality", `browser problems for a logistics login: ${[...new Set(issuesOfLogistics)].slice(0, 3).join(" | ")}`);
 }

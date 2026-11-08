@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import { ExportLink } from "@/components/export-link";
 import { requireMembership } from "@/lib/auth/session";
-import { permissionsOf } from "@/lib/auth/can";
+import { departmentOf, permissionsOf } from "@/lib/auth/can";
+import { DepartmentNote } from "@/components/department-note";
 import { getDriver } from "@/lib/db";
 import { listJobCards } from "@/lib/jobcards/service";
 import { PageHeader, Panel, Pill, Plate, btn, btnPrimary, money, type Tone } from "@/components/ui";
@@ -21,7 +22,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const m = await requireMembership(slug);
   const cur = m.currency || "PKR";
   const driver = getDriver();
-  const [rows, perms] = await Promise.all([listJobCards(driver, m, { search: q || undefined, status: status || undefined }), permissionsOf(driver, m)]);
+  const [rows, perms, myDepartment] = await Promise.all([listJobCards(driver, m, { search: q || undefined, status: status || undefined }), permissionsOf(driver, m), departmentOf(driver, m)]);
   const control = "h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm";
   return (
     <main className="space-y-5 p-6 text-zinc-900">
@@ -35,7 +36,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
         <button className={`${control} font-medium hover:bg-zinc-50`}>Search</button>
       </form>
       <Panel flush>
-        {rows.length === 0 ? <p className="p-5 text-sm text-zinc-500">{q || status ? "No job card matches." : "No job cards yet."}</p> : (
+        {rows.length === 0 ? <div className="p-5 text-sm text-zinc-500"><p>{q || status ? "No job card matches." : "No job cards yet."}</p>{!q && !status && <DepartmentNote department={myDepartment} what="job cards" />}</div> : (
           <div className="overflow-x-auto"><table className="w-full text-left text-sm">
             <thead className="text-[11px] uppercase tracking-wide text-zinc-500">
               <tr><th className="px-5 py-3">Job</th><th>Vehicle</th><th>Reason</th><th>Requested by</th><th>Priority</th><th className="text-right">Estimate ({cur})</th><th className="px-5">Status</th></tr>

@@ -47,7 +47,7 @@ export function LinkBox({ invite }: { invite: InviteResult }) {
   );
 }
 
-export function InviteForm({ slug, roles, vendors, stack, allowLearner = false }: { stack?: boolean; slug: string; roles: [string, string][]; vendors: [string, string][]; allowLearner?: boolean }) {
+export function InviteForm({ slug, roles, roleDepts = {}, vendors, stack, allowLearner = false }: { stack?: boolean; slug: string; roles: [string, string][]; /** roles tied to a department (ADR-048), by role key */ roleDepts?: Record<string, string>; vendors: [string, string][]; allowLearner?: boolean }) {
   const [state, setState] = useState<InviteState>({});
   const [pending, setPending] = useState(false);
   const [role, setRole] = useState("");
@@ -90,6 +90,8 @@ export function InviteForm({ slug, roles, vendors, stack, allowLearner = false }
         </div>
         {isVendor
           ? <Select name="vendor_id" label="Workshop" state={state} blank="Choose the workshop" required options={vendors} />
+          : roleDepts[role]
+            ? <div key="dept"><input type="hidden" name="vehicle_scope" value="all" /><p className="text-xs font-medium text-zinc-600">Vehicles they can see</p><p className="mt-1 text-sm text-zinc-800">{roleDepts[role]} vehicles only. This role is tied to the {roleDepts[role]} department, so it sees only the vehicles whose department is {roleDepts[role]}.</p></div>
           : role === "requester"
             ? <Select key="own" name="vehicle_scope" label="Vehicles they can raise job cards for" state={{ ...state, values: { vehicle_scope: "own" } }} options={[["own", "Only the vehicle they hold"]]} />
             : <Select key="any" name="vehicle_scope" label="Vehicles they can see" state={{ ...state, values: { vehicle_scope: state.values?.vehicle_scope ?? "all" } }} blank="All" options={[["all", "All vehicles"], ["own", "Only the vehicle they hold"]]} />}
@@ -158,17 +160,19 @@ export function ReplaceLogin({ slug, userId, name }: { slug: string; userId: str
   );
 }
 
-export function MemberControls({ slug, userId, role, scope, status, roles, isMe, isVendor }: {
-  slug: string; userId: string; role: string; scope: string; status: string; roles: [string, string][]; isMe: boolean; isVendor: boolean;
+export function MemberControls({ slug, userId, role, scope, status, roles, roleDepts = {}, isMe, isVendor }: {
+  slug: string; userId: string; role: string; scope: string; status: string; roles: [string, string][]; roleDepts?: Record<string, string>; isMe: boolean; isVendor: boolean;
 }) {
+  const [pickedRole, setPickedRole] = useState(role);
   const [state, action] = useActionState<FormState, FormData>(changeMemberAction.bind(null, slug, userId), {});
   if (isMe) return <span className="text-xs text-zinc-500">You</span>;
   return (
     <form action={action} className="flex flex-wrap items-center gap-2">
-      <select name="role" defaultValue={role} aria-label="Role" disabled={isVendor} className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-sm">
+      <select name="role" value={pickedRole} onChange={(e) => setPickedRole(e.target.value)} aria-label="Role" disabled={isVendor} className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-sm">
         {roles.filter(([k]) => (isVendor ? k === "vendor" : k !== "vendor")).map(([k, n]) => <option key={k} value={k}>{n}</option>)}
       </select>
-      {!isVendor && <select name="vehicle_scope" defaultValue={scope} aria-label="Vehicles they can see" className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-sm"><option value="all">All vehicles</option><option value="own">Own vehicle only</option></select>}
+      {!isVendor && roleDepts[pickedRole] && <><input type="hidden" name="vehicle_scope" value="all" /><span className="text-sm text-zinc-700">{roleDepts[pickedRole]} vehicles only</span></>}
+      {!isVendor && !roleDepts[pickedRole] && <select name="vehicle_scope" defaultValue={scope} aria-label="Vehicles they can see" className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-sm"><option value="all">All vehicles</option><option value="own">Own vehicle only</option></select>}
       <select name="status" defaultValue={status} aria-label="Access" className="h-9 rounded-md border border-zinc-300 bg-white px-2 text-sm"><option value="active">Active</option><option value="disabled">Disabled</option></select>
       <button className="h-9 rounded-md border border-zinc-300 bg-white px-3 text-sm" type="submit">Save</button>
       {state.error && <span role="alert" className="text-xs text-red-700">{state.error}</span>}
