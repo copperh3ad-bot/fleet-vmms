@@ -44,6 +44,20 @@ export async function vehicleForm(S) {
     check(s.model !== first, "the model list did not follow the make");
   });
 
+  await step("a vehicle with an insurance expiry date but no policy number saves (it returned a server error on the live site)", async () => {
+    await go(o, `${base}/vehicles/new`);
+    await fill(o, "#registration_no", "INS-4040");
+    await o.page.selectOption("#make", "Toyota"); await o.page.selectOption("#model", "Hilux"); await o.page.selectOption("#year", "2021");
+    await o.page.selectOption("#fuel_type", { index: 1 });
+    await fill(o, "#odometer_km", "15000");
+    await fill(o, "#insurance_valid_to", "2027-03-31");
+    await fill(o, "#doc_fitness_expires", "2027-06-30");
+    await press(o, "Save vehicle", { wait: 1500 });
+    await waitText(o, "INS-4040", 8000);
+    const schema = sql(`select schema_name from public.tenants where slug = '${slug}'`);
+    check(sql(`select p.insurer || '/' || p.policy_no from "${schema}".insurance_policies p join "${schema}".vehicles v on v.id = p.vehicle_id where v.registration_no = 'INS-4040'`) === "Not recorded yet/Not recorded yet", "the insurance was not stored with the placeholders");
+  });
+
   await step("an unlisted make and model are saved at once, sent for review, and offered back to the company", async () => {
     await go(o, `${base}/vehicles/new`);
     await fill(o, "#registration_no", "ZOT-777");

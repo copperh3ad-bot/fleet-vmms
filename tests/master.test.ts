@@ -115,6 +115,20 @@ describe("vehicles", () => {
     expect(counts).toEqual({ ins: 1, docs: 1, bud: 1 });
   });
 
+  it("saves a vehicle whose insurance has an expiry but no policy number (found by the activity log on the live site)", async () => {
+    // The form fills in the insurer and the start date when they are left empty; the policy number must be filled in too, or the database refuses the whole vehicle.
+    const { id } = await svc.addVehicle(d, admin(), { registration_no: "INS-001", insurance: { insurer: "Not recorded yet", policy_no: "", valid_from: "2025-12-31", valid_to: "2026-12-31" } });
+    const row = await withTenant(d, admin(), async (q) => (await q.query<{ insurer: string; policy_no: string }>("select insurer, policy_no from insurance_policies where vehicle_id = $1", [id])).rows[0]);
+    expect(row).toEqual({ insurer: "Not recorded yet", policy_no: "Not recorded yet" });
+    const b = await svc.addVehicle(d, admin(), { registration_no: "INS-002", insurance: { insurer: "EFU", valid_from: "2026-01-01", valid_to: "2026-12-31" } });
+    expect((await withTenant(d, admin(), async (q) => (await q.query<{ policy_no: string }>("select policy_no from insurance_policies where vehicle_id = $1", [b.id])).rows[0])).policy_no).toBe("Not recorded yet");
+  });
+
+  it("turns a missing required value anywhere into a plain message instead of a server error", async () => {
+    await expect(withTenant(d, admin(), (q) => q.query("insert into insurance_policies(vehicle_id, insurer, policy_no, valid_from, valid_to) select id, 'X', null, now(), now() from vehicles limit 1"))).rejects.toThrow(/not-null/);
+    await expect(Promise.resolve().then(() => svc.friendly(new Error('null value in column "policy_no" of relation "insurance_policies" violates not-null constraint')))).rejects.toMatchObject({ message: expect.stringMatching(/policy no/i) });
+  });
+
   it("blocks duplicate plates however they are typed, with a plain message", async () => {
     await svc.addVehicle(d, admin(), { registration_no: "ABC-123" });
     for (const dup of ["abc-123", "ABC 123", "ABC123", " Abc-123 "]) {

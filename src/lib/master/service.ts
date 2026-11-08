@@ -18,7 +18,7 @@ const MAX_IMPORT_ROWS = 500;
 const MAX_IMPORT_BYTES = 1_000_000;
 
 /** Postgres rejections that mean "you typed something that clashes", turned into plain sentences. */
-function friendly(e: unknown): never {
+export function friendly(e: unknown): never {
   const msg = e instanceof Error ? e.message : String(e);
   if (msg.includes("vehicles_reg_norm_uq") || msg.includes("vehicles_registration_no_key")) throw new UserError("A vehicle with this registration number already exists.", { registration_no: "Already registered" });
   if (msg.includes("employees_no_uq")) throw new UserError("Another employee already has this employee number.", { employee_no: "Already used" });
@@ -31,6 +31,9 @@ function friendly(e: unknown): never {
     const m = msg.match(/(employee already holds[^"]*|new custody must start[^"]*|employee is not active|vehicle has no current holder|end date is before[^"]*)/);
     throw new UserError(m ? m[0] : "One of the values is not allowed.");
   }
+  // A required value the screen did not ask for or fill in: a plain message naming it, not a server error page. The activity log keeps the message, so the gap can still be found and closed.
+  const empty = msg.match(/null value in column "(\w+)"/);
+  if (empty) throw new UserError(`${empty[1].replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase())} is needed to save this. Fill it in and try again.`);
   const plan = msg.match(/plan limit: (users|vehicles) \((\d+)\)/);
   if (plan) throw new UserError(`Your plan allows ${plan[2]} ${plan[1]}. Dispose of vehicles you no longer use, or ask for a bigger plan.`);
   throw e;

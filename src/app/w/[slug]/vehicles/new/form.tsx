@@ -112,7 +112,7 @@ export function AddVehicleForm({ slug, employees, departments = [], serviceTypes
                 {f("insurance_insurer", "Insurer")}{f("insurance_policy_no", "Policy number")}{f("insurance_valid_from", "Valid from", { type: "date" })}
                 {f("insurance_premium", "Premium", { inputMode: "decimal" })}
               </div>
-              <p className="mt-1 text-xs text-zinc-500">If you leave the insurer and start date empty, the insurer is recorded as “Not recorded yet” and the start as one year before the expiry. Correct them later on the vehicle.</p>
+              <p className="mt-1 text-xs text-zinc-500">If you leave the insurer, policy number and start date empty, the insurer and policy number are recorded as “Not recorded yet” and the start as one year before the expiry. Correct them later on the vehicle.</p>
               <div className={`${three} mt-3`}>
                 {f("doc_registration_expires", "Registration expires", { type: "date" })}{f("doc_registration_ref", "Registration reference")}<span />
                 {f("doc_route_permit_expires", "Route permit expires", { type: "date" })}{f("doc_route_permit_ref", "Route permit reference")}<span />

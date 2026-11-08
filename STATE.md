@@ -509,3 +509,7 @@ Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the lan
 ## 2026-11-08 Live: tenant 0037 applied
 - Tenant 0037 applied to beta; destinsolutions (created after the deploy) already had it. Every function in both schemas is closed to PUBLIC and every view runs with the caller rights. The link roles keep exactly their named functions (inbound_mail 5, odometer_link 2, quotation_link 4), the same set a freshly built schema gets.
 - Still pending on live: control 0020 only (apply after the owner has added, opened and deleted a job card photo on the live site).
+
+## 2026-11-08 Live: control 0020 applied; vehicle save defect fixed (not yet deployed)
+- Control 0020 applied: the storage bucket has no policy for browser roles; as authenticated and anon a token sees 0 of the files and cannot add one. All file access is the server (ADR-069).
+- Defect found by the new activity log on the live site: saving a vehicle with an insurance expiry but no policy number gave a server error (insurance_policies.policy_no is not null). Fixed in the vehicle schema (blank policy number becomes "Not recorded yet"); any other missing required value now gives a plain message instead of a server error. Unit and browser tests cover it.

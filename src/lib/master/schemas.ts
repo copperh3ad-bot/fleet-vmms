@@ -6,6 +6,9 @@ const text = (max = 120) => z.preprocess(blank, z.string().trim().max(max).optio
 const date = z.preprocess(blank, z.iso.date().optional());
 const num = (min = 0) => z.preprocess(blank, z.coerce.number().min(min).max(99_999_999).optional());
 
+/** What is kept for a detail the database requires but the person did not give. It can be corrected later on the vehicle. */
+export const NOT_RECORDED = "Not recorded yet";
+
 export const FUEL_TYPES = ["petrol", "diesel", "cng", "lpg", "hybrid", "electric"] as const;
 export const VEHICLE_CLASSES = ["car", "pickup", "van", "truck", "bus", "motorcycle", "forklift", "other"] as const;
 
@@ -30,7 +33,7 @@ export const vehicleSchema = z.object({
     last_odometer_km: num(),
   })).optional(),
   insurance: z.object({
-    insurer: z.string().trim().min(1), policy_no: text(), valid_from: z.iso.date(), valid_to: z.iso.date(), premium: num(),
+    insurer: z.string().trim().min(1), policy_no: z.preprocess(blank, z.string().trim().max(120).default(NOT_RECORDED)), valid_from: z.iso.date(), valid_to: z.iso.date(), premium: num(),
   }).refine((i) => i.valid_to >= i.valid_from, "Insurance end is before its start").optional(),
   documents: z.array(z.object({
     doc_type: z.string().trim().min(1), reference: text(), expires_on: z.iso.date(), issued_by: text(),
