@@ -20,6 +20,7 @@ export default function JoinSentPage({ searchParams }: PageProps<"/join/sent">) 
 async function Inner({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
   const existing = sp.existing === "1";
+  const noCode = sp.confirmed === "1";          // the one-time codes are switched off (ADR-076): the administrator already has the request
   const ref = (await cookies()).get(JOIN_REF_COOKIE)?.value ?? "";
   const waiting = ref ? await joinCodeState(getDriver(), ref).catch(() => null) : null;
   return (
@@ -27,10 +28,11 @@ async function Inner({ searchParams }: { searchParams: Promise<Record<string, st
       <div className="mx-auto max-w-lg px-5 py-16">
         <h1 className="text-3xl font-semibold">{waiting ? "One more step: type the code from WhatsApp" : "Request sent"}</h1>
         {waiting && <CodeForm company={waiting.company} phoneEnds={waiting.phoneEnds} />}
-        {!waiting && <p className="mt-3 text-zinc-700">If you have typed the code we sent on WhatsApp, your administrator can now see your request and will choose what you can do. If you have not been asked for a code on this device, ask to join again from the join page.</p>}
+        {!waiting && noCode && <p className="mt-3 text-zinc-700">Your administrator can now see your request and will choose what you can do.</p>}
+        {!waiting && !noCode && <p className="mt-3 text-zinc-700">If you have typed the code we sent on WhatsApp, your administrator can now see your request and will choose what you can do. If you have not been asked for a code on this device, ask to join again from the join page.</p>}
         <p className="mt-3 text-zinc-700">{existing ? "You already have a login with this email, so just sign in." : "We also sent a confirmation link to your email."}</p>
         <ol className="mt-5 list-decimal space-y-1 pl-5 text-sm text-zinc-600">
-          <li>Type the code from WhatsApp. Nothing happens to your request until you do.</li>
+          {!noCode && <li>Type the code from WhatsApp. Nothing happens to your request until you do.</li>}
           {!existing && <li>Open the confirmation link in your email. Look in spam or junk too.</li>}
           <li>Sign in with your email and password.</li>
           <li>When the administrator approves you, an invitation appears on your home page after you sign in. Accept it and you are in. Until then it shows that your request is waiting.</li>

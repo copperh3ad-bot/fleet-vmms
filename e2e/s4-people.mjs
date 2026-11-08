@@ -4,15 +4,15 @@ const PW = ["a", "long", "test", "password", "1"].join("-");
 const schemaOf = (slug) => sql(`select schema_name from public.tenants where slug = '${slug}'`);
 
 /** Asks to join with the code: the WhatsApp number and driving licence the form now needs, then, if it was accepted, the confirmation from the person's own phone (ADR-055). */
-async function askToJoin(p, { path, code, name, email, shop }) {
+async function askToJoin(p, { path, code, name, email, shop, noCode, phone }) {
   await go(p, `${path}?code=${code}`);
   if (shop) await fill(p, "#workshop_name", shop);
   await fill(p, "#full_name", name); await fill(p, "#email", email); await fill(p, "#note", "Please add me.");
-  await fill(p, "#phone", phoneFor(email)); await fill(p, "#licence_no", `LIC-${phoneFor(email)}`); await fill(p, "#licence_expires_on", "2099-12-31");
+  await fill(p, "#phone", phone ?? phoneFor(email)); await fill(p, "#licence_no", `LIC-${phoneFor(email)}`); await fill(p, "#licence_expires_on", "2099-12-31");
   await fill(p, "#password", PW); await fill(p, "#confirm", PW);
   await p.page.check("input[name=terms]");
   await press(p, "Ask to join", { wait: 1500 });
-  if (p.page.url().includes("/join/sent")) await confirmJoinOnWhatsApp(p);
+  if (!noCode && p.page.url().includes("/join/sent")) await confirmJoinOnWhatsApp(p);
 }
 
 export async function people(S) {
@@ -172,6 +172,21 @@ export async function people(S) {
     check(d.page.url().includes("/join/sent"), "could not ask again");
     await d.ctx.close();
   });
+  await step("with the beta switch off (Admin > Settings, WhatsApp one-time codes) joining asks for no code and the administrator sees the request at once", async () => {
+    sql("insert into public.platform_settings(key, value) values ('otp_checks', 'off') on conflict (key) do update set value = excluded.value");
+    try {
+      const n = await persona("nocode", { email: `nocode.${tag}@example.com`, password: PW });
+      await askToJoin(n, { path: "/join", code: S.code, name: "Nadia Nocode", email: n.email, noCode: true });
+      check(n.page.url().includes("/join/sent"), `the page after asking was ${n.page.url()}`);
+      const t = await body(n);
+      check(has(t, "Your administrator can now see your request"), "the sent page does not say the administrator has the request");
+      check(!has(t, "type the code from WhatsApp"), "the sent page still asks for the WhatsApp code");
+      await go(o, `${base}/users`);
+      check(has(await body(o), "Nadia Nocode"), "the administrator does not see the request");
+      await n.ctx.close();
+    } finally { sql("delete from public.platform_settings where key = 'otp_checks'"); }
+  });
+
   await step("a new code stops the old one at once", async () => {
     await go(o, `${base}/users`);
     await press(o, "Make a new code", { wait: 1500 });
@@ -350,5 +365,23 @@ export async function people(S) {
     await press(stranger, "Sign in", { exact: true, wait: 1500 });
     check(has(await body(stranger), "do not match"), "the replaced login still works");
     await stranger.ctx.close();
+  });
+
+  await step("with the beta switch off, testers may share one phone number across several joins and roles", async () => {
+    sql("delete from public.rate_limits");
+    sql("insert into public.platform_settings(key, value) values ('otp_checks', 'off') on conflict (key) do update set value = excluded.value");
+    try {
+      const shared = "0300 7654321";
+      const liveCode = sql(`select join_code from public.tenants where slug = '${slug}'`);          // an earlier step replaced the code
+      for (const [i, who] of ["Sam", "Sara", "Saad", "Sana"].entries()) {          // four requests, one number: the limit of three an hour applies only while codes are sent
+        const n = await persona(`shared${i}`, { email: `shared${i}.${tag}@example.com`, password: PW });
+        await askToJoin(n, { path: "/join", code: liveCode, name: `${who} Shared`, email: n.email, noCode: true, phone: shared });
+        check(n.page.url().includes("/join/sent") && !has(await body(n), "Too many"), `${who} was stopped at ${n.page.url()}: ${(await n.page.locator("[role=alert]").allInnerTexts()).join(" | ") || (await body(n)).slice(0, 300)}`);
+        await n.ctx.close();
+      }
+      await go(o, `${base}/users`);
+      const t = await body(o);
+      for (const who of ["Sam", "Sara", "Saad", "Sana"]) check(has(t, `${who} Shared`), `${who} Shared is not in the administrator's list`);
+    } finally { sql("delete from public.platform_settings where key = 'otp_checks'"); sql("delete from public.rate_limits"); }
   });
 }

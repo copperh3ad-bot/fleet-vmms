@@ -12,6 +12,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { UserError } from "@/lib/master/service";
 import { JOIN_REF_COOKIE, parseJoin, submitJoinRequest, type JoinKind } from "@/lib/orgs/join";
 import { normalizePhone } from "@/lib/phone";
+import { otpChecksOn } from "@/lib/otp-switch";
 import type { FormState } from "@/app/w/[slug]/actions-util";
 import { authEvent } from "@/lib/activity/auth";
 
@@ -40,19 +41,22 @@ async function joinActionImpl(kind: JoinKind, _prev: FormState, form: FormData):
   // Every try counts, right or wrong, so a code cannot be guessed by trying many.
   // and so that nobody can use this form to send WhatsApp messages to a stranger over and over: the number counts too
   const digits = normalizePhone(input.phone);
+  const codesOn = await otpChecksOn(driver);
   const [ipOk, mailOk, phoneOk] = await Promise.all([
     allowShared(driver, `join-ip:${await clientIp()}`, 10, HOUR),
     allowShared(driver, `join-email:${input.email}`, 4, HOUR),
-    digits.ok ? allowShared(driver, `join-phone:${digits.digits}`, 3, HOUR) : Promise.resolve(true),
+    // The per-number limit stops this form being used to send WhatsApp messages to a stranger. With the one-time codes switched off for beta (ADR-076) nothing is sent, and testers share numbers, so it is skipped.
+    digits.ok && codesOn ? allowShared(driver, `join-phone:${digits.digits}`, 3, HOUR) : Promise.resolve(true),
   ]);
   if (!ipOk || !mailOk || !phoneOk) return { error: "Too many tries. Wait a little and try again.", values: keep(form) };
 
-  let sentTo = "";
+  let sentTo = "", confirmed = false;
   try {
     const sent = await submitJoinRequest(driver, kind, input);
     sentTo = sent.phoneEnds;
-    // the browser's own reference to this request: the code typed on the next page is matched to it (ADR-055). Never readable by scripts.
-    (await cookies()).set(JOIN_REF_COOKIE, sent.ref, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/join", maxAge: 3 * 24 * 3600 });
+    confirmed = !!sent.confirmed;
+    // the browser's own reference to this request: the code typed on the next page is matched to it (ADR-055). Never readable by scripts. None when no code is asked for (ADR-076).
+    if (!confirmed) (await cookies()).set(JOIN_REF_COOKIE, sent.ref, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/join", maxAge: 3 * 24 * 3600 });
   } catch (e) {
     if (e instanceof UserError) return { error: e.message, fields: e.fields, values: keep(form) };
     throw e;
@@ -69,7 +73,7 @@ async function joinActionImpl(kind: JoinKind, _prev: FormState, form: FormData):
   }
   // The request is saved. A person who already has a login simply signs in; their request is waiting either way.
   const existing = !!error || (Array.isArray(data?.user?.identities) && data.user.identities.length === 0);   // Supabase hides an existing login behind a success with no identities
-  redirect(`/join/sent?to=${encodeURIComponent(sentTo)}${existing || data?.session ? "&existing=1" : ""}`);
+  redirect(`/join/sent?to=${encodeURIComponent(sentTo)}${existing || data?.session ? "&existing=1" : ""}${confirmed ? "&confirmed=1" : ""}`);
 }
 
 export async function joinAction(...args: Parameters<typeof joinActionImpl>): Promise<Awaited<ReturnType<typeof joinActionImpl>>> {

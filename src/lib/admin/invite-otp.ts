@@ -2,6 +2,7 @@
 // administrator typed for the employee, or by email to the invited address or by text message (src/lib/admin/invite-channel.ts decides which), and the person types it on the invitation page. So a link that is forwarded, overheard or opened first by someone else is
 // no use without the employee's phone. The code is made on the server, only its hash is stored, it runs out after 10 minutes, five wrong tries end it, and sends
 // are limited. The administrator never sees it. It is asked for only when a channel is set up for that invitation; a password reset link is protected by the recovery code instead.
+import { otpChecksOn } from "@/lib/otp-switch";
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import type { Driver } from "@/lib/db/types";
 import { withOrgPlatform } from "@/lib/db/tenant";
@@ -48,7 +49,7 @@ async function load(driver: Driver, token: string): Promise<{ schema: string; ro
 export async function sendInviteCode(driver: Driver, token: string, ip: string): Promise<{ sentTo: string; channel: CodeChannel }> {
   const inv = await load(driver, token);
   if (!inv) throw refused();
-  const channel = codeChannel(inv.row);
+  const channel = (await otpChecksOn(driver)) ? codeChannel(inv.row) : null;          // the beta switch (ADR-076)
   if (!channel) throw new UserError("A one-time code is not switched on for this invitation.");
   const { row } = inv;
   if (row.otp_sends >= OTP_MAX_SENDS) throw new UserError("Too many codes were sent for this invitation. Ask your administrator for a new invitation.");
@@ -80,7 +81,7 @@ export async function sendInviteCode(driver: Driver, token: string, ip: string):
 export async function checkInviteCode(driver: Driver, token: string, typed: string): Promise<void> {
   const inv = await load(driver, token);
   if (!inv) throw refused();
-  if (!otpRequired(inv.row)) return;                                   // not asked for on this invitation
+  if (!(await otpChecksOn(driver)) || !otpRequired(inv.row)) return;   // not asked for on this invitation, or switched off for beta (ADR-076)
   const { row } = inv;
   const code = typed.replace(/\s+/g, "");
   if (!/^\d{6}$/.test(code)) throw new UserError("Enter the 6-digit code we sent you.");

@@ -4,6 +4,7 @@
 // Since ADR-055 a request is not seen by the administrator until the person has confirmed it from their own phone: a 6-digit code is sent to the WhatsApp number they typed, from the
 // Fleet OTG number, and they type it on the page they are on. It also carries their driving licence (not expired; a learner's permit only if the company accepts them), which is checked again at approval and then kept as the
 // employee's licence. The licence number is held in the request only until the administrator decides.
+import { otpChecksOn } from "@/lib/otp-switch";
 import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import type { Driver } from "@/lib/db/types";
@@ -137,16 +138,18 @@ export async function findTenantByJoinCode(driver: Driver, code: string): Promis
  * Fleet OTG number, and returns a reference the person's browser keeps so that the code they type finds this request. Without WhatsApp set up nobody can join with a code, on purpose: an
  * unconfirmed request is exactly what this closes. Asking again replaces the request.
  */
-export async function submitJoinRequest(driver: Driver, kind: JoinKind, input: JoinInput, send: JoinCodeSender = sendJoinCode): Promise<{ company: string; phoneEnds: string; ref: string }> {
+export async function submitJoinRequest(driver: Driver, kind: JoinKind, input: JoinInput, send: JoinCodeSender = sendJoinCode): Promise<{ company: string; phoneEnds: string; ref: string; /** no code was asked for (the beta switch is off), so the request is already with the administrator */ confirmed?: boolean }> {
   const t = await findTenantByJoinCode(driver, input.code);
   if (!t) throw new UserError("That company code is not recognised. Check it with your administrator.", { code: "Not recognised" });
   const phone = normalizePhone(input.phone);
   if (!phone.ok) throw new UserError(phone.message, { phone: phone.message });
-  if (!whatsappCodeConfigured()) throw new UserError("Joining with a company code needs a confirmation on WhatsApp, which is not set up yet. Ask your administrator.");
+  const codes = await otpChecksOn(driver);          // the beta switch (ADR-076): off means the request goes straight to the administrator, with no code
+  if (codes && !whatsappCodeConfigured()) throw new UserError("Joining with a company code needs a confirmation on WhatsApp, which is not set up yet. Ask your administrator.");
   const allowLearner = await withTenant(driver, { schema: t.schema, userId: SYSTEM_USER, role: "system" }, (q) => learnerAllowed(q));
   const bad = licenceProblem({ type: input.licence_type, expires_on: input.licence_expires_on }, allowLearner);
   if (bad) throw new UserError(bad.message, { [bad.field]: bad.message });
 
+  if (!codes) return saveRequestWithoutCode(driver, t, kind, input, phone);
   const ref = newToken(), refHash = hashToken(ref);
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
   const expires = new Date(Date.now() + CONFIRM_DAYS * 864e5).toISOString();
@@ -182,6 +185,31 @@ export async function submitJoinRequest(driver: Driver, kind: JoinKind, input: J
 }
 
 type Waiting = { schema: string; tenant: TenantRef; row: { id: string; full_name: string; email: string; kind: JoinKind; workshop_name: string | null; phone: string; otp_hash: string | null; otp_expires_at: string | null; otp_attempts: number; otp_sends: number; seconds_since_send: number | null } };
+
+/**
+ * With the one-time codes switched off (ADR-076) the request is saved as already waiting for the administrator, who is told, exactly as after a typed code. The phone number is
+ * still stored but nothing has proved it belongs to this person; the administrator still approves or declines. Asking again replaces the earlier request.
+ */
+async function saveRequestWithoutCode(driver: Driver, t: TenantRef, kind: JoinKind, input: JoinInput, phone: { e164: string; digits: string }): Promise<{ company: string; phoneEnds: string; ref: string; confirmed: true }> {
+  const id = await withOrgPlatform(driver, t.schema, async (q) => {
+    const waiting = (await q.query<{ c: number }>("select count(*)::int c from public.join_requests where tenant_id = $1 and status in ('unconfirmed', 'pending')", [t.id])).rows[0].c;
+    const again = (await q.query("select 1 from public.join_requests where tenant_id = $1 and lower(email) = $2 and status in ('unconfirmed', 'pending')", [t.id, input.email])).rows.length > 0;
+    if (waiting >= MAX_WAITING && !again) throw new UserError("This company has too many requests waiting. Ask its administrator to clear them.");
+    return (await q.query<{ id: string }>(
+      `insert into public.join_requests(tenant_id, kind, full_name, email, phone, workshop_name, note, status, phone_confirmed_at, licence_type, licence_no, licence_expires_on)
+       values ($1, $2, $3, $4, $5, $6, $7, 'pending', now(), $8, $9, $10)
+       on conflict (tenant_id, (lower(email))) where status in ('unconfirmed', 'pending')
+       do update set kind = excluded.kind, full_name = excluded.full_name, phone = excluded.phone, workshop_name = excluded.workshop_name, note = excluded.note, status = 'pending',
+                     phone_confirmed_at = now(), confirm_token_hash = null, confirm_expires_at = null, otp_hash = null,
+                     licence_type = excluded.licence_type, licence_no = excluded.licence_no, licence_expires_on = excluded.licence_expires_on
+       returning id`,
+      [t.id, kind, input.full_name, input.email, phone.e164, input.workshop_name ?? null, input.note ?? null, input.licence_type, input.licence_no, input.licence_expires_on])).rows[0].id;
+  });
+  await tellAdministrators(driver, t, id, kind === "workshop" ? `${input.workshop_name} asked to join as a workshop.` : `${input.full_name} asked to join.`);
+  await withPlatform(driver, (q) => q.query(
+    "insert into public.join_index(tenant_id, request_id, email) values ($1, $2, lower($3)) on conflict (tenant_id, request_id) do nothing", [t.id, id, input.email]));
+  return { company: t.name, phoneEnds: phone.digits.slice(-4), ref: "", confirmed: true };
+}
 
 /** The unconfirmed request this browser reference belongs to, if it is still waiting for its code. */
 async function loadWaiting(driver: Driver, ref: string): Promise<Waiting | null> {

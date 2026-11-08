@@ -16,7 +16,7 @@ const lastLink = (kind) => {
 
 export async function workshopFlow(S) {
   scenario("11. The workshop sends an estimate and an invoice by link, and the card is closed");
-  const o = S.pk, slug = S.pkSlug, jobPath = S.jobByStaff;
+  const o = S.pk, slug = S.pkSlug, jobPath = S.jobByStaff, base = `/w/${S.pkSlug}`;
   check(o && slug && jobPath && S.mgr, "scenario 4 did not run first");
   const jobId = jobPath.split("/").pop();
   const schema = sql(`select schema_name from public.tenants where slug = '${slug}'`);
@@ -75,10 +75,44 @@ export async function workshopFlow(S) {
     check(sql(`select count(*) from "${schema}".invoices i join "${schema}".work_orders w on w.id = i.work_order_id where w.job_card_id = '${jobId}'`) === "1", "no invoice was stored");
   });
 
-  await step("the administrator checks the invoice and the card can be closed", async () => {
+  await step("the invoice shows on the job card and waits for the check", async () => {
     await go(o, jobPath);
-    const txt = await body(o);
-    check(has(txt, "SA-1001"), `the invoice is not on the job card (status ${status()})`);
+    check(has(await body(o), "SA-1001"), `the invoice is not on the job card (status ${status()})`);
+    check(status() === "invoiced", `the job card is ${status()}, not invoiced`);
+  });
+
+  let invoicePath = "";
+  await step("the administrator opens the invoice from the Invoices list", async () => {
+    await go(o, `${base}/invoices`);
+    check(has(await body(o), "SA-1001"), "the invoice is not in the list waiting for a check");
+    const invoiceId = sql(`select i.id from "${schema}".invoices i join "${schema}".work_orders w on w.id = i.work_order_id where w.job_card_id = '${jobId}' and i.invoice_no = 'SA-1001'`);
+    invoicePath = `${base}/invoices/${invoiceId}`;
+    await go(o, invoicePath);
+    check(has(await body(o), "Verify invoice"), "the verify page did not open");
+  });
+
+  await step("a different amount needs a note, and the choice survives the message", async () => {
+    await o.page.getByLabel(/Verify the full amount/).check();
+    await o.page.getByRole("button", { name: "Confirm decision" }).click();             // the note is empty on purpose
+    await o.page.waitForTimeout(1800);
+    check(await o.page.getByLabel(/Verify the full amount/).isChecked(), "the chosen option was cleared after the message");
+    check(status() === "invoiced", "the invoice was verified without the required note");
+  });
+
+  await step("the administrator verifies the invoice at the approved amount", async () => {
+    await o.page.getByLabel(/Verify at the approved amount/).check();
+    await o.page.getByRole("button", { name: "Confirm decision" }).click();
+    await waitSql(`select status from "${schema}".job_cards where id = '${jobId}'`, "invoice_verified");
+    check(sql(`select i.status || '/' || i.payable_amount::text from "${schema}".invoices i join "${schema}".work_orders w on w.id = i.work_order_id where w.job_card_id = '${jobId}'`) === "verified/18500.00", "the invoice was not verified at 18,500");
+  });
+
+  await step("the administrator closes the job card, and the history shows every step", async () => {
+    await go(o, jobPath);
+    await press(o, /Close this job card/, { wait: 2000 });
+    await waitSql(`select status from "${schema}".job_cards where id = '${jobId}'`, "closed");
+    const seq = sql(`select string_agg(to_status, '>' order by seq) from "${schema}".job_card_events where job_card_id = '${jobId}'`);
+    for (const st of ["vendor_assigned", "quotation_received", "quotation_approved", "invoiced", "invoice_verified", "closed"])
+      check(seq.includes(st), `the history is missing ${st}: ${seq}`);
   });
   await W?.ctx.close();
 }

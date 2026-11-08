@@ -258,6 +258,19 @@ describe("the code by email (ADR-046)", () => {
     } finally { process.env.INVITE_CODE_CHANNEL = "email"; }
   });
 
+  it("the operator's beta switch (otp_checks = off, ADR-076) asks for no code, and turning it on again asks for one", async () => {
+    const inv = await invite();
+    const set = (v: string) => h.control.transaction(async (q) => { await q.query("set local search_path = public"); await q.query("insert into public.platform_settings(key, value) values ('otp_checks', $1) on conflict (key) do update set value = excluded.value", [v]); });
+    try {
+      await set("off");
+      expect(await previewInvitation(h.router, inv.token)).toMatchObject({ codeRequired: false, codeChannel: null, codeHint: null });
+      await expect(sendInviteCode(h.router, inv.token, "9.9.9.4")).rejects.toThrow(/not switched on/);
+      await checkInviteCode(h.router, inv.token, "");                // nothing to check, so the account can be made with the link alone
+      await set("on");
+      expect(await previewInvitation(h.router, inv.token)).toMatchObject({ codeRequired: true });
+    } finally { await h.control.transaction(async (q) => { await q.query("set local search_path = public"); await q.query("delete from public.platform_settings where key = 'otp_checks'"); }); }
+  });
+
   it("a reset link never asks for a code, whatever the setting", () => {
     for (const mode of ["email", "whatsapp", "auto", "off"]) expect(codeChannel({ email: "a@example.com", phone: "+923001234567", reset: true }, mode)).toBeNull();
   });

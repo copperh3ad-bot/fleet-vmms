@@ -1,6 +1,7 @@
 // People and access: members, invitations (invite-only onboarding), plan usage. Managing people needs admin.users
 // (CLAUDE.md rule 3). Accepting an invitation is done by the invited person, so it checks the invitation itself instead:
 // a live invitation, addressed to the confirmed email of the signed-in user.
+import { otpChecksOn } from "@/lib/otp-switch";
 import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import type { Driver } from "@/lib/db/types";
@@ -419,7 +420,7 @@ export async function previewInvitation(driver: Driver, token: string): Promise<
       where i.token_hash = $1 and i.accepted_at is null and i.revoked_at is null and i.expires_at > now() and t.status = 'active' and (i.email is not null or i.username is not null)`, [hash]))).rows[0];
   if (!r) return null;
   const { phone, ...rest } = r;                                  // the full number never leaves the server
-  const channel = codeChannel({ email: r.email, phone, reset: r.reset });
+  const channel = (await otpChecksOn(driver)) ? codeChannel({ email: r.email, phone, reset: r.reset }) : null;          // the beta switch (ADR-076)
   return { ...rest, codeRequired: channel !== null, codeChannel: channel, codeHint: channel ? codeHint(channel, { email: r.email, phone }) : null };
 }
 
