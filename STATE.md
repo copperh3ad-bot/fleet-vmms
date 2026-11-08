@@ -539,3 +539,6 @@ Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the lan
 ## 2026-11-08 Second QA report: workshop links, invitation email, join screen, search, phone dashboard (ADR-073)
 - Workshop quote/invoice/email-estimate 500 = commit-time event check ran as the restricted link role (permission denied for table job_card_events). Fix: tenant 0039 (check runs as owner). Tests now run as a non-superuser (scripts/test-live-like.sh, e2e/run.sh). 0039 NOT yet applied on live: apply after deploy, on the owner yes.
 - Invitation email had an empty link (blanked admin copy reused): fixed (inviteLinks). Join screen explains the WhatsApp code step. Vehicles Show sends the text; dashboard Service due table scrolls on a phone.
+
+## 2026-11-08 Live: tenant 0039 applied (ADR-073)
+- Applied to beta and destinsolutions. job_card_event_required is now security definer (owner postgres, search_path pinned, not executable by PUBLIC); both deferred triggers present; link roles keep exactly their functions (quotation_link 4, inbound_mail 5, odometer_link 2) and still cannot read job_card_events. Deployed commit 29a0446. Not yet seen: a real workshop quote through a live link (the tester retries with the unused links on JC-000002 and JC-000003).
