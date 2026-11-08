@@ -5,6 +5,7 @@ import { origin } from "@/lib/origin";
 import { SITE_URL } from "@/lib/site";
 import { emailConfigured, mailFailure, sendMail } from "@/lib/email/send";
 import { buildInvitationMail } from "@/lib/email/invitation";
+import { inviteLinks } from "@/lib/admin/invite-links";
 import { INVITE_DAYS } from "@/lib/admin/service";
 import { addEmployeeWithInvite, changeMember, inviteUser, issueResetLink, replaceLogin, resendInvitation, revokeInvitation, type NewInvite } from "@/lib/admin/service";
 import { suggestUsername } from "@/lib/auth/login-names";
@@ -16,16 +17,17 @@ export type InviteState = FormState & { invite?: InviteResult };
 
 async function link(base: Promise<string>, i: NewInvite, orgName = "Your company"): Promise<InviteResult> {
   const origin = await base;
-  let url = `${origin}/invite/${i.token}`;
+  let hide = false;
   // With the invitation template set up (ADR-049) the app sends the link itself, from its own WhatsApp number, to the number on the invitation. The administrator
   // is never handed the link: that is the point, so nobody can sign up in someone else's name. A password reset keeps the old way (it also needs the person's recovery code).
   let whatsapp: InviteResult["whatsapp"];
   if (!i.reset && i.phone && whatsappInviteConfigured()) {
     try { await sendWhatsAppInvite(i.phone, { name: i.full_name, org: orgName, token: i.token, siteUrl: SITE_URL }); whatsapp = "sent"; }
     catch (e) { console.error(`invitation WhatsApp failed: ${e instanceof Error ? e.message : "unknown"}`); whatsapp = "failed"; }      // never the number or the link
-    url = "";
+    hide = true;
   }
-  return { whatsapp, url, emailed: i.email && !i.reset ? await emailInvite(i, url, orgName) : undefined, full_name: i.full_name, email: i.email, phone: i.phone, username: i.username, employee_no: i.employee_no, reset: i.reset, expires_at: i.expires_at };
+  const { forEmail, shown: url } = inviteLinks(origin, i.token, hide);          // the email always carries the real link; the administrator's screen does not when WhatsApp sent it
+  return { whatsapp, url, emailed: i.email && !i.reset ? await emailInvite(i, forEmail, orgName) : undefined, full_name: i.full_name, email: i.email, phone: i.phone, username: i.username, employee_no: i.employee_no, reset: i.reset, expires_at: i.expires_at };
 }
 
 /** The link is also emailed to the invited person (ADR-041). A mail problem never undoes the invitation: the phone buttons still work, and the screen says the email did not go. */

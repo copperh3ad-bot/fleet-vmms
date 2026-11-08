@@ -158,6 +158,24 @@ export async function vehicleForm(S) {
     });
   }
 
+  await step("the vehicles Show button sends the search text, not only the department (QA report)", async () => {
+    await go(o, `${base}/vehicles`);
+    await o.page.locator("input[name=q]").fill("LHR-1001");
+    await o.page.getByRole("button", { name: "Show", exact: true }).first().click();
+    await o.page.waitForURL(/q=LHR-1001/, { timeout: 8000 });
+    const rows = await o.page.locator("tbody tr").allInnerTexts();
+    const plates = rows.map((r) => (r.match(/[A-Z]{2,4}-\d{2,4}/) ?? ["?"])[0]);
+    check(plates.length > 0 && plates.every((x) => x === "LHR-1001"), `the list was not narrowed to the searched plate: ${JSON.stringify(plates)} at ${o.page.url()}`);
+  });
+
+  await step("the dashboard does not widen the page on a phone", async () => {
+    await o.page.setViewportSize({ width: 390, height: 844 });
+    await go(o, `${base}`);
+    const over = await o.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    await o.page.setViewportSize({ width: 1280, height: 900 });
+    check(over <= 1, `the dashboard is ${over}px wider than a phone screen`);
+  });
+
   await step("the activity log has this session's actions, sign-ins and a page view, and no secret", async () => {
     const rows = sql("select kind || ':' || name || ':' || outcome from public.activity_log order by id");
     check(rows.length > 0, "the activity log is empty");

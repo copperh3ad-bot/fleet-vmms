@@ -63,22 +63,21 @@ async function Vehicles({ params, searchParams }: { params: Promise<{ slug: stri
             {label} <span className="font-mono">{b.counts[k]}</span>
           </a>
         ))}
-        {(b.departments.length > 1 || (b.departments.length === 1 && b.hasGeneral) || b.dept) && (
-          <form className="ml-auto flex items-center gap-2 text-sm" aria-label="Filter by department">
-            {q && <input type="hidden" name="q" value={q} />}{active !== "all" && <input type="hidden" name="filter" value={active} />}
-            <label htmlFor="dept" className="text-zinc-600">Department</label>
-            <select id="dept" name="dept" defaultValue={b.dept} className="h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm">
-              <option value="">All</option>
-              {b.departments.map((d) => <option key={d} value={d}>{d}</option>)}
-              {b.hasGeneral && <option value={NO_DEPARTMENT}>No department</option>}
-            </select>
-            <button className="h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium hover:bg-zinc-50">Show</button>
-          </form>
-        )}
-        <form className={b.departments.length > 1 || b.hasGeneral || b.dept ? "" : "ml-auto"} role="search">
+        {/* One form for the search text and the department, so Show and Enter send both (they used to be two forms and Show dropped the text). */}
+        <form className="ml-auto flex flex-wrap items-center gap-2 text-sm" role="search" aria-label="Search and filter vehicles">
           {active !== "all" && <input type="hidden" name="filter" value={active} />}
-          {b.dept && <input type="hidden" name="dept" value={b.dept} />}
+          {(b.departments.length > 1 || (b.departments.length === 1 && b.hasGeneral) || b.dept) && (
+            <>
+              <label htmlFor="dept" className="text-zinc-600">Department</label>
+              <select id="dept" name="dept" defaultValue={b.dept} className="h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm">
+                <option value="">All</option>
+                {b.departments.map((d) => <option key={d} value={d}>{d}</option>)}
+                {b.hasGeneral && <option value={NO_DEPARTMENT}>No department</option>}
+              </select>
+            </>
+          )}
           <input name="q" defaultValue={q} placeholder="Plate, model or driver" aria-label="Search vehicles" className="h-10 w-64 rounded-md border border-zinc-300 bg-white px-3 text-sm" />
+          <button className="h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm font-medium hover:bg-zinc-50">Show</button>
         </form>
       </div>
 

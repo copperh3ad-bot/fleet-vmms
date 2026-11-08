@@ -7,6 +7,8 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 export type InvitationMailInput = { to: string; fullName: string; orgName: string; url: string; siteUrl: string; days: number; replyTo?: string };
 
 export function buildInvitationMail(i: InvitationMailInput): Mail {
+  // An invitation with no link is useless and looks like a working email: refuse to build it, so the sender says the email did not go.
+  if (!/^https?:\/\/\S+/.test(i.url)) throw new Error("invitation link missing");
   const subject = `${i.orgName} has invited you to Fleet OTG`;
   const text = [
     `Hello ${i.fullName},`, "",

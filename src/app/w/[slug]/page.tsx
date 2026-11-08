@@ -145,6 +145,7 @@ function OverviewBlocks({ o, to }: { o: Overview; to: (h: string) => string }) {
         )}
         <Panel title="Service due" flush action={o.serviceDue.overdue + o.serviceDue.soon > 0 ? <a href={to("vehicles")} className={`${btn} h-8`}>See all {o.serviceDue.overdue + o.serviceDue.soon}</a> : undefined}>
           {o.serviceDue.rows.length === 0 ? <p className="p-5 text-sm text-zinc-500">Nothing is due.</p> : (
+            <div className="overflow-x-auto" role="region" aria-label="Vehicles with a service due" tabIndex={0}>          {/* on a phone the table scrolls inside its panel instead of widening the page */}
             <table className="w-full text-left text-sm">
               <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-2.5">Vehicle</th><th>Driver</th><th>Due</th><th /></tr></thead>
               <tbody>{o.serviceDue.rows.map((r) => (
@@ -155,6 +156,7 @@ function OverviewBlocks({ o, to }: { o: Overview; to: (h: string) => string }) {
                   <td className="px-5 py-3 text-right"><a href={to(`job-cards/new?vehicle=${r.vehicle_id}`)} className={`${btn} h-8`}>Raise</a></td>
                 </tr>))}</tbody>
             </table>
+            </div>
           )}
         </Panel>
       </div>

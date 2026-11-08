@@ -535,3 +535,7 @@ Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the lan
 
 ## 2026-11-08 Make/Model drop-downs hold a typed pick (not yet deployed)
 - Typing into Make left it on Choose: it was controlled by React and the form re-rendered on every input. Make and Model are now uncontrolled (browser keeps the pick, React only reads it for the model list). Scenario 9 types into every drop-down at laptop and phone size.
+
+## 2026-11-08 Second QA report: workshop links, invitation email, join screen, search, phone dashboard (ADR-073)
+- Workshop quote/invoice/email-estimate 500 = commit-time event check ran as the restricted link role (permission denied for table job_card_events). Fix: tenant 0039 (check runs as owner). Tests now run as a non-superuser (scripts/test-live-like.sh, e2e/run.sh). 0039 NOT yet applied on live: apply after deploy, on the owner yes.
+- Invitation email had an empty link (blanked admin copy reused): fixed (inviteLinks). Join screen explains the WhatsApp code step. Vehicles Show sends the text; dashboard Service due table scrolls on a phone.

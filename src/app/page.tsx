@@ -62,6 +62,7 @@ async function HomeInner() {
       {spaces.length === 0 && invites.length === 0 && (
         <div className="space-y-3 text-sm text-zinc-600">
           <p>You are signed in as {user.email}, but you have not been added to a workspace.</p>
+          <p className="rounded-md border border-sky-200 bg-sky-50 p-3 text-zinc-800">Already asked to join with a company code? Your request reaches the administrator only after you type the 6-digit code we sent to your WhatsApp number. <a className="font-medium text-brand underline" href="/join/sent">Enter the code</a> (in the browser you asked from), or <a className="font-medium text-brand underline" href="/join">ask again</a> if no code came. Once the administrator approves, the invitation appears here.</p>
           <p>If your company already uses Fleet OTG, ask your administrator for an invitation or for the company code, then <a className="font-medium text-brand underline" href="/join">ask to join</a>. To use it for your own company, <a className="font-medium text-brand underline" href="/setup">start a free trial</a>.</p>
         </div>
       )}
