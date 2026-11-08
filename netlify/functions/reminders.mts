@@ -8,6 +8,7 @@ import { envSecretBox } from "../../src/lib/crypto/secretbox";
 import { runDocumentReminders } from "../../src/lib/compliance/reminders";
 import { runBillingReminders } from "../../src/lib/billing/reminders";
 import { purgeUnconfirmedJoinRequests } from "../../src/lib/orgs/join";
+import { applyDueSwitches } from "../../src/lib/billing/plan-switch";
 
 const sendReminders = async () => {
   const url = process.env.DATABASE_URL;
@@ -15,6 +16,8 @@ const sendReminders = async () => {
   // Through the router, so organizations with their own database (ADR-014) get their reminders too.
   const driver = routingDriver({ control: pgDriver(url), makeDriver: (u) => pgDriver(u, { max: 1 }), decrypt: (b) => envSecretBox().decrypt(b) });
   try {
+    const sw = await applyDueSwitches(driver);                          // plan switches whose time has come, and finished Pro trials (ADR-068)
+    if (sw.switched || sw.trialsClosed) console.log(`plans: switched ${sw.switched}, Pro trials closed ${sw.trialsClosed}`);
     const runs = await runDocumentReminders(driver);
     for (const r of runs) console.log(`${r.schema}: ${r.error ? "FAILED " + r.error : `${r.sent} reminder${r.sent === 1 ? "" : "s"}${r.emailed ? `, ${r.emailed} email${r.emailed === 1 ? "" : "s"}` : ""}`}`);
     const billing = await runBillingReminders(driver);

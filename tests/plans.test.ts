@@ -180,10 +180,11 @@ describe("who is offered Pro (Phase 2): organizations that enter many job cards 
     await withTenant(d, owner(), (q) => q.query("update job_cards set created_at = now() - interval '45 days' where id in (select id from job_cards order by created_at desc limit 2)"));
     expect(await jobCardsPerDay(d, t.schema)).toBeCloseTo(before + 4 / 30, 5);
   });
-  it("the pricing page says Pro is coming, for companies that enter many job cards a day, and shows no amount while it has no bands", () => {
+  it("the pricing page says Pro is for busy fleets and any Basic company may try it free, and shows no amount while it has no bands", () => {
     const src = readFileSync("src/app/pricing/page.tsx", "utf8");
     expect(src).toContain("Coming in the second phase");
-    expect(src).toContain("enter more than {proMin} job cards a day");
+    expect(src).toContain("Pro is for busy fleets.");
+    expect(src).toContain("try it free for 3 days");
   });
 });
 

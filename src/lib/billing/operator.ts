@@ -9,6 +9,8 @@ import { accessFrom, type Access, type BillingRow } from "./state";
 import { taxFor } from "./tax-data";
 import { postInvoiceJournal } from "./accounting";
 import { shortfall } from "./tax";
+import { applyClaimPlan, readBefore } from "./plan-switch";
+import type { Quote } from "./quote";
 import type { BlobStore } from "@/lib/jobcards/attachments";
 import type { DbProvider } from "@/lib/orgs/db-provider";
 
@@ -91,13 +93,16 @@ export function setComped(driver: Driver, operatorId: string, tenantId: string, 
 export type PendingClaim = {
   id: string; tenant_id: string; org_name: string; slug: string; amount_minor: string; currency: string; paid_on: string; bank_reference: string; months: number;
   note: string | null; has_proof: boolean; created_at: string; status: string; decision_note: string | null; price_cents: number; billing_currency: string; reference_code: string;
+  /** the plan this payment is for (null: the plan the organization is on), the plan it is on now, and a switch waiting */
+  plan_key: string | null; org_plan_key: string | null; pending_plan_key: string | null;
 };
 
 export function listClaimsForOperator(driver: Driver, operatorId: string, status: "pending" | "confirmed" | "rejected" = "pending"): Promise<PendingClaim[]> {
   return asOperator(driver, operatorId, async (q) =>
     (await q.query<PendingClaim>(
       `select c.id, c.tenant_id, t.name as org_name, t.slug, c.amount_minor::text, c.currency, c.paid_on::text, c.bank_reference, c.months, c.note, (c.proof_path is not null) as has_proof,
-              c.created_at::text, c.status, c.decision_note, coalesce(b.price_cents, 0) as price_cents, coalesce(b.currency, 'USD') as billing_currency,
+              c.created_at::text, c.status, c.decision_note, coalesce(c.quoted_price_cents, b.price_cents, 0) as price_cents, coalesce(c.quoted_currency, b.currency, 'USD') as billing_currency,
+              c.plan_key, b.plan_key as org_plan_key, b.pending_plan_key,
               'FVM-' || upper(substr(replace(t.id::text, '-', ''), 1, 8)) as reference_code
          from public.payment_claims c join public.tenants t on t.id = c.tenant_id left join public.org_billing b on b.tenant_id = t.id
         where c.status = $1 order by c.created_at ${status === "pending" ? "asc" : "desc"} limit 100`, [status])).rows);
@@ -112,9 +117,9 @@ export function proofLink(driver: Driver, store: BlobStore, operatorId: string, 
 }
 
 /** Moves the paid-until date forward and issues an invoice. Shared by "confirm a claim" and "record a payment by hand". */
-async function settle(q: Queryable, operatorId: string, tenantId: string, months: number, opts: { claimId?: string; received?: { minor: string; currency: string }; note?: string; paymentDate?: string }): Promise<{ invoiceId: string; number: string; periodEnd: string }> {
-  const b = (await q.query<{ price_cents: number; currency: string; current_period_end: string | null; name: string }>(
-    `select b.price_cents, b.currency, b.current_period_end::text, t.name from public.org_billing b join public.tenants t on t.id = b.tenant_id where b.tenant_id = $1 for update of b`, [tenantId])).rows[0];
+async function settle(q: Queryable, operatorId: string, tenantId: string, months: number, opts: { quote?: Quote | null; claimId?: string; received?: { minor: string; currency: string }; note?: string; paymentDate?: string }): Promise<{ invoiceId: string; number: string; periodEnd: string }> {
+  const b = (await q.query<{ price_cents: number; currency: string; current_period_end: string | null; name: string; plan_key: string }>(
+    `select b.price_cents, b.currency, b.plan_key, b.current_period_end::text, t.name from public.org_billing b join public.tenants t on t.id = b.tenant_id where b.tenant_id = $1 for update of b`, [tenantId])).rows[0];
   if (!b) throw new UserError("That organization has no billing record.");
   // No invoice without the customer's NTN (ADR-053). A customer abroad is not asked for one.
   const t0 = (await q.query<{ country: string | null; ntn: string | null }>("select country, ntn from public.org_tax where tenant_id = $1", [tenantId])).rows[0];
@@ -125,17 +130,18 @@ async function settle(q: Queryable, operatorId: string, tenantId: string, months
             (greatest(coalesce($1::timestamptz, now()), now()) + ($2 || ' months')::interval)::text as end`, [b.current_period_end, String(months)])).rows[0];
   await q.query(
     `update public.org_billing set status = 'active', current_period_end = $2::timestamptz, updated_at = now() where tenant_id = $1`, [tenantId, period.end]);
-  const tax = await taxFor(q, tenantId, b.price_cents * billedMonths(months), b.currency, { paymentDate: opts.paymentDate });
+  const unit = opts.quote?.priceCents ?? b.price_cents, cur = opts.quote?.currency ?? b.currency;      // a claim is settled at the price it was filed at (ADR-068)
+  const tax = await taxFor(q, tenantId, unit * billedMonths(months), cur, { paymentDate: opts.paymentDate });
   const t = tax?.result;
   const inv = (await q.query<{ id: string; number: string }>(
     `insert into public.invoices(number, tenant_id, claim_id, billed_to, period_start, period_end, months, amount_cents, currency, received_minor, received_currency, issued_by, note,
-                                 pkr_per_usd, subtotal_minor, sales_tax_pct, sales_tax_minor, total_minor, wht_income_minor, wht_sales_minor, net_expected_minor, tax_snapshot)
+                                 pkr_per_usd, subtotal_minor, sales_tax_pct, sales_tax_minor, total_minor, wht_income_minor, wht_sales_minor, net_expected_minor, tax_snapshot, plan_key)
      values ('INV-' || to_char(now(), 'YYYY') || '-' || lpad(nextval('public.invoice_number_seq')::text, 6, '0'), $1, $2, $3, $4::date, $5::timestamptz::date, $6, $7, $8, $9, $10, $11, $12,
-             $13, $14, $15, $16, $17, $18, $19, $20, $21::jsonb)
+             $13, $14, $15, $16, $17, $18, $19, $20, $21::jsonb, $22)
      returning id, number`,
-    [tenantId, opts.claimId ?? null, b.name, period.start, period.end, months, b.price_cents * billedMonths(months), b.currency, opts.received?.minor ?? null, opts.received?.currency ?? null, operatorId, opts.note ?? null,
+    [tenantId, opts.claimId ?? null, b.name, period.start, period.end, months, unit * billedMonths(months), cur, opts.received?.minor ?? null, opts.received?.currency ?? null, operatorId, opts.note ?? null,
      t?.pkrPerUsd ?? null, t?.subtotalMinor ?? null, t?.salesTaxPct ?? null, t?.salesTaxMinor ?? null, t?.totalMinor ?? null, t?.whtIncomeMinor ?? null, t?.whtSalesMinor ?? null, t?.netExpectedMinor ?? null,
-     tax ? JSON.stringify(tax.snapshot) : null])).rows[0];
+     tax ? JSON.stringify(tax.snapshot) : null, opts.quote?.planKey ?? b.plan_key])).rows[0];
   await postInvoiceJournal(q, inv.id, operatorId);                      // the ledger entry is part of the same transaction: no invoice without it
   return { invoiceId: inv.id, number: inv.number, periodEnd: period.end };
 }
@@ -150,11 +156,11 @@ export type ClaimTaxPreview = {
 /** The invoice the confirmation would make, worked out now, so a short payment or a missing withholding certificate is seen before confirming. */
 export function previewClaimTax(driver: Driver, operatorId: string, claimId: string, months?: number): Promise<ClaimTaxPreview> {
   return asOperator(driver, operatorId, async (q) => {
-    const c = (await q.query<{ tenant_id: string; months: number; amount_minor: string; currency: string; paid_on: string }>("select tenant_id, months, amount_minor::text, currency, paid_on::text from public.payment_claims where id = $1", [claimId])).rows[0];
+    const c = (await q.query<{ tenant_id: string; months: number; amount_minor: string; currency: string; paid_on: string; quoted_price_cents: number | null; quoted_currency: string | null }>("select tenant_id, months, amount_minor::text, currency, paid_on::text, quoted_price_cents, quoted_currency from public.payment_claims where id = $1", [claimId])).rows[0];
     if (!c) throw new UserError("Payment not found.");
     const b = (await q.query<{ price_cents: number; currency: string }>("select price_cents, currency from public.org_billing where tenant_id = $1", [c.tenant_id])).rows[0];
     if (!b) return null;
-    const tax = await taxFor(q, c.tenant_id, b.price_cents * billedMonths(months ?? c.months), b.currency, { paymentDate: c.paid_on });
+    const tax = await taxFor(q, c.tenant_id, (c.quoted_price_cents ?? b.price_cents) * billedMonths(months ?? c.months), c.quoted_currency ?? b.currency, { paymentDate: c.paid_on });
     if (!tax) return null;
     const r = tax.result;
     return {
@@ -169,13 +175,16 @@ export function previewClaimTax(driver: Driver, operatorId: string, claimId: str
 /** The money has arrived: confirm the claim. The months can be corrected if the customer sent a different amount. */
 export function confirmClaim(driver: Driver, operatorId: string, claimId: string, opts: { months?: number; note?: string } = {}): Promise<{ number: string; periodEnd: string }> {
   return asOperator(driver, operatorId, async (q) => {
-    const c = (await q.query<{ tenant_id: string; months: number; amount_minor: string; currency: string; status: string; paid_on: string }>(
-      "select tenant_id, months, amount_minor::text, currency, status, paid_on::text from public.payment_claims where id = $1 for update", [claimId])).rows[0];
+    const c = (await q.query<{ tenant_id: string; months: number; amount_minor: string; currency: string; status: string; paid_on: string; plan_key: string | null; quoted_price_cents: number | null; quoted_currency: string | null; quoted_ai_reads_per_day: number | null }>(
+      "select tenant_id, months, amount_minor::text, currency, status, paid_on::text, plan_key, quoted_price_cents, quoted_currency, quoted_ai_reads_per_day from public.payment_claims where id = $1 for update", [claimId])).rows[0];
     if (!c) throw new UserError("Payment not found.");
     if (c.status !== "pending") throw new UserError("That payment has already been decided.");
     const months = opts.months ?? c.months;
     if (!Number.isInteger(months) || months < 1 || months > 12) throw new UserError("Choose between 1 and 12 months.");
-    const s = await settle(q, operatorId, c.tenant_id, months, { claimId, received: { minor: c.amount_minor, currency: c.currency }, note: opts.note?.slice(0, 500), paymentDate: c.paid_on });
+    const quote: Quote | null = c.plan_key && c.quoted_price_cents !== null && c.quoted_currency ? { planKey: c.plan_key, priceCents: c.quoted_price_cents, currency: c.quoted_currency, aiReadsPerDay: c.quoted_ai_reads_per_day } : null;
+    const before = await readBefore(q, c.tenant_id);                                  // the plan and the period as they were before this payment moves them
+    const s = await settle(q, operatorId, c.tenant_id, months, { quote, claimId, received: { minor: c.amount_minor, currency: c.currency }, note: opts.note?.slice(0, 500), paymentDate: c.paid_on });
+    if (before) await applyClaimPlan(q, operatorId, c.tenant_id, claimId, quote, before, s.invoiceId);
     await q.query("update public.payment_claims set status = 'confirmed', decided_by = $2, decided_at = now(), decision_note = $3, invoice_id = $4, months = $5 where id = $1",
       [claimId, operatorId, opts.note?.slice(0, 500) ?? null, s.invoiceId, months]);
     return { number: s.number, periodEnd: s.periodEnd };

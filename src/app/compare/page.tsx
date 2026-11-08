@@ -8,7 +8,7 @@ import { PageHero, CtaBand } from "@/components/page-hero";
 import { Icon } from "@/components/icons";
 import { getDriver } from "@/lib/db";
 import { loadOffer } from "@/lib/billing/offer";
-import { loadProOffer, proMinJobCards } from "@/lib/billing/plans";
+import { loadProOffer } from "@/lib/billing/plans";
 import { loadPlatformSettings } from "@/lib/billing/settings";
 import { COMPARE } from "@/lib/plan-compare";
 
@@ -29,9 +29,9 @@ function Mark({ yes, label }: { yes: boolean; label: string }) {
 async function Inner() {
   await connection();
   // The prices are the owner's, read from the plans table; this page never states a figure of its own.
-  const [offer, pro, settings, proMin] = await Promise.all([
+  const [offer, pro, settings] = await Promise.all([
     loadOffer(getDriver()).catch(() => null), loadProOffer(getDriver()).catch(() => null),
-    loadPlatformSettings(getDriver()).catch(() => ({} as Record<string, string>)), proMinJobCards(getDriver()).catch(() => 20),
+    loadPlatformSettings(getDriver()).catch(() => ({} as Record<string, string>)),
   ]);
   const sales = settings.sales_email?.trim();
   return (
@@ -82,7 +82,7 @@ async function Inner() {
           </table>
         </div>
         <p className="mt-6 max-w-3xl text-sm text-zinc-600">
-          Pro is offered as an upgrade to companies that enter more than {proMin} job cards a day. The AI only ever makes a draft for a person to check, and the messages and files it reads are sent to Anthropic, our AI provider, which does not use them to train its models. For what each plan costs and how paying works, see <a href="/pricing" className="font-medium text-brand underline">Pricing</a>.
+          Pro is for busy fleets: any Basic company can try it free for 3 days. The AI only ever makes a draft for a person to check, and the messages and files it reads are sent to Anthropic, our AI provider, which does not use them to train its models. For what each plan costs and how paying works, see <a href="/pricing" className="font-medium text-brand underline">Pricing</a>.
         </p>
       </div>
       <CtaBand title="Start with Basic. Move to Pro when you are ready.">

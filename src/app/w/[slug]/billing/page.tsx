@@ -10,7 +10,8 @@ import { formatPrice } from "@/lib/billing/offer";
 import { listClaims, listInvoices, paymentReference, BILLING_PERMISSION } from "@/lib/billing/payments";
 import { loadPlatformSettings } from "@/lib/billing/settings";
 import { getTaxProfile, quoteTax } from "@/lib/billing/tax-data";
-import { ClaimForm, RequestBillForm } from "./forms";
+import { planStatus } from "@/lib/billing/plan-switch";
+import { ClaimForm, RequestBillForm, TryProButton, MoveToBasicButton, KeepProButton } from "./forms";
 import { TaxProfileForm } from "./tax-form";
 
 export default function BillingPage({ params }: PageProps<"/w/[slug]/billing">) {
@@ -33,9 +34,9 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const admin = perms.has(BILLING_PERMISSION);
   const a = m.billing!;
   const msg = accessMessage(a);
-  const [settings, claims, invoices, taxView, quote] = admin
-    ? await Promise.all([loadPlatformSettings(driver), listClaims(driver, m), listInvoices(driver, m), getTaxProfile(driver, m), quoteTax(driver, m, a.priceCents, a.currency, 1)])
-    : [{} as Record<string, string>, [], [], null, null];
+  const [settings, claims, invoices, taxView, quote, plans] = admin
+    ? await Promise.all([loadPlatformSettings(driver), listClaims(driver, m), listInvoices(driver, m), getTaxProfile(driver, m), quoteTax(driver, m, a.priceCents, a.currency, 1), planStatus(driver, m)])
+    : [{} as Record<string, string>, [], [], null, null, null];
   const rate = Number(settings.pkr_per_usd);
   const usd = a.priceCents / 100;
   // The rupee hint is for customers in Pakistan (or not yet known) who have no tax quote above; a customer abroad pays in dollars and is not shown rupees.
@@ -58,6 +59,29 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
         {(msg || !a.full) && <p role="status" className={`mt-4 rounded-md border px-4 py-3 text-sm ${a.full ? "border-sky-200 bg-sky-100 text-sky-900" : "border-red-200 bg-red-50 text-red-900"}`}>{msg?.text ?? LOCK_TEXT[a.lockedReason ?? "no_subscription"]}</p>}
       </Panel>
 
+      {plans && (
+        <Panel title="Basic and Pro" sub="Pay for the plan you want. Pro starts when your current paid period ends.">
+          <div className="space-y-4 text-sm">
+            <dl className="grid gap-4 sm:grid-cols-3 [&>div]:min-w-0">
+              <div><dt className="text-zinc-500">Your plan</dt><dd className="mt-1 text-lg font-semibold">{plans.planKey === "pro" ? "Pro" : "Basic"}</dd></div>
+              {plans.options.map((o) => <div key={o.key}><dt className="text-zinc-500">{o.key === "pro" ? "Pro" : "Basic"} costs</dt><dd className="mt-1 font-mono text-lg">{formatPrice(o.priceCents, o.currency)} <span className="font-sans text-sm text-zinc-500">a month</span></dd></div>)}
+            </dl>
+            {plans.pending && (
+              <p role="status" className="rounded-md border border-sky-200 bg-sky-100 px-4 py-3 text-sky-900">
+                {plans.pending.key === "pro" ? <>Your payment for Pro is confirmed. Pro starts on <strong>{dmy(plans.pending.from)}</strong>, when your Basic period ends.</> : <>You will move to Basic on <strong>{dmy(plans.pending.from)}</strong>, when your paid period ends. Pro works until then.</>}
+              </p>
+            )}
+            {plans.proTrial?.running && <p role="status" className="rounded-md border border-sky-200 bg-sky-100 px-4 py-3 text-sky-900">Your free Pro trial ends on <strong>{dmy(plans.proTrial.endsAt)}</strong>. To keep Pro after that, pay for Pro below; it then starts when your current period ends.</p>}
+            {plans.proTrial && !plans.proTrial.running && plans.planKey === "standard" && <p className="text-zinc-600">Your free Pro trial has ended. Pay for Pro below to have it again.</p>}
+            <div className="flex flex-wrap gap-3">
+              {plans.canTryPro && <TryProButton slug={slug} />}
+              {plans.canMoveToBasic && <MoveToBasicButton slug={slug} />}
+              {plans.pending?.key === "standard" && <KeepProButton slug={slug} />}
+            </div>
+          </div>
+        </Panel>
+      )}
+
       {!admin ? (
         <Panel title="Paying"><p className="text-sm text-zinc-600">Ask your workspace administrator to pay the subscription. They will see how on this page.</p></Panel>
       ) : (
@@ -77,7 +101,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
                 <p><Pill tone="warn">Waiting for confirmation</Pill></p>
                 <p>You told us on {dmy(waiting.created_at)} that you sent {minor(waiting.amount_minor, waiting.currency)} for {waiting.months} {waiting.months === 1 ? "month" : "months"} (reference {waiting.bank_reference}). We confirm payments when they appear in our bank, usually within one working day. You can send another one after this is decided.</p>
               </div>
-            ) : <ClaimForm slug={slug} defaultAmount={String(usd)} defaultCurrency={a.currency === "PKR" ? "PKR" : "USD"} today={today} />}
+            ) : <ClaimForm slug={slug} defaultAmount={String(usd)} defaultCurrency={a.currency === "PKR" ? "PKR" : "USD"} today={today} plans={(plans?.options ?? []).filter((o) => !(plans?.pending?.key === "pro" && o.key === "standard")).map((o): [string, string] => [o.key, `${o.key === "pro" ? "Pro" : "Basic"}, ${formatPrice(o.priceCents, o.currency)} a month`])} defaultPlan={plans?.pending?.key ?? plans?.planKey ?? "standard"} />}
           </Panel>
 
           {taxView && (

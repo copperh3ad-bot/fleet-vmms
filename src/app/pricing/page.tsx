@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { SiteShell } from "@/components/site-shell";
 import { getDriver } from "@/lib/db";
 import { loadOffer } from "@/lib/billing/offer";
-import { loadProOffer, proMinJobCards } from "@/lib/billing/plans";
+import { loadProOffer } from "@/lib/billing/plans";
 import { loadPlatformSettings } from "@/lib/billing/settings";
 import { JsonLd } from "@/components/json-ld";
 import { PRICING_FAQ } from "@/lib/faq";
@@ -30,7 +30,6 @@ async function Inner() {
   await connection();
   const [offer, settings, pro] = await Promise.all([loadOffer(getDriver()).catch(() => null), loadPlatformSettings(getDriver()).catch(() => ({} as Record<string, string>)), loadProOffer(getDriver()).catch(() => null)]);
   const sales = settings.sales_email?.trim();
-  const proMin = await proMinJobCards(getDriver()).catch(() => 20);
   return (
     <SiteShell active="pricing">
       <JsonLd data={breadcrumbLd([["Fleet OTG", "/"], ["Pricing", "/pricing"]])} />
@@ -67,7 +66,7 @@ async function Inner() {
                 <p className="mt-2 text-lg font-semibold">Coming in the second phase</p>
               )}
               <ul className="mt-4 space-y-2 text-sm text-zinc-700">{pro.points.map((p) => <li key={p} className="flex gap-2"><span aria-hidden className="mt-0.5 shrink-0 text-brand"><Icon name="approve" size={16} /></span>{p}</li>)}</ul>
-              <p className="mt-5 text-sm text-zinc-600">Pro is offered as an upgrade to companies that enter more than {proMin} job cards a day. {pro.priced ? <>To add it to your company, <a href="/contact" className="font-medium text-brand underline">contact us</a>.</> : <>Want to hear when it opens? <a href="/contact" className="font-medium text-brand underline">Tell us</a>.</>}</p>
+              <p className="mt-5 text-sm text-zinc-600">Pro is for busy fleets. {pro.priced ? <>Any Basic company can try it free for 3 days, then pay for it in Billing; it starts when your current period ends. Questions? <a href="/contact" className="font-medium text-brand underline">Contact us</a>.</> : <>Want to hear when it opens? <a href="/contact" className="font-medium text-brand underline">Tell us</a>.</>}</p>
             </section>
           )}
           </div>

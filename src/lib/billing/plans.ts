@@ -8,8 +8,8 @@ import { UserError } from "@/lib/master/service";
 import { asOperator } from "./operator";
 import { formatPrice, PRO_HEADLINE } from "./offer";
 
-export const BASIC = "standard";
-export const PRO = "pro";
+import { BASIC, PRO, vehicleCount } from "./quote";
+export { BASIC, PRO, vehicleCount };
 const DEFAULT_AI_PER_DAY = 60;
 const MAX_BANDS = 6;
 
@@ -60,22 +60,40 @@ export function proOfferFrom(plan: PlanRow | undefined, bands: Band[]): ProOffer
 export const loadProOffer = async (driver: Driver): Promise<ProOffer> => proOfferFrom((await listPlans(driver)).find((p) => p.key === PRO), await listBands(driver, PRO));
 
 /** What the plan an organization is on lets it do. An organization with no plan row (the ones that existed before billing) is on none, so has no AI until the operator moves it. */
-export type TenantPlan = { key: string; name: string; aiDocuments: boolean; aiPerDay: number; aiTrialReads: number | null; trialing: boolean };
+export type TenantPlan = { key: string; name: string; aiDocuments: boolean; aiPerDay: number; aiTrialReads: number | null; trialing: boolean; /** while a Basic company's free Pro trial runs: when it ends (ADR-068) */ proTrialEndsAt: string | null };
 
 export function planFrom(row: { plan_key: string | null; name: string | null; status: string | null; features: Record<string, boolean | undefined> | null; limits: Record<string, number | undefined> | null; ai_reads_per_day?: number | null } | undefined): TenantPlan {
   const features = row?.features ?? {}, limits = row?.limits ?? {};
   const aiDocuments = features.ai_documents === true;
   const trialing = row?.status === "trialing";
   return {
-    key: row?.plan_key ?? "none", name: row?.name ?? "No plan", aiDocuments, trialing,
+    key: row?.plan_key ?? "none", name: row?.name ?? "No plan", aiDocuments, trialing, proTrialEndsAt: null,
     aiPerDay: aiDocuments ? (row?.ai_reads_per_day ?? limits.ai_reads_per_day ?? DEFAULT_AI_PER_DAY) : 0,
     aiTrialReads: aiDocuments && trialing && typeof limits.ai_trial_reads === "number" ? limits.ai_trial_reads : null,
   };
 }
 
+/**
+ * The plan in force right now, worked out from the dates with no write (ADR-068): a switch whose date has passed already counts, and during a Basic company's free Pro
+ * trial the Pro features are on with Pro's daily allowance. The daily job saves the switch and closes the trial; nothing waits for it.
+ */
 export function tenantPlan(driver: Driver, tenantId: string): Promise<TenantPlan> {
-  return withPlatform(driver, async (q) => planFrom((await q.query<{ plan_key: string; name: string | null; status: string; features: Record<string, boolean>; limits: Record<string, number>; ai_reads_per_day: number | null }>(
-    `select b.plan_key, p.name, b.status, p.features, p.limits, b.ai_reads_per_day from public.org_billing b left join public.plans p on p.key = b.plan_key where b.tenant_id = $1`, [tenantId])).rows[0]));
+  return withPlatform(driver, async (q) => {
+    const b = (await q.query<{ plan_key: string; status: string; ai_reads_per_day: number | null; pending_plan_key: string | null; pending_plan_from: string | null; pending_ai_reads_per_day: number | null; pro_trial_ends_at: string | null }>(
+      `select plan_key, status, ai_reads_per_day, pending_plan_key, pending_plan_from::text, pending_ai_reads_per_day, pro_trial_ends_at::text from public.org_billing where tenant_id = $1`, [tenantId])).rows[0];
+    if (!b) return planFrom(undefined);
+    const now = Date.now();
+    const due = !!b.pending_plan_key && !!b.pending_plan_from && new Date(b.pending_plan_from).getTime() <= now;
+    const key = due ? b.pending_plan_key! : b.plan_key;
+    const reads = due ? b.pending_ai_reads_per_day : b.ai_reads_per_day;
+    const trial = key === BASIC && !!b.pro_trial_ends_at && new Date(b.pro_trial_ends_at).getTime() > now;
+    const rows = (await q.query<{ key: string; name: string; features: Record<string, boolean>; limits: Record<string, number> }>("select key, name, features, limits from public.plans where key in ('standard', 'pro')")).rows;
+    const own = rows.find((x) => x.key === key), pro = rows.find((x) => x.key === PRO);
+    if (!trial) return planFrom({ plan_key: key, name: own?.name ?? null, status: b.status, features: own?.features ?? null, limits: own?.limits ?? null, ai_reads_per_day: reads });
+    const band = (await q.query<{ ai_reads_per_day: number }>("select ai_reads_per_day from public.plan_bands where plan_key = 'pro' order by coalesce(up_to_vehicles, 2147483647) limit 1")).rows[0];
+    const p = planFrom({ plan_key: key, name: own?.name ?? null, status: b.status, features: pro?.features ?? null, limits: pro?.limits ?? null, ai_reads_per_day: band?.ai_reads_per_day ?? null });
+    return { ...p, aiTrialReads: null, proTrialEndsAt: b.pro_trial_ends_at };
+  });
 }
 
 // ------------------------------------------------------------------------------------------ the operator's side
@@ -129,11 +147,6 @@ export function setProBands(driver: Driver, operatorId: string, rows: BandInput[
   });
 }
 
-/** How many vehicles an organization has, which decides its band. Counted in its own workspace. */
-export async function vehicleCount(driver: Driver, tenantId: string, schema: string): Promise<number> {
-  return withTenant(driver, { schema, userId: "00000000-0000-0000-0000-000000000000", role: "billing" }, async (q) => Number((await q.query<{ n: string }>("select count(*)::text n from vehicles")).rows[0].n)).catch(() => 0);
-}
-
 /**
  * Who is offered Pro (ADR-035): organizations that enter MORE than this many job cards a day, on average over the last 30 days. Job cards are what the AI's work grows with
  * (each repair brings an estimate and an invoice), so this is the measure, not the number of vehicles. The owner's setting; 20 until they change it.
@@ -179,8 +192,11 @@ export async function setOrgPlan(driver: Driver, operatorId: string, tenantId: s
         price = band.price_cents; currency = band.currency; reads = band.ai_reads_per_day;
       } else if (!b.comped) throw new UserError("Pro has no prices yet. Set its bands on the Plans page first, or waive billing for this organization.");
     }
+    const was = (await q.query<{ plan_key: string }>("select plan_key from public.org_billing where tenant_id = $1", [tenantId])).rows[0]?.plan_key;
     await q.query(
-      `update public.org_billing set plan_key = $2, price_cents = coalesce($3, price_cents), currency = coalesce($4, currency), ai_reads_per_day = $5, updated_at = now() where tenant_id = $1`,
+      `update public.org_billing set plan_key = $2, price_cents = coalesce($3, price_cents), currency = coalesce($4, currency), ai_reads_per_day = $5,
+              pending_plan_key = null, pending_plan_from = null, pending_price_cents = null, pending_currency = null, pending_ai_reads_per_day = null, updated_at = now() where tenant_id = $1`,
       [tenantId, key, price, currency, reads]);
+    await q.query("insert into public.plan_changes(tenant_id, from_plan, to_plan, reason, changed_by) values ($1, $2, $3, 'operator', $4)", [tenantId, was ?? null, key, operatorId]);
   });
 }

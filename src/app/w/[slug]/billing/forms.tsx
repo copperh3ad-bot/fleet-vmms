@@ -3,14 +3,15 @@ import { useActionState } from "react";
 import { Input, Notice, Select, Submit, Field, inputCls } from "@/components/form";
 import { FileInput } from "@/components/file-input";
 import type { FormState } from "../actions-util";
-import { submitClaimAction, requestBillAction } from "./actions";
+import { submitClaimAction, requestBillAction, startProTrialAction, requestBasicAction, cancelBasicAction } from "./actions";
 
-export function ClaimForm({ slug, defaultAmount, defaultCurrency, today }: { slug: string; defaultAmount: string; defaultCurrency: "USD" | "PKR"; today: string }) {
+export function ClaimForm({ slug, defaultAmount, defaultCurrency, today, plans, defaultPlan }: { slug: string; defaultAmount: string; defaultCurrency: "USD" | "PKR"; today: string; plans: [string, string][]; defaultPlan: string }) {
   const [state, action] = useActionState<FormState, FormData>(submitClaimAction.bind(null, slug), {});
   // after a send the boxes are cleared; after an error they keep what was typed
-  const s: FormState = state.ok ? { ...state, values: {} } : state.values ? state : { ...state, values: { amount: defaultAmount, currency: defaultCurrency, paid_on: today, months: "1" } };
+  const s: FormState = state.ok ? { ...state, values: {} } : state.values ? state : { ...state, values: { amount: defaultAmount, currency: defaultCurrency, paid_on: today, months: "1", plan: defaultPlan } };
   return (
     <form action={action} noValidate className="space-y-4" key={state.ok ?? "form"}>
+      {plans.length > 0 && <Select name="plan" label="Paying for" state={s} blank="Choose" required options={plans} />}
       <div className="grid gap-4 sm:grid-cols-3">
         <Input name="amount" label="Amount you sent" state={s} required inputMode="decimal" />
         <Select name="currency" label="Currency" state={s} blank="Choose" required options={[["USD", "US dollars (USD)"], ["PKR", "Pakistani rupees (PKR)"]]} />
@@ -37,3 +38,19 @@ export function RequestBillForm({ slug }: { slug: string }) {
     </form>
   );
 }
+
+/** One button for a plan change, with its own message. */
+function PlanButton({ slug, action, children, tone = "primary" }: { slug: string; action: (slug: string, prev: FormState, form: FormData) => Promise<FormState>; children: string; tone?: "primary" | "plain" }) {
+  const [state, run] = useActionState<FormState, FormData>(action.bind(null, slug), {});
+  return (
+    <form action={run} className="flex flex-wrap items-center gap-3">
+      {tone === "primary" ? <Submit pendingText="Working">{children}</Submit> : <PlainSubmit>{children}</PlainSubmit>}<Notice state={state} />
+    </form>
+  );
+}
+function PlainSubmit({ children }: { children: string }) {
+  return <button type="submit" className="h-10 rounded-md border border-zinc-300 bg-white px-5 font-medium text-zinc-800 hover:bg-zinc-50">{children}</button>;
+}
+export const TryProButton = ({ slug }: { slug: string }) => <PlanButton slug={slug} action={startProTrialAction}>Try Pro free for 3 days</PlanButton>;
+export const MoveToBasicButton = ({ slug }: { slug: string }) => <PlanButton slug={slug} action={requestBasicAction} tone="plain">Move to Basic when my period ends</PlanButton>;
+export const KeepProButton = ({ slug }: { slug: string }) => <PlanButton slug={slug} action={cancelBasicAction} tone="plain">Stay on Pro</PlanButton>;

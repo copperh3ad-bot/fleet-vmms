@@ -8,6 +8,7 @@ import { saveTaxProfile } from "@/lib/billing/tax-data";
 import { issueCertificate } from "@/lib/billing/certificates";
 import { requireUser } from "@/lib/auth/session";
 import { requestBill } from "@/lib/billing/request-details";
+import { cancelBasicRequest, requestBasic, startProTrial } from "@/lib/billing/plan-switch";
 import { runAction, str, typed, type FormState } from "../actions-util";
 
 /** "I have paid": the transfer details and the receipt. Allowed while the workspace is locked, because that is when it is needed. */
@@ -16,7 +17,7 @@ export async function submitClaimAction(slug: string, _prev: FormState, form: Fo
   const user = await requireUser();
   const state = await runAction(slug, async (m) => {
     const proof = file instanceof File && file.size > 0 ? { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) } : undefined;
-    const filed = await submitClaim(getDriver(), await supabaseBlobStore(), m, Object.fromEntries(["amount", "currency", "paid_on", "bank_reference", "months", "note"].map((k) => [k, str(form, k)])), proof, { submitterEmail: user.email ?? undefined });
+    const filed = await submitClaim(getDriver(), await supabaseBlobStore(), m, Object.fromEntries(["amount", "currency", "paid_on", "bank_reference", "months", "note", "plan"].map((k) => [k, str(form, k)])), proof, { submitterEmail: user.email ?? undefined });
     await notifyClaimFiled(getDriver(), filed.id);          // the Billing mailbox hears about it; a mail problem never undoes the claim
     return "Thank you. We will confirm it as soon as we see it in our bank, usually within one working day.";
   }, { allowLocked: true });
@@ -49,4 +50,25 @@ export async function issueCertificateAction(slug: string, invoiceId: string, _p
 export async function requestBillAction(slug: string, _prev: FormState, _form: FormData): Promise<FormState> {
   const user = await requireUser();
   return runAction(slug, (m) => requestBill(getDriver(), m, user.email ?? ""), { allowLocked: true });
+}
+
+/** A Basic company takes its free 3-day Pro trial, once (ADR-068). */
+export async function startProTrialAction(slug: string, _prev: FormState, _form: FormData): Promise<FormState> {
+  const state = await runAction(slug, async (m) => { await startProTrial(getDriver(), m); return "Your Pro trial has started. It runs for 3 days."; });
+  if (state.ok) refresh();
+  return state;
+}
+
+/** A Pro company asks to move to Basic when its paid period ends. */
+export async function requestBasicAction(slug: string, _prev: FormState, _form: FormData): Promise<FormState> {
+  const state = await runAction(slug, async (m) => { await requestBasic(getDriver(), m); return "Done. You stay on Pro until your paid period ends, then move to Basic."; });
+  if (state.ok) refresh();
+  return state;
+}
+
+/** Takes back the request to move to Basic. */
+export async function cancelBasicAction(slug: string, _prev: FormState, _form: FormData): Promise<FormState> {
+  const state = await runAction(slug, async (m) => { await cancelBasicRequest(getDriver(), m); return "Done. You stay on Pro."; });
+  if (state.ok) refresh();
+  return state;
 }

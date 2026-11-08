@@ -39,7 +39,7 @@ async function Inner({ searchParams }: { searchParams: Promise<Record<string, st
             action={<Pill tone={c.status === "pending" ? "warn" : c.status === "confirmed" ? "ok" : "bad"}>{c.status}</Pill>}>
             <dl className="grid gap-4 text-sm sm:grid-cols-4">
               <div><dt className="text-zinc-500">The customer says they sent</dt><dd className="mt-1 font-mono text-base">{formatPrice(Number(c.amount_minor), c.currency)}</dd></div>
-              <div><dt className="text-zinc-500">For</dt><dd className="mt-1">{c.months} {c.months === 1 ? "month" : "months"}</dd></div>
+              <div><dt className="text-zinc-500">For</dt><dd className="mt-1">{c.months} {c.months === 1 ? "month" : "months"}{c.plan_key ? <span className="block text-xs text-zinc-500">{c.plan_key === "pro" ? "Pro" : "Basic"} plan{c.plan_key !== c.org_plan_key ? (c.pending_plan_key === c.plan_key ? ", already waiting to start" : ", takes effect when the current period ends (at once if there is none)") : ""}</span> : null}</dd></div>
               <div><dt className="text-zinc-500">Expected</dt><dd className="mt-1 font-mono">{formatPrice(expected, c.billing_currency)}{expectedPkr ? <span className="block font-sans text-xs text-zinc-500">about Rs {expectedPkr.toLocaleString("en-US")}</span> : null}</dd></div>
               <div><dt className="text-zinc-500">Bank reference</dt><dd className="mt-1 break-all">{c.bank_reference}<span className="block text-xs text-zinc-500">they should have written {c.reference_code}</span></dd></div>
             </dl>
