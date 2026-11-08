@@ -18,7 +18,11 @@ ADR-048 tied the `logistics` role to the department `Logistics` and made `dept_o
 
 ## Not decided
 
-Whether the tenant administrator should approve job cards at all (rule B stays as built), who approves Administration's cards, and the role itself for Administration. None is built; the pattern in point 1 is ready for it.
+Who approves Administration's cards, and the role itself for Administration. Neither is built; the pattern in point 1 is ready for it.
+
+## Decided by the owner (2026-11-09)
+
+The tenant administrator's own job card is approved by a Fleet manager or a Logistics person (the fleet manager in the Logistics department). The rule B exception (ADR-072, ADR-074) is **kept**: the administrator may decide their own card only while nobody else could, so a new company with no approver is not stuck. `tests/dept-whole-fleet.test.ts` covers both sides.
 
 ## Order of going live
 
