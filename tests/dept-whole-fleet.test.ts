@@ -71,6 +71,19 @@ describe("Logistics handles the complete fleet", () => {
     }
   });
 
+  it("the tenant administrator's own job card is approved by the fleet manager or a Logistics person, never by the administrator", async () => {
+    for (const [approver, who] of [[mgr, "Manager One"], [l1, "Logistics One"]] as const) {
+      for (const v of [truck, general, admin]) {
+        const { id } = await jc.createJobCard(d, owner(), card(v, ""), true);
+        expect((await jc.transitionJobCard(d, owner(), id, "approved").catch((e) => e)).message).toMatch(/cannot approve their own/i);
+        await jc.transitionJobCard(d, approver(), id, "approved");
+        const c = (await jc.getJobCard(d, owner(), id))!;
+        expect(c.status).toBe("approved");
+        expect(c.approver_name).toBe(who);
+      }
+    }
+  });
+
   it("is still tied to its department: the approval limit applies to it, and a fleet manager is never limited", async () => {
     await ctl.saveSettings(d, owner(), { dept_approval_limit: "1000" });
     try {
