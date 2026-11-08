@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Fleet OTG flyer</title>
 <style>
-  /* A4 flyer, modern industrial look (ADR-031). Every claim below is something the product does today (Basic, Phase 1), except the block marked "Coming soon" (Pro, Phase 2). */
+  /* A4 flyer, modern industrial look (ADR-031). Every claim below is something the product does today (Basic, Phase 1), and the block marked "Pro" (live, offered to busy fleets). */
   @page { size: A4; margin: 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root { --ink: #15191d; --ink2: #20262c; --gold: #ffc20e; --rust: #c2410c; --mist: #aab3b9; --paper: #eceeef; }
@@ -50,12 +50,12 @@
   .ico svg { width: 6.4mm; height: 6.4mm; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .ico::after { content: attr(data-n); position: absolute; right: -1.6mm; top: -1.6mm; width: 4mm; height: 4mm; line-height: 4mm; text-align: center; background: var(--gold); color: var(--ink); font-size: 6.6pt; font-weight: 800; }
 
-  .soon { margin-top: 6mm; border: .5mm dashed var(--gold); padding: 5mm 6mm 3mm; background: rgba(255,194,14,.08); position: relative; display: grid; grid-template-columns: 1fr 24mm; column-gap: 5mm; align-items: center; }
+  .soon { margin-top: 4mm; border: .5mm dashed var(--gold); padding: 5mm 6mm 4mm; margin-bottom: 4mm; background: rgba(255,194,14,.08); position: relative; display: grid; grid-template-columns: 1fr 15mm; column-gap: 5mm; align-items: center; }
   .tag { position: absolute; top: -3.2mm; left: 6mm; background: var(--gold); color: var(--ink); font-size: 8.5pt; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; padding: 1mm 3mm; }
   .soon h2 { font-size: 13.5pt; line-height: 1.15; text-transform: uppercase; letter-spacing: .01em; }
   .soon h2 em { font-style: normal; color: var(--gold); }
   .soon p { margin-top: 1.2mm; font-size: 9pt; line-height: 1.36; color: #d3d9dd; }
-  .soon svg { width: 24mm; height: 24mm; }
+  .soon svg { width: 15mm; height: 15mm; }
 
   .foot { position: absolute; left: 15mm; right: 15mm; bottom: 11mm; display: flex; justify-content: space-between; align-items: flex-end; gap: 8mm; }
   .price { font-size: 9.8pt; line-height: 1.45; color: var(--mist); max-width: 100mm; }
@@ -144,21 +144,21 @@
     <div class="card"><span class="ico" data-n="4"><svg><use href="#i-invoice"/></svg></span><h3 class="cond">Invoices checked first</h3><p class="pain"><b>Problem</b>A workshop's invoice comes in higher than the price you agreed.</p><p class="fix"><b>Fix</b>Every invoice is checked against the approved quotation, and not by whoever approved the card.</p></div>
     <div class="card"><span class="ico" data-n="5"><svg><use href="#i-vehicle"/></svg></span><h3 class="cond">Cost lands on the right vehicle</h3><p class="pain"><b>Problem</b>Nobody knows what each vehicle really costs, or who had it at the time.</p><p class="fix"><b>Fix</b>Spend is counted per vehicle, department and period, and follows who held it.</p></div>
     <div class="card"><span class="ico" data-n="6"><svg><use href="#i-repeat"/></svg></span><h3 class="cond">Repeat repairs are flagged</h3><p class="pain"><b>Problem</b>The same fault is paid for again and again.</p><p class="fix"><b>Fix</b>A fault coming back on the same vehicle is shown, so you see what keeps failing.</p></div>
-    <div class="card"><span class="ico" data-n="7"><svg><use href="#i-wheel"/></svg></span><h3 class="cond">Drivers see their own vehicle</h3><p class="pain"><b>Problem</b>Drivers ask the office what their vehicle cost, and odometer readings come late.</p><p class="fix"><b>Fix</b>A driver sees only the job cards of the vehicle they hold, and sends odometer or hours by a phone link.</p></div>
+    <div class="card"><span class="ico" data-n="7"><svg><use href="#i-wheel"/></svg></span><h3 class="cond">Drivers see their own vehicle</h3><p class="pain"><b>Problem</b>Drivers ask the office what their vehicle cost, and odometer readings come late.</p><p class="fix"><b>Fix</b>A driver sees only the job cards of the vehicle they hold, and sends odometer or hours by a phone link. Licence and service-due reminders arrive on time.</p></div>
     <div class="card"><span class="ico" data-n="8"><svg><use href="#i-badge"/></svg></span><h3 class="cond">Every action has a name</h3><p class="pain"><b>Problem</b>Shared logins mean no action can be traced to anyone.</p><p class="fix"><b>Fix</b>People join by invitation with a WhatsApp code and a valid licence, so each action traces to a person.</p></div>
   </div>
 
   <div class="soon">
-    <span class="tag">Coming soon</span>
+    <span class="tag">Pro</span>
     <div>
-      <h2 class="cond">Pro, for busy fleets: <em>AI that reads</em> your workshops' paperwork.</h2>
-      <p>For companies with many job cards a day. The AI reads what a workshop emails and fills in the form; a person always checks and saves.</p>
+      <h2 class="cond">Pro: <em>AI that reads</em> workshop paperwork.</h2>
+      <p>For companies with many job cards a day. The AI reads what a workshop sends and fills in the form. Staff can raise a job card by WhatsApp. A person always checks.</p>
     </div>
     <svg viewBox="0 0 24 24" fill="none" stroke="#ffc20e" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-phone2"/></svg>
   </div>
 
   <div class="foot">
-    <div class="price"><b class="cond">Basic has every feature</b>One month costs about the same as a month's wage for an unskilled labourer. Start with a 3-day free trial. Pro follows for busy fleets.</div>
+    <div class="price"><b class="cond">Basic has the whole workflow</b>One month costs about the same as a month's wage for an unskilled labourer. Start with a 3-day free trial. Add Pro when job cards pile up.</div>
     <div class="cta"><div class="url cond">www.fleetotg.com</div><div class="sub">sales@fleetotg.com</div></div>
   </div>
 </div>
