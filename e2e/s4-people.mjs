@@ -239,7 +239,7 @@ export async function people(S) {
     check(has(await body(o), "Their sign-in name is") && has(await body(o), noMail.user), `no sign-in name shown: ${(await body(o)).slice(0, 200)}`);
     // The link is sent to the phone number only: the box offers WhatsApp and a text message to that number, and nothing else.
     const box = o.page.locator("div", { hasText: "The link is not shown here" }).last();
-    check(has(await box.innerText(), "0300 1234567"), "the number is not shown for checking");
+    check(has(await box.innerText(), "+92 300 1234567"), "the number is not shown for checking");
     const wa = await o.page.getByRole("link", { name: "Send on WhatsApp" }).first().getAttribute("href");
     const sms = await o.page.getByRole("link", { name: "Send as a text message" }).first().getAttribute("href");
     check(/^https:\/\/wa\.me\/923001234567\?text=/.test(wa ?? ""), `the WhatsApp link was ${wa}`);

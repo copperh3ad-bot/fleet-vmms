@@ -104,7 +104,7 @@ export function InviteForm({ slug, roles, vendors, stack, allowLearner = false }
           ? <Input name="username" label="Sign-in name" state={state} required value={typed ?? suggested} onChange={(e) => setTyped(e.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false}
               hint="They sign in with this and a password they choose. Letters, numbers, dots and dashes." />
           : <Input name="email" label="Email" type="email" state={state} required hint="They confirm this address to join." />}
-        <Input name="phone" label="Phone number" state={state} inputMode="tel" required hint="The invitation link is sent to this number, and nowhere else. For example 0300 1234567." />
+        <Input name="phone" label="Phone number" state={state} inputMode="tel" required placeholder="+92 300 1234567" hint="The invitation link is sent to this number, and nowhere else. Start with +92, then the number: +92 300 1234567." />
         <div className={`flex flex-wrap items-center gap-3 ${span}`}><button type="submit" disabled={pending} className="h-10 rounded-md bg-brand px-5 text-sm font-medium text-white disabled:opacity-60">{pending ? "Adding" : isVendor ? "Create invitation" : "Add and invite"}</button><Notice state={state} /></div>
       </form>
       {state.invite && <LinkBox invite={state.invite} />}

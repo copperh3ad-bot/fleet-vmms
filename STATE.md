@@ -545,3 +545,8 @@ Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the lan
 
 ## 2026-11-08 Manual test runbook kept in the repo
 - docs/MANUAL-TEST.md is the tester runbook corrected for live 29a0446 (known issues table in section 16 is current). Still needs a real phone or WhatsApp number for role accounts, rule B and the driver odometer link.
+
+## 2026-11-08 Decision panel fix, rule B scope (ADR-074), +92 phone format
+- Decision panel on a job card was sent as `<form action>`, so a server message cleared the chosen Reject/Approve option. Now `keepForm`. New browser scenario 10 (`e2e/s10-decision-forms.mjs`) failed before and passes after (commit 216fb21).
+- Tenant migration 0040 (ADR-074): `admin_may_decide_own(permission, vehicle, amount)`. Another approver counts only if they could decide that card (department and limit). Tests in `tests/dept-scope.test.ts`. NOT applied on live: apply 0040 before the next deploy, on the owner's yes. The `self_approved` flag was judged unnecessary (see ADR).
+- Default phone format is `+92` then the number: placeholder, hints, messages and display; `0300…` still accepted. 1,125 unit tests pass. The browser suite has not been re-run in full for these changes.

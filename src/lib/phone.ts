@@ -11,7 +11,7 @@ export function normalizePhone(raw: string): PhoneResult {
   const bad = (message: string): PhoneResult => ({ ok: false, message });
   const text = raw.trim();
   if (!text) return bad("Enter a phone number.");
-  if (!/^[+(\d][\d\s().-]*$/.test(text)) return bad("Use digits only, for example 0300 1234567 or +44 7700 900123.");
+  if (!/^[+(\d][\d\s().-]*$/.test(text)) return bad("Use digits only, for example +92 300 1234567 or +44 7700 900123.");
   let digits = text.replace(/\D/g, "");
   if (text.startsWith("+")) { /* already international */ }
   else if (digits.startsWith("00")) digits = digits.slice(2);
@@ -21,12 +21,12 @@ export function normalizePhone(raw: string): PhoneResult {
   if (digits.startsWith(DEFAULT_COUNTRY_CODE)) {
     // A Pakistani mobile number is the code and ten digits starting with 3: 92 3xx xxxxxxx.
     const national = digits.slice(DEFAULT_COUNTRY_CODE.length);
-    if (national.length !== 10 || !national.startsWith("3")) return bad("That is not a Pakistani mobile number. It should look like 0300 1234567.");
+    if (national.length !== 10 || !national.startsWith("3")) return bad("That is not a Pakistani mobile number. It should look like +92 300 1234567.");
   }
   if (digits.length < 8 || digits.length > 15) return bad("That phone number is the wrong length.");
   if (/^(\d)\1+$/.test(digits)) return bad("That phone number does not look real.");
   const e164 = `+${digits}`;
-  const display = digits.startsWith(DEFAULT_COUNTRY_CODE) ? `0${digits.slice(DEFAULT_COUNTRY_CODE.length, DEFAULT_COUNTRY_CODE.length + 3)} ${digits.slice(DEFAULT_COUNTRY_CODE.length + 3)}` : e164;
+  const display = digits.startsWith(DEFAULT_COUNTRY_CODE) ? `+${DEFAULT_COUNTRY_CODE} ${digits.slice(DEFAULT_COUNTRY_CODE.length, DEFAULT_COUNTRY_CODE.length + 3)} ${digits.slice(DEFAULT_COUNTRY_CODE.length + 3)}` : e164;
   return { ok: true, e164, digits, display };
 }
 

@@ -103,11 +103,15 @@ export async function whoAmI(driver: Driver, m: Membership): Promise<{ name: str
 /**
  * May this administrator decide something they raised themselves? Only while nobody else could decide it (ADR-072): the database function says so, from the live list of
  * active members who hold the permission. False for every other role. If the database does not have the function yet (a deploy that came before migration 0038), the
- * old rule applies, the same one the database is still enforcing.
+ * old rule applies, the same one the database is still enforcing. With a scope (the card's vehicle and amount) the answer also ignores other approvers who could not decide that card (ADR-074).
  */
-export async function adminMayDecideOwn(driver: Driver, m: Membership, permission: string): Promise<boolean> {
+export async function adminMayDecideOwn(driver: Driver, m: Membership, permission: string, scope?: { vehicleId?: string | null; amount?: string | number | null }): Promise<boolean> {
   if (m.role !== "tenant_admin") return false;
+  const run = (sql: string, params: unknown[]) => withTenant(driver, m, async (q) => (await q.query<{ ok: boolean }>(sql, params)).rows[0].ok);
   try {
-    return await withTenant(driver, m, async (q) => (await q.query<{ ok: boolean }>("select admin_may_decide_own($1) as ok", [permission])).rows[0].ok);
-  } catch { return true; }
+    // Migration 0040 (ADR-074): another approver counts only if they could decide this very card (its vehicle's department and the department's limit).
+    return await run("select admin_may_decide_own($1, $2::uuid, $3::numeric) as ok", [permission, scope?.vehicleId ?? null, scope?.amount ?? null]);
+  } catch {
+    try { return await run("select admin_may_decide_own($1) as ok", [permission]); } catch { return true; }
+  }
 }

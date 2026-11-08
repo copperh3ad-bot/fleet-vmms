@@ -356,7 +356,7 @@ describe("invitation links go to a phone number and nowhere else", () => {
       expect(r.ok && r.e164, typed).toBe(e164);
     }
     const r = normalizePhone("0300 1234567");
-    expect(r.ok && r.display).toBe("0300 1234567");
+    expect(r.ok && r.display).toBe("+92 300 1234567");
     expect(r.ok && r.digits).toBe("923001234567");
   });
   it("refuses what no message can reach", () => {

@@ -17,7 +17,7 @@ export function JoinForm({ kind, code }: { kind: JoinKind; code: string }) {
       {workshop && <Input name="workshop_name" label="Workshop name" state={state} required autoComplete="organization" />}
       <div className="grid gap-4 sm:grid-cols-2">
         <Input name="full_name" label={workshop ? "Contact person" : "Your full name"} state={state} required autoComplete="name" />
-        <Input name="phone" label="Your WhatsApp number" state={state} required inputMode="tel" autoComplete="tel" hint="We send a message there to confirm it was you. For example 0300 1234567." />
+        <Input name="phone" label="Your WhatsApp number" state={state} required inputMode="tel" autoComplete="tel" placeholder="+92 300 1234567" hint="We send a message there to confirm it was you. Start with +92, then the number: +92 300 1234567." />
       </div>
       {!workshop && (
         <div className="grid gap-4 sm:grid-cols-3">

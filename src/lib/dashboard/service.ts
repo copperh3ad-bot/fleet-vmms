@@ -1,7 +1,7 @@
 // The workspace home. One transaction, and each block is read only if the member's role holds the permission that
 // block needs (CLAUDE.md rule 3); a role sees exactly the blocks it could open on their own screens.
 import type { Driver } from "@/lib/db/types";
-import { adminMayDecideOwn, authorizedAny, ForbiddenError, type Membership } from "@/lib/auth/can";
+import { authorizedAny, ForbiddenError, type Membership } from "@/lib/auth/can";
 
 export type Sample = { text: string; href: string };
 export type ActionItem = { key: string; label: string; count: number; href: string; samples: Sample[] };
@@ -28,8 +28,6 @@ const ALL = ["jobcard.approve", "quotation.approve", "jobcard.assign_vendor", "i
   "compliance.manage", "report.view", "vehicle.read", "jobcard.read_all", "jobcard.read_own"];
 
 export async function getDashboard(driver: Driver, m: Membership): Promise<Dashboard> {
-  // the administrator sees a card they raised as waiting for them only while nobody else could decide it (ADR-072)
-  const [selfCards, selfQuotes] = m.role === "tenant_admin" ? await Promise.all([adminMayDecideOwn(driver, m, "jobcard.approve"), adminMayDecideOwn(driver, m, "quotation.approve")]) : [false, false];
   return authorizedAny(driver, m, ALL, async (q, held) => {
     const actions: ActionItem[] = [];
     const cards = async (key: string, label: string, where: string, hrefStatus: string, params: unknown[] = []) => {
@@ -41,10 +39,11 @@ export async function getDashboard(driver: Driver, m: Membership): Promise<Dashb
     };
     // a card the member raised cannot be decided by them, so it is not "waiting for you"
     // (the administrator may approve a card they raised themselves only while nobody else could, so then every submitted card is waiting for them)
-    const notMine = (self: boolean) => (self ? "true and $1::text is not null" : "jc.requested_by is distinct from actor_employee($1)");
+    // (decided per card in the database, ADR-074: false for every role but the administrator, and for them false once another approver could decide that card)
+    const notMine = (permission: string, amount: string) => `(jc.requested_by is distinct from actor_employee($1) or admin_may_decide_own('${permission}', jc.vehicle_id, ${amount}))`;
 
-    if (held.has("jobcard.approve")) await cards("approve", "Job cards waiting for your approval", `jc.status = 'submitted' and ${notMine(selfCards)} and not dept_over_limit(jc.estimated_cost)`, "submitted", [m.userId]);
-    if (held.has("quotation.approve")) await cards("quotes", "Quotations to decide", `jc.status = 'quotation_received' and ${notMine(selfQuotes)}`, "quotation_received", [m.userId]);
+    if (held.has("jobcard.approve")) await cards("approve", "Job cards waiting for your approval", `jc.status = 'submitted' and ${notMine('jobcard.approve', 'jc.estimated_cost')} and not dept_over_limit(jc.estimated_cost)`, "submitted", [m.userId]);
+    if (held.has("quotation.approve")) await cards("quotes", "Quotations to decide", `jc.status = 'quotation_received' and ${notMine('quotation.approve', "(select qt.amount from quotations qt where qt.job_card_id = jc.id and qt.status = 'submitted' order by qt.created_at desc limit 1)")}`, "quotation_received", [m.userId]);
     if (held.has("jobcard.assign_vendor")) await cards("assign", "Approved, no workshop chosen yet", `jc.status = 'approved' and jc.vendor_id is null`, "approved");
     if (held.has("invoice.verify")) {
       const inv = (await q.query<{ id: string; invoice_no: string; job_no: string }>(

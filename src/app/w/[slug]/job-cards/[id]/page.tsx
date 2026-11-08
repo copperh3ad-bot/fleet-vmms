@@ -37,13 +37,14 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
   const to = (p: string) => `/w/${slug}/${p}`;
 
   // the administrator may decide a card they raised only while nobody else could (ADR-072)
-  const adminSelfApprove = c.requester_is_me && c.status === "submitted" ? await adminMayDecideOwn(driver, m, "jobcard.approve") : false;
-  const adminSelfQuote = c.requester_is_me && c.status === "quotation_received" ? await adminMayDecideOwn(driver, m, "quotation.approve") : false;
+  const adminSelfApprove = c.requester_is_me && c.status === "submitted" ? await adminMayDecideOwn(driver, m, "jobcard.approve", { vehicleId: c.vehicle_id, amount: c.estimated_cost }) : false;
   const canDecide = c.status === "submitted" && perms.has("jobcard.approve") && (!c.requester_is_me || adminSelfApprove);
   const canAssign = c.status === "approved" && perms.has("jobcard.assign_vendor");
   const canEdit = c.mine && perms.has("jobcard.create") && ["draft", "returned_for_edit"].includes(c.status);
   const commercial = perms.has("jobcard.read_all") && !["draft", "submitted", "returned_for_edit", "rejected", "cancelled", "approved"].includes(c.status);
   const flow = commercial ? await getJobFlow(driver, m, id) : null;
+  const waitingQuote = flow?.quotations.find((qt) => qt.status === "submitted");
+  const adminSelfQuote = c.requester_is_me && c.status === "quotation_received" ? await adminMayDecideOwn(driver, m, "quotation.approve", { vehicleId: c.vehicle_id, amount: waitingQuote?.amount ?? null }) : false;
   const canHandleEmails = perms.has("jobcard.assign_vendor") || perms.has("quotation.approve") || perms.has("invoice.verify");
   const workshopEmails = commercial && canHandleEmails ? await listWorkshopEmails(driver, m, id) : [];
   const canDecideQuote = c.status === "quotation_received" && perms.has("quotation.approve") && (!c.requester_is_me || adminSelfQuote);
