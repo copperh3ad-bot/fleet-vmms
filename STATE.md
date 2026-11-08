@@ -505,3 +505,7 @@ Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the lan
 ## 2026-11-08 Live: deploy 05206b2, control 0021 and 0022 applied
 - Control migrations 0021 (activity log) and 0022 (vehicle names) applied on live; both tables have row security on, no rights for the API roles; the log refuses update and delete. Live logging confirmed (page views arriving with the right path).
 - Still pending on live, held on purpose: control 0020 (storage rules removed; apply only after the owner has added, opened and deleted a job card photo on the live site) and tenant 0037 (function grants and view rights; safe to apply, no dependency).
+
+## 2026-11-08 Live: tenant 0037 applied
+- Tenant 0037 applied to beta; destinsolutions (created after the deploy) already had it. Every function in both schemas is closed to PUBLIC and every view runs with the caller rights. The link roles keep exactly their named functions (inbound_mail 5, odometer_link 2, quotation_link 4), the same set a freshly built schema gets.
+- Still pending on live: control 0020 only (apply after the owner has added, opened and deleted a job card photo on the live site).
