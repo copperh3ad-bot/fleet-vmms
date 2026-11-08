@@ -37,9 +37,13 @@ const nextConfig: NextConfig = {
         { key: "X-Frame-Options", value: "DENY" },
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
-        { key: "Strict-Transport-Security", value: "max-age=31536000" },
-        { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'" },
+        { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+        { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+        { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'; upgrade-insecure-requests" },
       ] },
+      // Signed-in screens and the operator screens hold a company's records: a browser or a shared proxy must never keep a copy.
+      { source: "/w/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }] },
+      { source: "/admin/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }] },
       { source: "/q/:token", headers: [
         { key: "Cache-Control", value: "no-store" }, { key: "Referrer-Policy", value: "no-referrer" }, { key: "X-Robots-Tag", value: "noindex, nofollow" },
       ] },

@@ -484,3 +484,8 @@ Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the lan
 
 ## 2026-11-08 Pro trial for locked never-paid companies
 - startProTrialAction now runs while the workspace is locked; the Pro trial reopens a never-paid company whose free trial ended, for the trial days. Suspended, comped and previously-paid lapsed companies are not reopened. Not yet deployed.
+
+## 2026-11-08 Final RLS and RBAC checks, then hardening
+- Live audit (read-only): public schema all tables RLS on; anon/authenticated hold no table grants, no tenant-schema USAGE, no public policies; storage bucket private; no public views; 190 service functions take a Membership and every write path reaches authorized/authorizedAny; role matrix is least-privilege (vendor: quotation/invoice submit and workorder update only; auditor read-only).
+- Found and fixed in code (not yet live): tenant functions had the default execute-for-everyone grant and tenant views ran with owner rights -> tenant migration 0037 (also sets defaults for future objects). Headers: HSTS includeSubDomains, COOP same-origin, upgrade-insecure-requests, no-store on /w and /admin. tests/hardening.test.ts pins them.
+- Open decision: storage policy scopes by organization but not by role, so a workshop or driver token could read any file in its own company folder through the storage API. Fix needs files served only by the server (ADR-025 change).
