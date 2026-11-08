@@ -1,8 +1,21 @@
 # Fleet OTG: where we stopped (resume point)
 
-Written 2026-10-29, updated 2026-11-08 (the sections "Update 2026-11-08" below override anything older here, the late one first). Read this first in the next session, then `STATE.md` (history, append-only), `CLAUDE.md` (rules), `docs/OWNER-CHECKLIST.md` (the owner's to-do list) and `docs/WHATSAPP-SETUP.md` (the WhatsApp set-up steps).
+Written 2026-10-29, updated 2026-11-08 (the sections "Update 2026-11-08" below override anything older here, the end-of-day one first). Read this first in the next session, then `STATE.md` (history, append-only), `CLAUDE.md` (rules), `docs/OWNER-CHECKLIST.md` (the owner's to-do list) and `docs/WHATSAPP-SETUP.md` (the WhatsApp set-up steps).
 
 ## Deferred by the owner (2026-11-08): V1.3 gate passes and driver assignment (ADR-067), with ADR-045 5b/5c. V1.2 carbon footprint (ADR-066) is plan only.
+
+## Update 2026-11-08, end of day (READ THIS FIRST; it overrides the late section below where they differ)
+**Live = commit `29a0446`** (deployed from a clean build; browser suite run as a non-superuser account: 243 passed, then the one failing step re-run and passed; 1,121 unit tests). Applied on live: control 0019 to 0022; tenant 0037, 0038, 0039 (organizations `beta` and `destinsolutions`, both shared schemas). Nothing is waiting to be deployed or applied.
+
+Since the late section below:
+- **Make and Model drop-downs (Add a vehicle):** typing or picking Make left it on "Choose" because React controlled it and the form re-rendered on every input. They are now uncontrolled (`src/app/w/[slug]/vehicles/new/make-model-year.tsx`). Browser scenario 9 types into every drop-down at laptop and phone size.
+- **Second QA report (report.md, an upload under ~/.claude/uploads):** the workshop quote 500 (digest 1761589759) was `permission denied for table job_card_events`: the commit-time event check (`job_card_event_required`, a deferred trigger) ran with the restricted link role's rights. It hit the quote link, the invoice link and the emailed-estimate paths and had never worked on live. **Tenant 0039** makes the check run as its owner (ADR-073). Tests missed it because they ran as a superuser, which ignores table permissions.
+- **New test practice (ADR-073):** `scripts/test-live-like.sh` (link and inbound suites; `--all` for everything) and `e2e/run.sh` now connect as `fleet_owner`, a database account that is NOT a superuser, made by `scripts/live-like-db.sh`. Two unit files (orgs-db, orgs-real) cannot run that way locally (they need a TCP address); nothing else differs.
+- **Invitation email with an empty link:** the link blanked for the administrator when WhatsApp delivers it was also used for the email. `inviteLinks` (src/lib/admin/invite-links.ts) keeps them apart and the email builder refuses a blank link. The two invitation emails already sent have the empty link: use Send a new link.
+- **Company-code join:** by design (ADR-055) a request is invisible to the administrator until the person types the 6-digit WhatsApp code; the home screen now explains that step. The vehicles Show button sends the search text and the department together (one form); the dashboard Service due table scrolls inside its panel on a phone.
+- **Not seen working yet:** a real workshop quote through a live link (the tester can retry with the unused links on JC-000002 and JC-000003); a real policy PDF or job card photo upload on live; the decision panels and workshop forms with `keepForm` have no browser scenario.
+
+Open on the owner (unchanged): Zoho `SMTP_URL` and `EMAIL_FROM`; Utility appeal for `fleetotg_request`; stop the unrelated background processes (`tmux kill-session -t wa`, `kill 1679`); lawyer review of Terms and Privacy; SRB tax rule and rate and each customer NTN; rotate the QA tester password; QA records (QA-, R2-, R3- prefixes) remain in destinsolutions. A second approver and a test workshop phone or email are needed to exercise rule B and the full quote, invoice and close flow. Deferred by the owner: V1.3 gate passes and driver assignment (ADR-067), V1.2 carbon footprint (ADR-066).
 
 ## Update 2026-11-08, late (READ THIS FIRST; it overrides the section below where they differ)
 **Live = commit `a3d472a`** (deployed 2026-11-08 from a clean build; browser suite 240 passed, 0 failed; 1,118 unit tests). Migrations applied on live: control 0019 to 0022, tenant 0037 and 0038 (organizations: `beta` and `destinsolutions`, both shared schemas). Nothing is waiting to be deployed or applied.
