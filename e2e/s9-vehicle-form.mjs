@@ -133,6 +133,31 @@ export async function vehicleForm(S) {
     check(!has(await body(S.us), "Awaiting"), "unexpected text");
   });
 
+  // A person does not call selectOption: on a laptop they type or use the keyboard, on a phone they use the picker. Typing the first letters of an option is checked in a
+  // laptop-sized and a phone-sized window (arrow keys open the menu on a Mac, so they are not used).
+  for (const [label, size] of [["a laptop-sized window", { width: 1280, height: 900 }], ["a phone-sized window", { width: 390, height: 844 }]]) {
+    await step(`the add-vehicle drop-downs hold a pick made by typing, in ${label}`, async () => {
+      await o.page.setViewportSize(size);
+      await go(o, `${base}/vehicles/new`);
+      const read = (id) => o.page.evaluate((i) => { const el = document.getElementById(i); return el.options[el.selectedIndex]?.text ?? ""; }, id);
+      const typeInto = async (id, letters) => { await o.page.locator(`#${id}`).focus(); await o.page.keyboard.type(letters, { delay: 40 }); };
+      // Try every drop-down and report them all at once, so one failure does not hide the others.
+      const tries = [["make", "Suz", "Suzuki"], ["fuel_type", "Die", "Diesel"], ["year", "2019", "2019"], ["vehicle_class", "Van", "Van"]];
+      const got = {};
+      for (const [id, letters, want] of tries) { await typeInto(id, letters); await o.page.keyboard.press("Tab"); got[id] = { want, got: await read(id) }; }
+      const bad = Object.entries(got).filter(([, v]) => !new RegExp(v.want, "i").test(v.got));
+      check(bad.length === 0, "typed picks that did not take: " + JSON.stringify(got));
+      await typeInto("model", "Alt");
+      check((await read("model")) === "Alto", `the model did not take: "${await read("model")}"`);
+      await o.page.keyboard.press("Tab");
+      await o.page.locator("#registration_no").fill("KEY-1");             // typing in another box must not disturb the picks
+      await o.page.locator("#odometer_km").fill("100");
+      const now = [await read("make"), await read("model"), await read("year"), await read("fuel_type")];
+      check(now[0] === "Suzuki" && now[1] === "Alto" && now[2] === "2019" && /diesel/i.test(now[3]), `a pick changed while typing elsewhere: ${JSON.stringify(now)}`);
+      await o.page.setViewportSize({ width: 1280, height: 900 });
+    });
+  }
+
   await step("the activity log has this session's actions, sign-ins and a page view, and no secret", async () => {
     const rows = sql("select kind || ':' || name || ':' || outcome from public.activity_log order by id");
     check(rows.length > 0, "the activity log is empty");

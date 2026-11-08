@@ -532,3 +532,6 @@ Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the lan
 
 ## 2026-11-08 Live: deploy a3d472a (forms keep their picks after an error)
 - Deployed from a clean build after the full browser suite passed (240 passed, 0 failed). Live pages and all 145 static files load. Nothing pending on live. The decision panels and workshop forms use keepForm but have no browser scenario yet.
+
+## 2026-11-08 Make/Model drop-downs hold a typed pick (not yet deployed)
+- Typing into Make left it on Choose: it was controlled by React and the form re-rendered on every input. Make and Model are now uncontrolled (browser keeps the pick, React only reads it for the model list). Scenario 9 types into every drop-down at laptop and phone size.
