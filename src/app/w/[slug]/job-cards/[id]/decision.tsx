@@ -31,7 +31,7 @@ export function DecisionForm({ slug, id, requester, reasons, currentReasonId, ve
   const pct = (n: number | null) => (n === null ? "—" : `${n > 0 ? "+" : ""}${n}%`);
 
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <form onSubmit={keepForm(action)} className="space-y-4" noValidate>
       <div>
         <label htmlFor="reason_code_id" className="mb-1 block text-xs font-medium text-zinc-600">Reason. Change it if the driver chose wrong.</label>
         <select key={state.values?.reason_code_id ?? currentReasonId} id="reason_code_id" name="reason_code_id" defaultValue={state.values?.reason_code_id ?? currentReasonId} className={inputCls}>{reasons.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}</select>
