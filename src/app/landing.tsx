@@ -5,25 +5,26 @@ import { HeroScene } from "@/components/hero-scene";
 import { Hero3D } from "@/components/hero-3d";
 import { FlowDemo } from "@/components/flow-demo";
 import { Icon } from "@/components/icons";
+import { Art } from "@/components/art";
 import { JsonLd } from "@/components/json-ld";
 import { HOME_FAQ } from "@/lib/faq";
 import { PRO_HEADLINE } from "@/lib/billing/offer";
 import { faqLd, softwareLd } from "@/lib/seo";
 import { SELLING_POINTS } from "@/lib/selling-points";
 
-type Feature = { title: string; text: string; icon: string; pro?: boolean };
+type Feature = { title: string; text: string; icon: string; art: string; pro?: boolean };
 const FEATURES: Feature[] = [
-  { title: "Job cards with approval", text: "A driver or fleet officer raises the job. A manager approves it. Nobody approves their own.", icon: "approve" },
-  { title: "Workshops and quotations", text: "Send the job to a workshop, compare the quotation to the invoice, and pay only what was approved.", icon: "workshop" },
-  { title: "Odometer by link", text: "Drivers send their monthly reading from a phone link. No app, no password.", icon: "odometer" },
-  { title: "Reminders that reach people", text: "Licences, insurance, fitness and token tax, and periodic maintenance due, in the app and by email to the vehicle holder and fleet managers.", icon: "bell" },
-  { title: "Servicing that tells you what is due", text: "Set the rules once, by months, kilometres or engine hours. See what is overdue, coming up, or has no history.", icon: "service" },
-  { title: "Budgets and repeat-repair flags", text: "See what each vehicle and department costs against its budget, and which faults keep coming back.", icon: "budget" },
-  { title: "Vehicle requests and departments", text: "HR requests a vehicle for an employee and a manager decides. Departments run their own vehicles under a spending limit.", icon: "users" },
-  { title: "Papers, accidents and fines", text: "Insurance, fitness, token tax, accidents and challans in one place, each tied to the vehicle and who held it.", icon: "papers" },
-  { title: "Trips, when you want them", text: "An optional module: request, approve and record a trip, with the odometer out and back.", icon: "car" },
-  { title: "AI that reads workshop paperwork", text: "The AI fills in the form from an emailed estimate or invoice. A person always checks and saves.", icon: "spark", pro: true },
-  { title: "Raise a job card on WhatsApp", text: "An employee sends one message, the AI drafts the job card, they confirm, and a manager approves in the app.", icon: "chat", pro: true },
+  { title: "Job cards with approval", text: "A driver or fleet officer raises the job. A manager approves it. Nobody approves their own.", icon: "approve", art: "approve" },
+  { title: "Workshops and quotations", text: "Send the job to a workshop, compare the quotation to the invoice, and pay only what was approved.", icon: "workshop", art: "quote" },
+  { title: "Odometer by link", text: "Drivers send their monthly reading from a phone link. No app, no password.", icon: "odometer", art: "phone" },
+  { title: "Reminders that reach people", text: "Licences, insurance, fitness and token tax, and periodic maintenance due, in the app and by email to the vehicle holder and fleet managers.", icon: "bell", art: "bell" },
+  { title: "Servicing that tells you what is due", text: "Set the rules once, by months, kilometres or engine hours. See what is overdue, coming up, or has no history.", icon: "service", art: "service" },
+  { title: "Budgets and repeat-repair flags", text: "See what each vehicle and department costs against its budget, and which faults keep coming back.", icon: "budget", art: "budget" },
+  { title: "Vehicle requests and departments", text: "HR requests a vehicle for an employee and a manager decides. Departments run their own vehicles under a spending limit.", icon: "users", art: "departments" },
+  { title: "Papers, accidents and fines", text: "Insurance, fitness, token tax, accidents and challans in one place, each tied to the vehicle and who held it.", icon: "papers", art: "papers" },
+  { title: "Trips, when you want them", text: "An optional module: request, approve and record a trip, with the odometer out and back.", icon: "car", art: "trip" },
+  { title: "AI that reads workshop paperwork", text: "The AI fills in the form from an emailed estimate or invoice. A person always checks and saves.", icon: "spark", art: "ai", pro: true },
+  { title: "Raise a job card on WhatsApp", text: "An employee sends one message, the AI drafts the job card, they confirm, and a manager approves in the app.", icon: "chat", art: "chat", pro: true },
 ];
 
 /** `price` is the price box. It is passed in so the rest of the page can be built ahead of time while the price (read from the
@@ -75,14 +76,26 @@ export function Landing({ price }: { price: ReactNode }) {
         <p className="mt-2 max-w-2xl text-zinc-600">Everything below except the two marked Pro is in Basic. <a href="/compare" className="font-medium text-zinc-900 underline">Compare Basic and Pro</a>.</p>
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
-            <div key={f.title} className="reveal lift group rounded-2xl border border-zinc-200 bg-white p-6 shadow-[var(--shadow-card)]">
-              <div className="mb-3 flex items-center justify-between">
-                <span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-lg bg-side text-badge transition-colors group-hover:bg-brand group-hover:text-white"><Icon name={f.icon} /></span>
-                {f.pro && <span className="rounded-full bg-badge px-2.5 py-0.5 text-xs font-semibold text-side">Pro</span>}
+            <div key={f.title} className="group rounded-2xl border border-zinc-200 bg-white p-4 shadow-[var(--shadow-card)]">
+              <div className="relative">
+                <Art name={f.art} className="!shadow-none" />
+                {f.pro && <span className="absolute right-3 top-3 rounded-full bg-badge px-2.5 py-0.5 text-xs font-semibold text-side">Pro</span>}
               </div>
-              <h3 className="font-semibold">{f.title}</h3><p className="mt-2 text-sm text-zinc-600">{f.text}</p>
+              <h3 className="mt-4 flex items-center gap-2 px-1 font-semibold"><span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-side text-badge transition-colors group-hover:bg-brand group-hover:text-white"><Icon name={f.icon} size={16} /></span>{f.title}</h3>
+              <p className="mt-1.5 px-1 pb-1 text-sm text-zinc-600">{f.text}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 pb-16" aria-labelledby="plans-h">
+        <div className="grid items-center gap-8 rounded-3xl border border-zinc-200 bg-white p-6 shadow-[var(--shadow-card)] md:grid-cols-[1fr_1.1fr] md:p-10">
+          <Art name="plans" />
+          <div>
+            <h2 id="plans-h" className="text-2xl font-semibold">Start with Basic. Add Pro when job cards pile up.</h2>
+            <p className="mt-3 text-zinc-600">Basic has every core feature. Pro adds the AI that reads workshop paperwork and job cards raised from WhatsApp, for one price whatever your fleet size. Any Basic company can try Pro free for 3 days.</p>
+            <p className="mt-5 flex flex-wrap items-center gap-4"><a href="/pricing" className="shine inline-flex items-center gap-2 rounded-md bg-brand px-5 py-3 font-semibold text-white hover:opacity-90">See pricing <Icon name="arrow" /></a><a href="/compare" className="font-medium text-zinc-900 underline">Compare the plans</a></p>
+          </div>
         </div>
       </section>
 

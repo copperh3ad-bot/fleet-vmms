@@ -1,7 +1,7 @@
 import { pageMeta, OPERATOR_NAME } from "@/lib/site";
 import { SiteShell } from "@/components/site-shell";
 import { PageHero } from "@/components/page-hero";
-import { Icon } from "@/components/icons";
+import { Art } from "@/components/art";
 
 export const metadata = pageMeta("About us · Fleet OTG", "Why Fleet OTG exists: the everyday problems of running a company fleet on spreadsheets, and what we built to end them.");
 
@@ -50,21 +50,24 @@ const PAINS: { problem: string; story: string; answer: string }[] = [
   },
 ];
 
-const ICONS = ["approve", "repeat" , "budget", "shield", "workshop", "papers", "odometer", "papers"].map((n) => (n === "repeat" ? "service" : n));
+const ART = ["sheets", "repeat", "budget", "approve", "quote", "papers", "phone", "service"];
 
 export default function AboutPage() {
   return (
     <SiteShell active="about">
-      <PageHero eyebrow="About us" title="Built by people who ran a fleet on spreadsheets" chips={["Born inside a real fleet", "Every answer is a feature that exists", "Made in Pakistan"]}>
+      <PageHero eyebrow="About us" title="Built by people who ran a fleet on spreadsheets" chips={["Born inside a real fleet", "Every answer is a feature that exists", "Made in Pakistan"]} art={<Art name="fleet" />}>
         <p>Fleet OTG began inside a company that kept its vehicles on the road with spreadsheets, phone calls and follow-ups. It worked until it did not, and it stopped working in the same few places every time. This page lists those places, and what we built for each.</p>
       </PageHero>
       <div className="mx-auto max-w-3xl px-5 py-12">
         <div className="space-y-8">
           {PAINS.map((p, i) => (
-            <section key={p.problem} aria-labelledby={`pain-${i}`} className="reveal lift rounded-2xl border border-zinc-200 bg-white p-6 shadow-[var(--shadow-card)]">
-              <h2 id={`pain-${i}`} className="flex items-center gap-3 text-xl font-semibold"><span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-side text-badge"><Icon name={ICONS[i]} /></span>{p.problem}</h2>
-              <p className="mt-2 text-zinc-700">{p.story}</p>
-              <p className="mt-3 border-l-4 border-brand pl-4 text-zinc-900"><span className="font-medium">What Fleet OTG does:</span> {p.answer}</p>
+            <section key={p.problem} aria-labelledby={`pain-${i}`} className="group grid gap-5 rounded-2xl border border-zinc-200 bg-white p-4 shadow-[var(--shadow-card)] sm:grid-cols-[260px_1fr] sm:p-5">
+              <Art name={ART[i]} className="!shadow-none" />
+              <div>
+                <h2 id={`pain-${i}`} className="text-xl font-semibold">{p.problem}</h2>
+                <p className="mt-2 text-zinc-700">{p.story}</p>
+                <p className="mt-3 border-l-4 border-brand pl-4 text-zinc-900"><span className="font-medium">What Fleet OTG does:</span> {p.answer}</p>
+              </div>
             </section>
           ))}
         </div>

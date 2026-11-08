@@ -5,6 +5,7 @@ import { breadcrumbLd, webPageLd } from "@/lib/seo";
 import { Icon } from "@/components/icons";
 import { PageHero, CtaBand } from "@/components/page-hero";
 import { SELLING_POINTS } from "@/lib/selling-points";
+import { Art } from "@/components/art";
 
 const TITLE = "Fleet maintenance software features · Fleet OTG";
 const DESCRIPTION = "How Fleet OTG handles fleet maintenance: job cards with recorded approvals, workshop quotations checked against invoices, reminders, servicing, budgets, vehicle requests and papers, with AI and WhatsApp job cards on Pro.";
@@ -12,7 +13,8 @@ export const metadata = pageMeta(TITLE, DESCRIPTION);
 
 // Static text (ADR-031). Each block is a problem a company with a fleet meets, and the thing in the product that answers it today.
 // Nothing here is a statistic, a customer claim or a price.
-const ICONS = ["approve", "papers", "workshop", "phone", "budget", "odometer", "service", "shield", "users", "bell", "users", "car", "odometer"];
+const ART = ["approve", "sheets", "quote", "phone", "budget", "repeat", "papers", "shield", "departments", "bell", "request", "trip", "service"];
+const STEP_ICONS = ["papers", "approve", "workshop", "budget", "shield", "export"];
 const SOLVES: { problem: string; answer: string; pro?: boolean }[] = [
   { problem: "Nobody can say who approved a repair", answer: "Job cards, quotations and invoices are approved with the person's name and the time. Whoever raises a request cannot approve it, and every step is recorded." },
   { problem: "Repair history is scattered across spreadsheets and chats", answer: "Each repair is one job card with a clear status and a full history of who did what and when. Drivers and fleet officers raise jobs, and managers approve them." },
@@ -48,17 +50,17 @@ export default function FeaturesPage() {
     <SiteShell active="features">
       <JsonLd data={webPageLd(TITLE, "/features", DESCRIPTION)} />
       <JsonLd data={breadcrumbLd([["Fleet OTG", "/"], ["Features", "/features"]])} />
-      <PageHero eyebrow="Features" title="Fleet maintenance management software, built around the job card" chips={["Approvals on record", "Quote vs invoice", "Reminders by email", "WhatsApp-ready", "Per-vehicle cost"]}>
+      <PageHero eyebrow="Features" title="Fleet maintenance management software, built around the job card" chips={["Approvals on record", "Quote vs invoice", "Reminders by email", "WhatsApp-ready", "Per-vehicle cost"]} art={<Art name="fleet" />}>
         <p>Fleet OTG is fleet maintenance management software for companies that run their own vehicles. Every repair becomes one job card with a recorded approval trail, so you can see what each vehicle costs, who approved the work, and what is coming due.</p>
       </PageHero>
       <article className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-12">
         <section aria-labelledby="why" className="mb-14">
           <h2 id="why" className="text-2xl font-semibold">Why companies choose it</h2>
-          <ul className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {SELLING_POINTS.map((p) => (
-              <li key={p.title} className="reveal flex items-start gap-4 rounded-xl border border-zinc-200 bg-white p-5">
-                <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-badge text-side"><Icon name={p.icon} /></span>
-                <span><span className="block font-semibold">{p.title}</span><span className="mt-1 block text-sm text-zinc-600">{p.text}</span></span>
+              <li key={p.title} className="group rounded-2xl border border-zinc-200 bg-white p-4 shadow-[var(--shadow-card)]">
+                <Art name={p.art} className="!shadow-none" />
+                <p className="mt-4 px-1 font-semibold">{p.title}</p><p className="mt-1 px-1 pb-1 text-sm text-zinc-600">{p.text}</p>
               </li>
             ))}
           </ul>
@@ -71,11 +73,13 @@ export default function FeaturesPage() {
 
         <section className="mt-14" aria-labelledby="flow">
           <h2 id="flow" className="text-2xl font-semibold">How a repair moves through Fleet OTG</h2>
-          <ol className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
             {STEPS.map(([t, d], i) => (
-              <li key={t} className="reveal flex gap-4 rounded-xl border border-zinc-200 bg-white p-5">
-                <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-side text-sm font-semibold text-white">{i + 1}</span>
-                <span><span className="block font-semibold">{t}</span><span className="mt-1 block text-sm text-zinc-600">{d}</span></span>
+              <li key={t} className="reveal relative rounded-2xl bg-side p-5 text-white">
+                <span aria-hidden className="absolute -top-3 left-4 flex h-7 w-7 items-center justify-center rounded-full bg-badge text-sm font-bold text-side">{i + 1}</span>
+                <span aria-hidden className="mt-2 flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 text-badge"><Icon name={STEP_ICONS[i]} size={26} /></span>
+                <span className="mt-3 block font-semibold">{t}</span><span className="mt-1 block text-sm text-[#B6C6D0]">{d}</span>
+                {i < STEPS.length - 1 && <span aria-hidden className="absolute -right-3 top-1/2 z-10 hidden h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-badge text-side lg:flex"><Icon name="arrow" size={14} /></span>}
               </li>
             ))}
           </ol>
@@ -83,12 +87,14 @@ export default function FeaturesPage() {
 
         <section className="mt-14" aria-labelledby="solves">
           <h2 id="solves" className="text-2xl font-semibold">Problems it solves</h2>
-          <div className="mt-6 grid gap-5 md:grid-cols-2">
+          <div className="mt-8 space-y-10">
             {SOLVES.map((s, i) => (
-              <div key={s.problem} className="reveal lift group rounded-2xl border border-zinc-200 bg-white p-6 shadow-[var(--shadow-card)]">
-                <span aria-hidden className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-side text-badge transition-colors group-hover:bg-brand group-hover:text-white"><Icon name={ICONS[i]} /></span>
-                <h3 className="text-lg font-semibold">{s.problem}</h3>
-                <p className="mt-2 text-sm text-zinc-700">{s.answer}</p>
+              <div key={s.problem} className="reveal grid items-center gap-6 md:grid-cols-2 md:gap-10">
+                <Art name={ART[i]} className={i % 2 ? "md:order-2" : ""} />
+                <div>
+                  <h3 className="text-xl font-semibold">{s.problem}</h3>
+                  <p className="mt-2 text-zinc-700">{s.answer}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -98,12 +104,12 @@ export default function FeaturesPage() {
           <div className="rounded-2xl border-2 border-brand bg-white p-6 shadow-[var(--shadow-card)] md:p-8">
             <p className="inline-block rounded-full bg-badge px-3 py-1 text-xs font-semibold text-side">Pro</p>
             <h2 id="pro-h" className="mt-3 text-2xl font-semibold">Pro: let the AI do the typing</h2>
-            <p className="mt-2 max-w-3xl text-zinc-700">For companies that raise many job cards a day. Pro is Basic plus these two. The AI only drafts; a person always checks and saves.</p>
+            <p className="mt-2 max-w-3xl text-zinc-700">For busy fleets, at one price whatever your fleet size. Pro is Basic plus these two, and any Basic company can try it free for 3 days. The AI only drafts; a person always checks and saves.</p>
             <div className="mt-6 grid gap-5 md:grid-cols-2">
               {PRO.map((s, i) => (
-                <div key={s.problem} className="rounded-xl border border-zinc-200 bg-zinc-50 p-5">
-                  <span aria-hidden className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-side text-badge"><Icon name={i === 0 ? "spark" : "chat"} /></span>
-                  <h3 className="text-lg font-semibold">{s.problem}</h3>
+                <div key={s.problem} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                  <Art name={i === 0 ? "ai" : "chat"} className="!shadow-none" />
+                  <h3 className="mt-4 text-lg font-semibold">{s.problem}</h3>
                   <p className="mt-2 text-sm text-zinc-700">{s.answer}</p>
                 </div>
               ))}

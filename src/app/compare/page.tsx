@@ -5,6 +5,7 @@ import { SiteShell } from "@/components/site-shell";
 import { JsonLd } from "@/components/json-ld";
 import { breadcrumbLd, webPageLd } from "@/lib/seo";
 import { PageHero, CtaBand } from "@/components/page-hero";
+import { Art } from "@/components/art";
 import { Icon } from "@/components/icons";
 import { getDriver } from "@/lib/db";
 import { loadOffer } from "@/lib/billing/offer";
@@ -38,7 +39,7 @@ async function Inner() {
     <SiteShell active="compare">
       <JsonLd data={webPageLd(TITLE, "/compare", DESCRIPTION)} />
       <JsonLd data={breadcrumbLd([["Fleet OTG", "/"], ["Compare plans", "/compare"]])} />
-      <PageHero eyebrow="Compare plans" title="Basic and Pro, side by side">
+      <PageHero eyebrow="Compare plans" title="Basic and Pro, side by side" art={<Art name="plans" />}>
         <p>Basic has every core feature of Fleet OTG except the AI and WhatsApp job cards, and is what every company starts on. Pro adds those two. Neither charges per user.</p>
       </PageHero>
       <div className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-12">

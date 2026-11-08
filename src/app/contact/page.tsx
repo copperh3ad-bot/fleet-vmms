@@ -2,6 +2,7 @@ import { pageMeta } from "@/lib/site";
 import { Suspense } from "react";
 import { SiteShell } from "@/components/site-shell";
 import { PageHero } from "@/components/page-hero";
+import { Art } from "@/components/art";
 import { getDriver } from "@/lib/db";
 import { loadPlatformSettings } from "@/lib/billing/settings";
 import { ContactForm } from "./form";
@@ -11,7 +12,7 @@ export const metadata = pageMeta("Contact us · Fleet OTG", "Ask a question abou
 export default function ContactPage() {
   return (
     <SiteShell active="contact">
-      <PageHero eyebrow="Contact us" title="Questions before you sign up? Ask us.">
+      <PageHero eyebrow="Contact us" title="Questions before you sign up? Ask us." art={<Art name="mail" />}>
         <p>Questions before you sign up, help with your account, or a payment to check: write to us here. We read every message.</p>
       </PageHero>
       <div className="mx-auto grid max-w-5xl 2xl:max-w-6xl gap-10 px-5 py-12 md:grid-cols-[1.4fr_1fr]">

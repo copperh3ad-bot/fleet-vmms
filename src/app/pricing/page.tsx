@@ -12,6 +12,7 @@ import { breadcrumbLd, faqLd } from "@/lib/seo";
 import { Icon } from "@/components/icons";
 import { PageHero } from "@/components/page-hero";
 import { SELLING_POINTS } from "@/lib/selling-points";
+import { Art } from "@/components/art";
 
 export const metadata = pageMeta("Pricing · Fleet OTG", "The price of Basic and Pro. Basic costs about one month's wage of an unskilled labourer; Pro costs less than a fleet manager's monthly salary. Free trial, no card needed.");
 
@@ -34,7 +35,7 @@ async function Inner() {
     <SiteShell active="pricing">
       <JsonLd data={breadcrumbLd([["Fleet OTG", "/"], ["Pricing", "/pricing"]])} />
       <JsonLd data={faqLd(PRICING_FAQ)} />
-      <PageHero eyebrow="Pricing" title="Basic, and Pro for larger fleets" chips={["No per-user charges", "Free trial, no card", "Export your data any time", "Pro: one price for every fleet size"]}>
+      <PageHero eyebrow="Pricing" title="Basic, and Pro for larger fleets" chips={["No per-user charges", "Free trial, no card", "Export your data any time", "Pro: one price for every fleet size"]} art={<Art name="plans" />}>
         <p>Everything in Fleet OTG for your whole company, with no per-user charges. Basic has every core feature and is what every company starts on. Pro adds the AI that reads your workshops&apos; estimates and invoices for you.</p>
       </PageHero>
       <div className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-12">
@@ -86,11 +87,11 @@ async function Inner() {
 
         <section className="mt-14" aria-labelledby="inc">
           <h2 id="inc" className="text-2xl font-semibold">What every company gets</h2>
-          <ul className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {SELLING_POINTS.map((p) => (
-              <li key={p.title} className="reveal flex items-start gap-4 rounded-xl border border-zinc-200 bg-white p-5">
-                <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-badge text-side"><Icon name={p.icon} /></span>
-                <span><span className="block font-semibold">{p.title}</span><span className="mt-1 block text-sm text-zinc-600">{p.text}</span></span>
+              <li key={p.title} className="group rounded-2xl border border-zinc-200 bg-white p-4 shadow-[var(--shadow-card)]">
+                <Art name={p.art} className="!shadow-none" />
+                <p className="mt-4 px-1 font-semibold">{p.title}</p><p className="mt-1 px-1 pb-1 text-sm text-zinc-600">{p.text}</p>
               </li>
             ))}
           </ul>

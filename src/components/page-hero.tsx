@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 
 /** The dark band at the top of a public inner page, in the same look as the landing page's hero. Server component, no motion. */
-export function PageHero({ eyebrow, title, children, chips }: { eyebrow: string; title: ReactNode; children?: ReactNode; chips?: string[] }) {
+export function PageHero({ eyebrow, title, children, chips, art }: { eyebrow: string; title: ReactNode; children?: ReactNode; chips?: string[]; art?: ReactNode }) {
   return (
     <section className="hero-bg relative overflow-hidden text-white">
       <div aria-hidden className="hero-grid pointer-events-none absolute inset-0" />
-      <div className="relative mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-12 md:py-16">
+      <div className={`relative mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-12 md:py-16 ${art ? "grid items-center gap-10 md:grid-cols-[1.25fr_1fr]" : ""}`}>
+        <div>
         <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-[#C9D5DC]"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-badge" /> {eyebrow}</p>
         <h1 className="mt-4 max-w-3xl text-3xl font-semibold leading-tight md:text-4xl">{title}</h1>
         {children && <div className="mt-4 max-w-3xl text-lg text-[#C9D5DC]">{children}</div>}
@@ -14,6 +15,8 @@ export function PageHero({ eyebrow, title, children, chips }: { eyebrow: string;
             {chips.map((c) => <li key={c} className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-sm text-[#E3EAEE]">{c}</li>)}
           </ul>
         )}
+        </div>
+        {art && <div className="mx-auto w-full max-w-sm md:max-w-none" aria-hidden="true">{art}</div>}
       </div>
     </section>
   );
