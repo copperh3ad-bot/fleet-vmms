@@ -14,6 +14,7 @@ const all = [
   ["lock", () => import("./s6-lock-isolation.mjs").then((m) => m.lockAndIsolation(S))],
   ["quality", () => import("./s7-quality.mjs").then((m) => m.quality(S))],
   ["vehicleform", () => import("./s9-vehicle-form.mjs").then((m) => m.vehicleForm(S))],
+  ["workshopflow", () => import("./s11-workshop-flow.mjs").then((m) => m.workshopFlow(S))],
   ["decisionforms", () => import("./s10-decision-forms.mjs").then((m) => m.decisionForms(S))],
 ];
 

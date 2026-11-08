@@ -5,6 +5,7 @@ import { check, go, scenario, step } from "./lib.mjs";
 export async function decisionForms(S) {
   scenario("10. The decision panel keeps the approver's choices after a message");
   const o = S.pk, slug = S.pkSlug, base = `/w/${slug}`;
+  const dec = S.mgr ?? o;                          // once a manager exists the administrator may not decide their own card (ADR-072), so the manager decides
   check(o && slug, "scenario 2 did not run first");
 
   let jobUrl = "";
@@ -24,8 +25,8 @@ export async function decisionForms(S) {
   });
 
   await step("Reject with no note: the message shows and the Reject choice, the reason and a typed note are kept", async () => {
-    await go(o, jobUrl);
-    const f = o.page.locator("form:has(#comment)").first();
+    await go(dec, jobUrl);
+    const f = dec.page.locator("form:has(#comment)").first();
     const reason = f.locator("#reason_code_id");
     const options = await reason.locator("option").count();
     check(options > 2, "the reason list is too short to change");
@@ -35,8 +36,8 @@ export async function decisionForms(S) {
     check(picked !== startValue, "the reason did not change");
     await f.getByLabel(/^Reject/).check();
     await f.locator("button[name=intent][value=reject]").click();                 // the note is empty on purpose: a rejection needs one
-    await o.page.waitForTimeout(2000);
-    check(/\/job-cards\/[0-9a-f-]{36}/.test(o.page.url()), "the page left the job card");
+    await dec.page.waitForTimeout(2000);
+    check(/\/job-cards\/[0-9a-f-]{36}/.test(dec.page.url()), "the page left the job card");
     check(await f.getByLabel(/^Reject/).isChecked(), "the Reject choice was cleared after the message");
     check((await reason.inputValue()) === picked, "the reason was put back after the message");
     check((await f.locator("[role=alert], .text-red-700").count()) > 0, "no message was shown for the missing note");
@@ -44,14 +45,14 @@ export async function decisionForms(S) {
   });
 
   await step("Approve with no workshop: the message shows and the Approve choice and the typed note are kept", async () => {
-    await go(o, jobUrl);
-    const f = o.page.locator("form:has(#comment)").first();
+    await go(dec, jobUrl);
+    const f = dec.page.locator("form:has(#comment)").first();
     await f.getByLabel(/^Approve and assign a workshop/).check();
     await f.locator("#comment").fill("Please check the fuse box as well.");
     const approve = f.locator("button[name=intent][value=approve]").first();
     if (await approve.count() === 0) return;                                      // this role cannot pick a workshop: nothing to check
     await approve.click();                                                        // no workshop is picked on purpose
-    await o.page.waitForTimeout(2000);
+    await dec.page.waitForTimeout(2000);
     check(await f.getByLabel(/^Approve and assign a workshop/).isChecked(), "the Approve choice was cleared after the message");
     check((await f.locator("#comment").inputValue()) === "Please check the fuse box as well.", "the typed note was cleared after the message");
   });
