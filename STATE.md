@@ -459,3 +459,6 @@ Proposed only: per-vehicle CO2 from EPA tested figures (labelled fallbacks where
 
 ## 2026-11-08: site refresh deployed
 Live is commit 13022e5: refreshed public pages, price figures on /pricing only (ADR-065), wording fixes, flyers. Live plans table holds Basic PKR 43,000 and Pro PKR 65,000 (one band). No migrations. Browser suite not run for this deploy (copy and layout changes; unit tests 1,046 pass).
+
+## 2026-11-08: V1.3 gate passes and driver assignment planned (ADR-067, nothing built)
+Proposed only: gate passes as designed in ADR-045 (security role, QR with number only, no public page, late-return reminder), plus driver assignment (availability-aware picker with leave and licence status, day sheet, My assignments, standing and recurring runs). Seven owner decisions listed. Migration numbers: 0037 is reserved for V1.2 if it ships first.
