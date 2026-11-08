@@ -47,9 +47,9 @@ async function Inner() {
               <>
                 <p className="mt-2"><span className="text-4xl font-semibold leading-tight">{offer.amount}</span> <span className="block text-zinc-500">{offer.per}</span></p>
                 <p className="mt-1 text-sm font-medium text-brand">{offer.headline}</p>
-                <div className="mt-4 grid grid-cols-2 gap-2 text-sm" role="table" aria-label="Basic price by length of payment">
-                  <div role="row" className="rounded-lg border border-zinc-200 p-3"><p className="text-zinc-500">1 month</p><p className="mt-1 text-lg font-semibold">{offer.amount}</p></div>
-                  <div role="row" className="rounded-lg border border-brand bg-brand/5 p-3"><p className="text-zinc-500">12 months, one month free</p><p className="mt-1 text-lg font-semibold">{offer.yearly}</p></div>
+                <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                  <div className="rounded-lg border border-zinc-200 p-3"><p className="text-zinc-500">1 month</p><p className="mt-1 text-lg font-semibold">{offer.amount}</p></div>
+                  <div className="rounded-lg border border-brand bg-brand/5 p-3"><p className="text-zinc-500">12 months, one month free</p><p className="mt-1 text-lg font-semibold">{offer.yearly}</p></div>
                 </div>
                 <ul className="mt-4 space-y-2 text-sm text-zinc-700">{offer.points.map((p) => <li key={p} className="flex gap-2"><span aria-hidden className="mt-0.5 shrink-0 text-brand"><Icon name="approve" size={16} /></span>{p}</li>)}</ul>
                 <a href="/signup" className="shine mt-6 block rounded-md bg-brand py-3 text-center font-semibold text-white hover:opacity-90">Start your {offer.trialDays}-day free trial</a>
