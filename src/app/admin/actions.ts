@@ -11,6 +11,7 @@ import { savePlatformSetting } from "@/lib/billing/settings";
 import { notifyClaimDecided } from "@/lib/billing/payment-mails";
 import { setOrgPlan, setPlanPrice, setProBands } from "@/lib/billing/plans";
 import { markContactHandled } from "@/lib/contact";
+import { approveSuggestion, mergeSuggestion, rejectSuggestion } from "@/lib/master/vehicle-names";
 import { recordCertificate, saveTaxRule, setOrgCountry, setOrgWithholding } from "@/lib/billing/tax-data";
 import { saveScenario } from "@/lib/billing/tax-scenarios";
 import { fetchInterbankRate, saveRate } from "@/lib/billing/fx";
@@ -126,6 +127,17 @@ export async function saveRateAction(_p: FormState, f: FormData): Promise<FormSt
 
 export async function markContactHandledAction(id: string): Promise<FormState> {
   return run(async (op) => { await markContactHandled(getDriver(), op, id); return "Marked handled."; });
+}
+
+// Makes and models owners typed because the list did not have them (ADR-071). The operator approves, merges or rejects each.
+export async function approveVehicleNameAction(id: string, _p: FormState, f: FormData): Promise<FormState> {
+  return run(async (op) => { await approveSuggestion(getDriver(), op, id, { make: text(f, "make"), model: text(f, "model") || undefined }); return "Approved. It is now in everyone's list."; });
+}
+export async function mergeVehicleNameAction(id: string, _p: FormState, f: FormData): Promise<FormState> {
+  return run(async (op) => { await mergeSuggestion(getDriver(), op, id, { make: text(f, "into_make"), model: text(f, "into_model") || null }); return "Merged. New vehicles typed this way are saved with the listed name."; });
+}
+export async function rejectVehicleNameAction(id: string, _p: FormState, f: FormData): Promise<FormState> {
+  return run(async (op) => { await rejectSuggestion(getDriver(), op, id, text(f, "note")); return "Rejected. Vehicles already saved keep what their owners typed."; });
 }
 
 export async function fetchRateAction(): Promise<FormState> {

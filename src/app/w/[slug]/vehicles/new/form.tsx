@@ -7,7 +7,7 @@ import { Panel, Pill, btn, btnPrimary, type Tone } from "@/components/ui";
 import type { FormState } from "../../actions-util";
 import { createVehicleAction } from "../actions";
 import { MakeModelYear } from "./make-model-year";
-import { OTHER } from "@/lib/master/vehicle-catalog";
+import { OTHER, type CatalogExtras } from "@/lib/master/vehicle-catalog";
 
 const CLASSES = ["car", "pickup", "van", "truck", "bus", "motorcycle", "forklift", "other"];
 const FUELS = ["petrol", "diesel", "cng", "lpg", "hybrid", "electric"];
@@ -45,7 +45,7 @@ function checklist(v: Record<string, string>, serviceTypes: { key: string; label
   ];
 }
 
-export function AddVehicleForm({ slug, employees, departments = [], serviceTypes, year, currency = "PKR" }: { slug: string; employees: Employee[]; departments?: string[]; serviceTypes: { key: string; label: string }[]; year: number; currency?: string }) {
+export function AddVehicleForm({ slug, employees, departments = [], serviceTypes, year, currency = "PKR", extras }: { extras?: CatalogExtras; slug: string; employees: Employee[]; departments?: string[]; serviceTypes: { key: string; label: string }[]; year: number; currency?: string }) {
   const [state, action, pending] = useActionState<FormState, FormData>(createVehicleAction.bind(null, slug), {});
   const [snap, setSnap] = useState<Record<string, string>>({});
   const holder = employees.find((e) => e.id === snap.employee_id);
@@ -61,7 +61,7 @@ export function AddVehicleForm({ slug, employees, departments = [], serviceTypes
           <Panel title="Identity">
             <div className={three}>
               {f("registration_no", "Registration number *", { autoComplete: "off" })}
-              <MakeModelYear state={state} thisYear={year} />
+              <MakeModelYear state={state} thisYear={year} extras={extras} />
               <Select name="fuel_type" label="Fuel *" state={state} blank="Choose" options={FUELS.map((c) => [c, fuelLabel(c)])} />
               {f("vin", "Chassis number")}
               {f("engine_no", "Engine number")}

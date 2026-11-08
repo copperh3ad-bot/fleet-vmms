@@ -1,5 +1,5 @@
 // The add-vehicle drop-downs must keep what a person picks: while filling the form, and after the server sends the form back with a message (ADR-070 is checked here too).
-import { body, check, fill, go, press, scenario, sql, step, waitText } from "./lib.mjs";
+import { body, check, fill, go, has, press, scenario, sql, step, waitText } from "./lib.mjs";
 
 const shown = (o) => o.page.evaluate(() => Object.fromEntries(["make", "model", "year", "fuel_type", "vehicle_class", "employee_id"].map((id) => {
   const el = document.getElementById(id) ?? document.querySelector(`[name=${id}]`);
@@ -42,6 +42,39 @@ export async function vehicleForm(S) {
     const s = await shown(o);
     check(s.make === "Suzuki", `the new make did not hold: ${JSON.stringify(s)}`);
     check(s.model !== first, "the model list did not follow the make");
+  });
+
+  await step("an unlisted make and model are saved at once, sent for review, and offered back to the company", async () => {
+    await go(o, `${base}/vehicles/new`);
+    await fill(o, "#registration_no", "ZOT-777");
+    await o.page.selectOption("#make", "__other");
+    await o.page.locator("input[name=make_other]").fill("Zotye");
+    await o.page.locator("input[name=model_other]").fill("T600");
+    await o.page.selectOption("#year", "1998");
+    await o.page.selectOption("#fuel_type", { index: 1 });
+    await fill(o, "#odometer_km", "120000");
+    await press(o, "Save vehicle", { wait: 1500 });
+    await waitText(o, "ZOT-777", 8000);
+    const schema = sql(`select schema_name from public.tenants where slug = '${slug}'`);
+    check(sql(`select make || '/' || model from "${schema}".vehicles where registration_no = 'ZOT-777'`) === "Zotye/T600", "the vehicle was not saved with the typed name");
+    check(sql("select string_agg(make || '/' || coalesce(model, '-') || '/' || status, ',' order by model nulls first) from public.vehicle_name_suggestions where make_key = 'zotye'") === "Zotye/-/pending,Zotye/T600/pending", "the names were not sent for review");
+    await go(o, `${base}/vehicles/new`);
+    const makes = await o.page.locator("#make option").allTextContents();
+    check(makes.includes("Zotye"), "the company's own name is not in its list");
+    await o.page.selectOption("#make", "Zotye");
+    check((await o.page.locator("#model option").allTextContents()).includes("T600"), "the company's own model is not in its list");
+  });
+
+  await step("the operator approves it from the review screen and it reaches another company's list", async () => {
+    const op = S.op;
+    await go(op, "/admin/vehicle-names");
+    check(has(await body(op), "Zotye T600"), "the name is not in the review queue");
+    await op.page.locator("section:has-text('Zotye T600') button:has-text('Approve')").click();
+    await waitText(op, "Approved", 8000);
+    check(sql("select count(*) from public.vehicle_name_suggestions where make_key = 'zotye' and status = 'approved'") === "2", "the make and the model were not both approved");
+    await go(S.us, `/w/${S.usSlug}/vehicles/new`);
+    check((await S.us.page.locator("#make option").allTextContents()).includes("Zotye"), "the approved make is not in another company's list");
+    check(!has(await body(S.us), "Awaiting"), "unexpected text");
   });
 
   await step("the activity log has this session's actions, sign-ins and a page view, and no secret", async () => {

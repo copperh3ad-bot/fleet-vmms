@@ -34,8 +34,36 @@ export const MAKES = Object.keys(CATALOG);
 export const modelsOf = (make: string): string[] => CATALOG[make] ?? [];
 
 /** The first year offered, and the latest: next year's models are on sale before the year starts. */
-export const FIRST_YEAR = 1980;
+export const FIRST_YEAR = 1950;          // the oldest year a vehicle may be entered with (the form's own rule), so older models and rebuilt vehicles can be added
 export const yearChoices = (thisYear: number): number[] => Array.from({ length: thisYear + 1 - FIRST_YEAR + 1 }, (_, i) => thisYear + 1 - i);
 
 /** What the form sends for a make or model: a name from the list, or OTHER together with the typed name. Returns the name to save. */
 export const resolveChoice = (choice: string, typed: string): string => (choice === OTHER ? typed : choice).trim();
+
+// ---- names the built-in list does not have (ADR-071) ------------------------------------------------------------------------------------------------------------
+// Pure helpers, so the browser can use them too. The database side (recording, review, approval) is in vehicle-names.ts.
+
+/** Case, spaces and punctuation taken out: "Land Cruiser", "land-cruiser" and "LANDCRUISER" are one name. */
+export const nameKey = (s: string): string => s.normalize("NFKD").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+
+export const builtinMake = (make: string): string | undefined => MAKES.find((m) => nameKey(m) === nameKey(make));
+export const builtinModel = (make: string, model: string): string | undefined => (CATALOG[make] ?? []).find((m) => nameKey(m) === nameKey(model));
+
+/** Extra names for a company's drop-downs, as plain data that can cross to the browser: approved names plus this company's own names awaiting review. */
+export type CatalogExtras = { makes: string[]; models: Record<string, string[]> };
+export type Catalog = { makes: string[]; modelsOf: (make: string) => string[] };
+
+/** The built-in list plus the extras. A built-in spelling always wins over a typed one, and a name is never listed twice. */
+export function mergeCatalog(extras: CatalogExtras = { makes: [], models: {} }): Catalog {
+  const makes = [...MAKES];
+  for (const m of extras.makes) if (!makes.some((x) => nameKey(x) === nameKey(m))) makes.push(m);
+  const modelsOf = (make: string): string[] => {
+    const out = [...(CATALOG[make] ?? [])];
+    for (const [k, list] of Object.entries(extras.models)) {
+      if (nameKey(k) !== nameKey(make)) continue;
+      for (const m of list) if (!out.some((x) => nameKey(x) === nameKey(m))) out.push(m);
+    }
+    return out;
+  };
+  return { makes, modelsOf };
+}

@@ -497,3 +497,7 @@ Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the lan
 - activity_log (control 0021): actions, auth, security refusals, page views, webhooks, job steps, errors; append-only, 400-day purge, operator screen Admin > Activity + CSV. Not yet live: apply control 0021 first, then deploy.
 - Add-vehicle and billing claim forms no longer lose drop-down picks after a message (keepForm). Browser scenario 9 pins it.
 - Users page and sign-up wording corrected (workshops are not invited; licence for staff only; fleet size vs trial allowance).
+
+## 2026-11-08 Unlisted vehicle names with operator review (ADR-071)
+- Owners type an unlisted make/model; vehicle saves at once; name recorded for review (control 0022); own list shows it immediately; Admin > Vehicle names approve/merge/reject. Years back to 1950. Browser scenario 9 covers it.
+- Pending live: control migrations 0020 (storage server-only), 0021 (activity log), 0022 (vehicle names) and tenant 0037. Deploy first, then apply.

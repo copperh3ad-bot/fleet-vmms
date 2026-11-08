@@ -5,6 +5,8 @@ import { getDriver } from "@/lib/db";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { addVehicleFile, removeVehicleFile, type VehicleFileKind } from "@/lib/master/files";
 import { resolveChoice } from "@/lib/master/vehicle-catalog";
+import { canonicalNames, recordNames } from "@/lib/master/vehicle-names";
+import { csvToObjects } from "@/lib/master/csv";
 import { UserError, addVehicle, changeCustody, endCustody, setVehicleDepartment, updateVehicleStatus, previewVehicleImport, commitVehicleImport, type ImportPreview } from "@/lib/master/service";
 import { recordEngineHours, setTracksHours } from "@/lib/hours/service";
 import { runAction, str, typed, type FormState } from "../actions-util";
@@ -66,6 +68,8 @@ function resolved(form: FormData): FormData {
 
 export async function createVehicleAction(slug: string, _prev: FormState, original: FormData): Promise<FormState> {
   const form = resolved(original);
+  // A name that matches the list, an approved name or a merged one is saved in its settled spelling (ADR-071); anything else is kept as typed.
+  if (str(form, "make").trim()) { const c = await canonicalNames(getDriver(), str(form, "make").trim(), str(form, "model").trim()); form.set("make", c.make); form.set("model", c.model); }
   const { raw, baselineKeys, docTypes } = vehicleFromForm(form);
   const missing = Object.fromEntries(NEEDED.filter(([k]) => str(form, k).trim() === "").map(([k, msg]) => [k, msg]));
   if (Object.keys(missing).length) return { error: "Fill in the fields marked with a star.", fields: missing, values: typed(original) };
@@ -74,6 +78,7 @@ export async function createVehicleAction(slug: string, _prev: FormState, origin
   const state = await runAction(slug, async (m) => {
     const driver = getDriver();
     id = (await addVehicle(driver, m, raw)).id;
+    await recordNames(driver, m.tenantId, str(form, "make"), str(form, "model"));          // a name the list lacks goes to review; the vehicle is already saved (ADR-071)
     // The vehicle is saved first; a file that cannot be stored never undoes it.
     for (const [field, kind, label] of [["photo", "photo", "Photo"], ["registration_scan", "registration", "Registration scan"]] as const) {
       const file = form.get(field);
@@ -156,7 +161,13 @@ export async function importVehiclesAction(slug: string, _prev: ImportState, for
   try { text = commit ? str(form, "checked_text") : await readCsv(form); } catch (e) { return { error: e instanceof Error && e.message !== "big" ? e.message : "The file is too large. Split it into smaller files." }; }
   let preview: ImportPreview | undefined, imported: number | undefined;
   const state = await runAction(slug, async (m) => {
-    if (commit) { imported = (await commitVehicleImport(getDriver(), m, text)).imported; return `Imported ${imported} vehicle${imported === 1 ? "" : "s"}.`; }
+    if (commit) {
+      imported = (await commitVehicleImport(getDriver(), m, text)).imported;
+      // names the list lacks go to review, once each; the vehicles are already saved (ADR-071)
+      const pairs = new Map<string, [string, string]>();
+      for (const r of csvToObjects(text).rows) { const mk = (r.values.make ?? "").trim(), md = (r.values.model ?? "").trim(); if (mk) pairs.set(mk.toLowerCase() + "|" + md.toLowerCase(), [mk, md]); }
+      for (const [mk, md] of [...pairs.values()].slice(0, 200)) await recordNames(getDriver(), m.tenantId, mk, md);
+      return `Imported ${imported} vehicle${imported === 1 ? "" : "s"}.`; }
     preview = await previewVehicleImport(getDriver(), m, text);
     return "";
   });
