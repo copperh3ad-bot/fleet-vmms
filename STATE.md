@@ -529,3 +529,6 @@ Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the lan
 ## 2026-11-08 Storage fixed; keepForm on every form that holds a choice
 - Owner set a valid legacy service_role key; Admin > Settings > Check file storage passed and the Supabase storage log confirms save/read/delete.
 - keepForm (no reset after an error) now also on the job card form and phone wizard, accident form, document form, job card decision panel, invoice decision and the workshop estimate and invoice forms. With the old code the job card form cleared both vehicle and reason after an error; browser scenario 9 pins it for three forms.
+
+## 2026-11-08 Live: deploy a3d472a (forms keep their picks after an error)
+- Deployed from a clean build after the full browser suite passed (240 passed, 0 failed). Live pages and all 145 static files load. Nothing pending on live. The decision panels and workshop forms use keepForm but have no browser scenario yet.
