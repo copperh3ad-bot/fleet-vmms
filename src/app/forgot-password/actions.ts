@@ -8,10 +8,11 @@ import { clientIp } from "@/lib/client-ip";
 import { origin } from "@/lib/origin";
 import { supabaseServer } from "@/lib/supabase/server";
 import type { FormState } from "@/app/w/[slug]/actions-util";
+import { authEvent } from "@/lib/activity/auth";
 
 const HOUR = 3600;
 
-export async function forgotPasswordAction(_prev: FormState, form: FormData): Promise<FormState> {
+async function forgotPasswordActionImpl(_prev: FormState, form: FormData): Promise<FormState> {
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 200) return { error: "Enter the email address you sign in with.", values: { email } };
   const driver = getDriver();
@@ -22,4 +23,8 @@ export async function forgotPasswordAction(_prev: FormState, form: FormData): Pr
   // The answer is ignored on purpose. The link comes back through /auth/callback, which sends this person on to /reset-password.
   await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${await origin()}/auth/callback?next=reset` });
   return { ok: "If that address has an account, an email with a link to choose a new password is on its way. It can take a minute; look in spam or junk too.", values: { email } };
+}
+
+export async function forgotPasswordAction(...args: Parameters<typeof forgotPasswordActionImpl>): Promise<Awaited<ReturnType<typeof forgotPasswordActionImpl>>> {
+  return authEvent("forgot password", args, () => forgotPasswordActionImpl(...args));
 }

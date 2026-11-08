@@ -42,7 +42,11 @@ export async function can(q: Queryable, role: string, permission: string): Promi
 }
 
 export async function assertCan(q: Queryable, role: string, permission: string): Promise<void> {
-  if (!(await can(q, role, permission))) throw new ForbiddenError(permission);
+  if (!(await can(q, role, permission))) {
+    // Every refusal is on the activity log (ADR-070), whichever screen or action asked. The log never throws and is written after the response.
+    void import("@/lib/activity/log").then((l) => l.logActivity({ kind: "security", name: "permission refused", outcome: "denied", role, details: { permission } }));
+    throw new ForbiddenError(permission);
+  }
 }
 
 /** The normal entry for a server action: check the permission, then run the work in the same transaction. */

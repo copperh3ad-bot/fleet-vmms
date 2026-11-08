@@ -13,6 +13,7 @@ import { UserError } from "@/lib/master/service";
 import { parseSignup, recordSignup } from "@/lib/orgs/signup";
 import { signupsOpen } from "@/lib/orgs/runtime";
 import type { FormState } from "@/app/w/[slug]/actions-util";
+import { authEvent } from "@/lib/activity/auth";
 
 const HOUR = 3600;
 const MIN_PASSWORD = 10;
@@ -21,7 +22,7 @@ const MIN_PASSWORD = 10;
 const keep = (form: FormData): Record<string, string> =>
   Object.fromEntries([...form.entries()].filter((e): e is [string, string] => typeof e[1] === "string" && !/password|confirm|^\$/.test(e[0])));
 
-export async function signUpAction(_prev: FormState, form: FormData): Promise<FormState> {
+async function signUpActionImpl(_prev: FormState, form: FormData): Promise<FormState> {
   if (!signupsOpen()) return { error: "Sign-up is not open yet. Please check back soon.", values: keep(form) };
   const driver = getDriver();
   let input;
@@ -63,7 +64,7 @@ export async function signUpAction(_prev: FormState, form: FormData): Promise<Fo
 }
 
 /** Sends the confirmation email again. Says the same thing whether or not the address has an account. */
-export async function resendConfirmationAction(_prev: FormState, form: FormData): Promise<FormState> {
+async function resendConfirmationActionImpl(_prev: FormState, form: FormData): Promise<FormState> {
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 200) return { error: "Enter the email address you signed up with.", values: { email } };
   const driver = getDriver();
@@ -72,4 +73,12 @@ export async function resendConfirmationAction(_prev: FormState, form: FormData)
   const supabase = await supabaseServer();
   await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: `${await origin()}/auth/callback` } });   // the answer is ignored on purpose
   return { ok: "If that address is waiting for confirmation, a new email is on its way.", values: { email } };
+}
+
+export async function signUpAction(...args: Parameters<typeof signUpActionImpl>): Promise<Awaited<ReturnType<typeof signUpActionImpl>>> {
+  return authEvent("sign up", args, () => signUpActionImpl(...args));
+}
+
+export async function resendConfirmationAction(...args: Parameters<typeof resendConfirmationActionImpl>): Promise<Awaited<ReturnType<typeof resendConfirmationActionImpl>>> {
+  return authEvent("resend confirmation", args, () => resendConfirmationActionImpl(...args));
 }

@@ -1,6 +1,6 @@
 "use client";
 import { useActionState, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { keepForm } from "@/components/keep-form";
 import { Field, Input, Notice, Select, inputCls } from "@/components/form";
 import { FileInput } from "@/components/file-input";
 import { Panel, Pill, btn, btnPrimary, type Tone } from "@/components/ui";
@@ -17,8 +17,7 @@ const drop = "block w-full rounded-md border border-dashed border-zinc-300 bg-zi
 type Employee = { id: string; full_name: string; employee_no: string | null; department: string | null };
 type Check = { label: string; tone: Tone; word: string; note?: string };
 
-function Buttons() {
-  const { pending } = useFormStatus();
+function Buttons({ pending }: { pending: boolean }) {
   return (
     <div className="flex flex-wrap gap-3">
       <button type="submit" name="intent" value="another" disabled={pending} className={`${btn} disabled:opacity-60`}>Save and add another</button>
@@ -47,14 +46,14 @@ function checklist(v: Record<string, string>, serviceTypes: { key: string; label
 }
 
 export function AddVehicleForm({ slug, employees, departments = [], serviceTypes, year, currency = "PKR" }: { slug: string; employees: Employee[]; departments?: string[]; serviceTypes: { key: string; label: string }[]; year: number; currency?: string }) {
-  const [state, action] = useActionState<FormState, FormData>(createVehicleAction.bind(null, slug), {});
+  const [state, action, pending] = useActionState<FormState, FormData>(createVehicleAction.bind(null, slug), {});
   const [snap, setSnap] = useState<Record<string, string>>({});
   const holder = employees.find((e) => e.id === snap.employee_id);
   const f = (name: string, label: string, props: Record<string, string | boolean> = {}, hint?: string) => <Input name={name} label={label} state={state} hint={hint} {...props} />;
   const three = "grid grid-cols-1 gap-3 sm:grid-cols-3";
   const checks = checklist(snap, serviceTypes);
   return (
-    <form action={action} noValidate
+    <form onSubmit={keepForm(action)} noValidate
       onInput={(e) => setSnap(Object.fromEntries([...new FormData(e.currentTarget)].filter((x): x is [string, string] => typeof x[1] === "string")))}>
       <Notice state={state} />
       <div className="mt-3 grid gap-5 xl:grid-cols-[1.6fr_1fr]">
@@ -135,7 +134,7 @@ export function AddVehicleForm({ slug, employees, departments = [], serviceTypes
                 <li key={c.label} className="flex flex-wrap items-center gap-2"><Pill tone={c.tone}>{c.word}</Pill><span>{c.label}{c.note ? `, ${c.note}` : ""}</span></li>
               ))}
             </ul>
-            <div className="mt-4"><Buttons /></div>
+            <div className="mt-4"><Buttons pending={pending} /></div>
             <a href={`/w/${slug}/vehicles`} className="mt-3 inline-block text-sm text-zinc-600 underline">Cancel</a>
           </Panel>
         </div>

@@ -11,6 +11,7 @@ import { processInboundEmail } from "@/lib/vendorflow/inbound";
 import { storeInboundFile } from "@/lib/admin/service";
 import { allowShared } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
+import { loggedRoute } from "@/lib/activity/route";
 
 const MAX_BODY = 100_000;
 const reply = (status: number, body: Record<string, unknown> = {}) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
@@ -24,7 +25,7 @@ const eventSchema = z.object({
   }),
 });
 
-export async function POST(req: NextRequest) {
+async function postImpl(req: NextRequest) {
   const secret = process.env.RESEND_WEBHOOK_SECRET;
   if (!secret || !process.env.RESEND_API_KEY) return reply(500, { error: "not set up" });
   if (Number(req.headers.get("content-length") ?? 0) > MAX_BODY) return reply(413);
@@ -48,3 +49,5 @@ export async function POST(req: NextRequest) {
     return reply(500, { error: "try again" });
   }
 }
+
+export const POST = loggedRoute("webhook", "inbound email", postImpl);

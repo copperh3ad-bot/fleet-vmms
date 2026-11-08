@@ -3,10 +3,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requireOperator } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
 import { journalCsv, taxSummaryCsv } from "@/lib/billing/accounting";
+import { loggedRoute } from "@/lib/activity/route";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-export async function GET(request: NextRequest, ctx: RouteContext<"/admin/accounting/export/[kind]">) {
+async function getImpl(request: NextRequest, ctx: RouteContext<"/admin/accounting/export/[kind]">) {
   const op = await requireOperator();
   const { kind } = await ctx.params;
   if (kind !== "journal" && kind !== "tax-summary") return new NextResponse("Not found", { status: 404 });
@@ -16,3 +17,5 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/admin/accoun
   const body = kind === "journal" ? await journalCsv(getDriver(), op.id, { from, to }) : await taxSummaryCsv(getDriver(), op.id, { from, to });
   return new NextResponse(body, { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="fleet-otg-${kind}.csv"`, "cache-control": "no-store" } });
 }
+
+export const GET = loggedRoute("billing", "accounting export", getImpl);

@@ -10,7 +10,7 @@ const SIZES: [string, string][] = [["1-5", "1 to 5 vehicles"], ["6-20", "6 to 20
 const PAKISTAN_ONLY = true;
 
 /** `countries` is made on the server and passed in: the browser's own list of names can differ from the server's, which breaks hydration. */
-export function SignupForm({ trialDays, countries }: { trialDays: number; countries: [string, string][] }) {
+export function SignupForm({ trialDays, countries, vehicleLimit }: { trialDays: number; countries: [string, string][]; vehicleLimit?: number }) {
   const [state, action, pending] = useActionState<FormState, FormData>(signUpAction, {});
   const err = state.fields?.terms;
   return (
@@ -23,7 +23,7 @@ export function SignupForm({ trialDays, countries }: { trialDays: number; countr
       <Input name="email" label="Work email" type="email" state={state} required autoComplete="email" hint="We send a confirmation link here. You sign in with this address." />
       <div className={PAKISTAN_ONLY ? "" : "grid gap-4 sm:grid-cols-2"}>
         {PAKISTAN_ONLY ? <input type="hidden" name="country" value="PK" /> : <Select name="country" label="Country" state={state} blank="Choose" required options={countries} />}
-        <Select name="fleet_size" label="How many vehicles?" state={state} blank="Choose" options={SIZES} />
+        <Select name="fleet_size" label="How many vehicles does your company run?" state={state} blank="Choose" options={SIZES} hint={vehicleLimit ? `Your whole fleet, so we can set you up. The free trial lets you add up to ${vehicleLimit} vehicles, whatever you choose here.` : "Your whole fleet, so we can set you up. The free trial has its own limit on how many vehicles you add."} />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Password" name="password" state={state} required hint="At least 10 characters.">

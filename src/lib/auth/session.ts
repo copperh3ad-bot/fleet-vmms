@@ -6,6 +6,7 @@ import { getDriver } from "@/lib/db";
 import { loadAccess } from "@/lib/billing/state";
 import { isOperator } from "@/lib/billing/operator";
 import { findActiveTenant, membershipIn, type Membership } from "./can";
+import { logActivity } from "@/lib/activity/log";
 
 // A page, its layout and the actions it runs all ask "who is this" and "which workspace". cache() makes each of those
 // one lookup per request instead of one per caller; every request still checks for itself.
@@ -46,10 +47,23 @@ export async function requireUser() {
 export async function requireMembership(slug: string, opts: { allowLocked?: boolean; fullScope?: boolean } = {}): Promise<Membership> {
   const user = await requireUser();
   const { m, billing } = await membershipOf(slug, user.id);
-  if (!m || !billing) redirect("/");
-  if (!billing.full && !opts.allowLocked) redirect(`/w/${encodeURIComponent(slug)}/billing`);
-  if (opts.fullScope && m.vehicleScope === "own" && m.role !== "vendor") forbidden();
+  // The activity log (ADR-070): a refused visit is a security line; an allowed page view is one line per request however many layouts ask. A server action logs itself.
+  if (!m || !billing) { await logRefusal(user.id, slug, "not a member"); redirect("/"); }
+  if (!billing.full && !opts.allowLocked) { await logRefusal(user.id, slug, "workspace locked", m.tenantId, m.role); redirect(`/w/${encodeURIComponent(slug)}/billing`); }
+  if (opts.fullScope && m.vehicleScope === "own" && m.role !== "vendor") { await logRefusal(user.id, slug, "own-vehicle scope", m.tenantId, m.role); forbidden(); }
+  await logView(user.id, m.tenantId, m.role);
   return { ...m, billing };
+}
+
+const logView = cache(async (userId: string, tenantId: string, role: string) => {
+  try {
+    const { headers } = await import("next/headers");
+    if ((await headers()).get("next-action")) return;            // an action logs itself
+  } catch { return; }
+  await logActivity({ kind: "page", name: "view", outcome: "ok", actorId: userId, tenantId, role });
+});
+async function logRefusal(userId: string, slug: string, why: string, tenantId?: string, role?: string) {
+  await logActivity({ kind: "security", name: "workspace access refused", outcome: "denied", actorId: userId, tenantId: tenantId ?? null, role: role ?? null, details: { slug, why } });
 }
 
 /**
@@ -59,6 +73,18 @@ export async function requireMembership(slug: string, opts: { allowLocked?: bool
  */
 export async function requireOperator() {
   const user = await requireUser();
-  if (!(await isOperator(getDriver(), user.id))) redirect("/");
+  if (!(await isOperator(getDriver(), user.id))) {
+    await logActivity({ kind: "security", name: "operator area refused", outcome: "denied", actorId: user.id });
+    redirect("/");
+  }
+  await logOperatorView(user.id);
   return user;
 }
+
+const logOperatorView = cache(async (userId: string) => {
+  try {
+    const { headers } = await import("next/headers");
+    if ((await headers()).get("next-action")) return;            // an operator action logs itself
+  } catch { return; }
+  await logActivity({ kind: "page", name: "operator view", outcome: "ok", actorId: userId, role: "operator" });
+});

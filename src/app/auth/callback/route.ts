@@ -5,10 +5,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { origin } from "@/lib/origin";
+import { loggedRoute } from "@/lib/activity/route";
 
 const CODE = /^[A-Za-z0-9_-]{8,200}$/;
 
-export async function GET(request: NextRequest) {
+async function getImpl(request: NextRequest) {
   const base = await origin();
   const code = request.nextUrl.searchParams.get("code") ?? "";
   if (!CODE.test(code)) return NextResponse.redirect(`${base}/login`);
@@ -19,3 +20,5 @@ export async function GET(request: NextRequest) {
   const dest = request.nextUrl.searchParams.get("next") === "reset" ? "/reset-password" : "/";
   return NextResponse.redirect(error ? `${base}/login` : `${base}${dest}`);
 }
+
+export const GET = loggedRoute("auth", "email confirmation link", getImpl);

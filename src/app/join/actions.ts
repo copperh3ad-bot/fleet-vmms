@@ -13,6 +13,7 @@ import { UserError } from "@/lib/master/service";
 import { JOIN_REF_COOKIE, parseJoin, submitJoinRequest, type JoinKind } from "@/lib/orgs/join";
 import { normalizePhone } from "@/lib/phone";
 import type { FormState } from "@/app/w/[slug]/actions-util";
+import { authEvent } from "@/lib/activity/auth";
 
 const HOUR = 3600;
 const MIN_PASSWORD = 10;
@@ -21,7 +22,7 @@ const MIN_PASSWORD = 10;
 const keep = (form: FormData): Record<string, string> =>
   Object.fromEntries([...form.entries()].filter((e): e is [string, string] => typeof e[1] === "string" && !/password|confirm|^\$/.test(e[0])));
 
-export async function joinAction(kind: JoinKind, _prev: FormState, form: FormData): Promise<FormState> {
+async function joinActionImpl(kind: JoinKind, _prev: FormState, form: FormData): Promise<FormState> {
   // Workshops never sign up (ADR-033): an organization adds them itself. The page is gone, and the action refuses the kind so it cannot be called by hand.
   if (kind !== "staff") return { error: "Workshops do not sign up. Ask the company to send you a link or an email.", values: keep(form) };
   const driver = getDriver();
@@ -69,4 +70,8 @@ export async function joinAction(kind: JoinKind, _prev: FormState, form: FormDat
   // The request is saved. A person who already has a login simply signs in; their request is waiting either way.
   const existing = !!error || (Array.isArray(data?.user?.identities) && data.user.identities.length === 0);   // Supabase hides an existing login behind a success with no identities
   redirect(`/join/sent?to=${encodeURIComponent(sentTo)}${existing || data?.session ? "&existing=1" : ""}`);
+}
+
+export async function joinAction(...args: Parameters<typeof joinActionImpl>): Promise<Awaited<ReturnType<typeof joinActionImpl>>> {
+  return authEvent("join with company code", args, () => joinActionImpl(...args));
 }

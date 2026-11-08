@@ -9,6 +9,7 @@ import { clientIp } from "@/lib/client-ip";
 import { UserError } from "@/lib/master/service";
 import { acceptInvitation, acceptWithUsername, hashInviteToken, previewInvitation } from "@/lib/admin/service";
 import { checkInviteCode, sendInviteCode } from "@/lib/admin/invite-otp";
+import { authEvent } from "@/lib/activity/auth";
 
 /** `go` is where the browser moves on to once the account is made and the person is signed in. */
 export type InviteFormState = { error?: string; notice?: string; go?: string };
@@ -16,7 +17,7 @@ export type InviteFormState = { error?: string; notice?: string; go?: string };
 const TEN_MIN = 600;
 const MIN_PASSWORD = 10;
 
-export async function createAccountAction(token: string, _prev: InviteFormState, form: FormData): Promise<InviteFormState> {
+async function createAccountActionImpl(token: string, _prev: InviteFormState, form: FormData): Promise<InviteFormState> {
   const driver = getDriver();
   const [ipOk, tokenOk] = await Promise.all([
     allowShared(driver, `invite-ip:${await clientIp()}`, 20, TEN_MIN),
@@ -73,9 +74,17 @@ export async function createAccountAction(token: string, _prev: InviteFormState,
 }
 
 /** "Send me a code": sends a new one-time code to the place this invitation uses (ADR-046). The answer says only where it went, never the code. */
-export async function sendCodeAction(token: string): Promise<{ sentTo?: string; error?: string }> {
+async function sendCodeActionImpl(token: string): Promise<{ sentTo?: string; error?: string }> {
   const driver = getDriver();
   if (!(await allowShared(driver, `invite-token:${hashInviteToken(token)}`, 10, TEN_MIN))) return { error: "Too many tries. Wait a few minutes and try again." };
   try { return await sendInviteCode(driver, token, await clientIp()); }
   catch (e) { if (e instanceof UserError) return { error: e.message }; throw e; }
+}
+
+export async function createAccountAction(...args: Parameters<typeof createAccountActionImpl>): Promise<Awaited<ReturnType<typeof createAccountActionImpl>>> {
+  return authEvent("accept invitation", args, () => createAccountActionImpl(...args));
+}
+
+export async function sendCodeAction(...args: Parameters<typeof sendCodeActionImpl>): Promise<Awaited<ReturnType<typeof sendCodeActionImpl>>> {
+  return authEvent("send invitation code", args, () => sendCodeActionImpl(...args));
 }

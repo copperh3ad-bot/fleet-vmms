@@ -17,16 +17,25 @@ import { fetchInterbankRate, saveRate } from "@/lib/billing/fx";
 import { postManualJournal, postMissingInvoices, reverseJournal, saveAccount } from "@/lib/billing/accounting";
 import { issueCertificate, voidCertificate } from "@/lib/billing/certificates";
 import { providerFromEnv } from "@/lib/orgs/db-provider";
-import type { FormState } from "@/app/w/[slug]/actions-util";
+import { callerName, type FormState } from "@/app/w/[slug]/actions-util";
+import { logActivity } from "@/lib/activity/log";
 
 async function run(fn: (operatorId: string) => Promise<string>): Promise<FormState> {
+  const name = callerName() ?? "operator action";
+  const t0 = Date.now();
   const op = await requireOperator();
+  const base = { kind: "billing" as const, name, actorId: op.id, role: "operator" };         // everything an operator does is on the record (ADR-070)
   try {
     const ok = await fn(op.id);
+    await logActivity({ ...base, outcome: "ok", durationMs: Date.now() - t0 });
     refresh();
     return { ok };
   } catch (e) {
-    if (e instanceof UserError) return { error: e.message, fields: e.fields };
+    if (e instanceof UserError) {
+      await logActivity({ ...base, outcome: "invalid", durationMs: Date.now() - t0, details: { message: e.message } });
+      return { error: e.message, fields: e.fields };
+    }
+    await logActivity({ ...base, outcome: "error", durationMs: Date.now() - t0, error: e });
     throw e;
   }
 }

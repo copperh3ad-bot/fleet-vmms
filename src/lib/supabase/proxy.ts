@@ -41,6 +41,9 @@ async function session(request: NextRequest): Promise<{ res: NextResponse; signe
 export const SIGNED_IN_FLAG = "fleetotg_in";
 
 export async function updateSession(request: NextRequest) {
+  // Set here, on the request the pages see, and overwritten if the browser sent its own: the activity log (ADR-070) trusts these two.
+  request.headers.set("x-fleet-path", request.nextUrl.pathname);
+  request.headers.set("x-fleet-rid", crypto.randomUUID());
   const { res, signedIn } = await session(request);
   const has = request.cookies.get(SIGNED_IN_FLAG)?.value === "1";
   if (signedIn && !has) res.cookies.set(SIGNED_IN_FLAG, "1", { path: "/", sameSite: "lax", maxAge: 60 * 60 * 24 * 30, secure: request.nextUrl.protocol === "https:" });

@@ -492,3 +492,8 @@ Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the lan
 
 ## 2026-11-08 Files through the server only (ADR-069)
 - Storage reads, writes, deletes and signed links now run on the server with the service key (admin.ts), guarded per caller by blob-store.ts; WhatsApp webhook saves media through the inbound saver (it had no storage rights before). Control migration 0020 drops the bucket policies for signed-in people. Order: deploy, check files open and save, then apply control 0020 and tenant 0037. Not yet live.
+
+## 2026-11-08 Activity log, form reset fix, wording (ADR-070)
+- activity_log (control 0021): actions, auth, security refusals, page views, webhooks, job steps, errors; append-only, 400-day purge, operator screen Admin > Activity + CSV. Not yet live: apply control 0021 first, then deploy.
+- Add-vehicle and billing claim forms no longer lose drop-down picks after a message (keepForm). Browser scenario 9 pins it.
+- Users page and sign-up wording corrected (workshops are not invited; licence for staff only; fleet size vs trial allowance).

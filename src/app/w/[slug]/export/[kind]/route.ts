@@ -6,8 +6,9 @@ import { ForbiddenError } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { UserError } from "@/lib/master/service";
 import { exportCsv } from "@/lib/exports/service";
+import { loggedRoute } from "@/lib/activity/route";
 
-export async function GET(req: NextRequest, ctx: RouteContext<"/w/[slug]/export/[kind]">) {
+async function getImpl(req: NextRequest, ctx: RouteContext<"/w/[slug]/export/[kind]">) {
   const { slug, kind } = await ctx.params;
   const m = await requireMembership(slug, { allowLocked: true });   // your data stays yours when the workspace is locked
   const sp = req.nextUrl.searchParams;
@@ -27,3 +28,5 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/w/[slug]/export/
     throw e;
   }
 }
+
+export const GET = loggedRoute("action", "export", getImpl);

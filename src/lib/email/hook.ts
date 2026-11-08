@@ -36,5 +36,7 @@ export async function handleSendEmailHook(req: Request): Promise<Response> {
     console.error(e instanceof EmailNotConfigured ? "send-email: mail service not configured" : `send-email: the mail service refused the message: ${mailFailure(e)}`);
     return fail(500, "The email could not be sent. Try again in a moment.");
   }
+  // The hook runs as a tiny function that must wake fast, so it writes to the host's log, not the database (ADR-070). Never an address, a code or a link.
+  console.log(`send-email: ${payload.email_data.email_action_type} email accepted by the mail server`);
   return Response.json({}, { headers: { "Cache-Control": "no-store" } });
 }

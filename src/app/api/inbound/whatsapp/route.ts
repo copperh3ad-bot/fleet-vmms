@@ -11,18 +11,19 @@ import { failedStatuses, fetchMedia, statusKinds, parseWebhook, sendReplyText, v
 import { processInboundWhatsApp } from "@/lib/vendorflow/whatsapp-inbound";
 import { processOdometerReply } from "@/lib/odometer/whatsapp";
 import { processWhatsAppJobCard } from "@/lib/wa-jobcards/service";
+import { loggedRoute } from "@/lib/activity/route";
 
 const MAX_BODY = 200_000;
 const MAX_MESSAGES = 20;
 const reply = (status: number, body: Record<string, unknown> = {}) => Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 
-export function GET(req: NextRequest) {
+function getImpl(req: NextRequest) {
   const u = req.nextUrl.searchParams;
   const challenge = verifyChallenge({ mode: u.get("hub.mode"), token: u.get("hub.verify_token"), challenge: u.get("hub.challenge") });
   return challenge === null ? new Response("not allowed", { status: 403 }) : new Response(challenge, { status: 200, headers: { "Content-Type": "text/plain" } });
 }
 
-export async function POST(req: NextRequest) {
+async function postImpl(req: NextRequest) {
   if (!whatsappInboundConfigured()) return reply(500, { error: "not set up" });
   if (Number(req.headers.get("content-length") ?? 0) > MAX_BODY) return reply(413);
   const body = await req.text();
@@ -66,3 +67,7 @@ export async function POST(req: NextRequest) {
     return reply(500, { error: "try again" });
   }
 }
+
+export const POST = loggedRoute("webhook", "inbound whatsapp", postImpl);
+
+export const GET = loggedRoute("webhook", "whatsapp verification", getImpl);

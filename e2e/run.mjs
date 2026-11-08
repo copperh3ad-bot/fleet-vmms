@@ -13,6 +13,7 @@ const all = [
   ["billing", () => import("./s5-billing.mjs").then((m) => m.billing(S))],
   ["lock", () => import("./s6-lock-isolation.mjs").then((m) => m.lockAndIsolation(S))],
   ["quality", () => import("./s7-quality.mjs").then((m) => m.quality(S))],
+  ["vehicleform", () => import("./s9-vehicle-form.mjs").then((m) => m.vehicleForm(S))],
 ];
 
 await launch();

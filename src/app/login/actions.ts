@@ -5,13 +5,14 @@ import { getDriver } from "@/lib/db";
 import { allowShared } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
 import { isLoginEmail, loginEmailFor, looksLikeEmail } from "@/lib/auth/login-names";
+import { authEvent } from "@/lib/activity/auth";
 
 /** `done` means the session cookie is set: the page then moves on itself (see login/page.tsx). */
 export type LoginState = { error?: string; done?: boolean };
 
 const TEN_MIN = 600;
 
-export async function signIn(_prev: LoginState, form: FormData): Promise<LoginState> {
+async function signInImpl(_prev: LoginState, form: FormData): Promise<LoginState> {
   // One box for both kinds of person: an email, or the sign-in name of someone who has no email (ADR-025).
   const email = String(form.get("email") ?? "").trim();
   const password = String(form.get("password") ?? "");
@@ -34,8 +35,16 @@ export async function signIn(_prev: LoginState, form: FormData): Promise<LoginSt
   return { done: true };
 }
 
-export async function signOut() {
+async function signOutImpl() {
   const supabase = await supabaseServer();
   await supabase.auth.signOut();
   redirect("/login");
+}
+
+export async function signIn(...args: Parameters<typeof signInImpl>): Promise<Awaited<ReturnType<typeof signInImpl>>> {
+  return authEvent("sign in", args, () => signInImpl(...args));
+}
+
+export async function signOut(...args: Parameters<typeof signOutImpl>): Promise<Awaited<ReturnType<typeof signOutImpl>>> {
+  return authEvent("sign out", args, () => signOutImpl(...args));
 }

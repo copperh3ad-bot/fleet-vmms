@@ -25,7 +25,8 @@ const nextConfig: NextConfig = {
     ],
   },
   // Photo uploads go through server actions; the largest allowed file is 4 MB and the host refuses a body over about 6 MB.
-  experimental: { serverActions: { bodySizeLimit: "6mb" }, authInterrupts: true },
+  // Server function names are kept readable in the production build: the activity log names each action by it (ADR-070).
+  experimental: { serverActions: { bodySizeLimit: "6mb" }, authInterrupts: true, serverMinification: false },
   partialPrefetching: true,
   // The driver odometer link carries a secret in its path: never cache it, never leak it in a Referer, keep it out of search.
   async headers() {

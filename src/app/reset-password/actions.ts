@@ -4,10 +4,11 @@
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import type { FormState } from "@/app/w/[slug]/actions-util";
+import { authEvent } from "@/lib/activity/auth";
 
 const MIN_PASSWORD = 10;   // the same rule as sign-up
 
-export async function resetPasswordAction(_prev: FormState, form: FormData): Promise<FormState> {
+async function resetPasswordActionImpl(_prev: FormState, form: FormData): Promise<FormState> {
   const password = String(form.get("password") ?? "");
   if (password.length < MIN_PASSWORD) return { error: "Fix the highlighted fields.", fields: { password: `Use at least ${MIN_PASSWORD} characters` } };
   if (password !== String(form.get("confirm") ?? "")) return { error: "Fix the highlighted fields.", fields: { confirm: "The two passwords do not match" } };
@@ -21,4 +22,8 @@ export async function resetPasswordAction(_prev: FormState, form: FormData): Pro
   }
   await supabase.auth.signOut({ scope: "others" });   // anyone else signed in with the old password is signed out
   redirect("/");
+}
+
+export async function resetPasswordAction(...args: Parameters<typeof resetPasswordActionImpl>): Promise<Awaited<ReturnType<typeof resetPasswordActionImpl>>> {
+  return authEvent("reset password", args, () => resetPasswordActionImpl(...args));
 }

@@ -14,7 +14,7 @@ export function CreateOrganizationForm({ contactName, trialDays }: { contactName
       <Input name="contact_name" label="Your name" state={state} required autoComplete="name" />
       <div className="grid gap-4 sm:grid-cols-2">
         <Input name="phone" label="Phone (optional)" state={state} inputMode="tel" />
-        <Select name="fleet_size" label="How many vehicles?" state={state} blank="Choose" options={SIZES} />
+        <Select name="fleet_size" label="How many vehicles does your company run?" state={state} blank="Choose" options={SIZES} hint="Your whole fleet, so we can set you up. The free trial has its own limit on how many vehicles you add." />
       </div>
       <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="terms" defaultChecked={state.values?.terms === "on"} className="mt-1" /><span>I agree to the <a href="/terms" target="_blank" className="underline">Terms</a> and the <a href="/privacy" target="_blank" className="underline">Privacy Policy</a>.</span></label>
       {state.fields?.terms && <p role="alert" className="text-xs text-red-700">{state.fields.terms}</p>}

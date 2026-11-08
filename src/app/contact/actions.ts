@@ -8,6 +8,7 @@ import { clientIp } from "@/lib/client-ip";
 import { UserError } from "@/lib/master/service";
 import { parseContact, recordContact } from "@/lib/contact";
 import type { FormState } from "@/app/w/[slug]/actions-util";
+import { authEvent } from "@/lib/activity/auth";
 
 const HOUR = 3600;
 const SENT = "Thank you. We have your message and will reply to the email address you gave.";
@@ -15,7 +16,7 @@ const SENT = "Thank you. We have your message and will reply to the email addres
 const keep = (form: FormData): Record<string, string> =>
   Object.fromEntries([...form.entries()].filter((e): e is [string, string] => typeof e[1] === "string" && !/^\$|^website$/.test(e[0])));
 
-export async function contactAction(_prev: FormState, form: FormData): Promise<FormState> {
+async function contactActionImpl(_prev: FormState, form: FormData): Promise<FormState> {
   // Real people never see this field (it is hidden), so anything in it is a script. It is told the message went through.
   if (String(form.get("website") ?? "").trim() !== "") return { ok: SENT };
   let input;
@@ -30,4 +31,8 @@ export async function contactAction(_prev: FormState, form: FormData): Promise<F
   if (!ipOk || !mailOk) return { error: "Too many messages from here. Wait a little and try again.", values: keep(form) };
   await recordContact(driver, input);
   return { ok: SENT };
+}
+
+export async function contactAction(...args: Parameters<typeof contactActionImpl>): Promise<Awaited<ReturnType<typeof contactActionImpl>>> {
+  return authEvent("contact form", args, () => contactActionImpl(...args));
 }

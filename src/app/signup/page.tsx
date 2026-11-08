@@ -28,7 +28,7 @@ async function Inner() {
           <h1 className="text-3xl font-semibold">Start your free trial</h1>
           <p className="mt-2 text-zinc-600">{offer ? `${offer.trialDays} days, every feature, no card needed.` : "Create your company's workspace."}</p>
           <div className="mt-8 rounded-xl border border-zinc-200 bg-white p-6">
-            {open ? <SignupForm trialDays={offer!.trialDays} countries={countryOptions()} /> : (
+            {open ? <SignupForm trialDays={offer!.trialDays} countries={countryOptions()} vehicleLimit={vehicleLimit} /> : (
               <p role="status" className="text-zinc-700">Sign-up is not open yet. Please check back soon, or <a href="/login" className="underline">sign in</a> if you already have an account.</p>
             )}
           </div>

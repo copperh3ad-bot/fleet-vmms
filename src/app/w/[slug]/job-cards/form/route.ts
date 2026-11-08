@@ -6,8 +6,9 @@ import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { buildJobCardForm } from "@/lib/jobcards/offline-form";
 import { loadFormContext } from "@/lib/jobcards/offline-service";
+import { loggedRoute } from "@/lib/activity/route";
 
-export async function GET(_req: NextRequest, ctx: RouteContext<"/w/[slug]/job-cards/form">) {
+async function getImpl(_req: NextRequest, ctx: RouteContext<"/w/[slug]/job-cards/form">) {
   const { slug } = await ctx.params;
   const m = await requireMembership(slug);
   const driver = getDriver();
@@ -22,3 +23,5 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/w/[slug]/job-ca
     },
   });
 }
+
+export const GET = loggedRoute("action", "blank job card form", getImpl);

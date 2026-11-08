@@ -1,6 +1,7 @@
 "use client";
 import { useActionState, useState } from "react";
 import { formatPrice } from "@/lib/billing/offer";
+import { keepForm } from "@/components/keep-form";
 import { Input, Notice, Select, Submit, Field, inputCls } from "@/components/form";
 import { FileInput } from "@/components/file-input";
 import type { FormState } from "../actions-util";
@@ -13,8 +14,8 @@ const chargedMonths = (months: number) => (months >= 12 ? months - Math.floor(mo
 const amountFor = (p: PlanPrice | undefined, months: number, fallback: string) => (p ? String((p.cents * chargedMonths(months)) / 100) : fallback);
 
 export function ClaimForm({ slug, defaultAmount, defaultCurrency, today, plans, defaultPlan }: { slug: string; defaultAmount: string; defaultCurrency: "USD" | "PKR"; today: string; plans: PlanPrice[]; defaultPlan: string }) {
-  const [state, action] = useActionState<FormState, FormData>(submitClaimAction.bind(null, slug), {});
-  // after a send the boxes are cleared; after an error they keep what was typed
+  const [state, action, sending] = useActionState<FormState, FormData>(submitClaimAction.bind(null, slug), {});
+  // after a send the form is made again (key below), so the boxes are empty; after an error it is not reset (keepForm), so the plan, period and amount stay as chosen
   const s: FormState = state.ok ? { ...state, values: {} } : state.values ? state : { ...state, values: { currency: defaultCurrency, paid_on: today } };
   const [plan, setPlan] = useState(state.values?.plan ?? defaultPlan);
   const [period, setPeriod] = useState(state.values?.months === "12" ? "12" : "1");
@@ -25,7 +26,7 @@ export function ClaimForm({ slug, defaultAmount, defaultCurrency, today, plans, 
   const year = chosen ? formatPrice(chosen.cents * chargedMonths(12), chosen.currency) : "";
   const choices: [string, string, string, string][] = [["1", "1 month", month, "Pay again next month"], ["12", "12 months", year, "One month free: you pay for 11"]];
   return (
-    <form action={action} noValidate className="space-y-4" key={state.ok ?? "form"}>
+    <form onSubmit={keepForm(action)} noValidate className="space-y-4" key={state.ok ?? "form"}>
       {plans.length > 0 && (
         <Field label="Paying for" name="plan" state={s} required>
           <select id="plan" name="plan" className={inputCls} value={plan} onChange={(e) => { setPlan(e.target.value); recompute(e.target.value, period); }}>
@@ -57,7 +58,7 @@ export function ClaimForm({ slug, defaultAmount, defaultCurrency, today, plans, 
         <FileInput id="proof" name="proof" multiple={false} className={`${inputCls} h-auto py-2 text-sm`} />
       </Field>
       <Input name="note" label="Note (optional)" state={s} />
-      <div className="flex flex-wrap items-center gap-3"><Submit pendingText="Sending">I have paid</Submit><Notice state={state} /></div>
+      <div className="flex flex-wrap items-center gap-3"><Submit pendingText="Sending" pending={sending}>I have paid</Submit><Notice state={state} /></div>
     </form>
   );
 }

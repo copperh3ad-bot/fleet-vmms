@@ -1,0 +1,61 @@
+// The add-vehicle drop-downs must keep what a person picks: while filling the form, and after the server sends the form back with a message (ADR-070 is checked here too).
+import { body, check, fill, go, press, scenario, sql, step, waitText } from "./lib.mjs";
+
+const shown = (o) => o.page.evaluate(() => Object.fromEntries(["make", "model", "year", "fuel_type", "vehicle_class", "employee_id"].map((id) => {
+  const el = document.getElementById(id) ?? document.querySelector(`[name=${id}]`);
+  return [id, el ? (el.options ? el.options[el.selectedIndex]?.text ?? "" : el.value) : "(none)"];
+})));
+
+export async function vehicleForm(S) {
+  scenario("9. The add-vehicle drop-downs keep what is picked");
+  const o = S.pk, slug = S.pkSlug, base = `/w/${slug}`;
+  check(o && slug, "scenario 2 did not run first");
+
+  await step("each drop-down holds the pick while the form is being filled", async () => {
+    await go(o, `${base}/vehicles/new`);
+    await o.page.selectOption("#make", "Toyota");
+    check((await shown(o)).make === "Toyota", "the make did not stay");
+    await o.page.selectOption("#model", "Hilux");
+    check((await shown(o)).model === "Hilux", "the model did not stay");
+    await o.page.selectOption("#year", "2019");
+    await o.page.selectOption("#fuel_type", "diesel");
+    await o.page.selectOption("#vehicle_class", "van");
+    await fill(o, "#registration_no", "");                     // the plate is left empty on purpose
+    const s = await shown(o);
+    check(s.year === "2019" && /diesel/i.test(s.fuel_type) && /van/i.test(s.vehicle_class), `a pick did not stay: ${JSON.stringify(s)}`);
+  });
+
+  await step("the picks are still there after the form comes back with a message", async () => {
+    await press(o, "Save vehicle", { wait: 1500 });
+    await waitText(o, "plate", 6000).catch(() => undefined);
+    const s = await shown(o);
+    check(s.make === "Toyota" && s.model === "Hilux", `make and model were cleared: ${JSON.stringify(s)}`);
+    check(s.year === "2019", `the year was cleared: ${JSON.stringify(s)}`);
+    check(/diesel/i.test(s.fuel_type), `the fuel was cleared: ${JSON.stringify(s)}`);
+    check(/van/i.test(s.vehicle_class), `the class was cleared: ${JSON.stringify(s)}`);
+  });
+
+  await step("a pick can be changed after the message, and then holds", async () => {
+    await o.page.selectOption("#model", { index: 2 });
+    const first = (await shown(o)).model;
+    await o.page.selectOption("#make", "Suzuki");
+    const s = await shown(o);
+    check(s.make === "Suzuki", `the new make did not hold: ${JSON.stringify(s)}`);
+    check(s.model !== first, "the model list did not follow the make");
+  });
+
+  await step("the activity log has this session's actions, sign-ins and a page view, and no secret", async () => {
+    const rows = sql("select kind || ':' || name || ':' || outcome from public.activity_log order by id");
+    check(rows.length > 0, "the activity log is empty");
+    const text = rows.toLowerCase();
+    check(text.includes("auth:sign in:ok"), "no sign-in line");
+    check(text.includes("page:view:ok"), "no page view line");
+    check(/action:\w+:(ok|invalid)/.test(text), "no action line");
+    const leak = sql("select count(*) from public.activity_log where details::text ~* 'eyJ[a-z0-9_-]{10,}' or error_message ~* '(password=|eyJ[a-z0-9_-]{10,})' or details::text ~* '\"(password|token|secret)\": \"[^\\[]'");
+    check(leak === "0", "a secret-looking value is in the log");
+    const unnamed = sql("select count(*) from public.activity_log where kind = 'action' and (name = 'action' or name ~ '^[a-z]{1,2}$')");
+    check(unnamed === "0", `${unnamed} action lines have no readable name: ${sql("select string_agg(distinct name, ',') from public.activity_log where kind = 'action'")}`);
+    const buildNoise = sql("select count(*) from public.activity_log where error_message ilike '%during prerendering%'");
+    check(buildNoise === "0", "the build wrote to the activity log");
+  });
+}

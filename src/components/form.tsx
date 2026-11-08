@@ -30,11 +30,11 @@ export function Input({ name, label, state, hint, required, id = name, ...rest }
   );
 }
 
-export function Select({ name, label, state, options, blank = "Choose", required }: {
-  name: string; label: string; state: FormState; options: [string, string][]; blank?: string; required?: boolean;
+export function Select({ name, label, state, options, blank = "Choose", required, hint }: {
+  name: string; label: string; state: FormState; options: [string, string][]; blank?: string; required?: boolean; hint?: string;
 }) {
   return (
-    <Field label={label} name={name} state={state} required={required}>
+    <Field label={label} name={name} state={state} required={required} hint={hint}>
       <select key={state.values?.[name] ?? ""} id={name} name={name} className={inputCls} defaultValue={state.values?.[name] ?? ""} aria-invalid={!!state.fields?.[name]}>
         <option value="">{blank}</option>
         {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -43,8 +43,9 @@ export function Select({ name, label, state, options, blank = "Choose", required
   );
 }
 
-export function Submit({ children, pendingText = "Saving" }: { children: ReactNode; pendingText?: string }) {
-  const { pending } = useFormStatus();
+export function Submit({ children, pendingText = "Saving", pending: sending }: { children: ReactNode; pendingText?: string; /** for a form sent by hand (keepForm), which useFormStatus cannot see */ pending?: boolean }) {
+  const status = useFormStatus();
+  const pending = sending ?? status.pending;
   return <button type="submit" disabled={pending} className="h-10 rounded-md bg-sky-800 px-5 font-medium text-white disabled:opacity-60">{pending ? pendingText : children}</button>;
 }
 

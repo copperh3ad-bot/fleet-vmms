@@ -1,24 +1,52 @@
 import { requireMembership } from "@/lib/auth/session";
 import { ForbiddenError, type Membership } from "@/lib/auth/can";
 import { UserError } from "@/lib/master/service";
+import { isFrameworkSignal, logActivity } from "@/lib/activity/log";
 
 export type FormState = { error?: string; fields?: Record<string, string>; ok?: string; values?: Record<string, string> };
+
+/** The name of the action that called runAction, read from the call stack before anything is awaited (ADR-070). Null if it cannot be told. */
+export function callerName(skip: string[] = ["runAction", "callerName", "run"]): string | null {
+  for (const line of (new Error().stack ?? "").split("\n").slice(2)) {
+    const name = line.match(/at (?:async )?([A-Za-z_$][\w$]*) \(/)?.[1];
+    if (name && !skip.includes(name)) return name;
+  }
+  return null;
+}
 
 /**
  * Every server action starts here: the signed-in user must belong to this workspace (the slug from the browser is
  * not trusted), then the work runs, and known problems come back as a message instead of a crash.
  * redirect() must be called by the caller after this returns, because it works by throwing.
+ *
+ * It also writes the activity log (ADR-070): who ran which action, whether it worked, was refused for a reason the person was told, was refused for permission,
+ * or failed, and how long it took. An unexpected failure is logged here with the person and then thrown on.
  */
 export async function runAction(slug: string, fn: (m: Membership) => Promise<string | void>, opts: { allowLocked?: boolean } = {}): Promise<FormState> {
+  const name = callerName() ?? "action";
+  const t0 = Date.now();
   const m = await requireMembership(slug, opts);
+  const base = { kind: "action" as const, name, actorId: m.userId, tenantId: m.tenantId, role: m.role };
   try {
-    return { ok: (await fn(m)) || "Saved" };
+    const out = { ok: (await fn(m)) || "Saved" };
+    await logActivity({ ...base, outcome: "ok", durationMs: Date.now() - t0 });
+    return out;
   } catch (e) {
-    if (e instanceof UserError) return { error: e.message, fields: e.fields };
-    if (e instanceof ForbiddenError) return { error: "You do not have permission to do this." };
+    const durationMs = Date.now() - t0;
+    if (e instanceof UserError) {
+      await logActivity({ ...base, outcome: "invalid", durationMs, details: { message: e.message, fields: e.fields ? Object.keys(e.fields) : [] } });
+      return { error: e.message, fields: e.fields };
+    }
+    if (e instanceof ForbiddenError) {
+      await logActivity({ ...base, kind: "security", outcome: "denied", durationMs, details: { permission: e.permission, action: name } });
+      return { error: "You do not have permission to do this." };
+    }
+    if (isFrameworkSignal(e)) throw e;                                        // a redirect or notFound thrown on purpose is not a failure
+    await logActivity({ ...base, outcome: "error", durationMs, error: e });
     throw e;
   }
 }
+
 
 /** Reads the lists posted by LinesEditor. Rows with no description and no cost are dropped. */
 export function linesFromForm(form: FormData) {
