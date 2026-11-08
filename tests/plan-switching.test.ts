@@ -6,6 +6,7 @@ import { submitClaim, getInvoice, listInvoices } from "@/lib/billing/payments";
 import { confirmClaim, rejectClaim, setComped } from "@/lib/billing/operator";
 import { setPlanPrice, setProBands, setOrgPlan, tenantPlan } from "@/lib/billing/plans";
 import { applyDueSwitches, cancelBasicRequest, planStatus, requestBasic, startProTrial } from "@/lib/billing/plan-switch";
+import { loadAccess } from "@/lib/billing/state";
 import { harness, noStore, claim, OP, type Org } from "./billing-harness";
 
 let h: Awaited<ReturnType<typeof harness>>;
@@ -22,6 +23,7 @@ const setCol = (o: Org, sql: string, args: unknown[] = []) => withPlatform(h.con
 const flags = (o: Org, on: boolean) => withPlatform(h.control, (q) => q.query("update public.tenants set ai_documents_enabled = $2, wa_jobcards_enabled = $2 where id = $1", [o.tenantId, on]));
 const readFlags = (o: Org) => withPlatform(h.control, async (q) => (await q.query<{ ai_documents_enabled: boolean; wa_jobcards_enabled: boolean }>("select ai_documents_enabled, wa_jobcards_enabled from public.tenants where id = $1", [o.tenantId])).rows[0]);
 const fileClaim = async (o: Org, plan: string | undefined, amount: string, months = "1") => (await submitClaim(h.router, noStore, o.admin, claim({ plan, amount, currency: "PKR", months }))).id;
+const accessOf = (tenantId: string) => loadAccess(h.control, tenantId);
 const past = "now() - interval '1 hour'";
 
 describe("a claim names the plan and quotes its price", () => {
@@ -137,6 +139,22 @@ describe("moving down to Basic", () => {
 });
 
 describe("the free Pro trial", () => {
+  it("reopens a never-paid company whose free trial ended, for the trial days, but not a suspended one", async () => {
+    const o = await h.org("Lapsed Trial Co");
+    await setCol(o, `trial_ends_at = ${past}`);
+    expect((await accessOf(o.tenantId)).full).toBe(false);
+    await startProTrial(h.router, o.admin);
+    const a = await accessOf(o.tenantId);
+    expect(a.full).toBe(true);
+    expect(a.daysLeft).toBeLessThanOrEqual(3);
+
+    const s = await h.org("Suspended Trial Co");
+    await setCol(s, `trial_ends_at = ${past}, suspended = true`);
+    await startProTrial(h.router, s.admin);
+    expect((await accessOf(s.tenantId)).full).toBe(false);
+  });
+
+
   it("gives a Basic company Pro's features for 3 days, once, then shuts them off", async () => {
     const o = await h.org("Trial Taker");
     expect(await tenantPlan(h.control, o.tenantId)).toMatchObject({ aiDocuments: false, proTrialEndsAt: null });

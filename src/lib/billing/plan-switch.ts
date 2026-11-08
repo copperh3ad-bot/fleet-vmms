@@ -136,6 +136,11 @@ export async function startProTrial(driver: Driver, m: Membership): Promise<void
     if (b.pending_plan_key) throw new UserError("A plan change is already waiting.");
     if (!(await quoteIn(q, PRO, vehicles))) throw new UserError("Pro is not on sale yet.");
     await q.query("update public.org_billing set pro_trial_ends_at = now() + ($2 || ' days')::interval, updated_at = now() where tenant_id = $1", [m.tenantId, String(PRO_TRIAL_DAYS)]);
+    // A company that never paid and whose free trial has already ended is locked. Its Pro trial reopens the workspace for the same days, once (the trial is once per
+    // company). A suspended company, or one that paid before and lapsed, is not reopened: it pays to continue.
+    await q.query(
+      `update public.org_billing set trial_ends_at = pro_trial_ends_at
+        where tenant_id = $1 and status = 'trialing' and not suspended and not comped and (trial_ends_at is null or trial_ends_at <= now())`, [m.tenantId]);
   });
 }
 

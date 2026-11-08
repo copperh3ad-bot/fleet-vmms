@@ -481,3 +481,6 @@ Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the lan
 ## 2026-11-08 Billing period choice and model-call caching
 - Billing form: choose 1 month or 12 months (one free); amount fills in from plan and period. Pricing page and Billing show the 12-month price. Not yet deployed.
 - AI calls: job card photos get a cache breakpoint; usage reading shared (`usageOf`); tests/ai-caching.test.ts. Fixed prompts (~700-900 tokens) are below the Haiku cache minimum, so the file breakpoint is what saves money.
+
+## 2026-11-08 Pro trial for locked never-paid companies
+- startProTrialAction now runs while the workspace is locked; the Pro trial reopens a never-paid company whose free trial ended, for the trial days. Suspended, comped and previously-paid lapsed companies are not reopened. Not yet deployed.
