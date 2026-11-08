@@ -20,8 +20,8 @@ const OPTIONS: [Decision, string, string][] = [
   ["reject", "Reject", "Ends the job card. A note is required."],
 ];
 
-export function DecisionForm({ slug, id, requester, reasons, currentReasonId, vendors, canAssign }: {
-  slug: string; id: string; requester: string;
+export function DecisionForm({ slug, id, requester, reasons, currentReasonId, vendors, canAssign, raisedByMe = false }: {
+  slug: string; id: string; requester: string; /** the person deciding raised this card themselves (the administrator may, ADR-029) */ raisedByMe?: boolean;
   reasons: { id: string; label: string }[]; currentReasonId: string; vendors: ReviewContext["vendors"]; canAssign: boolean;
 }) {
   const [state, action] = useActionState<FormState, FormData>(reviewDecisionAction.bind(null, slug, id), {});
@@ -80,7 +80,7 @@ export function DecisionForm({ slug, id, requester, reasons, currentReasonId, ve
         {decision === "reject" && <Go intent="reject" tone="danger">Reject</Go>}
         {decision === "approve" && canAssign && <div className="flex gap-2"><Go intent="return" tone="plain">Return for edit</Go><Go intent="reject" tone="danger">Reject</Go></div>}
       </div>
-      <p className="text-xs text-zinc-500">You did not raise this card, so you can decide it. Every decision is logged.</p>
+      <p className="text-xs text-zinc-500">{raisedByMe ? "You raised this card yourself. As administrator you may decide it; the record will show that you raised and approved it. Every decision is logged." : "You did not raise this card, so you can decide it. Every decision is logged."}</p>
     </form>
   );
 }

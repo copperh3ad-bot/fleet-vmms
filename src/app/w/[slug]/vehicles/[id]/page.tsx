@@ -163,7 +163,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
               <>
                 <p className="flex items-baseline justify-between font-mono"><span className="text-[22px]">{money(v.spend)}</span><span className="text-zinc-500">of {money(v.budget)}</span></p>
                 <div className="mt-2 h-2 rounded bg-zinc-100"><div className={`h-2 rounded ${over ? "bg-red-600" : "bg-brand"}`} style={{ width: `${Math.min(100, v.pct ?? 0)}%` }} /></div>
-                <p className="mt-2 text-xs text-zinc-500">{v.budgetUsedUpOn ? `Budget was used up on ${dayMonth(v.budgetUsedUpOn)}.` : "Still inside the budget."}{v.monthsRemaining !== null && ` ${plural(v.monthsRemaining, "month")} of the period remain.`}</p>
+                <p className="mt-2 text-xs text-zinc-500">{v.budgetUsedUpOn ? `Budget was used up on ${dayMonth(v.budgetUsedUpOn)}.` : "Still inside the budget."}{v.monthsRemaining !== null && ` ${plural(v.monthsRemaining, "month")} of the period ${v.monthsRemaining === 1 ? "remains" : "remain"}.`}</p>
               </>
             )}
           </Panel>

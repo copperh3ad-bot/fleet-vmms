@@ -52,6 +52,8 @@ export async function vehicleForm(S) {
     await fill(o, "#odometer_km", "15000");
     await fill(o, "#insurance_valid_to", "2027-03-31");
     await fill(o, "#doc_fitness_expires", "2027-06-30");
+    await fill(o, "#doc_token_tax_expires", "2027-06-30");
+    await fill(o, "#budget_amount", "400000");          // the QA report's exact combination: documents, insurance and a budget in one submit
     await press(o, "Save vehicle", { wait: 1500 });
     await waitText(o, "INS-4040", 8000);
     const schema = sql(`select schema_name from public.tenants where slug = '${slug}'`);

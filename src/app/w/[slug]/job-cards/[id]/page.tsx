@@ -186,7 +186,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
         <aside className="space-y-5">
           {canDecide && ctx && (
             <Panel title="Your decision">
-              <DecisionForm slug={slug} id={id} requester={c.requester_name} reasons={reasons} currentReasonId={c.reason_code_id} vendors={ctx.vendors} canAssign={perms.has("jobcard.assign_vendor")} />
+              <DecisionForm slug={slug} id={id} requester={c.requester_name} reasons={reasons} currentReasonId={c.reason_code_id} vendors={ctx.vendors} canAssign={perms.has("jobcard.assign_vendor")} raisedByMe={c.requester_is_me} />
             </Panel>
           )}
           {c.status === "submitted" && c.requester_is_me && !canDecide && <p role="status" className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-600">{perms.has("jobcard.approve") ? "You raised this card, so someone else has to approve it." : "Waiting for a manager to approve."}</p>}

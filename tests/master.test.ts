@@ -124,6 +124,18 @@ describe("vehicles", () => {
     expect((await withTenant(d, admin(), async (q) => (await q.query<{ policy_no: string }>("select policy_no from insurance_policies where vehicle_id = $1", [b.id])).rows[0])).policy_no).toBe("Not recorded yet");
   });
 
+  it("saves the full combination the QA report used: insurance without a policy number, two documents and a budget, in one submit", async () => {
+    const { id } = await svc.addVehicle(d, admin(), {
+      registration_no: "QA-FULL-1", make: "Toyota", model: "Corolla", year: "2022", fuel_type: "petrol", odometer_km: "50000",
+      insurance: { insurer: "Not recorded yet", valid_from: "2026-03-31", valid_to: "2027-03-31" },
+      documents: [{ doc_type: "fitness", expires_on: "2027-06-30" }, { doc_type: "token_tax", expires_on: "2027-06-30" }],
+      budget_amount: "400000", budget_from: "2026-01-01", budget_to: "2026-12-31",
+    });
+    const n = await withTenant(d, admin(), async (q) => (await q.query<Record<string, number>>(
+      "select (select count(*)::int from insurance_policies where vehicle_id=$1) ins, (select count(*)::int from compliance_docs where vehicle_id=$1) docs, (select count(*)::int from budgets where vehicle_id=$1) bud", [id])).rows[0]);
+    expect(n).toEqual({ ins: 1, docs: 2, bud: 1 });
+  });
+
   it("turns a missing required value anywhere into a plain message instead of a server error", async () => {
     await expect(withTenant(d, admin(), (q) => q.query("insert into insurance_policies(vehicle_id, insurer, policy_no, valid_from, valid_to) select id, 'X', null, now(), now() from vehicles limit 1"))).rejects.toThrow(/not-null/);
     await expect(Promise.resolve().then(() => svc.friendly(new Error('null value in column "policy_no" of relation "insurance_policies" violates not-null constraint')))).rejects.toMatchObject({ message: expect.stringMatching(/policy no/i) });
