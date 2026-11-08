@@ -501,3 +501,7 @@ Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the lan
 ## 2026-11-08 Unlisted vehicle names with operator review (ADR-071)
 - Owners type an unlisted make/model; vehicle saves at once; name recorded for review (control 0022); own list shows it immediately; Admin > Vehicle names approve/merge/reject. Years back to 1950. Browser scenario 9 covers it.
 - Pending live: control migrations 0020 (storage server-only), 0021 (activity log), 0022 (vehicle names) and tenant 0037. Deploy first, then apply.
+
+## 2026-11-08 Live: deploy 05206b2, control 0021 and 0022 applied
+- Control migrations 0021 (activity log) and 0022 (vehicle names) applied on live; both tables have row security on, no rights for the API roles; the log refuses update and delete. Live logging confirmed (page views arriving with the right path).
+- Still pending on live, held on purpose: control 0020 (storage rules removed; apply only after the owner has added, opened and deleted a job card photo on the live site) and tenant 0037 (function grants and view rights; safe to apply, no dependency).
