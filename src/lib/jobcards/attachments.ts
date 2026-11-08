@@ -6,6 +6,12 @@ import { randomUUID } from "node:crypto";
 import type { Driver, Queryable } from "@/lib/db/types";
 import { authorized, authorizedAny, ForbiddenError, type Membership } from "@/lib/auth/can";
 import { UserError } from "@/lib/master/service";
+import { logActivity } from "@/lib/activity/log";
+
+/** The person is told only that the upload failed; the cause (for example a refused key) goes to the activity log so it can be found and fixed. */
+export async function logStorageFailure(what: string, e: unknown, actorId?: string, tenantId?: string) {
+  await logActivity({ kind: "error", name: "file storage: " + what, outcome: "error", actorId: actorId ?? null, tenantId: tenantId ?? null, error: e });
+}
 
 export interface BlobStore {
   put(path: string, bytes: Uint8Array, contentType: string): Promise<void>;
@@ -52,7 +58,7 @@ export async function saveAttachment(q: Queryable, store: BlobStore, m: Membersh
   const name = safeName(file.name);
   const path = `${m.schema}/${entityType}/${entityId}/${randomUUID()}-${name}`;
   try { await store.put(path, file.bytes, mime); }
-  catch { throw new UserError("The file could not be uploaded. Try again."); }
+  catch (e) { await logStorageFailure("save a file", e, m.userId, m.tenantId); throw new UserError("The file could not be uploaded. Try again."); }
   try {
     await q.query(
       "insert into attachments(entity_type, entity_id, storage_path, file_name, mime_type, uploaded_by) values ($1, $2, $3, $4, $5, $6)",

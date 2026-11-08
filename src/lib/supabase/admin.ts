@@ -56,7 +56,7 @@ export async function putInboundFile(path: string, bytes: Uint8Array, contentTyp
     method: "POST", headers: { apikey: key, authorization: `Bearer ${key}`, "content-type": contentType, "x-upsert": "false" },
     body: Buffer.from(bytes), signal: AbortSignal.timeout(15_000), cache: "no-store",
   });
-  if (!res.ok) throw new Error(`storage upload failed: ${res.status}`);
+  if (!res.ok) throw new Error(`storage upload failed: ${await reason(res)}`);
 }
 
 // ---- Files (ADR-025, amended): every read, write and delete of an organization's files goes through here, on the server.
@@ -72,13 +72,18 @@ const objectPath = (path: string) => {
   if (!PATH.test(path) || path.includes("..") || path.includes("//")) throw new Error("storage path refused");
   return path.split("/").map(encodeURIComponent).join("/");
 };
+/** Supabase's own short reason for a refusal (for example "signature verification failed"), so a bad key is named, not guessed at. */
+async function reason(res: Response): Promise<string> {
+  const j = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+  return `${res.status} ${String(j.message ?? j.error ?? "").slice(0, 120)}`.trim();
+}
 const storageFetch = (c: { key: string }, url: string, init: RequestInit & { headers?: Record<string, string> }) =>
   fetch(url, { ...init, headers: { apikey: c.key, authorization: `Bearer ${c.key}`, ...init.headers }, signal: AbortSignal.timeout(20_000), cache: "no-store" });
 
 export async function storagePut(path: string, bytes: Uint8Array, contentType: string): Promise<void> {
   const c = storageConfig();
   const res = await storageFetch(c, `${c.base}/object/attachments/${objectPath(path)}`, { method: "POST", headers: { "content-type": contentType, "x-upsert": "false" }, body: Buffer.from(bytes) });
-  if (!res.ok) throw new Error(`storage upload failed: ${res.status}`);
+  if (!res.ok) throw new Error(`storage upload failed: ${await reason(res)}`);
 }
 export async function storageGet(path: string): Promise<Uint8Array | null> {
   const c = storageConfig();
@@ -89,7 +94,7 @@ export async function storageRemove(path: string): Promise<void> {
   const c = storageConfig();
   objectPath(path);
   const res = await storageFetch(c, `${c.base}/object/attachments`, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ prefixes: [path] }) });
-  if (!res.ok) throw new Error(`storage remove failed: ${res.status}`);
+  if (!res.ok) throw new Error(`storage remove failed: ${await reason(res)}`);
 }
 export async function storageSignedUrl(path: string, seconds: number): Promise<string | null> {
   const c = storageConfig();
@@ -97,4 +102,27 @@ export async function storageSignedUrl(path: string, seconds: number): Promise<s
   if (!res.ok) return null;
   const j = (await res.json().catch(() => ({}))) as { signedURL?: string };
   return j.signedURL ? `${c.base}${j.signedURL.startsWith("/") ? "" : "/"}${j.signedURL}` : null;
+}
+
+/**
+ * A self-test of file storage with the key this server really has: save, read back, make a link, delete, and confirm it is gone. Run from Admin, Settings. It writes one
+ * tiny file under a folder no company can reach and removes it. Each step says how it went; the key and the file are never shown.
+ */
+export async function checkStorage(): Promise<{ step: string; ok: boolean; note: string }[]> {
+  const out: { step: string; ok: boolean; note: string }[] = [];
+  const run = async (step: string, f: () => Promise<string>) => {
+    try { out.push({ step, ok: true, note: await f() }); } catch (e) { out.push({ step, ok: false, note: e instanceof Error ? e.message.slice(0, 160) : "failed" }); }
+  };
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  out.push({ step: "The server has a storage key", ok: key.length > 0, note: key.length ? "set" : "SUPABASE_SERVICE_ROLE_KEY is not set on this server" });
+  if (!key) return out;
+  const path = `tenant_healthcheck/${Date.now()}.txt`;
+  const body = new TextEncoder().encode("fleet otg storage check");
+  await run("Save a file", async () => { await storagePut(path, body, "text/plain"); return "saved"; });
+  if (!out[out.length - 1].ok) return out;
+  await run("Read it back", async () => { const b = await storageGet(path); return b && new TextDecoder().decode(b) === "fleet otg storage check" ? "same bytes" : (() => { throw new Error("did not come back"); })(); });
+  await run("Make a link to it", async () => { const u = await storageSignedUrl(path, 60); if (!u) throw new Error("no link was made"); return "made"; });
+  await run("Delete it", async () => { await storageRemove(path); return "deleted"; });
+  await run("Confirm it is gone", async () => { if ((await storageGet(path)) !== null) throw new Error("still there"); return "gone"; });
+  return out;
 }

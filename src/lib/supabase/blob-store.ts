@@ -43,3 +43,6 @@ export async function supabaseBlobStore(): Promise<ReadableStore> {
     async signedUrl(path, seconds) { try { await guard(path, "read"); } catch { return null; } return storageSignedUrl(path, seconds); },
   };
 }
+
+/** The self-test behind Admin, Settings, Check file storage. */
+export { checkStorage } from "@/lib/supabase/admin";

@@ -513,3 +513,7 @@ Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the lan
 ## 2026-11-08 Live: control 0020 applied; vehicle save defect fixed (not yet deployed)
 - Control 0020 applied: the storage bucket has no policy for browser roles; as authenticated and anon a token sees 0 of the files and cannot add one. All file access is the server (ADR-069).
 - Defect found by the new activity log on the live site: saving a vehicle with an insurance expiry but no policy number gave a server error (insurance_policies.policy_no is not null). Fixed in the vehicle schema (blank policy number becomes "Not recorded yet"); any other missing required value now gives a plain message instead of a server error. Unit and browser tests cover it.
+
+## 2026-11-08 Live defect: every file upload fails (service key invalid)
+- Cause (Supabase storage log): "signature verification failed" for every upload since files moved to the server key (ADR-069). The SUPABASE_SERVICE_ROLE_KEY in Netlify is not valid for this project. Uploads worked before only because they used the person token.
+- Added: reason in storage errors, logged to the activity log; Admin > Settings > Check file storage. Fix needs a valid key set by the owner, then redeploy and press the check. Control 0020 is already applied, so the old token route is closed too: until the key is fixed, uploads stay down.

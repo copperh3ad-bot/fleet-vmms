@@ -11,6 +11,7 @@ import { savePlatformSetting } from "@/lib/billing/settings";
 import { notifyClaimDecided } from "@/lib/billing/payment-mails";
 import { setOrgPlan, setPlanPrice, setProBands } from "@/lib/billing/plans";
 import { markContactHandled } from "@/lib/contact";
+import { checkStorage } from "@/lib/supabase/blob-store";
 import { approveSuggestion, mergeSuggestion, rejectSuggestion } from "@/lib/master/vehicle-names";
 import { recordCertificate, saveTaxRule, setOrgCountry, setOrgWithholding } from "@/lib/billing/tax-data";
 import { saveScenario } from "@/lib/billing/tax-scenarios";
@@ -127,6 +128,15 @@ export async function saveRateAction(_p: FormState, f: FormData): Promise<FormSt
 
 export async function markContactHandledAction(id: string): Promise<FormState> {
   return run(async (op) => { await markContactHandled(getDriver(), op, id); return "Marked handled."; });
+}
+
+export async function checkStorageAction(): Promise<FormState> {
+  return run(async () => {
+    const steps = await checkStorage();
+    const bad = steps.find((s) => !s.ok);
+    if (bad) throw new UserError(`File storage is NOT working. ${bad.step}: ${bad.note}`);
+    return "File storage works: " + steps.map((s) => s.step.toLowerCase()).join(", ") + " all passed.";
+  });
 }
 
 // Makes and models owners typed because the list did not have them (ADR-071). The operator approves, merges or rejects each.

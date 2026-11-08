@@ -60,9 +60,9 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
             )}
           </Panel>
 
-          <Panel title="Vehicle budgets" sub={`${board.rows.length} shown of ${board.total}`} flush
+          <Panel title="Vehicle budgets" sub={filter === "attention" && board.total > board.rows.length ? `${board.rows.length} over or near budget. ${board.total - board.rows.length} on track and hidden: choose All to see every budget.` : `${board.rows.length} shown of ${board.total}`} flush
             action={<div className="flex gap-2"><a className={tab(filter === "attention")} href={to("")}>Over or near</a><a className={tab(filter === "all")} href={to("?show=all")}>All</a></div>}>
-            {board.rows.length === 0 ? <p className="p-5 text-sm text-zinc-500">{board.total === 0 ? "No vehicle budgets yet." : "Every vehicle is on track."}</p> : (
+            {board.rows.length === 0 ? <p className="p-5 text-sm text-zinc-500">{board.total === 0 ? "No vehicle budgets yet." : <>Every vehicle is on track, so none is listed here. <a className="underline" href={to("?show=all")}>Show all {board.total} budgets</a>.</>}</p> : (
               <div className="overflow-x-auto"><table className="w-full text-left text-sm">
                 <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Vehicle</th><th className="text-right">Budget</th><th className="text-right">Spent</th><th>Used</th><th className="px-5">Status</th>{manage && <th />}</tr></thead>
                 <tbody>{board.rows.map((r) => (

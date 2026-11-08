@@ -8,7 +8,7 @@ import { authorized, type Membership } from "@/lib/auth/can";
 import { withPlatform } from "@/lib/db/tenant";
 import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
-import { MAX_FILE_BYTES, safeName, sniff, type BlobStore } from "@/lib/jobcards/attachments";
+import { MAX_FILE_BYTES, logStorageFailure, safeName, sniff, type BlobStore } from "@/lib/jobcards/attachments";
 import { BASIC, PRO, quoteIn, vehicleCount, type Quote } from "./quote";
 
 /** Billing is run by whoever may change the workspace's settings: the administrator. */
@@ -60,7 +60,7 @@ export async function submitClaim(driver: Driver, store: BlobStore, m: Membershi
     const mime = sniff(proof.name, proof.bytes);
     if (!mime) throw new UserError("The receipt must be a photo (JPG, PNG, WebP, HEIC) or a PDF.", { proof: "Photo or PDF only" });
     path = `${m.schema}/billing/${randomUUID()}-${safeName(proof.name)}`;
-    try { await store.put(path, proof.bytes, mime); } catch { throw new UserError("The receipt could not be uploaded. Try again."); }
+    try { await store.put(path, proof.bytes, mime); } catch (e) { await logStorageFailure("save a payment receipt", e, m.userId, m.tenantId); throw new UserError("The receipt could not be uploaded. Try again."); }
   }
   try {
     return await withPlatform(driver, async (q) => {
