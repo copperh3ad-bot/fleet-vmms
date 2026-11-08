@@ -58,3 +58,43 @@ export async function putInboundFile(path: string, bytes: Uint8Array, contentTyp
   });
   if (!res.ok) throw new Error(`storage upload failed: ${res.status}`);
 }
+
+// ---- Files (ADR-025, amended): every read, write and delete of an organization's files goes through here, on the server.
+// Browsers hold no storage rights at all (control migration 0020), so a person's own login token cannot reach the bucket. Who may touch which
+// folder is decided in src/lib/supabase/blob-store.ts before any of these is called; the path shape is checked again here.
+const PATH = /^tenant_[a-z0-9_]{1,50}\/[A-Za-z0-9._\/-]{1,300}$/;
+function storageConfig() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new UserError("File storage is not switched on yet.");
+  return { base: `${url.replace(/\/+$/, "")}/storage/v1`, key };
+}
+const objectPath = (path: string) => {
+  if (!PATH.test(path) || path.includes("..") || path.includes("//")) throw new Error("storage path refused");
+  return path.split("/").map(encodeURIComponent).join("/");
+};
+const storageFetch = (c: { key: string }, url: string, init: RequestInit & { headers?: Record<string, string> }) =>
+  fetch(url, { ...init, headers: { apikey: c.key, authorization: `Bearer ${c.key}`, ...init.headers }, signal: AbortSignal.timeout(20_000), cache: "no-store" });
+
+export async function storagePut(path: string, bytes: Uint8Array, contentType: string): Promise<void> {
+  const c = storageConfig();
+  const res = await storageFetch(c, `${c.base}/object/attachments/${objectPath(path)}`, { method: "POST", headers: { "content-type": contentType, "x-upsert": "false" }, body: Buffer.from(bytes) });
+  if (!res.ok) throw new Error(`storage upload failed: ${res.status}`);
+}
+export async function storageGet(path: string): Promise<Uint8Array | null> {
+  const c = storageConfig();
+  const res = await storageFetch(c, `${c.base}/object/attachments/${objectPath(path)}`, { method: "GET" });
+  return res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
+}
+export async function storageRemove(path: string): Promise<void> {
+  const c = storageConfig();
+  objectPath(path);
+  const res = await storageFetch(c, `${c.base}/object/attachments`, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ prefixes: [path] }) });
+  if (!res.ok) throw new Error(`storage remove failed: ${res.status}`);
+}
+export async function storageSignedUrl(path: string, seconds: number): Promise<string | null> {
+  const c = storageConfig();
+  const res = await storageFetch(c, `${c.base}/object/sign/attachments/${objectPath(path)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ expiresIn: Math.max(1, Math.min(3600, Math.floor(seconds))) }) });
+  if (!res.ok) return null;
+  const j = (await res.json().catch(() => ({}))) as { signedURL?: string };
+  return j.signedURL ? `${c.base}${j.signedURL.startsWith("/") ? "" : "/"}${j.signedURL}` : null;
+}
