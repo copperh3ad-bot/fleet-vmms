@@ -477,3 +477,7 @@ Live is commit 87a710b with control migration 0019 applied (owner said yes). Bro
 
 ## 2026-11-08: public site illustrations deployed
 Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the landing, Features, Pricing, Compare, About and Contact pages; sign-up and login unchanged. No migrations. Browser suite 230 passed, 0 failed, 8 known findings. Price figures still appear on /pricing only.
+
+## 2026-11-08 Billing period choice and model-call caching
+- Billing form: choose 1 month or 12 months (one free); amount fills in from plan and period. Pricing page and Billing show the 12-month price. Not yet deployed.
+- AI calls: job card photos get a cache breakpoint; usage reading shared (`usageOf`); tests/ai-caching.test.ts. Fixed prompts (~700-900 tokens) are below the Haiku cache minimum, so the file breakpoint is what saves money.

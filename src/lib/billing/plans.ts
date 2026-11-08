@@ -7,6 +7,7 @@ import { withPlatform, withTenant } from "@/lib/db/tenant";
 import { UserError } from "@/lib/master/service";
 import { asOperator } from "./operator";
 import { formatPrice, PRO_HEADLINE } from "./offer";
+import { billedMonths } from "./months";
 
 import { BASIC, PRO, vehicleCount } from "./quote";
 export { BASIC, PRO, vehicleCount };
@@ -33,7 +34,7 @@ export function bandFor(bands: Band[], vehicles: number): Band | null {
 }
 
 /** What a public page may say about Pro: its prices only once the owner has entered bands that cover every size. */
-export type ProOffer = { priced: boolean; headline: string; bands: { label: string; amount: string; readsPerDay: number }[]; per: string; trialDays: number; points: string[] };
+export type ProOffer = { priced: boolean; headline: string; bands: { label: string; amount: string; yearly: string; readsPerDay: number }[]; per: string; trialDays: number; points: string[] };
 export function proOfferFrom(plan: PlanRow | undefined, bands: Band[]): ProOffer {
   const priced = bandsCoverEverySize(bands);
   let from = 1;
@@ -43,7 +44,7 @@ export function proOfferFrom(plan: PlanRow | undefined, bands: Band[]): ProOffer
     bands: priced ? bands.map((b) => {
       const label = b.up_to_vehicles === null ? (from === 1 ? "Every fleet size" : `${from} vehicles or more`) : `${from} to ${b.up_to_vehicles} vehicles`;
       if (b.up_to_vehicles !== null) from = b.up_to_vehicles + 1;
-      return { label, amount: formatPrice(b.price_cents, b.currency), readsPerDay: b.ai_reads_per_day };
+      return { label, amount: formatPrice(b.price_cents, b.currency), yearly: formatPrice(b.price_cents * billedMonths(12), b.currency), readsPerDay: b.ai_reads_per_day };
     }) : [],
     per: "per month, per company",
     trialDays: plan?.trial_days ?? 0,

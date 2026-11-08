@@ -26,6 +26,10 @@ export type ReadResult =
   | ({ status: "ok"; draft: Draft } & Usage)
   | ({ status: "unreadable" | "refused" | "failed"; reason: string } & Usage);
 export type Usage = { model: string; inputTokens: number; outputTokens: number; cacheWriteTokens: number; cacheReadTokens: number };
+/** Token counts from a reply, including what the cache wrote and what it served (recorded per call in ai_actions so the cache's effect is measured). */
+export const usageOf = (model: string, res: { usage?: { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number | null; cache_read_input_tokens?: number | null } }): Usage => ({
+  model, inputTokens: res.usage?.input_tokens ?? 0, outputTokens: res.usage?.output_tokens ?? 0, cacheWriteTokens: res.usage?.cache_creation_input_tokens ?? 0, cacheReadTokens: res.usage?.cache_read_input_tokens ?? 0,
+});
 export const noUsage = (model: string): Usage => ({ model, inputTokens: 0, outputTokens: 0, cacheWriteTokens: 0, cacheReadTokens: 0 });
 
 /** The one call, passed in so tests need no network. The real one is the SDK's beta messages create. */
@@ -57,7 +61,7 @@ export async function readDocument(req: ReadRequest, create: CreateMessage = rea
       ? { type: "document", source: { type: "base64", media_type: "application/pdf", data } }
       : { type: "image", source: { type: "base64", media_type: f.mime as "image/jpeg" | "image/png" | "image/webp" | "image/gif", data } };
   });
-  // Prompt caching (ADR-034): the fixed instructions are one breakpoint; the last file is the other, so pressing "read" again on the same document
+  // Prompt caching (ADR-034): the fixed instructions are one breakpoint (a model only caches a prefix above its minimum size, so on Haiku this small prompt is not cached and the file is what saves money); the last file is the other, so pressing "read" again on the same document
   // (after a correction, or by a second person) reuses it. The job's own facts come after both, so they never break the cached part.
   const lastFile = blocks[blocks.length - 1] as { cache_control?: { type: "ephemeral" } };
   lastFile.cache_control = { type: "ephemeral" };
@@ -76,7 +80,7 @@ export async function readDocument(req: ReadRequest, create: CreateMessage = rea
       system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: blocks }],
     });
-    const usage: Usage = { model, inputTokens: res.usage?.input_tokens ?? 0, outputTokens: res.usage?.output_tokens ?? 0, cacheWriteTokens: res.usage?.cache_creation_input_tokens ?? 0, cacheReadTokens: res.usage?.cache_read_input_tokens ?? 0 };
+    const usage = usageOf(model, res);
     if (res.stop_reason === "refusal") return { status: "refused", reason: "The AI declined to read this file. Type the figures in from it.", ...usage };
     if (res.stop_reason === "max_tokens") return { status: "failed", reason: "The document was too long to read in one go. Type the figures in from it.", ...usage };
     const text = res.content.find((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")?.text ?? "";
@@ -111,7 +115,7 @@ export async function readPolicyFile(file: AiFile, create: CreateMessage = realC
       system: [{ type: "text", text: POLICY_PROMPT, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: [block, { type: "text", text: "List the rules in this policy." }] }],
     });
-    const usage: Usage = { model, inputTokens: res.usage?.input_tokens ?? 0, outputTokens: res.usage?.output_tokens ?? 0, cacheWriteTokens: res.usage?.cache_creation_input_tokens ?? 0, cacheReadTokens: res.usage?.cache_read_input_tokens ?? 0 };
+    const usage = usageOf(model, res);
     if (res.stop_reason === "refusal") return { status: "refused", reason: "The AI declined to read this file. Use \"Read this policy\", or set the rules by hand.", ...usage };
     if (res.stop_reason === "max_tokens") return { status: "failed", reason: "The policy was too long to read in one go. Use \"Read this policy\", or set the rules by hand.", ...usage };
     const text = res.content.find((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")?.text ?? "";
@@ -142,6 +146,9 @@ export async function readJobCardMessage(req: { text: string; previous: JobCardD
   const blocks: Anthropic.Beta.BetaContentBlockParam[] = use.map((f): Anthropic.Beta.BetaContentBlockParam => ({
     type: "image", source: { type: "base64", media_type: f.mime as "image/jpeg" | "image/png" | "image/webp" | "image/gif", data: Buffer.from(f.bytes).toString("base64") },
   }));
+  // Prompt caching: the photos are the other breakpoint, so a correction ("no, the left tyre") that sends the same photos again reuses them. The message and the
+  // previous draft come after it because they change on every call.
+  if (blocks.length > 0) (blocks[blocks.length - 1] as { cache_control?: { type: "ephemeral" } }).cache_control = { type: "ephemeral" };
   blocks.push({ type: "text", text: JSON.stringify({ message: text, previous_draft: req.previous, photos: use.length }) });
   try {
     const res = await create({
@@ -150,7 +157,7 @@ export async function readJobCardMessage(req: { text: string; previous: JobCardD
       system: [{ type: "text", text: JOBCARD_PROMPT, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: blocks }],
     });
-    const usage: Usage = { model, inputTokens: res.usage?.input_tokens ?? 0, outputTokens: res.usage?.output_tokens ?? 0, cacheWriteTokens: res.usage?.cache_creation_input_tokens ?? 0, cacheReadTokens: res.usage?.cache_read_input_tokens ?? 0 };
+    const usage = usageOf(model, res);
     if (res.stop_reason === "refusal") return { status: "refused", reason: "I could not read that message. Please raise the job card in the app.", ...usage };
     if (res.stop_reason === "max_tokens") return { status: "failed", reason: "That message was too long to read. Please send it shorter, or raise the job card in the app.", ...usage };
     const answer = res.content.find((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")?.text ?? "";

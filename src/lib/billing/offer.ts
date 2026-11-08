@@ -1,11 +1,13 @@
 // What is on sale, read from the plan in the database (CLAUDE.md rule 7: a price lives in `plans`, never in code).
 import type { Driver } from "@/lib/db/types";
 import { withPlatform } from "@/lib/db/tenant";
+import { billedMonths } from "@/lib/billing/months";
 
 export type Offer = {
   planKey: string; priceCents: number; currency: string; trialDays: number;
   /** "$149" */ amount: string;
   /** "per month" */ per: string;
+  /** Price of 12 months paid at once (one month free), ADR-057. */ yearly: string;
   /** What public pages say instead of the figure: the owner prices against a wage, and the exact amount is shown inside Billing. */ headline: string;
   /** Plain statements for the price box. */ points: string[];
 };
@@ -26,6 +28,7 @@ export function offerFrom(plan: { key: string; limits: Record<string, number | u
   return {
     planKey: plan.key, priceCents: plan.price_cents, currency: plan.currency, trialDays: plan.trial_days,
     amount: formatPrice(plan.price_cents, plan.currency), per: "per month, per company",
+    yearly: formatPrice(plan.price_cents * billedMonths(12), plan.currency),
     headline: "The monthly wage of an unskilled labourer",
     points: [
       "Every core feature included",

@@ -7,11 +7,12 @@ import { getDriver } from "@/lib/db";
 import { PageHeader, Panel, Pill, btn, type Tone } from "@/components/ui";
 import { accessMessage, LOCK_TEXT } from "@/lib/billing/state";
 import { formatPrice } from "@/lib/billing/offer";
+import { billedMonths } from "@/lib/billing/months";
 import { listClaims, listInvoices, paymentReference, BILLING_PERMISSION } from "@/lib/billing/payments";
 import { loadPlatformSettings } from "@/lib/billing/settings";
 import { getTaxProfile, quoteTax } from "@/lib/billing/tax-data";
 import { planStatus } from "@/lib/billing/plan-switch";
-import { ClaimForm, RequestBillForm, TryProButton, MoveToBasicButton, KeepProButton } from "./forms";
+import { type PlanPrice, ClaimForm, RequestBillForm, TryProButton, MoveToBasicButton, KeepProButton } from "./forms";
 import { TaxProfileForm } from "./tax-form";
 
 export default function BillingPage({ params }: PageProps<"/w/[slug]/billing">) {
@@ -64,7 +65,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
           <div className="space-y-4 text-sm">
             <dl className="grid gap-4 sm:grid-cols-3 [&>div]:min-w-0">
               <div><dt className="text-zinc-500">Your plan</dt><dd className="mt-1 text-lg font-semibold">{plans.planKey === "pro" ? "Pro" : "Basic"}</dd></div>
-              {plans.options.map((o) => <div key={o.key}><dt className="text-zinc-500">{o.key === "pro" ? "Pro" : "Basic"} costs</dt><dd className="mt-1 font-mono text-lg">{formatPrice(o.priceCents, o.currency)} <span className="font-sans text-sm text-zinc-500">a month</span></dd></div>)}
+              {plans.options.map((o) => <div key={o.key}><dt className="text-zinc-500">{o.key === "pro" ? "Pro" : "Basic"} costs</dt><dd className="mt-1 font-mono text-lg">{formatPrice(o.priceCents, o.currency)} <span className="font-sans text-sm text-zinc-500">a month</span><span className="mt-1 block font-sans text-sm text-zinc-600">or {formatPrice(o.priceCents * billedMonths(12), o.currency)} for 12 months, one month free</span></dd></div>)}
             </dl>
             {plans.pending && (
               <p role="status" className="rounded-md border border-sky-200 bg-sky-100 px-4 py-3 text-sky-900">
@@ -101,7 +102,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
                 <p><Pill tone="warn">Waiting for confirmation</Pill></p>
                 <p>You told us on {dmy(waiting.created_at)} that you sent {minor(waiting.amount_minor, waiting.currency)} for {waiting.months} {waiting.months === 1 ? "month" : "months"} (reference {waiting.bank_reference}). We confirm payments when they appear in our bank, usually within one working day. You can send another one after this is decided.</p>
               </div>
-            ) : <ClaimForm slug={slug} defaultAmount={String(usd)} defaultCurrency={a.currency === "PKR" ? "PKR" : "USD"} today={today} plans={(plans?.options ?? []).filter((o) => !(plans?.pending?.key === "pro" && o.key === "standard")).map((o): [string, string] => [o.key, `${o.key === "pro" ? "Pro" : "Basic"}, ${formatPrice(o.priceCents, o.currency)} a month`])} defaultPlan={plans?.pending?.key ?? plans?.planKey ?? "standard"} />}
+            ) : <ClaimForm slug={slug} defaultAmount={String(usd)} defaultCurrency={a.currency === "PKR" ? "PKR" : "USD"} today={today} plans={(plans?.options ?? []).filter((o) => !(plans?.pending?.key === "pro" && o.key === "standard")).map((o): PlanPrice => ({ key: o.key, label: o.key === "pro" ? "Pro" : "Basic", cents: o.priceCents, currency: o.currency }))} defaultPlan={plans?.pending?.key ?? plans?.planKey ?? "standard"} />}
           </Panel>
 
           {taxView && (
