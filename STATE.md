@@ -456,3 +456,6 @@ Landing, Features, Pricing, About and Contact now carry the current feature set 
 
 ## 2026-11-08: V1.2 carbon footprint planned (ADR-066, nothing built)
 Proposed only: per-vehicle CO2 from EPA tested figures (labelled fallbacks where a vehicle is not in the EPA data), kilometres from the monthly odometer readings, yearly report and reduction against a baseline year; carbon credits only as an evidence pack after an adviser confirms what a verifier needs, with no promise of credits. Open owner questions are listed in the ADR. Next free tenant migration stays 0037.
+
+## 2026-11-08: site refresh deployed
+Live is commit 13022e5: refreshed public pages, price figures on /pricing only (ADR-065), wording fixes, flyers. Live plans table holds Basic PKR 43,000 and Pro PKR 65,000 (one band). No migrations. Browser suite not run for this deploy (copy and layout changes; unit tests 1,046 pass).
