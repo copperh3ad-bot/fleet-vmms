@@ -453,3 +453,6 @@ Landing, Features, Pricing, About and Contact now carry the current feature set 
 
 ## 2026-11-08: price figures on /pricing only (ADR-065)
 /pricing shows the actual price of each plan from the plans table (Basic and the Pro band). Every other page and flyer says Basic is a month of an unskilled labourer's wage and Pro costs less than a fleet manager's monthly salary. Customer flyer footer reworded; checked locally that the figures appear on /pricing only. Not yet deployed.
+
+## 2026-11-08: V1.2 carbon footprint planned (ADR-066, nothing built)
+Proposed only: per-vehicle CO2 from EPA tested figures (labelled fallbacks where a vehicle is not in the EPA data), kilometres from the monthly odometer readings, yearly report and reduction against a baseline year; carbon credits only as an evidence pack after an adviser confirms what a verifier needs, with no promise of credits. Open owner questions are listed in the ADR. Next free tenant migration stays 0037.
