@@ -15,6 +15,11 @@ const PATHS: Record<string, ReactNode> = {
   export: <><path d="M12 3v12M7 8l5-5 5 5M5 21h14" /></>,
   arrow: <><path d="M5 12h14M13 6l6 6-6 6" /></>,
   plus: <><path d="M12 5v14M5 12h14" /></>,
+  bell: <><path d="M6 17V11a6 6 0 0 1 12 0v6l2 2H4z" /><path d="M10 21h4" /></>,
+  chat: <><path d="M4 5h16v11H9l-5 4z" /><path d="M8 10h8M8 13h5" /></>,
+  users: <><circle cx="9" cy="8" r="3.2" /><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6" /><circle cx="17" cy="9" r="2.4" /><path d="M17 14c2.6 0 4 2 4 5" /></>,
+  spark: <><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" /><path d="M19 17v4M17 19h4" /></>,
+  car: <><path d="M4 16V12l2-5h12l2 5v4z" /><path d="M4 12h16" /><circle cx="8" cy="17" r="1.6" /><circle cx="16" cy="17" r="1.6" /></>,
 };
 
 export function Icon({ name, size = 20, className }: { name: keyof typeof PATHS | string; size?: number; className?: string }) {

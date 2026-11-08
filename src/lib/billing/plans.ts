@@ -49,9 +49,10 @@ export function proOfferFrom(plan: PlanRow | undefined, bands: Band[]): ProOffer
     points: [
       "Everything in Basic",
       "The AI reads the estimates and invoices your workshops email and fills in the form for you to check",
+      "Staff raise a job card from one WhatsApp message; the AI drafts it and they confirm",
       "A person always checks and saves, so every approval still carries a real name and time",
       "Switched on by your administrator, and your records are never used to train AI",
-      "The price follows the size of your fleet, because a larger fleet sends more documents to read",
+      priced && bands.length === 1 ? "One price for every fleet size" : "The price follows the size of your fleet, because a larger fleet sends more documents to read",
     ],
   };
 }

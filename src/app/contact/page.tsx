@@ -1,6 +1,7 @@
 import { pageMeta } from "@/lib/site";
 import { Suspense } from "react";
 import { SiteShell } from "@/components/site-shell";
+import { PageHero } from "@/components/page-hero";
 import { getDriver } from "@/lib/db";
 import { loadPlatformSettings } from "@/lib/billing/settings";
 import { ContactForm } from "./form";
@@ -10,11 +11,12 @@ export const metadata = pageMeta("Contact us · Fleet OTG", "Ask a question abou
 export default function ContactPage() {
   return (
     <SiteShell active="contact">
+      <PageHero eyebrow="Contact us" title="Questions before you sign up? Ask us.">
+        <p>Questions before you sign up, help with your account, or a payment to check: write to us here. We read every message.</p>
+      </PageHero>
       <div className="mx-auto grid max-w-5xl 2xl:max-w-6xl gap-10 px-5 py-12 md:grid-cols-[1.4fr_1fr]">
         <div>
-          <h1 className="text-3xl font-semibold">Contact us</h1>
-          <p className="mt-3 text-zinc-700">Questions before you sign up, help with your account, or a payment to check: write to us here. We read every message.</p>
-          <div className="mt-8"><ContactForm /></div>
+          <div><ContactForm /></div>
         </div>
         <aside className="space-y-5 text-sm text-zinc-700" aria-label="Other ways to reach us">
           <Suspense fallback={null}><Direct /></Suspense>

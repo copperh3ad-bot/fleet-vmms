@@ -11,6 +11,7 @@ import { PRICING_FAQ } from "@/lib/faq";
 import { breadcrumbLd, faqLd } from "@/lib/seo";
 import { Icon } from "@/components/icons";
 import { PageHero } from "@/components/page-hero";
+import { SELLING_POINTS } from "@/lib/selling-points";
 
 export const metadata = pageMeta("Pricing · Fleet OTG", "One plan with everything included, priced about the same as one month's wage of an unskilled labourer. Free trial, no card needed.");
 
@@ -34,8 +35,8 @@ async function Inner() {
     <SiteShell active="pricing">
       <JsonLd data={breadcrumbLd([["Fleet OTG", "/"], ["Pricing", "/pricing"]])} />
       <JsonLd data={faqLd(PRICING_FAQ)} />
-      <PageHero eyebrow="Pricing" title="Basic, and Pro for larger fleets">
-        <p>Everything in Fleet OTG for your whole company, with no per-user charges. Basic has every feature and is what every company starts on. Pro adds the AI that reads your workshops&apos; estimates and invoices for you.</p>
+      <PageHero eyebrow="Pricing" title="Basic, and Pro for larger fleets" chips={["No per-user charges", "Free trial, no card", "Export your data any time", "Pro: one price for every fleet size"]}>
+        <p>Everything in Fleet OTG for your whole company, with no per-user charges. Basic has every core feature and is what every company starts on. Pro adds the AI that reads your workshops&apos; estimates and invoices for you.</p>
       </PageHero>
       <div className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-12">
         <div className="grid gap-6 md:grid-cols-[1fr_1.3fr]">
@@ -81,6 +82,18 @@ async function Inner() {
             </ol>
           </section>
         </div>
+
+        <section className="mt-14" aria-labelledby="inc">
+          <h2 id="inc" className="text-2xl font-semibold">What every company gets</h2>
+          <ul className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {SELLING_POINTS.map((p) => (
+              <li key={p.title} className="reveal flex items-start gap-4 rounded-xl border border-zinc-200 bg-white p-5">
+                <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-badge text-side"><Icon name={p.icon} /></span>
+                <span><span className="block font-semibold">{p.title}</span><span className="mt-1 block text-sm text-zinc-600">{p.text}</span></span>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         <section className="mx-auto mt-14 max-w-3xl" aria-labelledby="faq">
           <h2 id="faq" className="text-2xl font-semibold">Common questions</h2>

@@ -39,7 +39,7 @@ async function Inner() {
       <JsonLd data={webPageLd(TITLE, "/compare", DESCRIPTION)} />
       <JsonLd data={breadcrumbLd([["Fleet OTG", "/"], ["Compare plans", "/compare"]])} />
       <PageHero eyebrow="Compare plans" title="Basic and Pro, side by side">
-        <p>Basic has every feature of Fleet OTG except the AI and WhatsApp job cards, and is what every company starts on. Pro adds those two. Neither charges per user.</p>
+        <p>Basic has every core feature of Fleet OTG except the AI and WhatsApp job cards, and is what every company starts on. Pro adds those two. Neither charges per user.</p>
       </PageHero>
       <div className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-12">
         <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-[var(--shadow-card)]">

@@ -1,5 +1,7 @@
 import { pageMeta, OPERATOR_NAME } from "@/lib/site";
 import { SiteShell } from "@/components/site-shell";
+import { PageHero } from "@/components/page-hero";
+import { Icon } from "@/components/icons";
 
 export const metadata = pageMeta("About us · Fleet OTG", "Why Fleet OTG exists: the everyday problems of running a company fleet on spreadsheets, and what we built to end them.");
 
@@ -48,17 +50,19 @@ const PAINS: { problem: string; story: string; answer: string }[] = [
   },
 ];
 
+const ICONS = ["approve", "repeat" , "budget", "shield", "workshop", "papers", "odometer", "papers"].map((n) => (n === "repeat" ? "service" : n));
+
 export default function AboutPage() {
   return (
     <SiteShell active="about">
+      <PageHero eyebrow="About us" title="Built by people who ran a fleet on spreadsheets" chips={["Born inside a real fleet", "Every answer is a feature that exists", "Made in Pakistan"]}>
+        <p>Fleet OTG began inside a company that kept its vehicles on the road with spreadsheets, phone calls and follow-ups. It worked until it did not, and it stopped working in the same few places every time. This page lists those places, and what we built for each.</p>
+      </PageHero>
       <div className="mx-auto max-w-3xl px-5 py-12">
-        <h1 className="text-3xl font-semibold">Built by people who ran a fleet on spreadsheets</h1>
-        <p className="mt-4 text-lg text-zinc-700">Fleet OTG began inside a company that kept its vehicles on the road with spreadsheets, phone calls and follow-ups. It worked until it did not, and it stopped working in the same few places every time. This page lists those places, and what we built for each.</p>
-
-        <div className="mt-10 space-y-8">
+        <div className="space-y-8">
           {PAINS.map((p, i) => (
-            <section key={p.problem} aria-labelledby={`pain-${i}`} className="rounded-xl border border-zinc-200 bg-white p-6">
-              <h2 id={`pain-${i}`} className="text-xl font-semibold">{p.problem}</h2>
+            <section key={p.problem} aria-labelledby={`pain-${i}`} className="reveal lift rounded-2xl border border-zinc-200 bg-white p-6 shadow-[var(--shadow-card)]">
+              <h2 id={`pain-${i}`} className="flex items-center gap-3 text-xl font-semibold"><span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-side text-badge"><Icon name={ICONS[i]} /></span>{p.problem}</h2>
               <p className="mt-2 text-zinc-700">{p.story}</p>
               <p className="mt-3 border-l-4 border-brand pl-4 text-zinc-900"><span className="font-medium">What Fleet OTG does:</span> {p.answer}</p>
             </section>
@@ -70,7 +74,7 @@ export default function AboutPage() {
           <ul className="mt-3 list-disc space-y-2 pl-5 text-zinc-700">
             <li><span className="font-medium text-zinc-900">Your data stays yours.</span> Each company&apos;s records are kept apart from every other company&apos;s, and you can export everything at any time, even if your subscription lapses.</li>
             <li><span className="font-medium text-zinc-900">Everyone in one system.</span> Drivers, managers, workshops and finance each see what they need, and nothing more.</li>
-            <li><span className="font-medium text-zinc-900">Simple pricing.</span> One plan with everything included, priced about the same as one month&apos;s wage of an unskilled labourer. No charge per user, and a free trial first.</li>
+            <li><span className="font-medium text-zinc-900">Simple pricing.</span> Basic has every core feature and costs about one month&apos;s wage of an unskilled labourer; Pro adds AI and job cards by WhatsApp for busy fleets. No charge per user, and a free trial first.</li>
           </ul>
         </section>
 
