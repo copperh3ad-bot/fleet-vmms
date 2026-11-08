@@ -26,7 +26,7 @@ const PAINS: { problem: string; story: string; answer: string }[] = [
   {
     problem: "Approvals happened in chat, with no record",
     story: "A manager said yes on a call or a message. Later no one could show who approved a repair, for how much, or whether the person asking also approved it.",
-    answer: "Approval is a step in the job card, recorded with the person and the time. Whoever raises a request cannot approve their own, unless they are the only person in the company who can approve.",
+    answer: "Approval is a step in the job card, recorded with the person and the time. Whoever raises a request cannot approve their own, unless they are the only employee in the company. Otherwise a Fleet manager approves.",
   },
   {
     problem: "Workshop quotes and invoices went unchecked",

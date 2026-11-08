@@ -101,7 +101,7 @@ export async function whoAmI(driver: Driver, m: Membership): Promise<{ name: str
 }
 
 /**
- * May this administrator decide something they raised themselves? Only while nobody else could decide it (ADR-072): the database function says so, from the live list of
+ * May this administrator decide something they raised themselves? Only while they are the only employee (ADR-077; ADR-072 and ADR-074 were looser): the database function says so, from the live list of
  * active members who hold the permission. False for every other role. If the database does not have the function yet (a deploy that came before migration 0038), the
  * old rule applies, the same one the database is still enforcing. With a scope (the card's vehicle and amount) the answer also ignores other approvers who could not decide that card (ADR-074).
  */

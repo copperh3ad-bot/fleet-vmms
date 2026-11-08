@@ -248,53 +248,7 @@ describe("the write guard holds even when a page forgets", () => {
   });
 });
 
-// ADR-074: the administrator's "nobody else could decide" test looks at what each other approver can actually decide for THIS card.
-describe("the administrator deciding their own card when the only other approvers are department approvers", () => {
-  const onlyLogisticsApprovers = async <T,>(fn: () => Promise<T>): Promise<T> => {
-    const set = (status: string, from: string) => withPlatform(d, async (q) => (await q.query<{ user_id: string }>("update public.tenant_memberships set status = $1 where tenant_id = $2 and role in ('fleet_manager','requester') and status = $3 returning user_id", [status, t.tenantId, from])).rows);
-    const off = await set("disabled", "active");
-    try { return await fn(); }
-    finally { await withPlatform(d, async (q) => { for (const r of off) await q.query("update public.tenant_memberships set status = 'active' where tenant_id = $1 and user_id = $2", [t.tenantId, r.user_id]); }); }
-  };
-  const asAdmin = (vehicle: string, amount: number) => withTenant(d, owner(), (q) => q.query<{ ok: boolean }>("select admin_may_decide_own('jobcard.approve', $1::uuid, $2::numeric) as ok", [vehicle, amount]).then((r) => r.rows[0].ok));
-
-  it("a logistics approver counts for a logistics vehicle but not for another department's vehicle", async () => {
-    await onlyLogisticsApprovers(async () => {
-      expect(await asAdmin(truck, 100)).toBe(false);          // logistics could decide it: the administrator may not decide their own
-      expect(await asAdmin(van, 100)).toBe(true);             // no logistics approver can touch a general vehicle: the administrator may
-      expect(await asAdmin(opsLoader, 100)).toBe(true);       // nor another named department
-    });
-    expect(await asAdmin(van, 100)).toBe(false);              // with a fleet manager active again, the exception ends everywhere
-  });
-
-  it("a department approver over their limit does not count, and the administrator can then decide", async () => {
-    await ctl.saveSettings(d, owner(), { dept_approval_limit: "1000" });
-    try {
-      await onlyLogisticsApprovers(async () => {
-        expect(await asAdmin(truck, 1000)).toBe(false);       // at the limit: logistics could decide it
-        expect(await asAdmin(truck, 1001)).toBe(true);        // over it: only the administrator or a fleet manager could
-      });
-    } finally { await ctl.saveSettings(d, owner(), { dept_approval_limit: "" }); }
-  });
-
-  it("the database accepts the administrator's own approval on a vehicle no department approver could decide, and refuses it where one could", async () => {
-    await onlyLogisticsApprovers(async () => {
-      const onVan = await jc.createJobCard(d, owner(), card(van, "", "100"), true);
-      await jc.transitionJobCard(d, owner(), onVan.id, "approved");
-      expect((await jc.getJobCard(d, owner(), onVan.id))?.status).toBe("approved");
-      const onTruck = await jc.createJobCard(d, owner(), card(truck, "", "100"), true);
-      expect((await jc.transitionJobCard(d, owner(), onTruck.id, "approved").catch((e) => e)).message).toMatch(/cannot approve their own/i);
-      expect((await jc.getJobCard(d, owner(), onTruck.id))?.status).toBe("submitted");
-    });
-  });
-
-  it("the one-argument form still counts any holder of the permission (older callers)", async () => {
-    await onlyLogisticsApprovers(async () => {
-      const ok = await withTenant(d, owner(), (q) => q.query<{ ok: boolean }>("select admin_may_decide_own('jobcard.approve') as ok").then((r) => r.rows[0].ok));
-      expect(ok).toBe(false);
-    });
-  });
-});
+// The administrator's own-card rule is tested in tests/admin-sole-employee.test.ts (ADR-077, which replaced the per-card scope test of ADR-074).
 
 describe("which department a role is tied to (for the empty-page notes)", () => {
   it("names the department for a department role and is null for every other role", async () => {

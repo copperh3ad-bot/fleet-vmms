@@ -38,7 +38,7 @@ export async function getDashboard(driver: Driver, m: Membership): Promise<Dashb
       if (count > 0) actions.push({ key, label, count, href: `job-cards?status=${hrefStatus}`, samples: rows.map((r) => ({ text: `${r.job_no} · ${r.registration_no}${r.priority === "urgent" || r.priority === "high" ? ` · ${r.priority}` : ""}`, href: `job-cards/${r.id}` })) });
     };
     // a card the member raised cannot be decided by them, so it is not "waiting for you"
-    // (the administrator may approve a card they raised themselves only while nobody else could, so then every submitted card is waiting for them)
+    // (the administrator may approve a card they raised themselves only while they are the only employee (ADR-077), so then every submitted card is waiting for them)
     // (decided per card in the database, ADR-074: false for every role but the administrator, and for them false once another approver could decide that card)
     const notMine = (permission: string, amount: string) => `(jc.requested_by is distinct from actor_employee($1) or admin_may_decide_own('${permission}', jc.vehicle_id, ${amount}))`;
 

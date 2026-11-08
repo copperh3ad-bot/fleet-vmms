@@ -251,7 +251,7 @@ export type InvoiceReview = InvoiceCheck & {
 
 /** Everything the invoice check screen shows: lines side by side, the job, who is barred from checking, the next invoice. */
 export async function getInvoiceReview(driver: Driver, m: Membership, id: string): Promise<InvoiceReview | null> {
-  const adminAlone = await adminMayDecideOwn(driver, m, "invoice.verify");          // the administrator may check an invoice on a card they raised or approved only while nobody else could (ADR-072)
+  const adminAlone = await adminMayDecideOwn(driver, m, "invoice.verify");          // the administrator may check an invoice on a card they raised or approved only while they are the only employee (ADR-077)
   return authorized(driver, m, "invoice.verify", async (q) => {
     const base = (await q.query<InvoiceCheck>(
       `select i.id, i.invoice_no, i.invoice_date::text, i.amount::text, i.tax_amount::text, i.status, jc.job_no, jc.id as job_card_id, jc.status as job_status,

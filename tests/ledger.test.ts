@@ -175,7 +175,8 @@ describe("reports and the accountant's export", () => {
 
   it("the trial balance can be taken as of a date", async () => {
     expect((await trialBalance(h.control, OP, "2000-01-01")).length).toBe(0);
-    expect((await trialBalance(h.control, OP, today())).length).toBeGreaterThan(0);
+    const tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);          // the test database uses this machine's time zone, so "today" can be a few hours before an entry posted just after local midnight
+    expect((await trialBalance(h.control, OP, tomorrow)).length).toBeGreaterThan(0);
   });
 
   it("the CSV has one row for each line of each entry, and quotes what needs quoting", async () => {

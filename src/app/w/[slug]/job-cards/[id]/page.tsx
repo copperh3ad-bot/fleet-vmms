@@ -36,7 +36,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
   if (!c) notFound();
   const to = (p: string) => `/w/${slug}/${p}`;
 
-  // the administrator may decide a card they raised only while nobody else could (ADR-072)
+  // the administrator may decide a card they raised only while they are the only employee (ADR-077)
   const adminSelfApprove = c.requester_is_me && c.status === "submitted" ? await adminMayDecideOwn(driver, m, "jobcard.approve", { vehicleId: c.vehicle_id, amount: c.estimated_cost }) : false;
   const canDecide = c.status === "submitted" && perms.has("jobcard.approve") && (!c.requester_is_me || adminSelfApprove);
   const canAssign = c.status === "approved" && perms.has("jobcard.assign_vendor");
