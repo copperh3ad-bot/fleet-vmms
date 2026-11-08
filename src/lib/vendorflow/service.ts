@@ -3,7 +3,7 @@
 // functions in migration 0007 check again that the job or order belongs to that vendor's login.
 import { z } from "zod";
 import type { Driver, Queryable } from "@/lib/db/types";
-import { authorized, authorizedAny, type Membership } from "@/lib/auth/can";
+import { adminMayDecideOwn, authorized, authorizedAny, type Membership } from "@/lib/auth/can";
 import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
 import { lineSchema } from "@/lib/jobcards/schemas";
@@ -250,7 +250,8 @@ export type InvoiceReview = InvoiceCheck & {
 };
 
 /** Everything the invoice check screen shows: lines side by side, the job, who is barred from checking, the next invoice. */
-export function getInvoiceReview(driver: Driver, m: Membership, id: string): Promise<InvoiceReview | null> {
+export async function getInvoiceReview(driver: Driver, m: Membership, id: string): Promise<InvoiceReview | null> {
+  const adminAlone = await adminMayDecideOwn(driver, m, "invoice.verify");          // the administrator may check an invoice on a card they raised or approved only while nobody else could (ADR-072)
   return authorized(driver, m, "invoice.verify", async (q) => {
     const base = (await q.query<InvoiceCheck>(
       `select i.id, i.invoice_no, i.invoice_date::text, i.amount::text, i.tax_amount::text, i.status, jc.job_no, jc.id as job_card_id, jc.status as job_status,
@@ -289,8 +290,7 @@ export function getInvoiceReview(driver: Driver, m: Membership, id: string): Pro
     const over = invoiced - approved;
 
     const me = (await q.query<{ id: string | null }>("select actor_employee($1) as id", [m.userId])).rows[0].id;
-    // the administrator is the one role allowed to check an invoice on a card they raised or approved (migration 0021)
-    const blocked = m.role === "tenant_admin" ? null : me && me === j.approved_by ? { by: "approver" as const, name: j.approver_name ?? "The approver" }
+    const blocked = adminAlone ? null : me && me === j.approved_by ? { by: "approver" as const, name: j.approver_name ?? "The approver" }
       : me && me === j.requested_by ? { by: "requester" as const, name: j.requester_name } : null;
 
     const waitingRows = (await q.query<{ id: string }>("select i.id from invoices i where i.status = 'submitted' and i.id <> $1 order by i.invoice_date, i.id", [id])).rows;

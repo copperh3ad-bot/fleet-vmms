@@ -6,7 +6,7 @@ import { getDriver } from "@/lib/db";
 import { loadAccess } from "@/lib/billing/state";
 import { isOperator } from "@/lib/billing/operator";
 import { findActiveTenant, membershipIn, type Membership } from "./can";
-import { logActivity } from "@/lib/activity/log";
+import { logSoon } from "@/lib/activity/log";
 
 // A page, its layout and the actions it runs all ask "who is this" and "which workspace". cache() makes each of those
 // one lookup per request instead of one per caller; every request still checks for itself.
@@ -60,10 +60,10 @@ const logView = cache(async (userId: string, tenantId: string, role: string) => 
     const { headers } = await import("next/headers");
     if ((await headers()).get("next-action")) return;            // an action logs itself
   } catch { return; }
-  await logActivity({ kind: "page", name: "view", outcome: "ok", actorId: userId, tenantId, role });
+  await logSoon({ kind: "page", name: "view", outcome: "ok", actorId: userId, tenantId, role });
 });
 async function logRefusal(userId: string, slug: string, why: string, tenantId?: string, role?: string) {
-  await logActivity({ kind: "security", name: "workspace access refused", outcome: "denied", actorId: userId, tenantId: tenantId ?? null, role: role ?? null, details: { slug, why } });
+  await logSoon({ kind: "security", name: "workspace access refused", outcome: "denied", actorId: userId, tenantId: tenantId ?? null, role: role ?? null, details: { slug, why } });
 }
 
 /**
@@ -74,7 +74,7 @@ async function logRefusal(userId: string, slug: string, why: string, tenantId?: 
 export async function requireOperator() {
   const user = await requireUser();
   if (!(await isOperator(getDriver(), user.id))) {
-    await logActivity({ kind: "security", name: "operator area refused", outcome: "denied", actorId: user.id });
+    await logSoon({ kind: "security", name: "operator area refused", outcome: "denied", actorId: user.id });
     redirect("/");
   }
   await logOperatorView(user.id);
@@ -86,5 +86,5 @@ const logOperatorView = cache(async (userId: string) => {
     const { headers } = await import("next/headers");
     if ((await headers()).get("next-action")) return;            // an operator action logs itself
   } catch { return; }
-  await logActivity({ kind: "page", name: "operator view", outcome: "ok", actorId: userId, role: "operator" });
+  await logSoon({ kind: "page", name: "operator view", outcome: "ok", actorId: userId, role: "operator" });
 });

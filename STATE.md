@@ -517,3 +517,7 @@ Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the lan
 ## 2026-11-08 Live defect: every file upload fails (service key invalid)
 - Cause (Supabase storage log): "signature verification failed" for every upload since files moved to the server key (ADR-069). The SUPABASE_SERVICE_ROLE_KEY in Netlify is not valid for this project. Uploads worked before only because they used the person token.
 - Added: reason in storage errors, logged to the activity log; Admin > Settings > Check file storage. Fix needs a valid key set by the owner, then redeploy and press the check. Control 0020 is already applied, so the old token route is closed too: until the key is fixed, uploads stay down.
+
+## 2026-11-08 Admin decides own work only when alone (ADR-072); clean checked test builds
+- Tenant 0038 (admin_may_decide_own) built, deployed with the app; apply on live after the owner says so. Until applied the database keeps the old rule and the screens fall back to it.
+- Render-time logging no longer uses after() (logSoon); ACTIVITY_LOG=off kill switch. e2e builds from scratch and checks for missing script files (e2e/check-build.mjs). Full browser suite 237 passed, 0 failed.

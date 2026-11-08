@@ -44,7 +44,7 @@ export async function can(q: Queryable, role: string, permission: string): Promi
 export async function assertCan(q: Queryable, role: string, permission: string): Promise<void> {
   if (!(await can(q, role, permission))) {
     // Every refusal is on the activity log (ADR-070), whichever screen or action asked. The log never throws and is written after the response.
-    void import("@/lib/activity/log").then((l) => l.logActivity({ kind: "security", name: "permission refused", outcome: "denied", role, details: { permission } }));
+    void import("@/lib/activity/log").then((l) => l.logSoon({ kind: "security", name: "permission refused", outcome: "denied", role, details: { permission } }));
     throw new ForbiddenError(permission);
   }
 }
@@ -98,4 +98,16 @@ export async function whoAmI(driver: Driver, m: Membership): Promise<{ name: str
               (select r.name from roles r where r.key = $2) as role_name`, [m.userId, m.role])).rows[0];
     return { name: r?.name ?? "Signed in", roleName: r?.role_name ?? m.role };
   });
+}
+
+/**
+ * May this administrator decide something they raised themselves? Only while nobody else could decide it (ADR-072): the database function says so, from the live list of
+ * active members who hold the permission. False for every other role. If the database does not have the function yet (a deploy that came before migration 0038), the
+ * old rule applies, the same one the database is still enforcing.
+ */
+export async function adminMayDecideOwn(driver: Driver, m: Membership, permission: string): Promise<boolean> {
+  if (m.role !== "tenant_admin") return false;
+  try {
+    return await withTenant(driver, m, async (q) => (await q.query<{ ok: boolean }>("select admin_may_decide_own($1) as ok", [permission])).rows[0].ok);
+  } catch { return true; }
 }

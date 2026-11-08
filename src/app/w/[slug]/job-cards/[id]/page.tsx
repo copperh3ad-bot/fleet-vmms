@@ -5,7 +5,7 @@ import { whatsappConfigured } from "@/lib/whatsapp";
 import { WorkshopEmails } from "./workshop-emails";
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/auth/session";
-import { permissionsOf } from "@/lib/auth/can";
+import { adminMayDecideOwn, permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { getJobCard, getReviewContext, listActiveVendors, listReasonCodes } from "@/lib/jobcards/service";
 import { STATUS_LABEL, StatusBadge, Stepper } from "../status";
@@ -36,14 +36,17 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
   if (!c) notFound();
   const to = (p: string) => `/w/${slug}/${p}`;
 
-  const canDecide = c.status === "submitted" && perms.has("jobcard.approve") && (!c.requester_is_me || m.role === "tenant_admin");   // the administrator may approve a card they raised
+  // the administrator may decide a card they raised only while nobody else could (ADR-072)
+  const adminSelfApprove = c.requester_is_me && c.status === "submitted" ? await adminMayDecideOwn(driver, m, "jobcard.approve") : false;
+  const adminSelfQuote = c.requester_is_me && c.status === "quotation_received" ? await adminMayDecideOwn(driver, m, "quotation.approve") : false;
+  const canDecide = c.status === "submitted" && perms.has("jobcard.approve") && (!c.requester_is_me || adminSelfApprove);
   const canAssign = c.status === "approved" && perms.has("jobcard.assign_vendor");
   const canEdit = c.mine && perms.has("jobcard.create") && ["draft", "returned_for_edit"].includes(c.status);
   const commercial = perms.has("jobcard.read_all") && !["draft", "submitted", "returned_for_edit", "rejected", "cancelled", "approved"].includes(c.status);
   const flow = commercial ? await getJobFlow(driver, m, id) : null;
   const canHandleEmails = perms.has("jobcard.assign_vendor") || perms.has("quotation.approve") || perms.has("invoice.verify");
   const workshopEmails = commercial && canHandleEmails ? await listWorkshopEmails(driver, m, id) : [];
-  const canDecideQuote = c.status === "quotation_received" && perms.has("quotation.approve") && (!c.requester_is_me || m.role === "tenant_admin");
+  const canDecideQuote = c.status === "quotation_received" && perms.has("quotation.approve") && (!c.requester_is_me || adminSelfQuote);
   const canClose = c.status === "invoice_verified" && perms.has("invoice.verify");
   const [files, ctx, reasons, assignable] = await Promise.all([
     listJobCardAttachments(driver, await supabaseBlobStore(), m, id),

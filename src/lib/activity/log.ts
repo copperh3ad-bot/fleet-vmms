@@ -31,7 +31,7 @@ export async function currentRequest(): Promise<RequestContext> {
  */
 export async function logActivity(e: ActivityEntry, driver?: Driver): Promise<void> {
   try {
-    if (process.env.NEXT_PHASE === "phase-production-build") return;       // Next test-renders pages while building: that is not activity
+    if (process.env.NEXT_PHASE === "phase-production-build" || process.env.ACTIVITY_LOG === "off") return;       // not while building; and an operator can switch the log off       // Next test-renders pages while building: that is not activity
     const d = driver ?? (await defaultDriver());
     if (!d) return;
     const ctx = e.context ? NO_CONTEXT : await currentRequest();
@@ -42,6 +42,21 @@ export async function logActivity(e: ActivityEntry, driver?: Driver): Promise<vo
     } catch {
       await write;
     }
+  } catch { /* the log must never break the work it describes */ }
+}
+
+/**
+ * Logs one entry from inside a page render or a permission check, without `after()`. Registering a write with after() while a page is rendering lets the database
+ * connection it opens carry the "after" phase into the rest of the same render, and Next then refuses the layout's own cookies() call. So the write is only started here, not
+ * awaited and not handed to after(): a page view is not held up, and a lost row on a frozen server is acceptable for a view. Never throws.
+ */
+export async function logSoon(e: ActivityEntry, driver?: Driver): Promise<void> {
+  try {
+    if (process.env.NEXT_PHASE === "phase-production-build" || process.env.ACTIVITY_LOG === "off") return;       // not while building; and an operator can switch the log off
+    const d = driver ?? (await defaultDriver());
+    if (!d) return;
+    const ctx = e.context ? NO_CONTEXT : await currentRequest();
+    void record(d, e, ctx);
   } catch { /* the log must never break the work it describes */ }
 }
 

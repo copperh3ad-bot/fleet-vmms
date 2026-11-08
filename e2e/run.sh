@@ -17,8 +17,11 @@ rm -f "$E2E_WHATSAPP"
 export AUTH_HOOK_SECRET="v1,whsec_$(printf "e2e-only-hook-secret-0123456789" | base64)" SMTP_URL="file:${E2E_OUTBOX}" EMAIL_FROM="Fleet OTG <noreply@example.test>" ALLOW_FILE_MAILER=1
 psql -h "$E2E_PGHOST" -d postgres -c "drop database if exists ${E2E_DB}" -c "create database ${E2E_DB}" >/dev/null
 npx tsx scripts/migrate-tenants.mts >/dev/null
-find .next -name "* [0-9]*" -delete 2>/dev/null || true
+# A clean build every time. The build cache is shared with the real deploys, which use different settings; reusing it once produced a build whose pages
+# asked for script files that were never written (static files answered 500 and seven scenarios failed for no reason in the app).
+rm -rf .next
 npm run build > e2e/build.out 2>&1 || { tail -20 e2e/build.out; exit 1; }
+node e2e/check-build.mjs || { echo "the build is incomplete: a page refers to a script file that was not written"; exit 1; }
 node e2e/mock-supabase.mjs > e2e/mock.log 2>&1 & MOCK=$!
 npx next start -p 3100 > e2e/app.log 2>&1 & APP=$!
 trap 'kill $MOCK $APP 2>/dev/null' EXIT

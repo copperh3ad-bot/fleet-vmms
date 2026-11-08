@@ -219,8 +219,35 @@ describe("quotation decisions", () => {
     await expect(vf.decideQuotation(d, mgr(), q1, "approve")).rejects.toThrow(/not awaiting a decision/i);
   });
 
-  it("the administrator may decide the quotation and check the invoice on a card they raised and approved themselves", async () => {
+
+/** Runs fn as if the administrator were the only active member: everyone else is switched off for the duration, then switched back on (ADR-072). */
+async function alone<T>(fn: () => Promise<T>): Promise<T> {
+  const set = (status: string, from: string) => d.transaction(async (q) => { await q.query("set local search_path = public"); return (await q.query<{ user_id: string }>("update public.tenant_memberships set status = $1 where tenant_id = $2 and user_id <> $3 and status = $4 returning user_id", [status, t.tenantId, U(1), from])).rows; });
+  const off = await set("disabled", "active");
+  try { return await fn(); }
+  finally { await d.transaction(async (q) => { await q.query("set local search_path = public"); for (const r of off) await q.query("update public.tenant_memberships set status = 'active' where tenant_id = $1 and user_id = $2", [t.tenantId, r.user_id]); }); }
+}
+
+  it("with a manager and finance in the company, the administrator cannot decide their own quotation or check their own invoice (ADR-072)", async () => {
+    const { id } = await jc.createJobCard(d, owner(), { vehicle_id: veh, reason_code_id: reason, cause_text: "Own car, but others can approve", lines: [] }, true);
+    await expect(jc.transitionJobCard(d, owner(), id, "approved")).rejects.toThrow(/segregation/i);
+    await jc.transitionJobCard(d, mgr(), id, "approved");
+    await jc.transitionJobCard(d, mgr(), id, "vendor_assigned", { vendorId: vA });
+    await vf.submitQuotation(d, vendorA(), id, quote());
+    await expect(vf.decideQuotation(d, owner(), await quotationOf(id), "approve")).rejects.toThrow(/segregation/i);
+    await vf.decideQuotation(d, mgr(), await quotationOf(id), "approve");
+    const wo = await woOf(id);
+    await vf.startWork(d, vendorA(), wo);
+    await vf.completeWork(d, vendorA(), wo, "Done");
+    await vf.submitInvoice(d, vendorA(), wo, await invoiceInput(id));
+    const inv = await invoiceOf(wo);
+    expect((await vf.getInvoiceReview(d, owner(), inv))!.blocked).not.toBeNull();
+    await expect(vf.verifyInvoice(d, owner(), inv, "pay_approved")).rejects.toThrow(/segregation/i);
+  });
+
+  it("the administrator may decide the quotation and check the invoice on a card they raised and approved themselves while nobody else could", async () => {
     const { id } = await jc.createJobCard(d, owner(), { vehicle_id: veh, reason_code_id: reason, cause_text: "Own car, administrator does it all", lines: [] }, true);
+    await alone(async () => {
     await jc.transitionJobCard(d, owner(), id, "approved");
     await jc.transitionJobCard(d, owner(), id, "vendor_assigned", { vendorId: vA });
     await vf.submitQuotation(d, vendorA(), id, quote());
@@ -234,6 +261,7 @@ describe("quotation decisions", () => {
     expect((await vf.getInvoiceReview(d, owner(), inv))!.blocked).toBeNull();
     await vf.verifyInvoice(d, owner(), inv, "pay_approved");
     expect(await statusOf(id)).toBe("invoice_verified");
+    });
   });
 
   it("the requester cannot approve the quotation for their own card", async () => {

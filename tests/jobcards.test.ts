@@ -25,6 +25,14 @@ const driver2 = () => mem("requester", 16, t, "own");
 const emp: Record<number, string> = {};
 let veh: string, veh2: string, reasonWear: string, reasonMisuse: string;
 
+/** Runs fn as if the administrator were the only active member: everyone else is switched off for the duration, then switched back on (ADR-072). */
+async function alone<T>(fn: () => Promise<T>): Promise<T> {
+  const set = (status: string, from: string) => d.transaction(async (q) => { await q.query("set local search_path = public"); return (await q.query<{ user_id: string }>("update public.tenant_memberships set status = $1 where tenant_id = $2 and user_id <> $3 and status = $4 returning user_id", [status, t.tenantId, U(1), from])).rows; });
+  const off = await set("disabled", "active");
+  try { return await fn(); }
+  finally { await d.transaction(async (q) => { await q.query("set local search_path = public"); for (const r of off) await q.query("update public.tenant_memberships set status = 'active' where tenant_id = $1 and user_id = $2", [t.tenantId, r.user_id]); }); }
+}
+
 const raw = <T,>(m: Membership, fn: (q: import("@/lib/db/types").Queryable) => Promise<T>) => withTenant(d, m, fn);
 const card = (over: Record<string, unknown> = {}) => ({
   vehicle_id: veh, reason_code_id: reasonWear, cause_text: "Front brake pads worn to the metal", category: "corrective", priority: "normal",
@@ -153,9 +161,17 @@ describe("approval", () => {
     expect(await statusOf(id)).toBe("submitted");
   });
 
-  it("the administrator may approve a job card they raised themselves, and it is recorded", async () => {
+  it("the administrator cannot approve a job card they raised once someone else could (ADR-072)", async () => {
     const { id } = await jc.createJobCard(d, owner(), card(), true);
-    await jc.transitionJobCard(d, owner(), id, "approved");
+    await expect(jc.transitionJobCard(d, owner(), id, "approved")).rejects.toThrow(/segregation/i);
+    expect(await statusOf(id)).toBe("submitted");
+    await jc.transitionJobCard(d, mgr(), id, "approved");              // a manager can, as always
+    expect(await statusOf(id)).toBe("approved");
+  });
+
+  it("the administrator may approve a job card they raised themselves while nobody else could, and it is recorded", async () => {
+    const { id } = await jc.createJobCard(d, owner(), card(), true);
+    await alone(() => jc.transitionJobCard(d, owner(), id, "approved"));
     expect(await statusOf(id)).toBe("approved");
     const c = (await jc.getJobCard(d, owner(), id))!;
     expect(c.approver_name).toBeTruthy();
