@@ -474,3 +474,6 @@ Control migration 0019 (claim quote and plan, invoice plan, pending switch, Pro 
 
 ## 2026-11-08: plan switching deployed (ADR-068)
 Live is commit 87a710b with control migration 0019 applied (owner said yes). Browser suite: 230 passed, 0 failed, 9 findings (one new contrast finding on the landing Compare link, fixed). /pricing shows the figures and the new Pro wording. Not yet tried end to end on live with a real company: use Billing on a Basic company to take the Pro trial, and a test claim to see the Pro switch.
+
+## 2026-11-08: public site illustrations deployed
+Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the landing, Features, Pricing, Compare, About and Contact pages; sign-up and login unchanged. No migrations. Browser suite 230 passed, 0 failed, 8 known findings. Price figures still appear on /pricing only.
