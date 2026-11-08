@@ -50,6 +50,7 @@ beforeAll(async () => {
   await master.setVehicleDepartment(d, owner(), fork, "Logistics");
   await master.setVehicleDepartment(d, owner(), opsFork, "Operations");
   reasonId = await raw(async (q) => (await q.query<{ id: string }>("select id from reason_codes where code = 'WEAR_BRAKES'")).rows[0].id);
+  await withTenant(d, owner(), (q) => q.query("update role_departments set sees_all_vehicles = false where role_key = 'logistics'"));   // these tests cover a department role limited to its own department; Logistics sees the whole fleet by default (ADR-075, tests/dept-whole-fleet.test.ts)
 });
 
 describe("hour tracking and readings", () => {

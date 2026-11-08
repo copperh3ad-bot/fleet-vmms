@@ -11,6 +11,8 @@ export async function departments(S) {
   check(o && slug, "scenarios 2 to 4 did not run");
   sql("delete from public.rate_limits");          // scenario 4 used most of the hourly joins from this one address
   const sch = `"${schemaOf(slug)}"`;
+  // Logistics sees the whole fleet by default (ADR-075). These steps test a department role that is limited to its own department, so it is switched to that mode first.
+  sql(`set search_path = ${sch}, public; update role_departments set sees_all_vehicles = false where role_key = 'logistics'`);
   const [mine1, mine2, other] = ["LHR-1001", "LHR-1002", "DPT-3001"];
   await step("a third vehicle, for the general fleet, is added with the form", async () => {
     await go(o, `${base}/vehicles/new`);
@@ -124,6 +126,15 @@ export async function departments(S) {
     } finally {
       sql(`set search_path = ${sch}, public; update vehicles set department = 'Logistics' where registration_no in ('${mine1}', '${mine2}')`);
     }
+  });
+
+  await step("by default Logistics handles the complete fleet: it sees every vehicle, and the Users page no longer says 'vehicles only'", async () => {
+    sql(`set search_path = ${sch}, public; update role_departments set sees_all_vehicles = true where role_key = 'logistics'`);
+    await go(lg, `${base}/vehicles`);
+    const t = await body(lg);
+    check(has(t, mine1) && has(t, mine2) && has(t, other), `Logistics does not see the whole fleet: ${t.slice(0, 200)}`);
+    await go(o, `${base}/users`);
+    check(!has(await body(o), "Logistics vehicles only"), "the Users page still says a whole-fleet Logistics login sees its vehicles only");
   });
 
   const issuesOfLogistics = (await import("./lib.mjs")).issues.get("logistics") ?? [];

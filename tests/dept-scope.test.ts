@@ -54,6 +54,9 @@ beforeAll(async () => {
   await master.setVehicleDepartment(d, owner(), opsLoader, "operations");
   await ctl.saveSettings(d, owner(), { module_trips: "1" });
   reasonId = await raw(async (q) => (await q.query<{ id: string }>("select id from reason_codes where code = 'WEAR_BRAKES'")).rows[0].id);
+  // This file tests a department role that is limited to its own department's vehicles (the pattern for a department such as Administration). Logistics sees the
+  // whole fleet by default (migration 0041, ADR-075), covered in tests/dept-whole-fleet.test.ts, so it is switched to the scoped mode here.
+  await raw((q) => q.query("update role_departments set sees_all_vehicles = false where role_key = 'logistics'"));
 });
 
 describe("which vehicles belong to a department", () => {

@@ -31,6 +31,7 @@ beforeAll(async () => {
   await mk("LST-TRK-2", "truck", "Logistics");
   await mk("LST-LDR-1", "forklift", "Operations");
   await mk("LST-VAN-1", "van");
+  await withTenant(d, owner(), (q) => q.query("update role_departments set sees_all_vehicles = false where role_key = 'logistics'"));   // these tests cover a department role limited to its own department; Logistics sees the whole fleet by default (ADR-075, tests/dept-whole-fleet.test.ts)
 });
 
 describe("department on the vehicle list", () => {

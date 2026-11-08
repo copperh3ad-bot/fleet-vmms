@@ -83,7 +83,7 @@ export async function listMembers(driver: Driver, m: Membership): Promise<Member
               e.full_name, e.email, e.employee_no, vn.name as vendor_name, (mm.user_id = $2) as is_me, rd.department as role_department
          from public.tenant_memberships mm
          left join roles r on r.key = mm.role
-         left join role_departments rd on rd.role_key = mm.role
+         left join role_departments rd on rd.role_key = mm.role and not rd.sees_all_vehicles
          left join employees e on e.user_id = mm.user_id
          left join vendors vn on vn.user_id = mm.user_id
         where mm.tenant_id = $1 order by (mm.status = 'active') desc, mm.role, coalesce(e.full_name, vn.name), mm.user_id`, [m.tenantId, m.userId])).rows);
@@ -94,10 +94,10 @@ export async function listMembers(driver: Driver, m: Membership): Promise<Member
 
 export type RoleOption = { key: string; name: string };
 
-/** Roles tied to a department (ADR-048), by role key. A person in one of them sees only that department's vehicles, whatever "all vehicles" says. */
+/** Roles tied to a department that sees ONLY its own department's vehicles (ADR-048, ADR-075), by role key. A role that sees the whole fleet is not listed. */
 export function listRoleDepartments(driver: Driver, m: Membership): Promise<Record<string, string>> {
   return authorized(driver, m, "admin.users", async (q) =>
-    Object.fromEntries((await q.query<{ role_key: string; department: string }>("select role_key, department from role_departments")).rows.map((r) => [r.role_key, r.department])));
+    Object.fromEntries((await q.query<{ role_key: string; department: string }>("select role_key, department from role_departments where not sees_all_vehicles")).rows.map((r) => [r.role_key, r.department])));
 }
 
 export function listRoles(driver: Driver, m: Membership): Promise<RoleOption[]> {

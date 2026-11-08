@@ -51,6 +51,7 @@ beforeAll(async () => {
   car = (await master.addVehicle(d, owner(), { registration_no: "TRP-002", make: "Honda", model: "City" })).id;
   workshopVan = (await master.addVehicle(d, owner(), { registration_no: "TRP-003", make: "Suzuki", model: "Bolan" })).id;
   await raw((q) => q.query("update vehicles set status = 'in_workshop' where id = $1", [workshopVan]));
+  await withTenant(d, owner(), (q) => q.query("update role_departments set sees_all_vehicles = false where role_key = 'logistics'"));   // these tests cover a department role limited to its own department; Logistics sees the whole fleet by default (ADR-075, tests/dept-whole-fleet.test.ts)
 });
 
 describe("the trips module switch", () => {
