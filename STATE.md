@@ -465,3 +465,6 @@ Proposed only: gate passes as designed in ADR-045 (security role, QR with number
 
 ## 2026-11-08: V1.3 deferred
 The owner deferred V1.3 (gate passes and driver assignment, ADR-067): it needs more design time. Nothing to build until the owner reopens it; the seven decisions in the ADR stay open. Gate passes (ADR-045 5b/5c) remain deferred with it. V1.2 (carbon footprint, ADR-066) is also plan only.
+
+## 2026-11-08: plan switching by payment proposed (ADR-068, not built)
+Step 2 of ADR-035. The claim names the plan and quotes the price; confirming switches the plan in the same transaction as the invoice and ledger; upgrade credits unused Basic time as Pro days; downgrade at period end switches AI and WhatsApp job cards off. Needs control migration 0019 (live only with the owner's yes). Four owner decisions in the ADR; waiting for them before any build.
