@@ -10,6 +10,9 @@ export type Offer = {
   /** Plain statements for the price box. */ points: string[];
 };
 
+/** What every public page except /pricing says about Pro instead of its figure (ADR-065). Basic's line is `Offer.headline`. */
+export const PRO_HEADLINE = "Less than a fleet manager's monthly salary";
+
 const SYMBOL: Record<string, string> = { USD: "$", PKR: "Rs ", EUR: "€", GBP: "£" };
 
 export function formatPrice(cents: number, currency: string): string {

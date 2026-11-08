@@ -7,6 +7,7 @@ import { FlowDemo } from "@/components/flow-demo";
 import { Icon } from "@/components/icons";
 import { JsonLd } from "@/components/json-ld";
 import { HOME_FAQ } from "@/lib/faq";
+import { PRO_HEADLINE } from "@/lib/billing/offer";
 import { faqLd, softwareLd } from "@/lib/seo";
 import { SELLING_POINTS } from "@/lib/selling-points";
 
@@ -128,6 +129,7 @@ export function PriceBox({ offer }: { offer: Offer | null }) {
             <div className="mt-2 grid gap-6 md:grid-cols-[1.1fr_1fr] md:items-center">
               <div>
                 <p><span className="text-3xl font-semibold leading-tight">{offer.headline}</span> <span className="block text-zinc-500">{offer.per}</span></p>
+                <p className="mt-3 text-sm text-zinc-600"><span className="font-semibold text-brand">Pro, for busy fleets:</span> {PRO_HEADLINE.toLowerCase()}. <a href="/pricing" className="underline">See pricing</a></p>
                 <a href="/signup" className="shine mt-6 inline-block rounded-md bg-brand px-6 py-3 font-semibold text-white hover:opacity-90">Start free trial</a>
               </div>
               <ul className="space-y-2 text-sm">

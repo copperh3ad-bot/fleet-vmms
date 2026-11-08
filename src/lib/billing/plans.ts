@@ -6,7 +6,7 @@ import type { Driver } from "@/lib/db/types";
 import { withPlatform, withTenant } from "@/lib/db/tenant";
 import { UserError } from "@/lib/master/service";
 import { asOperator } from "./operator";
-import { formatPrice } from "./offer";
+import { formatPrice, PRO_HEADLINE } from "./offer";
 
 export const BASIC = "standard";
 export const PRO = "pro";
@@ -33,12 +33,13 @@ export function bandFor(bands: Band[], vehicles: number): Band | null {
 }
 
 /** What a public page may say about Pro: its prices only once the owner has entered bands that cover every size. */
-export type ProOffer = { priced: boolean; bands: { label: string; amount: string; readsPerDay: number }[]; per: string; trialDays: number; points: string[] };
+export type ProOffer = { priced: boolean; headline: string; bands: { label: string; amount: string; readsPerDay: number }[]; per: string; trialDays: number; points: string[] };
 export function proOfferFrom(plan: PlanRow | undefined, bands: Band[]): ProOffer {
   const priced = bandsCoverEverySize(bands);
   let from = 1;
   return {
     priced,
+    headline: PRO_HEADLINE,
     bands: priced ? bands.map((b) => {
       const label = b.up_to_vehicles === null ? (from === 1 ? "Every fleet size" : `${from} vehicles or more`) : `${from} to ${b.up_to_vehicles} vehicles`;
       if (b.up_to_vehicles !== null) from = b.up_to_vehicles + 1;

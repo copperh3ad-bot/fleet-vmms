@@ -74,7 +74,7 @@ export default function AboutPage() {
           <ul className="mt-3 list-disc space-y-2 pl-5 text-zinc-700">
             <li><span className="font-medium text-zinc-900">Your data stays yours.</span> Each company&apos;s records are kept apart from every other company&apos;s, and you can export everything at any time, even if your subscription lapses.</li>
             <li><span className="font-medium text-zinc-900">Everyone in one system.</span> Drivers, managers, workshops and finance each see what they need, and nothing more.</li>
-            <li><span className="font-medium text-zinc-900">Simple pricing.</span> Basic has every core feature and costs about one month&apos;s wage of an unskilled labourer; Pro adds AI and job cards by WhatsApp for busy fleets. No charge per user, and a free trial first.</li>
+            <li><span className="font-medium text-zinc-900">Simple pricing.</span> Basic has every core feature and costs about one month&apos;s wage of an unskilled labourer; Pro adds AI and job cards by WhatsApp for busy fleets and costs less than a fleet manager&apos;s monthly salary. No charge per user, and a free trial first.</li>
           </ul>
         </section>
 

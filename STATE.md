@@ -450,3 +450,6 @@ The owner approved and the live plans table now holds Basic at PKR 43,000 a mont
 
 ## 2026-11-08: public site refreshed (not yet deployed)
 Landing, Features, Pricing, About and Contact now carry the current feature set and six shared key selling points (src/lib/selling-points.ts): reminders by email, vehicle requests and departments, trips, and the two Pro features (AI reading, job cards by WhatsApp). Inner pages share a hero with a grid and highlight chips; About and Contact use it too. Copy no longer says Basic has "every feature" (it has every core feature) and Pro reads "One price for every fleet size". FAQ, llms.txt and the Pro price box updated. No prices written in code. Tests 1,046 pass, tsc and eslint clean; needs a deploy.
+
+## 2026-11-08: price figures on /pricing only (ADR-065)
+/pricing shows the actual price of each plan from the plans table (Basic and the Pro band). Every other page and flyer says Basic is a month of an unskilled labourer's wage and Pro costs less than a fleet manager's monthly salary. Customer flyer footer reworded; checked locally that the figures appear on /pricing only. Not yet deployed.

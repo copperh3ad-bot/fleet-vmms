@@ -13,7 +13,7 @@ import { Icon } from "@/components/icons";
 import { PageHero } from "@/components/page-hero";
 import { SELLING_POINTS } from "@/lib/selling-points";
 
-export const metadata = pageMeta("Pricing · Fleet OTG", "One plan with everything included, priced about the same as one month's wage of an unskilled labourer. Free trial, no card needed.");
+export const metadata = pageMeta("Pricing · Fleet OTG", "The price of Basic and Pro. Basic costs about one month's wage of an unskilled labourer; Pro costs less than a fleet manager's monthly salary. Free trial, no card needed.");
 
 export default function PricingPage() {
   return <Suspense fallback={<SiteShell active="pricing"><p className="p-6 text-sm text-zinc-500">Loading</p></SiteShell>}><Inner /></Suspense>;
@@ -45,7 +45,8 @@ async function Inner() {
             <h2 id="plan" className="text-sm font-medium text-zinc-500">Basic plan</h2>
             {offer ? (
               <>
-                <p className="mt-2"><span className="text-3xl font-semibold leading-tight">{offer.headline}</span> <span className="block text-zinc-500">{offer.per}</span></p>
+                <p className="mt-2"><span className="text-4xl font-semibold leading-tight">{offer.amount}</span> <span className="block text-zinc-500">{offer.per}</span></p>
+                <p className="mt-1 text-sm font-medium text-brand">{offer.headline}</p>
                 <ul className="mt-4 space-y-2 text-sm text-zinc-700">{offer.points.map((p) => <li key={p} className="flex gap-2"><span aria-hidden className="mt-0.5 shrink-0 text-brand"><Icon name="approve" size={16} /></span>{p}</li>)}</ul>
                 <a href="/signup" className="shine mt-6 block rounded-md bg-brand py-3 text-center font-semibold text-white hover:opacity-90">Start your {offer.trialDays}-day free trial</a>
                 {sales && <p className="mt-3 text-center text-sm text-zinc-600">Questions first? Talk to sales: <a href={`mailto:${sales}`} className="font-medium text-brand underline">{sales}</a></p>}
@@ -58,7 +59,8 @@ async function Inner() {
               <h2 id="pro" className="text-sm font-medium text-brand">Pro plan</h2>
               {pro.priced ? (
                 <div className="mt-2">
-                  <p className="text-sm text-zinc-500">{pro.bands.length > 1 ? "Priced by the size of your fleet, " : "One price for every fleet size, "}{pro.per}</p>
+                  <p className="text-sm font-medium text-brand">{pro.headline}</p>
+                  <p className="mt-1 text-sm text-zinc-500">{pro.bands.length > 1 ? "Priced by the size of your fleet, " : "One price for every fleet size, "}{pro.per}</p>
                   <table className="mt-2 w-full text-left text-sm"><tbody>{pro.bands.map((b) => <tr key={b.label} className="border-t border-zinc-100"><td className="py-2">{b.label}</td><td className="py-2 text-right text-lg font-semibold">{b.amount}</td></tr>)}</tbody></table>
                 </div>
               ) : (
