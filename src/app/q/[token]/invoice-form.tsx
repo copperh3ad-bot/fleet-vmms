@@ -1,13 +1,12 @@
 "use client";
 import { useActionState, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { keepForm } from "@/components/keep-form";
 import type { QuoteFormState } from "./actions";
 import type { FormSubmit } from "./form";
 import type { Draft } from "@/lib/ai/document";
 import { invoiceRows, type ApprovedRow } from "@/lib/ai/rows";
 
-function Go() {
-  const { pending } = useFormStatus();
+function Go({ pending }: { pending: boolean }) {
   return <button type="submit" disabled={pending} className="h-14 w-full rounded-xl bg-brand text-lg font-semibold text-white disabled:opacity-60">{pending ? "Sending" : "Send invoice"}</button>;
 }
 
@@ -19,13 +18,13 @@ const KINDS: [string, string][] = [["part", "Part"], ["labour", "Labour"], ["ser
  * office as not in the estimate. `draft` and `aiActionId` are only passed on the signed-in staff page, when the AI has read the workshop's file (ADR-034).
  */
 export function InvoiceForm({ submit, currency, approved, doneText = "Thank you. Your invoice was sent to the fleet office.", draft = null, aiActionId = "" }: { submit: FormSubmit; currency: string; approved: ApprovedRow[]; doneText?: string; draft?: Draft | null; aiActionId?: string }) {
-  const [state, action] = useActionState<QuoteFormState, FormData>(submit, {});
+  const [state, action, pending] = useActionState<QuoteFormState, FormData>(submit, {});
   const start = invoiceRows(approved, draft);
   const [extra, setExtra] = useState(start.extra.length);
   const rows = start.linked.length + extra;
   if (state.done) return <p role="status" className="rounded-xl border border-green-200 bg-green-50 p-5 text-lg text-green-900">{doneText}</p>;
   return (
-    <form action={action} className="flex flex-col gap-5" noValidate>
+    <form onSubmit={keepForm(action)} className="flex flex-col gap-5" noValidate>
       <input type="hidden" name="count" value={rows} />
       {aiActionId && <input type="hidden" name="ai_action" value={aiActionId} />}
       <div className="grid grid-cols-2 gap-3">
@@ -55,7 +54,7 @@ export function InvoiceForm({ submit, currency, approved, doneText = "Thank you.
       <div><label htmlFor="tax_amount" className="mb-1 block text-sm text-zinc-600">Tax on the invoice ({currency}), if any</label><input id="tax_amount" name="tax_amount" inputMode="decimal" className={field} autoComplete="off" defaultValue={draft?.tax_amount ?? ""} /></div>
       {state.error && <p role="alert" className="text-red-700">{state.error}</p>}
       <p className="text-sm text-zinc-500">This link works once. Sending the invoice tells the fleet office the work is done. Check the lines before you send.</p>
-      <Go />
+      <Go pending={pending} />
     </form>
   );
 }

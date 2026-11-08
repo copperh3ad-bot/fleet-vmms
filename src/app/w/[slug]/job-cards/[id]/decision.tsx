@@ -1,14 +1,13 @@
 "use client";
 import { useActionState, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { keepForm } from "@/components/keep-form";
 import { Notice, inputCls } from "@/components/form";
 import { btn } from "@/components/ui";
 import type { ReviewContext } from "@/lib/jobcards/service";
 import type { FormState } from "../../actions-util";
 import { reviewDecisionAction } from "../actions";
 
-function Go({ intent, tone, children }: { intent: string; tone: "primary" | "plain" | "danger"; children: React.ReactNode }) {
-  const { pending } = useFormStatus();
+function Go({ intent, tone, children, pending }: { intent: string; tone: "primary" | "plain" | "danger"; children: React.ReactNode; pending: boolean }) {
   const cls = tone === "primary" ? "bg-brand text-white w-full h-11 justify-center" : tone === "danger" ? "border border-red-300 bg-white text-red-800 h-10 flex-1 justify-center" : `${btn} flex-1 justify-center`;
   return <button type="submit" name="intent" value={intent} disabled={pending} className={`inline-flex items-center rounded-md px-4 text-sm font-medium disabled:opacity-60 ${cls}`}>{pending ? "Saving" : children}</button>;
 }
@@ -24,7 +23,7 @@ export function DecisionForm({ slug, id, requester, reasons, currentReasonId, ve
   slug: string; id: string; requester: string; /** the person deciding raised this card themselves (the administrator may, ADR-029) */ raisedByMe?: boolean;
   reasons: { id: string; label: string }[]; currentReasonId: string; vendors: ReviewContext["vendors"]; canAssign: boolean;
 }) {
-  const [state, action] = useActionState<FormState, FormData>(reviewDecisionAction.bind(null, slug, id), {});
+  const [state, action, pending] = useActionState<FormState, FormData>(reviewDecisionAction.bind(null, slug, id), {});
   const [decision, setDecision] = useState<Decision>("approve");
   const [vendor, setVendor] = useState(state.values?.vendor_id ?? "");
   const chosen = vendors.find((v) => v.id === vendor);
@@ -74,11 +73,11 @@ export function DecisionForm({ slug, id, requester, reasons, currentReasonId, ve
 
       <Notice state={state} />
       <div className="space-y-2">
-        {decision === "approve" && canAssign && <Go intent="approve" tone="primary">{chosen ? `Approve and assign ${chosen.name}` : "Approve and assign"}</Go>}
+        {decision === "approve" && canAssign && <Go pending={pending} intent="approve" tone="primary">{chosen ? `Approve and assign ${chosen.name}` : "Approve and assign"}</Go>}
         {decision === "approve" && !canAssign && <p className="text-sm text-zinc-500">Your role can approve but not choose a workshop. Ask a manager.</p>}
-        {decision === "return" && <Go intent="return" tone="primary">Send back for edit</Go>}
-        {decision === "reject" && <Go intent="reject" tone="danger">Reject</Go>}
-        {decision === "approve" && canAssign && <div className="flex gap-2"><Go intent="return" tone="plain">Return for edit</Go><Go intent="reject" tone="danger">Reject</Go></div>}
+        {decision === "return" && <Go pending={pending} intent="return" tone="primary">Send back for edit</Go>}
+        {decision === "reject" && <Go pending={pending} intent="reject" tone="danger">Reject</Go>}
+        {decision === "approve" && canAssign && <div className="flex gap-2"><Go pending={pending} intent="return" tone="plain">Return for edit</Go><Go pending={pending} intent="reject" tone="danger">Reject</Go></div>}
       </div>
       <p className="text-xs text-zinc-500">{raisedByMe ? "You raised this card yourself. As administrator you may decide it; the record will show that you raised and approved it. Every decision is logged." : "You did not raise this card, so you can decide it. Every decision is logged."}</p>
     </form>

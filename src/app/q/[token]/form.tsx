@@ -1,13 +1,12 @@
 "use client";
 import { useActionState, useState } from "react";
-import { useFormStatus } from "react-dom";
+import { keepForm } from "@/components/keep-form";
 import type { QuoteFormState } from "./actions";
 import type { Draft } from "@/lib/ai/document";
 
 export type FormSubmit = (prev: QuoteFormState, form: FormData) => Promise<QuoteFormState>;
 
-function Go() {
-  const { pending } = useFormStatus();
+function Go({ pending }: { pending: boolean }) {
   return <button type="submit" disabled={pending} className="h-14 w-full rounded-xl bg-brand text-lg font-semibold text-white disabled:opacity-60">{pending ? "Sending" : "Send estimate"}</button>;
 }
 
@@ -16,11 +15,11 @@ const KINDS: [string, string][] = [["part", "Part"], ["labour", "Labour"], ["ser
 
 /** `draft` and `aiActionId` are only passed on the signed-in staff page, when the AI has read the workshop's file (ADR-034): they fill the form for the person to check. */
 export function EstimateForm({ submit, currency, doneText = "Thank you. Your estimate was sent to the fleet office.", draft = null, aiActionId = "" }: { submit: FormSubmit; currency: string; doneText?: string; draft?: Draft | null; aiActionId?: string }) {
-  const [state, action] = useActionState<QuoteFormState, FormData>(submit, {});
+  const [state, action, pending] = useActionState<QuoteFormState, FormData>(submit, {});
   const [rows, setRows] = useState(Math.max(1, draft?.lines.length ?? 1));
   if (state.done) return <p role="status" className="rounded-xl border border-green-200 bg-green-50 p-5 text-lg text-green-900">{doneText}</p>;
   return (
-    <form action={action} className="flex flex-col gap-5" noValidate>
+    <form onSubmit={keepForm(action)} className="flex flex-col gap-5" noValidate>
       <input type="hidden" name="count" value={rows} />
       {aiActionId && <input type="hidden" name="ai_action" value={aiActionId} />}
       <fieldset className="space-y-4">
@@ -49,7 +48,7 @@ export function EstimateForm({ submit, currency, doneText = "Thank you. Your est
       <div><label htmlFor="details" className="mb-1 block text-sm text-zinc-600">Notes for the fleet office</label><textarea id="details" name="details" rows={3} maxLength={2000} className="w-full rounded-xl border border-zinc-300 bg-white p-3 text-base text-zinc-900" /></div>
       {state.error && <p role="alert" className="text-red-700">{state.error}</p>}
       <p className="text-sm text-zinc-500">This link works once. Check the lines before you send.</p>
-      <Go />
+      <Go pending={pending} />
     </form>
   );
 }

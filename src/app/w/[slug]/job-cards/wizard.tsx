@@ -1,7 +1,7 @@
 "use client";
 import { dm } from "@/lib/format/date";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { useFormStatus } from "react-dom";
+import { keepForm } from "@/components/keep-form";
 import { Notice, inputCls } from "@/components/form";
 import { FileInput } from "@/components/file-input";
 import { Plate, btn } from "@/components/ui";
@@ -34,17 +34,15 @@ function Chip({ on, children, onClick }: { on: boolean; children: React.ReactNod
   return <button type="button" onClick={onClick} aria-pressed={on} className={`h-12 rounded-full border px-5 text-base ${on ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-400 bg-white text-zinc-900"}`}>{children}</button>;
 }
 
-function Send({ disabled }: { disabled: boolean }) {
-  const { pending } = useFormStatus();
+function Send({ disabled, pending }: { disabled: boolean; pending: boolean }) {
   return <button type="submit" name="intent" value="submit" disabled={pending || disabled} className="h-12 flex-1 rounded-lg bg-brand text-base font-semibold text-white disabled:opacity-50">{pending ? "Saving" : "Submit for approval"}</button>;
 }
-function Draft() {
-  const { pending } = useFormStatus();
+function Draft({ pending }: { pending: boolean }) {
   return <button type="submit" name="intent" value="draft" disabled={pending} className={`${btn} h-12 px-6 text-base font-semibold disabled:opacity-60`}>Save</button>;
 }
 
 export function JobCardWizard({ slug, currency = "PKR", vehicles, reasons, initial }: Props) {
-  const [state, action] = useActionState<FormState, FormData>(saveJobCardAction.bind(null, slug, ""), {});
+  const [state, action, pending] = useActionState<FormState, FormData>(saveJobCardAction.bind(null, slug, ""), {});
   const v0 = state.values ?? initial ?? {};
   const [step, setStep] = useState(1);
   const [vehicleId, setVehicleId] = useState(v0.vehicle_id ?? "");
@@ -86,7 +84,7 @@ export function JobCardWizard({ slug, currency = "PKR", vehicles, reasons, initi
   const show = (n: number) => (step === n ? "space-y-5" : "hidden");
 
   return (
-    <form action={action} noValidate className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+    <form onSubmit={keepForm(action)} noValidate className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
       <div className="bg-side px-5 pb-4 pt-4 text-white">
         <div className="flex items-center justify-between text-sm">
           {step === 1 ? <a href={`/w/${slug}/job-cards`} className="text-zinc-300">‹ Cancel</a> : <button type="button" onClick={() => setStep(step - 1)} className="text-zinc-300">‹ Back</button>}
@@ -195,9 +193,9 @@ export function JobCardWizard({ slug, currency = "PKR", vehicles, reasons, initi
         </section>
 
         <div className="flex gap-3 pt-1">
-          {step === 4 ? <><Draft /><Send disabled={!step1Ok || !step2Ok} /></> : (
+          {step === 4 ? <><Draft pending={pending} /><Send pending={pending} disabled={!step1Ok || !step2Ok} /></> : (
             <>
-              {step === 2 && <Draft />}
+              {step === 2 && <Draft pending={pending} />}
               <button type="button" disabled={(step === 1 && !step1Ok) || (step === 2 && !step2Ok)} onClick={() => setStep(step + 1)} className="h-12 flex-1 rounded-lg bg-brand text-base font-semibold text-white disabled:opacity-50">Next</button>
             </>
           )}

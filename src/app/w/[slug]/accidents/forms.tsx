@@ -2,12 +2,13 @@
 import { useActionState, useState } from "react";
 import { Field, Input, Notice, Select, Submit, inputCls } from "@/components/form";
 import { FileInput } from "@/components/file-input";
+import { keepForm } from "@/components/keep-form";
 import type { FormState } from "../actions-util";
 import { addAccidentAction, driverHintAction } from "../compliance/actions";
 
 export function AccidentPanelForm({ slug, vehicles, initial, canRaiseJob }: { slug: string; vehicles: [string, string][]; initial: Record<string, string>; canRaiseJob: boolean }) {
-  const [state, action] = useActionState<FormState, FormData>(addAccidentAction.bind(null, slug), {});
-  // after a save the boxes are cleared; after an error they keep what was typed
+  const [state, action, pending] = useActionState<FormState, FormData>(addAccidentAction.bind(null, slug), {});
+  // after a save the form is made again (key below) so the boxes are empty; after an error it is not reset (keepForm), so the vehicle, the date and the files stay
   const s: FormState = state.ok ? { ...state, values: {} } : state.values ? state : { ...state, values: initial };
   const [vehicle, setVehicle] = useState(initial.vehicle_id ?? "");
   const [when, setWhen] = useState("");
@@ -19,7 +20,7 @@ export function AccidentPanelForm({ slug, vehicles, initial, canRaiseJob }: { sl
     driverHintAction(slug, v, new Date(w).toISOString()).then(setHint, () => setHint(null));
   }
   return (
-    <form action={action} className="space-y-3" noValidate key={state.ok ?? "form"}>
+    <form onSubmit={keepForm(action)} className="space-y-3" noValidate key={state.ok ?? "form"}>
       <Field label="Vehicle" name="vehicle_id" state={s} required>
         <select id="vehicle_id" name="vehicle_id" value={vehicle} onChange={(e) => { setVehicle(e.target.value); lookup(e.target.value, when); }} className={inputCls} aria-invalid={!!s.fields?.vehicle_id}>
           <option value="">Choose a vehicle</option>{vehicles.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -49,7 +50,7 @@ export function AccidentPanelForm({ slug, vehicles, initial, canRaiseJob }: { sl
         <label htmlFor="files" className="mb-1 block text-xs font-medium text-zinc-600">Photos, police report, other party details</label>
         <FileInput className="block w-full rounded-md border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm" />
       </div>
-      <div className="flex flex-wrap items-center gap-3"><Submit>Save accident</Submit><Notice state={state} /></div>
+      <div className="flex flex-wrap items-center gap-3"><Submit pending={pending}>Save accident</Submit><Notice state={state} /></div>
     </form>
   );
 }

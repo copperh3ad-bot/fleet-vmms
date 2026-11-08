@@ -5,6 +5,7 @@ import { Input, Notice, Submit, inputCls } from "@/components/form";
 import { LinesEditor, type EditorLine } from "@/components/lines-editor";
 import type { FormState } from "../../../actions-util";
 import { completeWorkAction, startWorkAction, submitInvoiceAction } from "../../actions";
+import { keepForm } from "@/components/keep-form";
 import { FileInput } from "@/components/file-input";
 
 function Go({ children }: { children: React.ReactNode }) {
@@ -29,9 +30,9 @@ export function CompleteForm({ slug, woId }: { slug: string; woId: string }) {
 }
 
 export function InvoiceForm({ slug, woId, prefill }: { slug: string; woId: string; prefill: EditorLine[] }) {
-  const [state, action] = useActionState<FormState, FormData>(submitInvoiceAction.bind(null, slug, woId), {});
+  const [state, action, pending] = useActionState<FormState, FormData>(submitInvoiceAction.bind(null, slug, woId), {});
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <form onSubmit={keepForm(action)} className="space-y-4" noValidate>
       <p className="text-xs text-zinc-600">Lines from the approved quotation are filled in. Change quantities to what you actually did. Anything you add that was not in the quotation will be flagged for the fleet team.</p>
       <LinesEditor title="Invoice" initial={prefill} errors={state.fields} />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -43,7 +44,7 @@ export function InvoiceForm({ slug, woId, prefill }: { slug: string; woId: strin
         <label htmlFor="files" className="mb-1 block text-xs font-medium text-zinc-600">Upload the invoice and completion photos (PDF or photos)</label>
         <FileInput className="block w-full rounded-md border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm" />
       </div>
-      <div className="flex flex-wrap items-center gap-3"><Submit>Send invoice</Submit><Notice state={state} /></div>
+      <div className="flex flex-wrap items-center gap-3"><Submit pending={pending}>Send invoice</Submit><Notice state={state} /></div>
     </form>
   );
 }

@@ -525,3 +525,7 @@ Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the lan
 ## 2026-11-08 Live: tenant 0038 applied (ADR-072)
 - Applied to beta and destinsolutions. Each has one active member who can approve (the administrator), so the administrator may still decide their own work; the moment a second approver is added the exception ends. Function closed to PUBLIC (0037 kept).
 - Still held: nothing pending on live. Open on the owner: valid service key in Netlify then press Admin > Settings > Check file storage; Zoho mail values; Utility appeal.
+
+## 2026-11-08 Storage fixed; keepForm on every form that holds a choice
+- Owner set a valid legacy service_role key; Admin > Settings > Check file storage passed and the Supabase storage log confirms save/read/delete.
+- keepForm (no reset after an error) now also on the job card form and phone wizard, accident form, document form, job card decision panel, invoice decision and the workshop estimate and invoice forms. With the old code the job card form cleared both vehicle and reason after an error; browser scenario 9 pins it for three forms.

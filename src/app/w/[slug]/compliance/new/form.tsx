@@ -1,16 +1,17 @@
 "use client";
 import { useActionState, useState } from "react";
 import { Card, Input, Notice, Select, Submit } from "@/components/form";
+import { keepForm } from "@/components/keep-form";
 import type { FormState } from "../../actions-util";
 import { addDocumentAction } from "../actions";
 
 export function DocumentForm({ slug, vehicles, types, initial, bare }: { bare?: boolean; slug: string; vehicles: [string, string][]; types: [string, string][]; initial: Record<string, string> }) {
-  const [state, action] = useActionState<FormState, FormData>(addDocumentAction.bind(null, slug), {});
+  const [state, action, pending] = useActionState<FormState, FormData>(addDocumentAction.bind(null, slug), {});
   const s: FormState = state.values ? state : { ...state, values: initial };
   const [type, setType] = useState(initial.doc_type ?? "");
   const insurance = type === "insurance";
   return (
-    <form action={action} className="space-y-4" noValidate>
+    <form onSubmit={keepForm(action)} className="space-y-4" noValidate>
       <Wrap bare={bare}>
         <div className={`grid grid-cols-1 gap-3 ${bare ? "" : "sm:grid-cols-2"}`}>
           <Select name="vehicle_id" label="Vehicle" state={s} blank="Choose a vehicle" required options={vehicles} />
@@ -29,7 +30,7 @@ export function DocumentForm({ slug, vehicles, types, initial, bare }: { bare?: 
         </div>
         <p className="mt-3 text-xs text-zinc-500">Renewing? Add the new document with its new expiry. The old one stays in the history and reminders move to the new one. You can attach the scan on the next page.</p>
       </Wrap>
-      <div className="flex flex-wrap items-center gap-3"><Submit>Save document</Submit><Notice state={state} /></div>
+      <div className="flex flex-wrap items-center gap-3"><Submit pending={pending}>Save document</Submit><Notice state={state} /></div>
     </form>
   );
 }

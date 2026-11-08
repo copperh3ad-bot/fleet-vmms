@@ -1,6 +1,6 @@
 "use client";
 import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
+import { keepForm } from "@/components/keep-form";
 import { Field, Input, Notice, inputCls } from "@/components/form";
 import { Panel } from "@/components/ui";
 import { LinesEditor } from "@/components/lines-editor";
@@ -8,15 +8,14 @@ import type { FormState } from "../../../actions-util";
 import { submitQuotationAction } from "../../actions";
 import { FileInput } from "@/components/file-input";
 
-function Send() {
-  const { pending } = useFormStatus();
+function Send({ pending }: { pending: boolean }) {
   return <button type="submit" disabled={pending} className="inline-flex h-11 items-center rounded-md bg-brand px-6 text-sm font-medium text-white disabled:opacity-60">{pending ? "Sending" : "Send quotation"}</button>;
 }
 
 export function QuotationForm({ slug, jobId }: { slug: string; jobId: string }) {
-  const [state, action] = useActionState<FormState, FormData>(submitQuotationAction.bind(null, slug, jobId), {});
+  const [state, action, pending] = useActionState<FormState, FormData>(submitQuotationAction.bind(null, slug, jobId), {});
   return (
-    <form action={action} noValidate>
+    <form onSubmit={keepForm(action)} noValidate>
       <Panel title="Your quotation" sub="Draft, not sent">
         <LinesEditor title="Quotation" errors={state.fields} />
         <div className="mt-5 grid gap-4 border-t border-zinc-100 pt-5 sm:grid-cols-3">
@@ -33,7 +32,7 @@ export function QuotationForm({ slug, jobId }: { slug: string; jobId: string }) 
           <label htmlFor="files" className="mb-1 block text-xs font-medium text-zinc-600">Attach your printed quotation (PDF or photo)</label>
           <FileInput className="block w-full rounded-md border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm" />
         </div>
-        <div className="mt-5 flex flex-wrap items-center gap-3"><Send /><Notice state={state} /></div>
+        <div className="mt-5 flex flex-wrap items-center gap-3"><Send pending={pending} /><Notice state={state} /></div>
       </Panel>
     </form>
   );

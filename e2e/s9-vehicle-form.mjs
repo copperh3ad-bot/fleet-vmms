@@ -44,6 +44,46 @@ export async function vehicleForm(S) {
     check(s.model !== first, "the model list did not follow the make");
   });
 
+  // The same flaw was in every form that keeps a pick in React state and is sent as <form action>: after an error the browser put each drop-down back on its first option.
+  await step("the job card form keeps the vehicle and reason after an error", async () => {
+    await go(o, `${base}/job-cards/new`);
+    const f = o.page.locator("form:has(#cause_text)").last();
+    await f.locator("#vehicle_id").selectOption({ index: 1 });
+    await f.locator("#reason_code_id").selectOption({ index: 2 });
+    const before = [await f.locator("#vehicle_id").inputValue(), await f.locator("#reason_code_id").inputValue()];
+    check(before[0] !== "" && before[1] !== "", "the picks did not take");
+    await f.locator("#cause_text").fill("");                              // what was seen is left empty on purpose
+    await f.locator("button[type=submit]").last().click();
+    await o.page.waitForTimeout(2000);
+    check((await body(o)).length > 0 && o.page.url().includes("/job-cards/new"), "the form did not stay on the page");
+    const after = [await f.locator("#vehicle_id").inputValue(), await f.locator("#reason_code_id").inputValue()];
+    check(after[0] === before[0] && after[1] === before[1], `a pick was cleared after the error: ${JSON.stringify({ before, after })}`);
+  });
+
+  await step("the accident form keeps the vehicle and severity after an error", async () => {
+    await go(o, `${base}/accidents`);
+    const f = o.page.locator("form:has(#occurred_at)").first();
+    await f.locator("#vehicle_id").selectOption({ index: 1 });
+    await f.locator("select[name=severity]").selectOption("minor");
+    const before = await f.locator("#vehicle_id").inputValue();
+    await f.locator("button[type=submit]").last().click();                // the date and the description are empty on purpose
+    await o.page.waitForTimeout(2000);
+    check((await f.locator("#vehicle_id").inputValue()) === before, "the vehicle was cleared after the error");
+    check((await f.locator("select[name=severity]").inputValue()) === "minor", "the severity was cleared after the error");
+  });
+
+  await step("the document form keeps the vehicle and document type after an error", async () => {
+    await go(o, `${base}/compliance/new`);
+    const f = o.page.locator("form:has(#doc_type)").first();
+    await f.locator("select[name=vehicle_id]").selectOption({ index: 1 });
+    await f.locator("#doc_type").selectOption("insurance");
+    const before = await f.locator("select[name=vehicle_id]").inputValue();
+    await f.locator("button[type=submit]").last().click();                // the expiry date is empty on purpose
+    await o.page.waitForTimeout(2000);
+    check((await f.locator("select[name=vehicle_id]").inputValue()) === before, "the vehicle was cleared after the error");
+    check((await f.locator("#doc_type").inputValue()) === "insurance", "the document type was cleared after the error");
+  });
+
   await step("a vehicle with an insurance expiry date but no policy number saves (it returned a server error on the live site)", async () => {
     await go(o, `${base}/vehicles/new`);
     await fill(o, "#registration_no", "INS-4040");

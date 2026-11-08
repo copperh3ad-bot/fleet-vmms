@@ -1,7 +1,7 @@
 "use client";
 import { dm } from "@/lib/format/date";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { useFormStatus } from "react-dom";
+import { keepForm } from "@/components/keep-form";
 import { Notice, inputCls } from "@/components/form";
 import { FileInput } from "@/components/file-input";
 import { Panel, Pill, Plate, btn } from "@/components/ui";
@@ -25,8 +25,7 @@ export type JobCardFormProps = {
   initial?: Record<string, string>; initialLines?: { kind: string; description: string; qty: string; unit_cost: string; service_type_key?: string | null }[];
 };
 
-function Submits({ editing, slug, id }: { editing: boolean; slug: string; id?: string }) {
-  const { pending } = useFormStatus();
+function Submits({ editing, slug, id, pending }: { editing: boolean; slug: string; id?: string; pending: boolean }) {
   return (
     <div className="flex flex-wrap gap-3">
       <a href={id ? `/w/${slug}/job-cards/${id}` : `/w/${slug}/job-cards`} className={`${btn} h-11`}>Cancel</a>
@@ -52,7 +51,7 @@ const label = "mb-1 block text-xs font-medium text-zinc-600";
 const req = <span className="text-red-700"> *</span>;
 
 export function JobCardForm({ slug, id, currency = "PKR", vehicles, reasons, serviceTags, people, initial, initialLines }: JobCardFormProps) {
-  const [state, action] = useActionState<FormState, FormData>(saveJobCardAction.bind(null, slug, id ?? ""), {});
+  const [state, action, pending] = useActionState<FormState, FormData>(saveJobCardAction.bind(null, slug, id ?? ""), {});
   const v0 = state.values ?? initial ?? {};
   const [vehicleId, setVehicleId] = useState(v0.vehicle_id ?? "");
   const [category, setCategory] = useState(v0.category ?? "corrective");
@@ -94,7 +93,7 @@ export function JobCardForm({ slug, id, currency = "PKR", vehicles, reasons, ser
   const budgetAfter = shown?.budget ? Math.round(((shown.budget.spent + estimate) / shown.budget.budget) * 100) : null;
 
   return (
-    <form action={action} noValidate>
+    <form onSubmit={keepForm(action)} noValidate>          {/* sent by hand so an error message does not reset the drop-downs to their first option */}
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="space-y-5">
           <Panel title="Vehicle">
@@ -201,7 +200,7 @@ export function JobCardForm({ slug, id, currency = "PKR", vehicles, reasons, ser
 
           <Notice state={state} />
           <p className="text-sm text-zinc-500">Goes to a Fleet Manager for approval. You can&apos;t approve your own job card.</p>
-          <Submits editing={!!id} slug={slug} id={id} />
+          <Submits editing={!!id} slug={slug} id={id} pending={pending} />
         </div>
 
         <aside className="space-y-5">
