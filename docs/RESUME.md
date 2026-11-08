@@ -2,6 +2,8 @@
 
 Written 2026-10-29, updated 2026-11-08 (the section "Update 2026-11-08" below overrides anything older here). Read this first in the next session, then `STATE.md` (history, append-only), `CLAUDE.md` (rules), `docs/OWNER-CHECKLIST.md` (the owner's to-do list) and `docs/WHATSAPP-SETUP.md` (the WhatsApp set-up steps).
 
+## Deferred by the owner (2026-11-08): V1.3 gate passes and driver assignment (ADR-067), with ADR-045 5b/5c. V1.2 carbon footprint (ADR-066) is plan only.
+
 ## Update 2026-11-08 (READ THIS FIRST; it overrides everything older in this file)
 **Live = commit `13022e5` (site refresh, prices on /pricing only ADR-065, plans table priced Basic PKR 43,000 and Pro one band PKR 65,000 with 200 AI reads a day, V1.2 carbon plan ADR-066 not built; earlier `91e54a1`) (deployed 2026-11-08, all migrations applied; the V1.1 lock `v1.1.0` is `a5648e2`, and `91e54a1` adds the public Compare plans page `/compare`, ADR-063, and the investor flyer, ADR-064).** Git tags: **`v1.0.0`** = the V1.0 lock (commit 294e3f9, locked by the owner 2026-11-07; local only, the repo has no remote); **`fleet-otg-resume-2026-11-08`** = the current live state. **`v1.1.0`** = the V1.1 lock (commit a5648e2, locked by the owner 2026-11-08, local only). Checks at this point: **1,041 unit tests pass, browser suite 229 passed / 0 failed (8 known findings)**, type-check clean, `next build` OK, **0 lint errors**. Working tree clean (only untracked stray files in the repo root).
 

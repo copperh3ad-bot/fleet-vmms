@@ -1,6 +1,6 @@
 # ADR-067: V1.3 plan, gate passes and driver assignment
 
-Status: **proposed, plan only, nothing built** (2026-11-08). Owner request: plan gate passes and driver assignment for V1.3. Builds on ADR-045 (trips, pool cars, the gate-pass design in its decisions 8 to 11, deferred by the owner on 2026-11-07), ADR-048 (logistics runs its own vehicles) and ADR-044 (licences). Decisions marked **OWNER** are open. No price is set here (CLAUDE.md rule 7; figures appear on `/pricing` only, ADR-065).
+Status: **deferred by the owner on 2026-11-08 (needs more design time); plan only, nothing built.** Proposed 2026-11-08. Owner request: plan gate passes and driver assignment for V1.3. Builds on ADR-045 (trips, pool cars, the gate-pass design in its decisions 8 to 11, deferred by the owner on 2026-11-07), ADR-048 (logistics runs its own vehicles) and ADR-044 (licences). Decisions marked **OWNER** are open. No price is set here (CLAUDE.md rule 7; figures appear on `/pricing` only, ADR-065).
 
 ## What exists today
 - **Trips (live, optional module `module_trips`):** request, approve, reject, cancel, start, complete; a vehicle and a driver are assigned **at approval** by someone with `trip.approve` or `trip.dispatch`; overlap on the same vehicle or the same driver is refused by the database (`trip_overlap_guard`); pick and drop runs on pool cars; start and end odometer readings.

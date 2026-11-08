@@ -462,3 +462,6 @@ Live is commit 13022e5: refreshed public pages, price figures on /pricing only (
 
 ## 2026-11-08: V1.3 gate passes and driver assignment planned (ADR-067, nothing built)
 Proposed only: gate passes as designed in ADR-045 (security role, QR with number only, no public page, late-return reminder), plus driver assignment (availability-aware picker with leave and licence status, day sheet, My assignments, standing and recurring runs). Seven owner decisions listed. Migration numbers: 0037 is reserved for V1.2 if it ships first.
+
+## 2026-11-08: V1.3 deferred
+The owner deferred V1.3 (gate passes and driver assignment, ADR-067): it needs more design time. Nothing to build until the owner reopens it; the seven decisions in the ADR stay open. Gate passes (ADR-045 5b/5c) remain deferred with it. V1.2 (carbon footprint, ADR-066) is also plan only.
