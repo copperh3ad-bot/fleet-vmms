@@ -55,7 +55,7 @@ async function Inner() {
                 </th>
                 <th scope="col" className="px-4 py-5">
                   <span className="block text-base font-semibold text-brand">Pro</span>
-                  <span className="mt-1 block font-normal text-zinc-600">{pro?.priced ? <>Priced by the size of your fleet <span className="text-zinc-500">{pro.per}</span></> : "Coming in the second phase"}</span>
+                  <span className="mt-1 block font-normal text-zinc-600">{pro?.priced ? <>{pro.bands.length > 1 ? "Priced by the size of your fleet" : "One price for every fleet size"} <span className="text-zinc-500">{pro.per}</span></> : "Coming in the second phase"}</span>
                   <span className="mt-1 block font-normal text-zinc-500">Everything in Basic, plus AI and WhatsApp</span>
                 </th>
               </tr>

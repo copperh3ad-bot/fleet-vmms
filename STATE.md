@@ -444,3 +444,6 @@ Live is commit a5648e2 (tag fleet-otg-resume-2026-11-08) with platform 0016, ten
 
 ## 2026-11-08: Compare plans page deployed
 Live is commit 91e54a1: the public /compare page (ADR-063, no price in the page, plan names and figures read from the plans table) plus the investor flyer in marketing/investor-flyer (ADR-064, docs only). No migrations. 230 browser checks passed.
+
+## 2026-11-08: prices entered on live; flyers use Meta Pakistan rates
+The owner approved and the live plans table now holds Basic at PKR 43,000 a month (was USD 149) and Pro as one band with no vehicle limit at PKR 65,000 a month with 200 AI readings a day (Pro had no bands before). Written through setPlanPrice and setProBands, the same code as Admin, Plans; the figures are not in the repository (rule 7). Organizations already paying keep the price they joined at (only Fleet OTG, comped). Copy fixed: Pro is no longer "coming in the second phase" and a single band reads "One price for every fleet size" (pricing page, Compare page, FAQ, band label); needs a deploy to show. Flyers: investor flyer recomputed with Meta Pakistan rates and the cost of each extra 200 vehicles (ADR-064 revised), customer flyer shows Pro as live. Expected cost per extra 200 vehicles: Basic about USD 10 to 18, Pro about 10 to 40 a month.

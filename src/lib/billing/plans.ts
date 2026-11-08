@@ -40,7 +40,7 @@ export function proOfferFrom(plan: PlanRow | undefined, bands: Band[]): ProOffer
   return {
     priced,
     bands: priced ? bands.map((b) => {
-      const label = b.up_to_vehicles === null ? `${from} vehicles or more` : `${from} to ${b.up_to_vehicles} vehicles`;
+      const label = b.up_to_vehicles === null ? (from === 1 ? "Every fleet size" : `${from} vehicles or more`) : `${from} to ${b.up_to_vehicles} vehicles`;
       if (b.up_to_vehicles !== null) from = b.up_to_vehicles + 1;
       return { label, amount: formatPrice(b.price_cents, b.currency), readsPerDay: b.ai_reads_per_day };
     }) : [],

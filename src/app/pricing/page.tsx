@@ -35,7 +35,7 @@ async function Inner() {
       <JsonLd data={breadcrumbLd([["Fleet OTG", "/"], ["Pricing", "/pricing"]])} />
       <JsonLd data={faqLd(PRICING_FAQ)} />
       <PageHero eyebrow="Pricing" title="Basic, and Pro for larger fleets">
-        <p>Everything in Fleet OTG for your whole company, with no per-user charges. Basic has every feature and is what every company starts on. Pro, coming in the second phase, adds the AI that reads your workshops&apos; estimates and invoices for you.</p>
+        <p>Everything in Fleet OTG for your whole company, with no per-user charges. Basic has every feature and is what every company starts on. Pro adds the AI that reads your workshops&apos; estimates and invoices for you.</p>
       </PageHero>
       <div className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-12">
         <div className="grid gap-6 md:grid-cols-[1fr_1.3fr]">
@@ -57,7 +57,7 @@ async function Inner() {
               <h2 id="pro" className="text-sm font-medium text-brand">Pro plan</h2>
               {pro.priced ? (
                 <div className="mt-2">
-                  <p className="text-sm text-zinc-500">Priced by the size of your fleet, {pro.per}</p>
+                  <p className="text-sm text-zinc-500">{pro.bands.length > 1 ? "Priced by the size of your fleet, " : "One price for every fleet size, "}{pro.per}</p>
                   <table className="mt-2 w-full text-left text-sm"><tbody>{pro.bands.map((b) => <tr key={b.label} className="border-t border-zinc-100"><td className="py-2">{b.label}</td><td className="py-2 text-right text-lg font-semibold">{b.amount}</td></tr>)}</tbody></table>
                 </div>
               ) : (
