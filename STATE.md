@@ -542,3 +542,6 @@ Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the lan
 
 ## 2026-11-08 Live: tenant 0039 applied (ADR-073)
 - Applied to beta and destinsolutions. job_card_event_required is now security definer (owner postgres, search_path pinned, not executable by PUBLIC); both deferred triggers present; link roles keep exactly their functions (quotation_link 4, inbound_mail 5, odometer_link 2) and still cannot read job_card_events. Deployed commit 29a0446. Not yet seen: a real workshop quote through a live link (the tester retries with the unused links on JC-000002 and JC-000003).
+
+## 2026-11-08 Manual test runbook kept in the repo
+- docs/MANUAL-TEST.md is the tester runbook corrected for live 29a0446 (known issues table in section 16 is current). Still needs a real phone or WhatsApp number for role accounts, rule B and the driver odometer link.
