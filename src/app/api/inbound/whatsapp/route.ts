@@ -51,7 +51,7 @@ async function postImpl(req: NextRequest) {
       if (odo.handled) { if (odo.reply) await tell(m.from, odo.reply); continue; }
       // A known employee saying Hi, or answering one of the menu's questions (ADR-079). A failure here is answered kindly and never retried, as below.
       try {
-        const menu = await processWhatsAppMenu(driver, m);
+        const menu = await processWhatsAppMenu(driver, m, { photos: deps });
         if (menu.handled) { if (menu.reply) await tell(m.from, menu.reply); continue; }
       } catch (e) {
         console.error(`inbound-whatsapp: menu failed: ${e instanceof Error ? e.message.slice(0, 120) : "unknown"}`);

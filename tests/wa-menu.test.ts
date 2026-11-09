@@ -22,6 +22,13 @@ const DRIVER = "+923006111111", AUDITOR = "+923006222222", SHARED = "+9230063333
 let seq = 0;
 const msg = (text: string, from = DRIVER, over: Partial<InboundMessage> = {}): InboundMessage => ({ id: `wamid.${++seq}`, from, contextId: null, text, media: [], ...over });
 const say = async (text: string, from = DRIVER) => (await processWhatsAppMenu(d, msg(text, from))).reply;
+/** Says Hi, finds the number the menu gave the flow, and chooses it; returns the first question. */
+const start = async (label: string, from = DRIVER) => {
+  const menu = (await say("Hi", from)) ?? "";
+  const n = new RegExp(`(\\d)\\. ${label}`).exec(menu)?.[1];
+  if (!n) throw new Error(`the menu does not offer ${label}: ${menu}`);
+  return say(n, from);
+};
 const sessions = () => raw(async (q) => (await q.query<{ flow: string; step: string; status: string }>("select flow, step, status from whatsapp_sessions order by created_at")).rows);
 const trips = () => raw(async (q) => (await q.query<{ trip_no: string; status: string; purpose: string; from_place: string; to_place: string; passengers: number | null; preferred_vehicle_id: string | null }>(
   "select trip_no, status, purpose, from_place, to_place, passengers, preferred_vehicle_id from trips order by created_at")).rows);
@@ -100,8 +107,9 @@ describe("who gets the menu", () => {
   it("a known employee saying Hi gets the list of what their role may do", async () => {
     const r = await say("Hi");
     expect(r).toMatch(/Hello Driver, this is Fleet OTG for Menu Fleet/);
-    expect(r).toContain("1. Reserve a Trip");
-    expect(r).toContain("2. Submit Odometer Readings");
+    expect(r).toContain("1. Submit a Job Card");
+    expect(r).toContain("2. Reserve a Trip");
+    expect(r).toContain("3. Submit Odometer Readings");
     expect((await sessions()).at(-1)).toMatchObject({ flow: "menu", step: "choose", status: "open" });
   });
   it("a number nobody has, and an employee with no login, get nothing from here", async () => {
@@ -119,15 +127,14 @@ describe("who gets the menu", () => {
   });
   it("Reserve a Trip is not offered while the trips module is off", async () => {
     await raw((q) => q.query("update settings set value = '0' where key = 'module_trips'"));
-    try { const r = await say("Hi"); expect(r).not.toContain("Reserve a Trip"); expect(r).toContain("1. Submit Odometer Readings"); }
+    try { const r = await say("Hi"); expect(r).not.toContain("Reserve a Trip"); expect(r).toContain("2. Submit Odometer Readings"); }
     finally { await raw((q) => q.query("update settings set value = '1' where key = 'module_trips'")); }
   });
 });
 
 describe("Reserve a Trip", () => {
   it("asks each question in turn, checks the answers, shows a summary, and only YES creates the request", async () => {
-    await say("Hi");
-    expect(await say("1")).toMatch(/What is the trip for/);
+    expect(await start("Reserve a Trip")).toMatch(/What is the trip for/);
     expect(await say("Deliver samples to the Karachi office")).toMatch(/Where does it start/);
     expect(await say("Lahore")).toMatch(/Where is it going/);
     expect(await say("Karachi")).toMatch(/When does it leave/);
@@ -150,7 +157,7 @@ describe("Reserve a Trip", () => {
 
   it("YES creates exactly one trip even when the same message is delivered twice, and a later YES creates nothing", async () => {
     const before = (await trips()).length;
-    await say("Hi"); await say("1"); await say("Collect parts"); await say("Lahore"); await say("Multan"); await say("tomorrow 8am"); await say("tomorrow 5pm"); await say("skip");
+    await start("Reserve a Trip"); await say("Collect parts"); await say("Lahore"); await say("Multan"); await say("tomorrow 8am"); await say("tomorrow 5pm"); await say("skip");
     expect(await say("skip")).toMatch(/Reply YES/);
     const yes = msg("yes");
     expect((await processWhatsAppMenu(d, yes)).reply).toMatch(/Done/);
@@ -161,18 +168,18 @@ describe("Reserve a Trip", () => {
 
   it("BACK steps back one question, CANCEL stops with nothing sent, MENU returns to the list", async () => {
     const before = (await trips()).length;
-    await say("Hi"); await say("1"); await say("A trip"); await say("Lahore");
+    await start("Reserve a Trip"); await say("A trip"); await say("Lahore");
     expect(await say("back")).toMatch(/Where does it start/);
     expect(await say("Faisalabad")).toMatch(/Where is it going/);
     expect(await say("cancel")).toMatch(/Cancelled\. Nothing was sent/);
     expect(await trips()).toHaveLength(before);
-    await say("Hi"); await say("1"); await say("Another trip");
+    await start("Reserve a Trip"); await say("Another trip");
     expect(await say("menu")).toMatch(/What would you like to do/);
     expect((await sessions()).filter((s) => s.status === "open")).toHaveLength(1);   // one conversation at a time
   });
 
   it("a conversation that goes quiet for 30 minutes lapses, and the person is told how to start again", async () => {
-    await say("Hi"); await say("1"); await say("Visit supplier");
+    await start("Reserve a Trip"); await say("Visit supplier");
     await raw((q) => q.query("update whatsapp_sessions set expires_at = now() - interval '1 minute' where status = 'open'"));
     expect(await say("Lahore")).toMatch(/timed out after 30 minutes\. Say Hi to start again/);
     expect(await say("Hi")).toMatch(/What would you like to do/);
@@ -181,11 +188,11 @@ describe("Reserve a Trip", () => {
   it("a person who may not request trips cannot be sent into the flow, even by typing its number after the module is switched off", async () => {
     await say("Hi");
     await raw((q) => q.query("update settings set value = '0' where key = 'module_trips'"));
-    try { expect(await say("1")).toMatch(/not available to you any more/); } finally { await raw((q) => q.query("update settings set value = '1' where key = 'module_trips'")); }
+    try { expect(await say("2")).toMatch(/not available to you any more/); } finally { await raw((q) => q.query("update settings set value = '1' where key = 'module_trips'")); }
   });
 
   it("a chosen vehicle is kept on the request", async () => {
-    await say("Hi"); await say("1"); await say("Site visit"); await say("Lahore"); await say("Sheikhupura"); await say("tomorrow 9am"); await say("tomorrow 4pm"); await say("skip");
+    await start("Reserve a Trip"); await say("Site visit"); await say("Lahore"); await say("Sheikhupura"); await say("tomorrow 9am"); await say("tomorrow 4pm"); await say("skip");
     expect(await say("1")).toMatch(/Preferred vehicle: WAM-001/);
     await say("yes");
     expect((await trips()).at(-1)?.preferred_vehicle_id).toBeTruthy();
@@ -194,8 +201,7 @@ describe("Reserve a Trip", () => {
 
 describe("Submit Odometer Readings", () => {
   it("asks which vehicle and the reading, and YES records it through the same table and checks as every reading", async () => {
-    await say("Hi");
-    expect(await say("2")).toMatch(/Which vehicle\?[\s\S]*1\. WAM-001 \(Toyota Hilux\)/);
+    expect(await start("Submit Odometer Readings")).toMatch(/Which vehicle\?[\s\S]*1\. WAM-001 \(Toyota Hilux\)/);
     expect(await say("WAM-999")).toMatch(/could not find that vehicle/);
     expect(await say("1")).toMatch(/odometer show on WAM-001 now/);
     expect(await say("lots")).toMatch(/as a number/);
@@ -207,7 +213,7 @@ describe("Submit Odometer Readings", () => {
   });
 
   it("a reading below the last one is kept but flagged for the fleet office, and does not move the odometer", async () => {
-    await say("Hi"); await say("2"); await say("wam001"); await say("40000");
+    await start("Submit Odometer Readings"); await say("wam001"); await say("40000");
     expect(await say("yes")).toMatch(/lower than the last reading \(the last reading was 43,500 km\), so the fleet office will review/);
     expect((await odo()).at(-1)).toMatchObject({ status: "flagged", flag_reason: "lower_than_previous" });
     expect(await vehicleKm("WAM-001")).toBe("43500.0");
@@ -216,14 +222,13 @@ describe("Submit Odometer Readings", () => {
   it("a person limited to their own vehicles cannot send a reading for someone else's", async () => {
     await withPlatform(d, (q) => q.query("update public.tenant_memberships set vehicle_scope = 'own' where user_id = $1 and tenant_id = $2", [U(61), t.tenantId]));
     try {
-      await say("Hi"); await say("2");
+      await start("Submit Odometer Readings");
       expect(await say("WAM-002")).toMatch(/could not find that vehicle/);
     } finally { await withPlatform(d, (q) => q.query("update public.tenant_memberships set vehicle_scope = 'all' where user_id = $1 and tenant_id = $2", [U(61), t.tenantId])); }
   });
 
   it("a manager, who holds another vehicle, sees that one", async () => {
-    await say("Hi", MANAGER);
-    expect(await say("2", MANAGER)).toMatch(/1\. WAM-002 \(Honda City\)/);
+    expect(await start("Submit Odometer Readings", MANAGER)).toMatch(/1\. WAM-002 \(Honda City\)/);
     await say("cancel", MANAGER);
   });
 });
@@ -237,7 +242,7 @@ describe("what the menu does not do", () => {
   it("a photo with no words and nothing open is left alone; with a question open it asks for typing", async () => {
     await closeAll();
     expect((await processWhatsAppMenu(d, msg("", DRIVER, { media: [{ id: "123456", filename: null, mime: "image/jpeg" }] }))).handled).toBe(false);
-    await say("Hi"); await say("2");
+    await start("Submit Odometer Readings");
     expect((await processWhatsAppMenu(d, msg("", DRIVER, { media: [{ id: "123456", filename: null, mime: "image/jpeg" }] }))).reply).toMatch(/type your answer/);
     await say("cancel");
   });

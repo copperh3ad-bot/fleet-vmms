@@ -11,6 +11,7 @@ import type { InboundMessage } from "@/lib/whatsapp";
 import { findMenuSender, lastTen } from "./identity";
 import { flowById, FLOWS } from "./flows";
 import { isBack, isCancel, isEdit, isGreeting, isSkip, isYes, listChoices } from "./text";
+import { MAX_PHOTOS, takePhotos, type PhotoDeps, type StoredPhoto } from "./photos";
 import type { Answers, Candidate, Ctx, Flow } from "./types";
 
 export const MENU_MESSAGES_PER_HOUR = 40;
@@ -56,7 +57,7 @@ async function showMenu(driver: Driver, m: Membership, me: Candidate, old: Sessi
   return said(`Hello ${firstName(me.name)}, this is Fleet OTG for ${me.tenant.name}. What would you like to do?\n${listChoices(flows.map((f) => ({ id: f.id, label: f.label })))}\n\nReply with a number. ${FOOTER}`);
 }
 
-export async function processWhatsAppMenu(driver: Driver, msg: InboundMessage, opts: { now?: Date } = {}): Promise<MenuOutcome> {
+export async function processWhatsAppMenu(driver: Driver, msg: InboundMessage, opts: { now?: Date; photos?: PhotoDeps } = {}): Promise<MenuOutcome> {
   const { found, shared } = await findMenuSender(driver, msg.from);
   let text = msg.text.trim();
   if (found.length === 0) return shared && isGreeting(text) ? said("This phone number is used by more than one person, so I cannot tell who is writing. Please use the app.") : NOT_MINE;
@@ -100,10 +101,10 @@ export async function processWhatsAppMenu(driver: Driver, msg: InboundMessage, o
     return showMenu(driver, m, mine, null);
   }
 
-  return continueSession(driver, m, mine, hasOpen, text, msg, now);
+  return continueSession(driver, m, mine, hasOpen, text, msg, now, opts.photos);
 }
 
-async function continueSession(driver: Driver, m: Membership, me: Candidate, session: Session, text: string, msg: InboundMessage, now: Date): Promise<MenuOutcome> {
+async function continueSession(driver: Driver, m: Membership, me: Candidate, session: Session, text: string, msg: InboundMessage, now: Date, photoDeps?: PhotoDeps): Promise<MenuOutcome> {
   if (session.last_message_id === msg.id) return said(null);                        // Meta delivered the same message twice
   await withTenant(driver, m, (q) => q.query("update whatsapp_sessions set last_message_id = $2 where id = $1", [session.id, msg.id]));
   if (session.status === "submitting") return said(null);                           // being sent right now
@@ -161,7 +162,25 @@ async function continueSession(driver: Driver, m: Membership, me: Candidate, ses
     await withTenant(driver, m, (q) => save(q, session.id, { step: prev.key, answers }));
     return said(await prev.ask({ ...c, answers }));
   }
-  if (msg.media.length && !text) return said("Please type your answer. I cannot read photos or files here yet.");
+  // A step that takes photos: a picture is kept, DONE or SKIP moves on, anything else is explained.
+  if (step.photos) {
+    const have = ((answers.photos as StoredPhoto[] | undefined) ?? []);
+    if (msg.media.length) {
+      if (!photoDeps) return said("I cannot take photos just now. Reply SKIP to go on without.");
+      const { stored, skipped } = await takePhotos(photoDeps, me.tenant.schema, msg.media, have.length);
+      answers.photos = [...have, ...stored];
+      await withTenant(driver, m, (q) => save(q, session.id, { step: step.key, answers }));
+      const n = (answers.photos as StoredPhoto[]).length;
+      const lines = [n > have.length ? `Got it: ${n} of ${MAX_PHOTOS} photos.` : "I could not use that file."];
+      if (skipped) lines.push(`${skipped} file${skipped === 1 ? " was" : "s were"} not used (only ordinary photos, up to ${MAX_PHOTOS}).`);
+      lines.push(n >= MAX_PHOTOS ? "That is the most I can take. Reply DONE to continue." : "Send another, or reply DONE to continue.");
+      return said(lines.join(" "));
+    }
+    if (!(isSkip(text) || /^(done|finished|that'?s all|no more)[.! ]*$/i.test(text))) return said(`Please send a photo, or reply DONE${have.length ? "" : " or SKIP"}.`);
+    answers.photos = have.length ? have : null;
+    return advance(driver, m, flow, session, c, answers, idx);
+  }
+  if (msg.media.length && !text) return said("Please type your answer. I cannot read photos or files here.");
 
   let value: unknown;
   if (step.optional && isSkip(text)) value = null;
@@ -171,7 +190,11 @@ async function continueSession(driver: Driver, m: Membership, me: Candidate, ses
     value = r.value;
   }
   answers[step.key] = value;
+  return advance(driver, m, flow, session, c, answers, idx);
+}
 
+/** The next question, or the summary when that was the last one. */
+async function advance(driver: Driver, m: Membership, flow: Flow, session: Session, c: Ctx, answers: Answers, idx: number): Promise<MenuOutcome> {
   const next = flow.steps[idx + 1];
   if (next) {
     const question = await next.ask({ ...c, answers });

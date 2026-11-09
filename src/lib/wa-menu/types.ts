@@ -13,6 +13,8 @@ export type Step = {
   parse: (raw: string, c: Ctx) => Promise<Parsed<unknown>>;
   /** The person may answer SKIP. */
   optional?: boolean;
+  /** A step that takes photos (up to three), then DONE or SKIP. */
+  photos?: boolean;
 };
 
 /** A questionnaire. Nothing here creates anything until the person replies YES; `submit` then calls the same function the app uses, with the sender's own role. */

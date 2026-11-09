@@ -98,3 +98,19 @@ export function pickChoice(raw: string, choices: Choice[], what: string): Parsed
   if (v.length >= 2 && hit.length === 1) return good(hit[0], hit[0].label);
   return bad(`Please reply with a number from the list to choose ${what}.`);
 }
+
+/** A date without a time: "15/11/2026", "2026-11-15", "15 Nov", "tomorrow". Returned as YYYY-MM-DD. */
+export function parseDate(raw: string, now = new Date(), opts: { notPast?: boolean } = {}): Parsed<string> {
+  const hasTime = /\d{1,2}:\d{2}|\b(am|pm)\b/i.test(raw);
+  const r = parseDateTime(hasTime ? raw : `${raw} 12:00`, now);
+  if (!r.ok) return bad("I could not read that date. Please write it like 15/11/2026, or tomorrow.");
+  const day = r.value.slice(0, 10);
+  const today = new Date(now.getTime() + 5 * 3600_000).toISOString().slice(0, 10);
+  if (opts.notPast && day < today) return bad("That date has already passed. Please send today or a later date.");
+  return good(day);
+}
+
+/** A stored date read back: "Sun 15 Nov 2026". */
+export function showDate(day: string): string {
+  return new Date(`${day}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+}

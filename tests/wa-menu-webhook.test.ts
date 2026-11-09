@@ -57,8 +57,8 @@ describe("the signed webhook and the menu", () => {
   it("a known employee saying Hi gets the menu back on WhatsApp, and answering a number gets the first question", async () => {
     expect(await hook("+923007001111", "Hi")).toBe(200);
     expect(sent().at(-1)).toMatchObject({ to: "+923007001111" });
-    expect(sent().at(-1)?.body).toMatch(/Hello Hook, this is Fleet OTG for Hook Fleet[\s\S]*1\. Reserve a Trip/);
-    expect(await hook("+923007001111", "1")).toBe(200);
+    expect(sent().at(-1)?.body).toMatch(/Hello Hook, this is Fleet OTG for Hook Fleet[\s\S]*2\. Reserve a Trip/);
+    expect(await hook("+923007001111", "2")).toBe(200);
     expect(sent().at(-1)?.body).toMatch(/What is the trip for/);
   });
   it("a stranger saying Hi is not answered by the menu, and a call for another number is ignored", async () => {
