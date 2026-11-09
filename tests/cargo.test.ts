@@ -5,6 +5,7 @@ import { withPlatform, withTenant } from "@/lib/db/tenant";
 import { ForbiddenError, type Membership } from "@/lib/auth/can";
 import * as master from "@/lib/master/service";
 import { createCargoRequest, getCargo, listCargo, makeTripFromCargo, transitionCargo } from "@/lib/cargo/service";
+import { getTrip } from "@/lib/trips/service";
 import { processWhatsAppMenu } from "@/lib/wa-menu/engine";
 import type { InboundMessage } from "@/lib/whatsapp";
 
@@ -23,7 +24,7 @@ const raw = <T,>(fn: (q: import("@/lib/db/types").Queryable) => Promise<T>) => w
 const at = (day: number, hour: number) => `2031-08-${String(day).padStart(2, "0")}T${String(hour).padStart(2, "0")}:00:00+05:00`;
 const cargo = (over: Record<string, unknown> = {}) => ({
   description: "Boxes of sample fabric", quantity_text: "12 cartons, about 300 kg", pickup_place: "Gulberg warehouse, Lahore", pickup_contact: "Imran", pickup_phone: "0300 1234567", pickup_at: at(10, 9),
-  drop_place: "Karachi head office", drop_contact: "Saima", drop_phone: "0321 7654321", deliver_by: at(12, 17), handling: "Fragile", ...over,
+  drop_place: "Karachi head office", drop_contact: "Saima", drop_phone: "0321 7654321", deliver_by: at(12, 17), handling: "Fragile", vehicle_type: "10-tonne truck", department: "Sales", ...over,
 });
 const status = async (id: string) => (await getCargo(d, mgr(), id))!.status;
 
@@ -47,9 +48,9 @@ beforeEach(async () => { await withPlatform(d, (q) => q.query("delete from publi
 describe("asking for cargo to be moved", () => {
   it("is for those who hold cargo.request, checks every field, and gives the request a number and a history", async () => {
     expect(await createCargoRequest(d, aud(), cargo()).catch((e) => e)).toBeInstanceOf(ForbiddenError);
-    const bad = await createCargoRequest(d, req(), cargo({ pickup_phone: "12", deliver_by: at(9, 9), description: "" })).catch((e) => e);
+    const bad = await createCargoRequest(d, req(), cargo({ pickup_phone: "12", deliver_by: at(9, 9), description: "", vehicle_type: "" })).catch((e) => e);
     expect(bad.message).toMatch(/Fix the highlighted/);
-    expect(Object.keys(bad.fields ?? {}).sort()).toEqual(["deliver_by", "description", "pickup_phone"]);
+    expect(Object.keys(bad.fields ?? {}).sort()).toEqual(["deliver_by", "description", "pickup_phone", "vehicle_type"]);
     const made = await createCargoRequest(d, req(), cargo());
     expect(made.cargo_no).toMatch(/^CR-\d{6}$/);
     const c = (await getCargo(d, mgr(), made.id))!;
@@ -137,37 +138,47 @@ describe("Schedule Cargo Pick-up and Delivery on WhatsApp", () => {
     expect(await say("Hi")).toMatch(/1\. Submit a Job Card\n2\. Schedule Cargo Pick-up and Delivery\n3\. Reserve a Trip\n4\. Submit Odometer Readings/);
   });
 
-  it("asks everything the fleet office needs, checks each answer, shows a summary, and only YES sends the request", async () => {
+  it("asks what the company's Vehicle Request Form asks, in its order, checks each answer, shows a summary, and only YES sends the request", async () => {
     await say("Hi");
-    expect(await say("2")).toMatch(/What needs to be moved/);
-    expect(await say("Boxes of sample fabric")).toMatch(/How much/);
-    expect(await say("12 cartons, about 300 kg")).toMatch(/collected/);
-    expect(await say("Gulberg warehouse, Lahore")).toMatch(/contact person at the pick-up/);
-    expect(await say("Imran")).toMatch(/pick-up contact's mobile/);
-    expect(await say("12345")).toMatch(/does not look like a mobile number[\s\S]*mobile number/);                          // asked again
-    expect(await say("0300 1234567")).toMatch(/When should it be collected/);
-    expect(await say("tomorrow 10am")).toMatch(/delivered\?/);
-    expect(await say("Karachi head office")).toMatch(/contact person at the delivery/);
-    expect(await say("Saima")).toMatch(/delivery contact's mobile/);
-    expect(await say("0321 7654321")).toMatch(/By when must it be delivered/);
-    expect(await say("tomorrow 9am")).toMatch(/Delivery must be after the pick-up/);
-    expect(await say("12/12/2031 5pm")).toMatch(/special handling[\s\S]*1\. Fragile[\s\S]*5\. None of these/);
-    expect(await say("1")).toMatch(/Which department/);
-    const summary = await say("Sales");
-    expect(summary).toMatch(/Cargo request:[\s\S]*Boxes of sample fabric \(12 cartons[\s\S]*Collect: Gulberg warehouse[\s\S]*\+923001234567[\s\S]*Deliver: Karachi head office[\s\S]*\+923217654321[\s\S]*Handling: Fragile[\s\S]*For: Sales[\s\S]*Reply YES/);
+    expect(await say("2")).toMatch(/Which department is this request for/);
+    expect(await say("Sales")).toMatch(/When do you need the vehicle/);
+    expect(await say("yesterday")).toMatch(/date and time|already passed|did not understand|Please/i);
+    expect(await say("tomorrow 10am")).toMatch(/Pick-up location/);
+    expect(await say("Main godown, Site 54")).toMatch(/Destination/);
+    expect(await say("Unit 8, Industrial Area")).toMatch(/Which type of vehicle is required/);
+    expect(await say("10-tonne truck")).toMatch(/Inventory or material load details/);
+    expect(await say("Grain sacks")).toMatch(/Quantity of the load, with its unit/);
+    expect(await say("18000 Lbs (180 Sacks)")).toMatch(/Person or persons to contact, with phone numbers/);
+    expect(await say("Ali Khan")).toMatch(/include a phone number[\s\S]*Person or persons to contact/);                          // asked again
+    expect(await say("Ali 0300 1234567 / Sara 0321 7654321")).toMatch(/special instructions/);
+    const summary = await say("Unload at gate 2");
+    expect(summary).toMatch(/Cargo request:[\s\S]*Department: Sales[\s\S]*Vehicle needed:[\s\S]*Type: 10-tonne truck[\s\S]*From: Main godown, Site 54[\s\S]*To: Unit 8, Industrial Area[\s\S]*Load: Grain sacks, 18000 Lbs \(180 Sacks\)[\s\S]*Contact: Ali 0300 1234567[\s\S]*Instructions: Unload at gate 2[\s\S]*Reply YES/);
     const before = (await listCargo(d, mgr())).length;
     expect(await say("yes")).toMatch(/Done\. Cargo request CR-\d+ has been sent to the fleet office/);
     const rows = await listCargo(d, mgr());
     expect(rows).toHaveLength(before + 1);
     const c = (await getCargo(d, mgr(), rows.find((r) => r.source === "whatsapp")!.id))!;
-    expect(c).toMatchObject({ source: "whatsapp", handling: "Fragile", department: "Sales", requester_name: "Requester One", pickup_contact: "Imran" });
+    expect(c).toMatchObject({ source: "whatsapp", department: "Sales", vehicle_type: "10-tonne truck", poc_details: "Ali 0300 1234567 / Sara 0321 7654321", instructions: "Unload at gate 2", description: "Grain sacks", quantity_text: "18000 Lbs (180 Sacks)", requester_name: "Requester One", deliver_by: null, pickup_contact: null });
     expect(c.events[0].note).toBe("Asked on WhatsApp");
   });
 
-  it("SKIP works for handling and department, and the person with no cargo permission is not offered it", async () => {
-    await say("Hi"); await say("2"); await say("Parcel"); await say("1 box"); await say("Shop 4"); await say("Ali"); await say("0300 2222222"); await say("tomorrow 11am");
-    await say("Office"); await say("Bilal"); await say("0300 3333333"); await say("12/12/2031 3pm"); await say("skip");
-    expect(await say("skip")).toMatch(/No special handling/);
+  it("offers the department on the person's own record, and a request with no delivery time can still be made into a trip", async () => {
+    await raw((q) => q.query("update employees set department = 'Procurement' where full_name = 'Requester One'"));
+    await say("Hi");
+    expect(await say("2")).toMatch(/Your record says Procurement\. Reply 1 to use it/);
+    await say("1"); await say("tomorrow 10am"); await say("Godown"); await say("Unit 8"); await say("Truck"); await say("Grain"); await say("180 bags"); await say("Ali 0300 1234567");
+    expect(await say("skip")).toMatch(/Department: Procurement[\s\S]*No special instructions/);
+    await say("yes");
+    const id = (await listCargo(d, mgr())).find((r) => r.source === "whatsapp" && r.description === "Grain")!.id;
+    await transitionCargo(d, logi(), id, "accepted");
+    const tripId = await makeTripFromCargo(d, logi(), id);
+    const trip = (await getTrip(d, mgr(), tripId))!;
+    expect(Date.parse(trip.end_at) - Date.parse(trip.start_at)).toBe(12 * 3600_000);
+  });
+
+  it("SKIP works for the special instructions, and the person with no cargo permission is not offered it", async () => {
+    await say("Hi"); await say("2"); await say("Sales"); await say("tomorrow 11am"); await say("Shop 4"); await say("Office"); await say("Pickup"); await say("Parcel"); await say("1 box"); await say("Ali 0300 2222222");
+    expect(await say("skip")).toMatch(/No special instructions/);
     await say("cancel");
     expect(await say("Hi", "+923009444444")).toMatch(/nothing I can do for your role/);                               // an auditor
   });

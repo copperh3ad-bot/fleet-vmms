@@ -16,21 +16,19 @@ export async function cargo(S) {
   await step("the administrator asks for a pick-up and delivery with the web form", async () => {
     await go(o, `${base}/cargo/new`);
     await waitText(o, "Ask for a cargo pick-up and delivery", 8000);
+    await fill(o, "#department", "Sales");
+    await fill(o, "#pickup_at", local(2, 9));
+    await fill(o, "#pickup_place", "Gulberg warehouse, Lahore");
+    await fill(o, "#drop_place", "Karachi head office");
+    await fill(o, "#vehicle_type", "10-tonne truck");
     await fill(o, "#description", "Boxes of sample fabric");
     await fill(o, "#quantity_text", "12 cartons, about 300 kg");
-    await fill(o, "#pickup_place", "Gulberg warehouse, Lahore");
-    await fill(o, "#pickup_contact", "Imran");
-    await fill(o, "#pickup_phone", "0300 1234567");
-    await fill(o, "#pickup_at", local(2, 9));
-    await fill(o, "#drop_place", "Karachi head office");
-    await fill(o, "#drop_contact", "Saima");
-    await fill(o, "#drop_phone", "0321 7654321");
-    await fill(o, "#deliver_by", local(4, 17));
-    await o.page.selectOption("#handling", "Fragile");
+    await fill(o, "#poc_details", "Imran 0300 1234567 / Saima 0321 7654321");
+    await fill(o, "#instructions", "Unload at gate 2");
     await press(o, "Send the request", { wait: 2000 });
     await waitText(o, "Boxes of sample fabric", 8000);
     id = last(`select id from cargo_requests order by created_at desc limit 1`);
-    check(last(`select status || '/' || source || '/' || pickup_phone from cargo_requests where id = '${id}'`) === "requested/app/+923001234567", "the request was not saved as expected");
+    check(last(`select status || '/' || source || '/' || vehicle_type from cargo_requests where id = '${id}'`) === "requested/app/10-tonne truck", "the request was not saved as expected");
     check(has(await body(o), "Waiting for a decision"), "the page does not say it is waiting");
   });
 

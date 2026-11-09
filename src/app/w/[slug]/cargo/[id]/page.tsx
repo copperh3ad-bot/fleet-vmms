@@ -28,12 +28,15 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
       <Panel title="The request">
         <dl className="grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
           {dl("Asked by", <>{c.requester_name}{c.source === "whatsapp" && <span className="ml-2 text-xs text-zinc-500">by WhatsApp</span>}</>)}
-          {dl("What and how much", `${c.description}, ${c.quantity_text}`)}
-          {dl("Collect from", c.pickup_place)}{dl("Collect on", dmyTime(c.pickup_at))}
-          {dl("Pick-up contact", `${c.pickup_contact}, ${c.pickup_phone}`)}{dl("Deliver by", dmyTime(c.deliver_by))}
-          {dl("Deliver to", c.drop_place)}{dl("Delivery contact", `${c.drop_contact}, ${c.drop_phone}`)}
-          {dl("Special handling", c.handling ? (HANDLING[c.handling] ?? c.handling) : "None")}
-          {c.department && dl("For", c.department)}
+          {dl("Requested on", dmyTime(c.created_at))}{c.department && dl("Requesting department", c.department)}
+          {dl("Vehicle required", dmyTime(c.pickup_at))}{c.vehicle_type && dl("Vehicle type", c.vehicle_type)}
+          {dl("Pick-up location (from)", c.pickup_place)}{dl("Destination (to)", c.drop_place)}
+          {dl("Inventory / material load", c.description)}{dl("Quantity of load", c.quantity_text)}
+          {c.poc_details && dl("Person to contact", c.poc_details)}
+          {c.pickup_contact && dl("Pick-up contact", [c.pickup_contact, c.pickup_phone].filter(Boolean).join(", "))}{c.drop_contact && dl("Delivery contact", [c.drop_contact, c.drop_phone].filter(Boolean).join(", "))}
+          {c.deliver_by && dl("Deliver by", dmyTime(c.deliver_by))}
+          {c.instructions && dl("Special instructions", c.instructions)}
+          {c.handling && dl("Special handling", HANDLING[c.handling] ?? c.handling)}
           {c.decision_note && dl("Note", c.decision_note)}
           {c.trip_id && dl("Trip", <a className="text-sky-800 hover:underline" href={`/w/${slug}/trips/${c.trip_id}`}>{c.trip_no}</a>)}
         </dl>

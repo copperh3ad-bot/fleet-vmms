@@ -14,7 +14,8 @@ import { sendTemplate, whatsappConfigured } from "@/lib/whatsapp";
 const e164 = (s: string) => { const n = normalizePhone(s); return n.ok ? n.e164 : s; };
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
 const when = z.string().min(1, "Enter the date and time").refine((s) => !Number.isNaN(Date.parse(s)), "Enter a valid date and time");
-const phone = z.string().trim().min(1, "Enter a phone number").refine((s) => normalizePhone(s).ok, "Enter a mobile number a message can reach, like 0300 1234567");
+const phone = z.preprocess(blank, z.string().trim().refine((s) => normalizePhone(s).ok, "Enter a mobile number a message can reach, like 0300 1234567").optional());
+const optText = (min: number, max: number, msg: string) => z.preprocess(blank, z.string().trim().min(min, msg).max(max).optional());
 
 export const HANDLING: Record<string, string> = { fragile: "Fragile", cold: "Keep cold", hazardous: "Hazardous", loading_help: "Needs loading help" };
 
@@ -22,17 +23,22 @@ export const cargoSchema = z.object({
   description: z.string().trim().min(3, "Say what is being moved").max(300),
   quantity_text: z.string().trim().min(1, "Say how much, for example 12 cartons or 300 kg").max(120),
   pickup_place: z.string().trim().min(2, "Where is it collected?").max(200),
-  pickup_contact: z.string().trim().min(2, "Who is the contact there?").max(100),
-  pickup_phone: phone,
-  pickup_at: when,
+  pickup_at: when,                                     // "Vehicle required: date and time" on the company's Vehicle Request Form
   drop_place: z.string().trim().min(2, "Where is it delivered?").max(200),
-  drop_contact: z.string().trim().min(2, "Who is the contact there?").max(100),
+  vehicle_type: z.string().trim().min(2, "Which type of vehicle is needed?").max(60),
+  poc_details: optText(5, 200, "Give the person to contact and their number"),            // one box, as on the form: names and numbers
+  instructions: optText(1, 500, "Say what is needed"),
+  // The older shape, kept so requests already made, and anyone who still gives them, work: a contact and number at each end, a time to deliver by, special handling.
+  pickup_contact: optText(2, 100, "Who is the contact there?"),
+  pickup_phone: phone,
+  drop_contact: optText(2, 100, "Who is the contact there?"),
   drop_phone: phone,
-  deliver_by: when,
+  deliver_by: z.preprocess(blank, when.optional()),
   handling: z.preprocess(blank, z.string().trim().max(200).optional()),
   department: z.preprocess(blank, z.string().trim().max(80).optional()),
 }).superRefine((v, ctx) => {
-  if (Date.parse(v.deliver_by) <= Date.parse(v.pickup_at)) ctx.addIssue({ code: "custom", path: ["deliver_by"], message: "Delivery must be after the pick-up" });
+  if (v.deliver_by && Date.parse(v.deliver_by) <= Date.parse(v.pickup_at)) ctx.addIssue({ code: "custom", path: ["deliver_by"], message: "Delivery must be after the pick-up" });
+  if (!v.poc_details && !(v.pickup_contact && v.pickup_phone)) ctx.addIssue({ code: "custom", path: ["poc_details"], message: "Give the person to contact and their number" });
 });
 
 export const CARGO_STATUS_LABEL: Record<string, string> = { requested: "Waiting for a decision", accepted: "Accepted", in_transit: "On the way", delivered: "Delivered", rejected: "Rejected", cancelled: "Cancelled" };
@@ -57,10 +63,11 @@ export async function createCargoRequest(driver: Driver, m: Membership, raw: unk
   const made = await authorized(driver, m, "cargo.request", async (q) => {
     const emp = await myEmployee(q, m.userId);
     const row = (await q.query<{ id: string; cargo_no: string }>(
-      `insert into cargo_requests(requested_by, description, quantity_text, pickup_place, pickup_contact, pickup_phone, pickup_at, drop_place, drop_contact, drop_phone, deliver_by, handling, department, source)
-       values ($1,$2,$3,$4,$5,$6,$7::timestamptz,$8,$9,$10,$11::timestamptz,$12,$13,$14) returning id, cargo_no`,
-      [emp, c.description, c.quantity_text, c.pickup_place, c.pickup_contact, e164(c.pickup_phone), c.pickup_at, c.drop_place, c.drop_contact,
-        e164(c.drop_phone), c.deliver_by, c.handling ?? null, c.department ?? null, source])).rows[0];
+      `insert into cargo_requests(requested_by, description, quantity_text, pickup_place, pickup_contact, pickup_phone, pickup_at, drop_place, drop_contact, drop_phone, deliver_by, handling, department, source,
+                                  vehicle_type, poc_details, instructions)
+       values ($1,$2,$3,$4,$5,$6,$7::timestamptz,$8,$9,$10,$11::timestamptz,$12,$13,$14,$15,$16,$17) returning id, cargo_no`,
+      [emp, c.description, c.quantity_text, c.pickup_place, c.pickup_contact ?? null, c.pickup_phone ? e164(c.pickup_phone) : null, c.pickup_at, c.drop_place, c.drop_contact ?? null,
+        c.drop_phone ? e164(c.drop_phone) : null, c.deliver_by ?? null, c.handling ?? null, c.department ?? null, source, c.vehicle_type, c.poc_details ?? null, c.instructions ?? null])).rows[0];
     await q.query("insert into cargo_events(cargo_id, from_status, to_status, actor_id, note) values ($1, null, 'requested', $2, $3)", [row.id, m.userId, source === "whatsapp" ? "Asked on WhatsApp" : null]);
     await notify(q, await usersWithPermission(q, m.tenantId, "cargo.handle"), "cargo.requested", { cargo_id: row.id, cargo_no: row.cargo_no, text: `${row.cargo_no}: ${c.description}, ${c.pickup_place} to ${c.drop_place}` }, m.userId);
     return { ...row, handlers: await usersWithPermission(q, m.tenantId, "cargo.handle"), asker: (await q.query<{ full_name: string }>("select full_name from employees where id = $1", [emp])).rows[0]?.full_name ?? "A colleague" };
@@ -90,7 +97,7 @@ async function tellHandlersOnWhatsApp(driver: Driver, m: Membership, cargoId: st
 }
 
 export type CargoRow = {
-  id: string; cargo_no: string; status: string; description: string; quantity_text: string; pickup_place: string; drop_place: string; pickup_at: string; deliver_by: string;
+  id: string; cargo_no: string; status: string; description: string; quantity_text: string; pickup_place: string; drop_place: string; pickup_at: string; deliver_by: string | null;
   requester_name: string; mine: boolean; source: string; trip_id: string | null;
 };
 
@@ -109,7 +116,8 @@ export function listCargo(driver: Driver, m: Membership, opts: { status?: string
 }
 
 export type CargoDetail = CargoRow & {
-  pickup_contact: string; pickup_phone: string; drop_contact: string; drop_phone: string; handling: string | null; department: string | null; decision_note: string | null;
+  pickup_contact: string | null; pickup_phone: string | null; drop_contact: string | null; drop_phone: string | null; handling: string | null; department: string | null; decision_note: string | null;
+  vehicle_type: string | null; poc_details: string | null; instructions: string | null; created_at: string;
   trip_no: string | null; events: { to_status: string; note: string | null; created_at: string; actor_name: string | null }[];
 };
 
@@ -117,7 +125,7 @@ export function getCargo(driver: Driver, m: Membership, id: string): Promise<Car
   return authorizedAny(driver, m, ["cargo.request", "cargo.handle"], async (q, held) => {
     const c = (await q.query<Omit<CargoDetail, "events">>(
       `select c.id, c.cargo_no, c.status, c.description, c.quantity_text, c.pickup_place, c.drop_place, c.pickup_at::text, c.deliver_by::text, re.full_name as requester_name, (re.user_id = $2) as mine,
-              c.source, c.trip_id, c.pickup_contact, c.pickup_phone, c.drop_contact, c.drop_phone, c.handling, c.department, c.decision_note, t.trip_no
+              c.source, c.trip_id, c.pickup_contact, c.pickup_phone, c.drop_contact, c.drop_phone, c.handling, c.department, c.decision_note, c.vehicle_type, c.poc_details, c.instructions, c.created_at::text, t.trip_no
          from cargo_requests c join employees re on re.id = c.requested_by left join trips t on t.id = c.trip_id where c.id = $1`, [id, m.userId])).rows[0];
     if (!c || (!held.has("cargo.handle") && !c.mine)) return null;
     const events = (await q.query<CargoDetail["events"][number]>(
@@ -143,12 +151,12 @@ export async function transitionCargo(driver: Driver, m: Membership, id: string,
 /** Turns an accepted request into a trip request, prefilled from it, and keeps the link. The trip then follows the usual approval and, in Pro, can be sent to logistics providers for quotes. */
 export async function makeTripFromCargo(driver: Driver, m: Membership, id: string): Promise<string> {
   const c = await authorized(driver, m, "cargo.handle", async (q) =>
-    (await q.query<{ cargo_no: string; description: string; pickup_place: string; drop_place: string; pickup_at: string; deliver_by: string; status: string; trip_id: string | null; quantity_text: string }>(
+    (await q.query<{ cargo_no: string; description: string; pickup_place: string; drop_place: string; pickup_at: string; deliver_by: string | null; status: string; trip_id: string | null; quantity_text: string }>(
       "select cargo_no, description, pickup_place, drop_place, pickup_at::text, deliver_by::text, status, trip_id, quantity_text from cargo_requests where id = $1", [id])).rows[0]);
   if (!c) throw new UserError("Cargo request not found.");
   if (c.trip_id) throw new UserError("A trip has already been made from this request.");
   if (!["accepted", "in_transit"].includes(c.status)) throw new UserError("Accept the request first, then make a trip from it.");
-  const tripId = await requestTrip(driver, m, { kind: "trip", purpose: `Cargo ${c.cargo_no}: ${c.description} (${c.quantity_text})`.slice(0, 300), from_place: c.pickup_place, to_place: c.drop_place, start_at: c.pickup_at, end_at: c.deliver_by, passengers: "0" });
+  const tripId = await requestTrip(driver, m, { kind: "trip", purpose: `Cargo ${c.cargo_no}: ${c.description} (${c.quantity_text})`.slice(0, 300), from_place: c.pickup_place, to_place: c.drop_place, start_at: c.pickup_at, end_at: c.deliver_by ?? new Date(Date.parse(c.pickup_at) + 12 * 3600_000).toISOString(), passengers: "0" });
   await authorized(driver, m, "cargo.handle", async (q) => {
     await q.query("update cargo_requests set trip_id = $2, updated_at = now() where id = $1 and trip_id is null", [id, tripId]);
     const no = (await q.query<{ trip_no: string }>("select trip_no from trips where id = $1", [tripId])).rows[0]?.trip_no;

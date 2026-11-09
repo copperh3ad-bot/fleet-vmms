@@ -9,9 +9,8 @@ export async function requestCargoAction(slug: string, _prev: FormState, form: F
   let id = "";
   const state = await runAction(slug, async (m) => {
     id = (await createCargoRequest(getDriver(), m, {
-      description: str(form, "description"), quantity_text: str(form, "quantity_text"), pickup_place: str(form, "pickup_place"), pickup_contact: str(form, "pickup_contact"), pickup_phone: str(form, "pickup_phone"),
-      pickup_at: str(form, "pickup_at"), drop_place: str(form, "drop_place"), drop_contact: str(form, "drop_contact"), drop_phone: str(form, "drop_phone"), deliver_by: str(form, "deliver_by"),
-      handling: str(form, "handling"), department: str(form, "department"),
+      department: str(form, "department"), pickup_at: str(form, "pickup_at"), pickup_place: str(form, "pickup_place"), drop_place: str(form, "drop_place"), vehicle_type: str(form, "vehicle_type"),
+      description: str(form, "description"), quantity_text: str(form, "quantity_text"), poc_details: str(form, "poc_details"), instructions: str(form, "instructions"),
     })).id;
     return "Requested.";
   });
