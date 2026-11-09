@@ -73,6 +73,36 @@ describe("the signed webhook and the menu", () => {
     expect(await hook("+923007001111", "", { tapped: "3" })).toBe(200);
     expect(sent().at(-1)?.body).toMatch(/What is the trip for/);
   });
+  it("a number past its daily cap is told once and then ignored; the cap is the owner's setting; other numbers are unaffected (ADR-081)", async () => {
+    await hook("+923007001111", "cancel");
+    await withPlatform(d, (q) => q.query("insert into public.platform_settings(key, value) values ('wa_daily_messages', '3') on conflict (key) do update set value = '3'"));
+    try {
+      await withPlatform(d, (q) => q.query("delete from public.rate_limits"));            // the cancel above was counted
+      rmSync(OUT, { force: true });
+      for (let i = 0; i < 3; i++) expect(await hook("+923007001111", "Hi")).toBe(200);
+      const before = sent().length;
+      expect(before).toBeGreaterThanOrEqual(3);
+      expect(await hook("+923007001111", "Hi")).toBe(200);                                  // the 4th: refused, told once
+      expect(sent().length).toBe(before + 1);
+      expect(sent().at(-1)?.body).toMatch(/limit of 3 messages/);
+      expect(await hook("+923007001111", "Hi")).toBe(200);                                  // the 5th: ignored in silence
+      expect(sent().length).toBe(before + 1);
+      const open = await raw((q) => q.query<{ n: string }>("select count(*)::text n from whatsapp_sessions where status = 'open'"));
+      expect(Number(open.rows[0].n)).toBeLessThanOrEqual(1);                                // nothing extra was started
+      rmSync(OUT, { force: true });
+      expect(await hook("+923009990000", "Hi")).toBe(200);                                  // another number still counts from zero
+      expect(sent().some((m) => /limit of/.test(m.body))).toBe(false);
+    } finally {
+      await withPlatform(d, (q) => q.query("delete from public.platform_settings where key = 'wa_daily_messages'"));
+      await withPlatform(d, (q) => q.query("delete from public.rate_limits"));
+      await hook("+923007001111", "cancel");
+    }
+  });
+  it("without the setting the cap is 100 a day", async () => {
+    const { waDailyLimit, WA_DAILY_DEFAULT } = await import("@/lib/wa-limit");
+    expect(WA_DAILY_DEFAULT).toBe(100);
+    expect(await waDailyLimit(d)).toBe(100);
+  });
   it("a stranger saying Hi is not answered by the menu, and a call for another number is ignored", async () => {
     expect(await hook("+923009990000", "Hi")).toBe(200);
     expect(sent().some((m) => /Fleet OTG for/.test(m.body))).toBe(false);                    // the older flows answer a stranger as before

@@ -5,6 +5,7 @@
 import type { NextRequest } from "next/server";
 import { getDriver } from "@/lib/db";
 import { allowShared } from "@/lib/rate-limit";
+import { countWhatsAppMessage } from "@/lib/wa-limit";
 import { clientIp } from "@/lib/client-ip";
 import { storeInboundFile } from "@/lib/admin/service";
 import { failedStatuses, fetchMedia, statusKinds, parseWebhook, sendReplyList, sendReplyText, verifyChallenge, verifyMetaSignature, whatsappInboundConfigured } from "@/lib/whatsapp";
@@ -47,6 +48,12 @@ async function postImpl(req: NextRequest) {
   const tell = (to: string, text: string) => sendReplyText(to, text).catch(() => undefined);          // a failed acknowledgement never undoes the filing
   try {
     for (const m of messages) {
+      // A daily cap per phone number (ADR-081): past it nothing is processed, so no work, photo or AI reading is started. The sender is told once a day.
+      const cap = await countWhatsAppMessage(driver, m.from);
+      if (!cap.ok) {
+        if (cap.tellOnce) await tell(m.from, `You have reached today's limit of ${cap.limit} messages to Fleet OTG. Please try again tomorrow, or use the app.`);
+        continue;
+      }
       const odo = await processOdometerReply(driver, m);          // a driver's answer to the monthly odometer request (ADR-050)
       if (odo.handled) { if (odo.reply) await tell(m.from, odo.reply); continue; }
       // A known employee saying Hi, or answering one of the menu's questions (ADR-079). A failure here is answered kindly and never retried, as below.
