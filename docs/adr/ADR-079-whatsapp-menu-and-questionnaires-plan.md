@@ -1,0 +1,52 @@
+# ADR-079: A WhatsApp menu and four guided questionnaires (V1.5 plan)
+
+Status: **plan only, nothing built.** Proposed 2026-11-09. Owner request: once a user is onboarded they say "Hi" to the Fleet OTG WhatsApp number and get a list of what they can do: **1. Submit a Job Card, 2. Schedule Cargo Pick-up and Delivery, 3. Reserve a Trip, 4. Submit Odometer Readings.** Each has its own questionnaire so complete information is registered for the fleet manager to act on. Builds on ADR-042 (the signed inbound webhook), ADR-050 (odometer by WhatsApp), ADR-061 (job cards by WhatsApp with the AI), ADR-045 (trips) and ADR-078 (outsourcing trips). Decisions marked **OWNER** are open; the proposed answer is stated.
+
+## What exists today
+- **Webhook** `/api/inbound/whatsapp` (signed by Meta, rule 5): messages go, in order, to the odometer reply (a driver answering the monthly request), the AI job card draft (Pro, ADR-061) and the workshop reply filer. Replies are free text inside Meta's 24-hour window (`sendReplyText`).
+- **Who is the sender:** by phone number, last ten digits, against active employees with a login, in the organizations that switched the feature on (`public.tenants.wa_jobcards_enabled`). A number matching two employees is never guessed.
+- **Services that already do the real work:** `createJobCard`, `requestTrip`, and the odometer entry. WhatsApp only collects the answers; the same permission and scope checks run as in the app.
+- **No conversation memory** beyond the job card draft row (`whatsapp_intake`). There is no menu, no step-by-step questioning, and no cargo request at all.
+
+## Decision (proposed)
+
+### The conversation
+1. **A known employee says "Hi"** (or "menu", "hello", "salam", "start", or anything while no conversation is open and the older flows do not claim it) and gets the menu of what **that person may do**: a WhatsApp list message with a text fallback ("reply 1 to 4"). An item is shown only if their role allows it and the module is on: job card needs `jobcard.create`; cargo and trip need `trip.request` and the trips module; odometer needs the right to enter readings. A person who may do none is told to use the app.
+2. **One question per message**, each checked before the next is asked (a vehicle must be one they may use; a date must be a date; a number must be a number). A wrong answer is explained and asked again, never accepted. At any step: **BACK** (previous question), **CANCEL** or **MENU** (leave). A conversation lapses after 30 minutes of silence, and the person is told how to start again.
+3. **Every flow ends in a summary** in plain words and "Reply YES to send, or EDIT to change an answer, or CANCEL". Only YES creates anything.
+4. **Creation goes through the one existing function** with the sender's own role: `createJobCard` (created as Requested, marked as raised by WhatsApp), `requestTrip`, the odometer entry, and the cargo request below. So approval, segregation of duties, vehicle scope, licence and department rules are unchanged, and WhatsApp identity (a phone number) never decides anything an app login would not.
+5. **The fleet manager is told** in the app (and by email as other notices are) the moment a request lands, with everything the questionnaire collected on the request itself. The sender gets the number back ("Job card JC-000123 raised") and, **only while the 24-hour window is open**, a message when it is approved, rejected or completed. Outside the window nothing is sent from here; the status is in the app.
+6. **Several companies:** a number found in more than one asks "Which company?" by name first, and remembers it for the conversation. **A number shared by several people** (the beta switch, ADR-076) is not guessed: the bot says it cannot tell who is writing and points to the app.
+
+### The four questionnaires
+- **1. Submit a Job Card:** vehicle (their own vehicles listed by number, or typed registration), what is wrong (the existing reason categories as a list), describe it, odometer now (km), how urgent (low, normal, high, critical), needed by (optional date), up to 3 photos (optional). Summary, YES. Same required facts as the web form, nothing the web form would refuse.
+- **2. Schedule Cargo Pick-up and Delivery (new):** what is being moved, weight or quantity, pick-up place and contact person and phone, pick-up date and time, delivery place and contact and phone, deliver-by date and time, special handling (fragile, cold, hazardous, needs loading help; optional), and who in the company it is for (cost centre or department, optional). It is recorded as a **trip of kind `cargo`** with its own fields, so it shows in Trips for the fleet manager and Logistics, who either assign an own vehicle and driver or **send it to logistics providers for quotes** (ADR-078, Pro). No second system.
+- **3. Reserve a Trip:** purpose, from, to, start date and time, return date and time, number of passengers, preferred vehicle (optional list). The existing trip request.
+- **4. Submit Odometer Readings:** which vehicle, the reading in km, and optionally a photo of the dashboard. Checked by the existing rules (not below the last reading, not an implausible jump; flagged for review otherwise). More than one vehicle can be sent in the same chat ("another?").
+
+### Data and code (when built)
+- **Tenant migration:** `whatsapp_sessions` (employee, flow, step, answers as JSON, photos, expires_at, created_at; rows deleted a day after they close), `trips.kind` widened to include `cargo`, and cargo fields on `trips` (`cargo_description`, `cargo_weight`, `pickup_contact`, `pickup_phone`, `drop_contact`, `drop_phone`, `deliver_by`, `handling`). `job_cards.source` already exists.
+- **Code:** a small conversation engine (`src/lib/wa-menu/engine.ts`: steps, validators, back/cancel, summary) and one definition file per questionnaire; the webhook calls it after the odometer reply and before the AI job card draft. Free text from a known employee with no open conversation that looks like a job card still goes to the AI draft where that is switched on (ADR-061); greetings and numbers go to the menu.
+- **Limits:** 40 messages an hour per sender, one open conversation at a time, photos images only (3 of at most 5 MB), voice notes and locations get "please type it". No number, message or photo is logged.
+- **Switch:** a company setting `whatsapp_menu`, off by default, switched on by the administrator beside the other WhatsApp switches. A company that has not switched it on is told so.
+
+### Tests (when built)
+The engine with a fake sender: each flow end to end, a bad answer asked again, BACK, CANCEL, lapse, restart, YES creating exactly once even if Meta repeats the message, permission and scope refusals, a shared number, several companies, the 24-hour window for status messages. The webhook in the browser suite by posting signed messages with the test secret, then the cargo request shown to the fleet manager.
+
+## Owner decisions (2026-11-09)
+- A. **Plan: Pro only.** The whole menu and its four questionnaires are a Pro feature, like the existing WhatsApp job card draft (ADR-061). A Basic company that messages the number is told this is a Pro feature and pointed to the app. Nothing is priced here.
+- B. **Cargo is a separate cargo request list**, not a trip kind. It has its own table, page, states and notices. A cargo request can later be turned into a trip by a person (a link from the request to the trip), so the existing vehicle, driver and provider-quote flows are reused without bending trips to carry cargo fields. (This replaces the "trip of kind cargo" proposal above; ignore the `trips.kind` and cargo fields on `trips` in the data paragraph. They become a `cargo_requests` table instead.)
+- C. **The fleet manager is also told on WhatsApp.** Because a manager has usually not written in the last 24 hours, that message must be an approved utility template (proposed body: "Hello {{1}}, a new {{2}} request {{3}} from {{4}} is waiting for you. Press the button to open it.", URL button to the app page). It needs a mobile number on each manager's employee record, and goes only to people who hold the permission to act on that kind of request and have a number. In-app and email notices stay as well. Creating the template is a step for the owner to confirm, as for the trip templates.
+- D. **Keep both** the job card questionnaire and the AI free-text draft (proposed, not contradicted).
+- E. **English first**, with Urdu and Roman Urdu greeting words (proposed, not contradicted).
+
+## Cargo requests (the separate list)
+- **Table `cargo_requests`:** number `CR-000001`, requested by, what is being moved, weight or quantity, pick-up place, pick-up contact and phone, pick-up date and time, delivery place, delivery contact and phone, deliver-by, special handling, department or cost centre, status, decided by and note, an optional link to a trip, source (`whatsapp` or `app`), created at.
+- **States:** requested, accepted (planned), in_transit, delivered, rejected, cancelled; one function `transition_cargo_request` writes each change and a history row (rule 4). The requester cannot accept their own request (segregation, ADR-077 for a sole administrator).
+- **Page:** "Cargo" in the menu for people who may request or handle it: a list with filters and a detail page where the fleet manager or Logistics accepts, rejects, marks in transit and delivered, and presses "Make a trip from this", which opens a trip request prefilled from the cargo request and keeps the link. Permissions: `cargo.request` (everyone who may reserve a trip) and `cargo.handle` (Fleet manager, Logistics, administrator).
+- The web app also gets a "Request cargo" form with the same questions, so the list is not WhatsApp only.
+
+## Phases
+- **A:** the engine, the menu, identity, the Pro gate and the switch; flows 3 (Reserve a Trip) and 4 (Odometer), which need no new data.
+- **B:** flow 1 (Job Card questionnaire, photos).
+- **C:** flow 2 (Cargo): `cargo_requests`, its page and web form, the link to a trip, and the notices (in-app, email and the WhatsApp template).
