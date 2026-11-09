@@ -4,6 +4,7 @@
 // src/lib/ai/document.ts checks. The key is read from the server's environment by the SDK, never logged, never sent to a browser.
 import Anthropic from "@anthropic-ai/sdk";
 import { checkPolicyDraft, POLICY_PROMPT, POLICY_SCHEMA, type PolicyDraft } from "./policy-draft";
+import { ADVICE_PROMPT, ADVICE_SCHEMA, checkAdvice, type QuoteAdvice } from "./quote-advice";
 import { checkJobCardDraft, JOBCARD_PROMPT, JOBCARD_SCHEMA, type JobCardDraft } from "./jobcard-draft";
 import { checkDraft, DOCUMENT_SCHEMA, SYSTEM_PROMPT, type Draft, type Expectation } from "./document";
 
@@ -170,6 +171,36 @@ export async function readJobCardMessage(req: { text: string; previous: JobCardD
   } catch (e) {
     // Never the key, the message or the photos: only the kind of failure.
     const why = e instanceof Anthropic.RateLimitError ? "The AI service is busy. Please try again in a minute." : "I could not read that just now. Please try again, or raise the job card in the app.";
+    return { status: "failed", reason: why, ...noUsage(model) };
+  }
+}
+
+export type AdviceResult = ({ status: "ok"; advice: QuoteAdvice } & Usage) | ({ status: "unreadable" | "refused" | "failed"; reason: string } & Usage);
+
+/**
+ * The one model call for comparing a trip's quotes (ADR-080). It gets the trip's route and needs and each option's quote, rate cards and history under a letter: no
+ * provider names, no people. It has no tools and cannot act; the answer is checked by checkAdvice and shown as advice. `create` is passed in so tests need no network.
+ */
+export async function adviseQuotes(input: unknown, labels: string[], create: CreateMessage = realCreate): Promise<AdviceResult> {
+  const model = aiModel();
+  try {
+    const res = await create({
+      model, max_tokens: 3000,
+      output_config: { effort: "medium", format: { type: "json_schema", schema: ADVICE_SCHEMA as unknown as Record<string, unknown> } },
+      system: [{ type: "text", text: ADVICE_PROMPT, cache_control: { type: "ephemeral" } }],
+      messages: [{ role: "user", content: [{ type: "text", text: JSON.stringify(input) }] }],
+    });
+    const usage = usageOf(model, res);
+    if (res.stop_reason === "refusal") return { status: "refused", reason: "The AI declined to compare these quotes. Compare them by hand.", ...usage };
+    if (res.stop_reason === "max_tokens") return { status: "failed", reason: "The comparison was too long to finish. Try again, or compare by hand.", ...usage };
+    const answer = res.content.find((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")?.text ?? "";
+    let raw: unknown;
+    try { raw = JSON.parse(answer); } catch { return { status: "failed", reason: "The AI's answer could not be read. Try again, or compare by hand.", ...usage }; }
+    const advice = checkAdvice(raw, labels);
+    if (!advice) return { status: "unreadable", reason: "The AI gave no usable comparison. Try again, or compare by hand.", ...usage };
+    return { status: "ok", advice, ...usage };
+  } catch (e) {
+    const why = e instanceof Anthropic.RateLimitError ? "The AI service is busy. Try again in a minute." : e instanceof Anthropic.APIError ? `The AI service refused the request (${e.status}).` : "The AI service could not be reached.";
     return { status: "failed", reason: why, ...noUsage(model) };
   }
 }

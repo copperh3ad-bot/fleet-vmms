@@ -5,7 +5,7 @@ import type { FormState } from "../../actions-util";
 import { useFormStatus } from "react-dom";
 import { btn } from "@/components/ui";
 import { smsLink, whatsappLink } from "@/lib/phone";
-import { askQuotesAction, awardQuoteAction, declineQuoteAction, recordQuoteAction, tripInvoiceLinkAction, tripInvoiceWhatsappAction, tripQuoteLinkAction, tripQuoteWhatsappAction, verifyTripInvoiceAction, type TripLinkState } from "../actions";
+import { askQuotesAction, awardQuoteAction, compareQuotesAction, declineQuoteAction, recordQuoteAction, tripInvoiceLinkAction, tripInvoiceWhatsappAction, tripQuoteLinkAction, tripQuoteWhatsappAction, verifyTripInvoiceAction, type TripLinkState } from "../actions";
 
 /** Choose the logistics providers to ask for a quote on this trip (ADR-078). The ones already asked are ticked and locked. */
 export function AskProviders({ slug, id, providers, asked }: { slug: string; id: string; providers: { id: string; name: string; phone: string | null }[]; asked: string[] }) {
@@ -43,6 +43,16 @@ export function QuoteForm({ slug, quoteId, current }: { slug: string; quoteId: s
       <Input id={p + "driver"} name="driver_text" label="Their driver" state={s} />
       <div className="sm:col-span-2"><Input id={p + "notes"} name="notes" label="Notes" state={s} /></div>
       <div className="flex items-center gap-3 sm:col-span-2"><Submit>{current?.amount ? "Correct the quote" : "Save the quote"}</Submit><Notice state={state} /></div>
+    </form>
+  );
+}
+
+/** Ask the AI to compare the quotes in (ADR-080). It advises; the person awards. */
+export function CompareWithAi({ slug, id, again }: { slug: string; id: string; again: boolean }) {
+  const [state, action] = useActionState<FormState>(compareQuotesAction.bind(null, slug, id) as (p: FormState) => Promise<FormState>, {});
+  return (
+    <form action={action} className="flex flex-wrap items-center gap-3">
+      <Go label={again ? "Compare again with AI" : "Compare with AI"} pendingLabel="Comparing" /><Notice state={state} />
     </form>
   );
 }

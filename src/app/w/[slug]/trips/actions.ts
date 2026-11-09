@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
 import { getDriver } from "@/lib/db";
 import { awardTripQuote, createTripInvoiceLink, createTripQuoteLink, verifyTripInvoice, declineTripQuote, recordTripQuote, requestTripQuotes, requestTrip, setPoolCar, transitionTrip } from "@/lib/trips/service";
+import { recommendTripQuotes } from "@/lib/trips/advice";
 import { origin } from "@/lib/origin";
 import { UserError } from "@/lib/master/service";
 import { sendTemplate, whatsappConfigured } from "@/lib/whatsapp";
@@ -44,6 +45,13 @@ export async function askQuotesAction(slug: string, id: string, _prev: FormState
     const n = await requestTripQuotes(getDriver(), m, id, form.getAll("vendor_id").map(String));
     return n ? `Quote asked from ${n} provider${n === 1 ? "" : "s"}.` : "They were already asked.";
   });
+  if (state.ok) refresh();
+  return state;
+}
+
+/** Ask the AI to compare the quotes that have come in (ADR-080). Advice only. */
+export async function compareQuotesAction(slug: string, id: string, _prev: FormState): Promise<FormState> {
+  const state = await runAction(slug, async (m) => { await recommendTripQuotes(getDriver(), m, id); return "Comparison ready."; });
   if (state.ok) refresh();
   return state;
 }

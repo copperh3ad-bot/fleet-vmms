@@ -7,7 +7,8 @@ import { getDriver } from "@/lib/db";
 import { assignables, getTrip, listLogisticsProviders, listTripInvoices, listTripQuotes, outsourcingOn, tripsEnabled, TRIP_STATUS_LABEL } from "@/lib/trips/service";
 import { PageHeader, Panel, Pill, Plate } from "@/components/ui";
 import { TripStep } from "./steps";
-import { AskProviders, AwardForm, DeclineButton, QuoteForm, SendInvoiceLink, SendQuoteLink, VerifyTripInvoice } from "./outsource";
+import { latestQuoteAdvice, quoteAdviceOffered } from "@/lib/trips/advice";
+import { AskProviders, AwardForm, CompareWithAi, DeclineButton, QuoteForm, SendInvoiceLink, SendQuoteLink, VerifyTripInvoice } from "./outsource";
 import { tripInvoiceWhatsappFromServer, tripWhatsappFromServer } from "@/lib/trips/whatsapp";
 import { listProviderRates, RATE_BASIS } from "@/lib/trips/outsourced";
 
@@ -32,6 +33,10 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
   const outsourcing = perms.has("trip.award") && (await outsourcingOn(driver, m));
   const quotes = outsourcing ? await listTripQuotes(driver, m, id) : [];
   const rates = outsourcing ? await listProviderRates(driver, m).catch(() => []) : [];
+  // The AI's comparison of the quotes (ADR-080, Pro): advice only, shown beside the quotes it covers.
+  const canCompare = outsourcing && t.status === "requested" && quotes.filter((x) => x.status === "quoted").length >= 2 && (await quoteAdviceOffered(driver, m));
+  const advice = outsourcing && t.status === "requested" ? await latestQuoteAdvice(driver, m, id) : null;
+  const adviceRank = new Map((advice?.ranking ?? []).map((r, i) => [r.quote_id, i + 1]));
   const providers = outsourcing && t.status === "requested" ? await listLogisticsProviders(driver, m) : [];
   const outsourced = !!t.outsourced_vendor;
   // The provider's invoice (ADR-078 B2): seen by those who ask for it and those who check it.
@@ -76,6 +81,29 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
         <Panel title="Logistics providers">
           <div className="space-y-5">
             {t.status === "requested" && <AskProviders slug={slug} id={id} providers={providers} asked={quotes.map((x) => x.vendor_id)} />}
+            {(canCompare || advice) && (
+              <div className="space-y-3 rounded-md border border-sky-100 bg-sky-50/50 p-4 text-sm">
+                {canCompare && <CompareWithAi slug={slug} id={id} again={!!advice} />}
+                {advice && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-zinc-500">AI advice, {when(advice.created_at)}. It only advises; you decide who to award.</p>
+                    {advice.stale && <p className="rounded bg-amber-50 p-2 text-amber-900">The quotes have changed since this was made. Compare again before relying on it.</p>}
+                    {advice.summary && <p className="font-medium">{advice.summary}</p>}
+                    <ol className="space-y-1.5">
+                      {advice.ranking.map((r, i) => {
+                        const q = quotes.find((x) => x.id === r.quote_id);
+                        return (
+                          <li key={r.quote_id}><span className="font-medium">{i + 1}. {q?.vendor_name ?? "A provider"}</span>{q?.amount && ` · ${Number(q.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+                            <span className="text-zinc-700"> — {r.reason}</span>
+                            {r.concerns.length > 0 && <ul className="ml-4 list-disc text-amber-900">{r.concerns.map((c, j) => <li key={j}>{c}</li>)}</ul>}</li>
+                        );
+                      })}
+                    </ol>
+                    {advice.warnings.length > 0 && <ul className="list-disc pl-4 text-xs text-zinc-600">{advice.warnings.map((w, j) => <li key={j}>{w}</li>)}</ul>}
+                  </div>
+                )}
+              </div>
+            )}
             {quotes.map((x) => (
               <div key={x.id} className="space-y-3 border-t border-zinc-100 pt-4 text-sm">
                 <div className="flex flex-wrap items-center gap-3">
@@ -83,6 +111,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
                   <Pill>{{ requested: "Waiting for a quote", quoted: "Quoted", declined: "Declined", awarded: "Awarded", closed: "Closed" }[x.status] ?? x.status}</Pill>
                   {x.amount && <span className="font-medium">{Number(x.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>}
                   {x.status === "quoted" && lowest !== null && Number(x.amount) === lowest && <Pill tone="ok">Lowest</Pill>}
+                  {adviceRank.get(x.id) === 1 && !advice?.stale && <Pill tone="ok">AI prefers</Pill>}
                   {x.status === "quoted" && lowest !== null && Number(x.amount) > lowest && <span className="text-xs text-zinc-500">+{(Number(x.amount) - lowest).toLocaleString("en-US", { minimumFractionDigits: 2 })} over the lowest</span>}
                   {x.valid_until && <span className="text-zinc-500">valid until {x.valid_until}</span>}
                 </div>
