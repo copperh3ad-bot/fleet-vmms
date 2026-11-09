@@ -113,7 +113,7 @@ function OverviewBlocks({ o, to }: { o: Overview; to: (h: string) => string }) {
   const k = (n: number) => `${Math.round(n / 1000).toLocaleString("en-US")}k`;
   return (
     <>
-      <div className="rise grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" style={{ "--i": 1 } as React.CSSProperties}>
+      <div className={`rise grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${o.approvals ? "2xl:grid-cols-6" : "xl:grid-cols-5"}`} style={{ "--i": 1 } as React.CSSProperties}>
         {o.approvals && <Kpi icon={I.check} label="Awaiting your approval" value={o.approvals.count} note={o.approvals.oldestDays !== null ? `Oldest waiting ${plural(o.approvals.oldestDays, "day")}` : "Nothing waiting"} href={to("job-cards?status=submitted")} />}
         <Kpi icon={I.card} label="Open job cards" value={o.openCards.count} note={`${o.openCards.atWorkshop} at a workshop now`} href={to("job-cards")} />
         <Kpi icon={I.coin} label={`Spend this month (${cur})`} value={money(sm.spent)}

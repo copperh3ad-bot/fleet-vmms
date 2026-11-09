@@ -14,7 +14,7 @@ export function VendorForm({ slug, vendor }: { slug: string; vendor?: Vendor }) 
   const p = `vendor-${vendor?.id ?? "new"}-`;   // several of these forms share a page; ids must differ
   return (
     <form action={action} className="grid grid-cols-1 gap-3 sm:grid-cols-2" noValidate>
-      <Select id={p + "kind"} name="kind" label="Type" state={s.values ? s : { ...s, values: { kind: "workshop" } }} options={[["workshop", "Workshop (repairs and services)"], ["logistics", "Logistics provider (trips)"]]} />
+      <Select id={p + "kind"} name="kind" label="Type" state={s.values ? s : { ...s, values: { kind: "workshop" } }} options={[["logistics", "Logistics provider (trips)"]]} blank="Workshop (repairs and services)" />
       <Input id={p + "name"} name="name" label="Name" state={s} required />
       <Input id={p + "categories"} name="categories" label="Categories" state={s} hint="Comma separated: engine, tyres, electrical" />
       <Input id={p + "contact"} name="contact" label="Contact person" state={s} />

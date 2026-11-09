@@ -1,4 +1,4 @@
-import { body, check, go, has, press, scenario, sql, step, waitText } from "./lib.mjs";
+import { body, check, go, shot, has, press, scenario, sql, step, waitText } from "./lib.mjs";
 
 // ADR-078 phase A: a trip goes to three logistics providers, each quotes, the administrator awards the cheapest, and the trip is approved as outsourced.
 // Needs scenarios 2 and 3 first (the company and its administrator). Setup (the module switch, the Pro plan, the vendors and the trip) is done in the database;
@@ -26,6 +26,7 @@ export async function outsourcedTrip(S) {
   await step("the Vendors page tells workshops and logistics providers apart", async () => {
     await go(o, `${base}/vendors`);
     const t = await body(o);
+    await shot(o, "audit-vendors");
     check(has(t, "Alpha Freight") && has(t, "Logistics") && has(t, "Type"), `the vendor list does not show the type: ${t.slice(0, 200)}`);
   });
 
@@ -36,6 +37,7 @@ export async function outsourcedTrip(S) {
     await press(o, "Ask for quotes", { wait: 1500 });
     await waitSql(() => run(`select count(*) from trip_quotes where trip_id = '${trip}'`).split("\n").pop(), "3");
     check(quoteOf("Alpha Freight") === "requested/", "the request was not recorded");
+    await shot(o, "audit-trip-asked");
   });
 
   await step("the quotes are entered; the dearest and the cheapest show their amounts", async () => {
@@ -48,6 +50,11 @@ export async function outsourcedTrip(S) {
       await o.page.waitForLoadState("networkidle").catch(() => undefined);
       await waitSql(() => quoteOf(name), `quoted/${amount}.00`, 8000);
     }
+  });
+
+  await step("audit shots of the main pages", async () => {
+    await go(o, `${base}/trips/${trip}`); await shot(o, "audit-trip-quoted");
+    for (const [n, path] of [["dashboard", ""], ["vehicles", "/vehicles"], ["jobcards", "/job-cards"], ["trips", "/trips"]]) { await go(o, base + path); await o.page.waitForTimeout(800); await shot(o, `audit-${n}`); }
   });
 
   await step("the administrator awards the cheapest; the trip is approved as outsourced and the others close", async () => {

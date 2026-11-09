@@ -19,7 +19,9 @@ export function AskProviders({ slug, id, providers, asked }: { slug: string; id:
           </label>
         ))}
       </fieldset>
-      <div className="flex items-center gap-3"><Submit>Ask for quotes</Submit><Notice state={state} /></div>
+      {providers.some((p) => !asked.includes(p.id))
+        ? <div className="flex items-center gap-3"><Submit>Ask for quotes</Submit><Notice state={state} /></div>
+        : <p className="text-xs text-zinc-500">Every provider has been asked.</p>}
     </form>
   );
 }

@@ -31,6 +31,8 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
   const quotes = outsourcing ? await listTripQuotes(driver, m, id) : [];
   const providers = outsourcing && t.status === "requested" ? await listLogisticsProviders(driver, m) : [];
   const outsourced = !!t.outsourced_vendor;
+  const quotedAmounts = quotes.filter((x) => x.status === "quoted").map((x) => Number(x.amount));
+  const lowest = quotedAmounts.length > 1 ? Math.min(...quotedAmounts) : null;
   return (
     <main className="space-y-5 p-6 text-zinc-900">
       <PageHeader crumb={<a href={`/w/${slug}/trips`} className="text-sky-800 hover:underline">Trips</a>} title={t.trip_no} sub={`${t.kind === "pick_drop" ? "Staff pick and drop · " : ""}${t.purpose}`} actions={<Pill>{TRIP_STATUS_LABEL[t.status] ?? t.status}</Pill>} />
@@ -72,7 +74,9 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="font-medium">{x.vendor_name}</span>
                   <Pill>{{ requested: "Waiting for a quote", quoted: "Quoted", declined: "Declined", awarded: "Awarded", closed: "Closed" }[x.status] ?? x.status}</Pill>
-                  {x.amount && <span>{Number(x.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>}
+                  {x.amount && <span className="font-medium">{Number(x.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>}
+                  {x.status === "quoted" && lowest !== null && Number(x.amount) === lowest && <Pill tone="ok">Lowest</Pill>}
+                  {x.status === "quoted" && lowest !== null && Number(x.amount) > lowest && <span className="text-xs text-zinc-500">+{(Number(x.amount) - lowest).toLocaleString("en-US", { minimumFractionDigits: 2 })} over the lowest</span>}
                   {x.valid_until && <span className="text-zinc-500">valid until {x.valid_until}</span>}
                 </div>
                 {(x.vehicle_text || x.driver_text || x.notes) && <p className="text-zinc-600">{[x.vehicle_text, x.driver_text, x.notes].filter(Boolean).join(" · ")}</p>}
@@ -87,10 +91,10 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
           </div>
         </Panel>
       )}
-      {t.status === "requested" && approver && <Panel title="Reject"><TripStep {...step} to="rejected" label="Reject trip" fields={["note"]} /></Panel>}
+      {t.status === "requested" && approver && <Panel title="Reject or cancel"><TripStep {...step} to="rejected" label="Reject trip" fields={["note"]} /></Panel>}
       {t.status === "approved" && (approver || t.mine) && <Panel title="Departure"><TripStep {...step} to="started" label="Mark as left" fields={outsourced ? [] : ["odometer"]} /></Panel>}
       {t.status === "started" && (approver || t.mine) && <Panel title="Return"><TripStep {...step} to="completed" label="Mark as returned" fields={outsourced ? [] : ["odometer"]} /></Panel>}
-      {(t.status === "requested" || t.status === "approved") && canCancel && <Panel title="Cancel"><TripStep {...step} to="cancelled" label="Cancel trip" fields={["note"]} /></Panel>}
+      {(t.status === "requested" || t.status === "approved") && canCancel && !(t.status === "requested" && approver && !t.requested_by_me) && <Panel title="Cancel"><TripStep {...step} to="cancelled" label="Cancel trip" fields={["note"]} /></Panel>}
 
       <Panel title="History" flush>
         <ol className="divide-y divide-zinc-100 text-sm">
