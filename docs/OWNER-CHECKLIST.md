@@ -56,6 +56,6 @@ Say "deploy" to publish: the premium dashboard, the cleaned wording, the get-sta
 - [ ] **Switch it on per company** (Vendors page, "WhatsApp menu", administrator, Pro plan). It is off by default.
 - [ ] **Confirm one WhatsApp template for the fleet manager's notice**, so I can submit it to Meta (utility): `Hello {{1}}, a new {{2}} request {{3}} from {{4}} is waiting for you. Press the button to open it.` with a URL button `https://www.fleetotg.com/w/{{1}}` (the part after /w/ is filled in: the company, the page and the request). Then set the secret `WHATSAPP_CARGO_NOTICE_TEMPLATE` to its name. Without it, managers get the in-app notice only.
 - [ ] **Mobile numbers**: each fleet manager and Logistics person needs a mobile number on their employee record to receive that WhatsApp notice, and every employee who will use the menu needs their own number on their record, with a login. A number shared by two employees is never guessed.
-- [ ] **Decision: the dashboard photo for odometer readings.** Not built: a reading has nowhere to keep a picture. Say if it should.
-- [ ] **Decision: a tappable WhatsApp list** instead of "reply with a number". Works on every phone today; a list message can replace it.
+- [x] **Decision: the dashboard photo for odometer readings.** Decided 2026-11-09: odometer by text only.
+- [x] **Decision: a tappable WhatsApp list.** Decided 2026-11-09 and built: the menu and the questions with options are lists, typing a number still works.
 - [ ] **Test with real phones**: say Hi from an employee's phone, raise a job card with a photo, ask for cargo, reserve a trip and send a reading; then accept the cargo request as a manager and make a trip from it. Tell me anything awkward.

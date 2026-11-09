@@ -17,6 +17,7 @@ const phoneStep = (key: string, who: string) => ({
 export const cargoFlow: Flow = {
   id: "cargo",
   label: "Schedule Cargo Pick-up and Delivery",
+  short: "Cargo Pick-up, Delivery",
   allowed: (driver, m) => withTenant(driver, m, (q) => can(q, m.role, "cargo.request")),
   steps: [
     { key: "description", ask: async () => "What needs to be moved? For example: boxes of sample fabric.", parse: async (raw) => parseText(raw, 3, 300, "what needs to be moved") },
@@ -44,6 +45,7 @@ export const cargoFlow: Flow = {
     {
       key: "handling",
       optional: true,
+      choices: () => HANDLE,
       ask: async () => `Does it need special handling? Reply with a number, or SKIP.\n${listChoices(HANDLE)}`,
       parse: async (raw) => { const r = pickChoice(raw, HANDLE, "the handling"); return r.ok && r.value.id === "none" ? good(null) : r; },
     },

@@ -253,3 +253,39 @@ describe("what the menu does not do", () => {
     expect(last).toMatch(/lot of messages/);
   });
 });
+
+describe("the tappable list", () => {
+  const out = (text: string, from = DRIVER) => processWhatsAppMenu(d, msg(text, from));
+  beforeEach(async () => { await out("cancel"); });                                   // each test starts with no conversation open
+  it("the menu goes out as a list with one row per thing the person may do, short titles, and the full name under a long one", async () => {
+    const r = await out("Hi");
+    expect(r.list?.button).toBe("Choose");
+    expect(r.list?.rows.map((x) => x.id)).toEqual(["1", "2", "3", "4"]);
+    expect(r.list?.rows.map((x) => x.title)).toEqual(["Submit a Job Card", "Cargo Pick-up, Delivery", "Reserve a Trip", "Submit Odometer Reading"]);
+    expect(r.list?.rows[1].description).toBe("Schedule Cargo Pick-up and Delivery");
+    expect(r.list?.rows.every((x) => x.title.length <= 24)).toBe(true);
+    expect(r.list?.body).toMatch(/What would you like to do\?[\s\S]*Tap the button/);
+    expect(r.list?.body).not.toMatch(/^\d\. /m);                                    // the rows are the options; the body does not repeat them
+    expect(r.reply).toMatch(/1\. Submit a Job Card[\s\S]*4\. Submit Odometer Readings/);   // the plain text is kept, for a phone or a failure that cannot show a list
+  });
+  it("a question with options is a list too: the vehicles the person holds; with no Skip row where the answer is needed", async () => {
+    await out("Hi");
+    const r = await out("4");
+    expect(r.list?.rows).toEqual([{ id: "1", title: "WAM-001 (Toyota Hilux)" }]);
+    await out("cancel");
+  });
+  it("choosing a row sends its id, which works exactly like the typed number", async () => {
+    await out("Hi");
+    expect((await out("3")).reply).toMatch(/What is the trip for/);                   // the id of the tapped row is "3"
+    await out("cancel");
+  });
+  it("a vehicle step that is optional shows the Skip row after the vehicles", async () => {
+    await out("Hi"); await out("3");
+    for (const a of ["Site visit", "Lahore", "Sheikhupura", "tomorrow 9am", "tomorrow 4pm"]) await out(a);
+    const r = await out("2");                                                         // passengers: 2, next is the optional vehicle list
+    expect(r.list?.rows.at(-1)).toEqual({ id: "skip", title: "Skip" });
+    expect(r.list?.rows[0].title).toBe("WAM-001 (Toyota Hilux)");
+    expect((await out("skip")).reply).toMatch(/Trip request:/);
+    await out("cancel");
+  });
+});

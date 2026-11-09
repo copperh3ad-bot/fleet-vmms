@@ -17,8 +17,24 @@ import type { Answers, Candidate, Ctx, Flow } from "./types";
 export const MENU_MESSAGES_PER_HOUR = 40;
 const HOUR = 3600;
 
-export type MenuOutcome = { handled: boolean; reply: string | null };
-const said = (reply: string | null): MenuOutcome => ({ handled: true, reply });
+/** `list` asks the webhook to send a tappable list with this body and these rows. `reply` is the same thing as plain numbered text: it is what goes if the list cannot be sent. */
+export type MenuList = { button: string; body: string; rows: { id: string; title: string; description?: string }[] };
+export type MenuOutcome = { handled: boolean; reply: string | null; list?: MenuList };
+const said = (reply: string | null, list?: MenuList): MenuOutcome => ({ handled: true, reply, ...(list ? { list } : {}) });
+
+const trimTitle = (s: string) => (s.length <= 24 ? s : `${s.slice(0, 23).trimEnd()}…`);
+const rowsFrom = (items: { id: string; label: string; short?: string }[]) => items.map((x) => ({ id: x.id, title: trimTitle(x.short ?? x.label), ...((x.short ?? x.label) !== x.label || x.label.length > 24 ? { description: x.label.slice(0, 72) } : {}) }));
+/** A question with numbered options, as the body of a list message: the numbered lines are the rows, so they are not repeated in the body. */
+const bodyOf = (text: string) => `${text.split("\n").filter((l) => !/^\d{1,2}\. /.test(l)).join("\n").replace(/\n{3,}/g, "\n\n").trim()}\n\nTap the button to choose, or reply with a number.`;
+
+/** The question of a step, as a tappable list when it has up to 10 options. Optional steps get a Skip row. */
+function asked(text: string, step: { choices?: (c: Ctx) => { id: string; label: string }[] | null; optional?: boolean }, c: Ctx): MenuOutcome {
+  const list = step.choices?.(c) ?? null;
+  const room = step.optional ? 9 : 10;
+  if (!list || list.length === 0 || list.length > room) return said(text);
+  const rows = list.map((x, i) => ({ id: String(i + 1), label: x.label }));
+  return said(text, { button: "Choose", body: bodyOf(text), rows: [...rowsFrom(rows), ...(step.optional ? [{ id: "skip", title: "Skip" }] : [])] });
+}
 const NOT_MINE: MenuOutcome = { handled: false, reply: null };
 
 type Session = { id: string; flow: string; step: string; answers: Answers; last_message_id: string | null; status: string };
@@ -54,7 +70,8 @@ async function showMenu(driver: Driver, m: Membership, me: Candidate, old: Sessi
   });
   if (flows.length === 0) return said(`Hello ${firstName(me.name)}. There is nothing I can do for your role in ${me.tenant.name} here yet. Please use the app.`);
   await withTenant(driver, m, (q) => q.query("insert into whatsapp_sessions(employee_id, flow, step, answers) values ($1, 'menu', 'choose', $2::jsonb)", [me.employeeId, JSON.stringify({ _menu: flows.map((f) => f.id) })]));
-  return said(`Hello ${firstName(me.name)}, this is Fleet OTG for ${me.tenant.name}. What would you like to do?\n${listChoices(flows.map((f) => ({ id: f.id, label: f.label })))}\n\nReply with a number. ${FOOTER}`);
+  const text = `Hello ${firstName(me.name)}, this is Fleet OTG for ${me.tenant.name}. What would you like to do?\n${listChoices(flows.map((f) => ({ id: f.id, label: f.label })))}\n\nReply with a number. ${FOOTER}`;
+  return said(text, { button: "Choose", body: `Hello ${firstName(me.name)}, this is Fleet OTG for ${me.tenant.name}. What would you like to do?\n\nTap the button to choose, or reply with a number. ${FOOTER}`, rows: rowsFrom(flows.map((f, i) => ({ id: String(i + 1), label: f.label, short: f.short }))) });
 }
 
 export async function processWhatsAppMenu(driver: Driver, msg: InboundMessage, opts: { now?: Date; photos?: PhotoDeps } = {}): Promise<MenuOutcome> {
@@ -129,7 +146,7 @@ async function continueSession(driver: Driver, m: Membership, me: Candidate, ses
     const c: Ctx = { driver, m, me, answers: {}, now };
     const question = await flow.steps[0].ask(c);
     await withTenant(driver, m, (q) => save(q, session.id, { flow: flow.id, step: flow.steps[0].key, answers: c.answers }));
-    return said(`${flow.label}. I will ask a few questions.\n\n${question}\n\n${FOOTER} Send BACK to go back one question.`);
+    return asked(`${flow.label}. I will ask a few questions.\n\n${question}\n\n${FOOTER} Send BACK to go back one question.`, flow.steps[0], c);
   }
 
   const flow = flowById(session.flow);
@@ -160,7 +177,9 @@ async function continueSession(driver: Driver, m: Membership, me: Candidate, ses
     const prev = flow.steps[idx - 1];
     delete answers[prev.key];
     await withTenant(driver, m, (q) => save(q, session.id, { step: prev.key, answers }));
-    return said(await prev.ask({ ...c, answers }));
+    const pc: Ctx = { ...c, answers };
+    const question = await prev.ask(pc);
+    return asked(question, prev, pc);
   }
   // A step that takes photos: a picture is kept, DONE or SKIP moves on, anything else is explained.
   if (step.photos) {
@@ -186,7 +205,7 @@ async function continueSession(driver: Driver, m: Membership, me: Candidate, ses
   if (step.optional && isSkip(text)) value = null;
   else {
     const r = await step.parse(text, c);
-    if (!r.ok) return said(`${r.error}\n\n${await step.ask(c)}`);
+    if (!r.ok) { const q = await step.ask(c); return asked(`${r.error}\n\n${q}`, step, c); }
     value = r.value;
   }
   answers[step.key] = value;
@@ -197,9 +216,10 @@ async function continueSession(driver: Driver, m: Membership, me: Candidate, ses
 async function advance(driver: Driver, m: Membership, flow: Flow, session: Session, c: Ctx, answers: Answers, idx: number): Promise<MenuOutcome> {
   const next = flow.steps[idx + 1];
   if (next) {
-    const question = await next.ask({ ...c, answers });
+    const nc: Ctx = { ...c, answers };
+    const question = await next.ask(nc);
     await withTenant(driver, m, (q) => save(q, session.id, { step: next.key, answers }));
-    return said(question);
+    return asked(question, next, nc);
   }
   await withTenant(driver, m, (q) => save(q, session.id, { step: "confirm", answers }));
   return said(`${flow.summary(answers)}\n\nReply YES to send it, EDIT to start again, or CANCEL.`);

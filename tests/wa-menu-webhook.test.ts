@@ -23,9 +23,10 @@ const admin = () => ({ ...t, userId: U(1), role: "tenant_admin", vehicleScope: "
 const raw = <T,>(fn: (q: import("@/lib/db/types").Queryable) => Promise<T>) => withTenant(d, admin(), fn);
 
 let seq = 0;
-async function hook(from: string, text: string, opts: { sign?: boolean; phoneId?: string } = {}) {
+async function hook(from: string, text: string, opts: { sign?: boolean; phoneId?: string; tapped?: string } = {}) {
   const { POST } = await import("@/app/api/inbound/whatsapp/route");
-  const body = JSON.stringify({ entry: [{ changes: [{ field: "messages", value: { metadata: { phone_number_id: opts.phoneId ?? "PNID" }, messages: [{ id: `wamid.${++seq}`, from: from.replace(/\D/g, ""), type: "text", text: { body: text } }] } }] }] });
+  const message = opts.tapped ? { type: "interactive", interactive: { type: "list_reply", list_reply: { id: opts.tapped, title: "x" } } } : { type: "text", text: { body: text } };
+  const body = JSON.stringify({ entry: [{ changes: [{ field: "messages", value: { metadata: { phone_number_id: opts.phoneId ?? "PNID" }, messages: [{ id: `wamid.${++seq}`, from: from.replace(/\D/g, ""), ...message }] } }] }] });
   const sig = opts.sign === false ? "sha256=00" : `sha256=${createHmac("sha256", SECRET).update(body).digest("hex")}`;
   const res = await POST(new Request("https://example.test/api/inbound/whatsapp", { method: "POST", headers: { "x-hub-signature-256": sig, "content-length": String(body.length) }, body }) as never);
   return res.status;
@@ -57,8 +58,19 @@ describe("the signed webhook and the menu", () => {
   it("a known employee saying Hi gets the menu back on WhatsApp, and answering a number gets the first question", async () => {
     expect(await hook("+923007001111", "Hi")).toBe(200);
     expect(sent().at(-1)).toMatchObject({ to: "+923007001111" });
-    expect(sent().at(-1)?.body).toMatch(/Hello Hook, this is Fleet OTG for Hook Fleet[\s\S]*3\. Reserve a Trip/);
+    expect(sent().at(-1)?.body).toMatch(/Hello Hook, this is Fleet OTG for Hook Fleet/);
+    expect((sent().at(-1) as unknown as { list: { title: string }[] }).list.map((r) => r.title)).toContain("Reserve a Trip");
     expect(await hook("+923007001111", "3")).toBe(200);
+    expect(sent().at(-1)?.body).toMatch(/What is the trip for/);
+  });
+  it("the menu goes out as a tappable list, and tapping a row is the same as typing its number", async () => {
+    await hook("+923007001111", "cancel");                                            // the test before left a question open
+    rmSync(OUT, { force: true });
+    expect(await hook("+923007001111", "Hi")).toBe(200);
+    const list = sent().at(-1) as unknown as { to: string; body: string; list: { id: string; title: string }[] };
+    expect(list.list.map((r) => r.id)).toEqual(["1", "2", "3", "4"]);
+    expect(list.body).toMatch(/Tap the button to choose/);
+    expect(await hook("+923007001111", "", { tapped: "3" })).toBe(200);
     expect(sent().at(-1)?.body).toMatch(/What is the trip for/);
   });
   it("a stranger saying Hi is not answered by the menu, and a call for another number is ignored", async () => {

@@ -7,7 +7,7 @@ import { getDriver } from "@/lib/db";
 import { allowShared } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
 import { storeInboundFile } from "@/lib/admin/service";
-import { failedStatuses, fetchMedia, statusKinds, parseWebhook, sendReplyText, verifyChallenge, verifyMetaSignature, whatsappInboundConfigured } from "@/lib/whatsapp";
+import { failedStatuses, fetchMedia, statusKinds, parseWebhook, sendReplyList, sendReplyText, verifyChallenge, verifyMetaSignature, whatsappInboundConfigured } from "@/lib/whatsapp";
 import { processInboundWhatsApp } from "@/lib/vendorflow/whatsapp-inbound";
 import { processOdometerReply } from "@/lib/odometer/whatsapp";
 import { processWhatsAppJobCard } from "@/lib/wa-jobcards/service";
@@ -52,7 +52,11 @@ async function postImpl(req: NextRequest) {
       // A known employee saying Hi, or answering one of the menu's questions (ADR-079). A failure here is answered kindly and never retried, as below.
       try {
         const menu = await processWhatsAppMenu(driver, m, { photos: deps });
-        if (menu.handled) { if (menu.reply) await tell(m.from, menu.reply); continue; }
+        if (menu.handled) {
+          if (menu.list && menu.reply) await sendReplyList(m.from, menu.list.body, menu.list.button, menu.list.rows).catch(() => tell(m.from, menu.reply!));   // a list that cannot be sent goes as plain text
+          else if (menu.reply) await tell(m.from, menu.reply);
+          continue;
+        }
       } catch (e) {
         console.error(`inbound-whatsapp: menu failed: ${e instanceof Error ? e.message.slice(0, 120) : "unknown"}`);
         await tell(m.from, "Sorry, I could not process that just now. Please try again in a few minutes, or use the app.");

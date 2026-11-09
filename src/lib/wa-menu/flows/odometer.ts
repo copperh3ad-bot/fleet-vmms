@@ -12,10 +12,12 @@ const FLAG: Record<string, string> = { lower_than_previous: "it is lower than th
 export const odometerFlow: Flow = {
   id: "odometer",
   label: "Submit Odometer Readings",
+  short: "Submit Odometer Reading",
   allowed: (driver, m) => withTenant(driver, m, (q) => can(q, m.role, "odometer.submit")),
   steps: [
     {
       key: "vehicle",
+      choices: (c) => (c.answers._vehicle_choices as Choice[] | undefined) ?? null,
       ask: async (c) => {
         const list = await withTenant(c.driver, c.m, (q) => heldVehicles(q, c.me.employeeId));
         c.answers._vehicle_choices = list;

@@ -220,6 +220,13 @@ export function parseWebhook(payload: unknown, ourPhoneNumberId = process.env.WH
       const media: InboundMedia[] = [];
       let text = "";
       if (type === "text") text = String((raw.text as { body?: string } | undefined)?.body ?? "");
+      else if (type === "interactive") {
+        // A row tapped in a list we sent (or a reply button): its id is what the person chose, handled exactly like the same words typed.
+        const i = raw.interactive as { list_reply?: { id?: string }; button_reply?: { id?: string } } | undefined;
+        const id2 = i?.list_reply?.id ?? i?.button_reply?.id;
+        if (typeof id2 !== "string" || !/^[A-Za-z0-9_-]{1,40}$/.test(id2)) continue;
+        text = id2;
+      }
       else if (type === "image" || type === "document") {
         const m = raw[type] as { id?: string; mime_type?: string; filename?: string; caption?: string } | undefined;
         if (m?.id) media.push({ id: String(m.id), filename: m.filename ? String(m.filename) : null, mime: m.mime_type ? String(m.mime_type) : null });
@@ -274,4 +281,19 @@ export async function sendReplyText(e164: string, body: string, fetchImpl: typeo
   const file = testFile();
   if (file) { appendFileSync(file, JSON.stringify({ to: e164, body }) + "\n"); return; }
   await post({ messaging_product: "whatsapp", to: e164.replace(/\D/g, ""), type: "text", text: { body: body.slice(0, 1000) } }, fetchImpl);
+}
+
+export type ListRow = { id: string; title: string; description?: string };
+
+/** WhatsApp's own limits for a list message: at most 10 rows, a title of 24 characters, a description of 72, a button label of 20, a body of 1024. */
+export function listPayload(e164: string, body: string, button: string, rows: ListRow[]) {
+  const clean = rows.slice(0, 10).map((r) => ({ id: r.id.slice(0, 200), title: r.title.slice(0, 24), ...(r.description ? { description: r.description.slice(0, 72) } : {}) }));
+  return { messaging_product: "whatsapp", to: e164.replace(/\D/g, ""), type: "interactive", interactive: { type: "list", body: { text: body.slice(0, 1024) }, action: { button: button.slice(0, 20), sections: [{ title: "Choose one", rows: clean }] } } };
+}
+
+/** A tappable list, to someone who wrote to us in the last 24 hours. The same words are in the body as plain text elsewhere, so a person who types a number still works. */
+export async function sendReplyList(e164: string, body: string, button: string, rows: ListRow[], fetchImpl: typeof fetch = fetch): Promise<void> {
+  const file = testFile();
+  if (file) { appendFileSync(file, JSON.stringify({ to: e164, body, list: rows.slice(0, 10) }) + "\n"); return; }
+  await post(listPayload(e164, body, button, rows), fetchImpl);
 }

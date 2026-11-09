@@ -28,10 +28,12 @@ const pick = (list: Choice[], what: string) => async (raw: string) => pickChoice
 export const jobCardFlow: Flow = {
   id: "jobcard",
   label: "Submit a Job Card",
+  short: "Submit a Job Card",
   allowed: (driver, m) => withTenant(driver, m, (q) => can(q, m.role, "jobcard.create")),
   steps: [
     {
       key: "vehicle",
+      choices: (c) => (c.answers._vehicle_choices as Choice[] | undefined) ?? null,
       ask: async (c) => {
         const list = await withTenant(c.driver, c.m, (q) => heldVehicles(q, c.me.employeeId));
         c.answers._vehicle_choices = list;
@@ -44,8 +46,8 @@ export const jobCardFlow: Flow = {
         return found ? good(found, found.label) : bad("I could not find that vehicle among the ones you can raise a job card for. Please check the registration number.");
       },
     },
-    { key: "work", ask: async () => `What kind of job is it?\n${listChoices(WORK)}`, parse: pick(WORK, "the kind of job") },
-    { key: "cause", ask: async () => `What is the main cause?\n${listChoices(CAUSES)}`, parse: pick(CAUSES, "the cause") },
+    { key: "work", choices: () => WORK, ask: async () => `What kind of job is it?\n${listChoices(WORK)}`, parse: pick(WORK, "the kind of job") },
+    { key: "cause", choices: () => CAUSES, ask: async () => `What is the main cause?\n${listChoices(CAUSES)}`, parse: pick(CAUSES, "the cause") },
     {
       key: "what",
       ask: async () => "Describe the problem or the work needed, for example: front left brake grinds when stopping.",
@@ -56,7 +58,7 @@ export const jobCardFlow: Flow = {
       ask: async (c) => `What does the odometer show on ${(c.answers.vehicle as Choice).label.split(" (")[0]} now? Send the kilometres.`,
       parse: async (raw) => parseNumber(raw, { min: 0, max: 5_000_000, what: "the odometer reading" }),
     },
-    { key: "priority", ask: async () => `How urgent is it?\n${listChoices(URGENCY)}`, parse: pick(URGENCY, "how urgent it is") },
+    { key: "priority", choices: () => URGENCY, ask: async () => `How urgent is it?\n${listChoices(URGENCY)}`, parse: pick(URGENCY, "how urgent it is") },
     {
       key: "needed_by",
       optional: true,

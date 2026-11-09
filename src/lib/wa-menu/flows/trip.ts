@@ -10,6 +10,7 @@ import { pickableVehicles } from "../vehicles";
 export const tripFlow: Flow = {
   id: "trip",
   label: "Reserve a Trip",
+  short: "Reserve a Trip",
   allowed: (driver, m) => withTenant(driver, m, async (q) => (await can(q, m.role, "trip.request")) && (await tripsOn(q))),
   steps: [
     { key: "purpose", ask: async () => "What is the trip for? For example: deliver samples to the Karachi office.", parse: async (raw) => parseText(raw, 3, 300, "what the trip is for") },
@@ -38,6 +39,7 @@ export const tripFlow: Flow = {
     {
       key: "vehicle",
       optional: true,
+      choices: (c) => (c.answers._vehicle_choices as Choice[] | undefined) ?? null,
       ask: async (c) => {
         const list = await withTenant(c.driver, c.m, (q) => pickableVehicles(q, c.me.employeeId, c.m.vehicleScope === "own"));
         c.answers._vehicle_choices = list;

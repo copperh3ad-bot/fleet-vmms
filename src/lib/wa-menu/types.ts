@@ -15,12 +15,16 @@ export type Step = {
   optional?: boolean;
   /** A step that takes photos (up to three), then DONE or SKIP. */
   photos?: boolean;
+  /** The options to show as a tappable list (at most 9, or 10 when it cannot be skipped). Read after `ask`, so a list built there can be returned. The text reply still works. */
+  choices?: (c: Ctx) => { id: string; label: string }[] | null;
 };
 
 /** A questionnaire. Nothing here creates anything until the person replies YES; `submit` then calls the same function the app uses, with the sender's own role. */
 export type Flow = {
   id: string;
   label: string;
+  /** The name on a tappable row, at most 24 characters; `label` is shown under it. */
+  short?: string;
   /** Whether this person may use it (permission and module switch). */
   allowed: (driver: Driver, m: Membership) => Promise<boolean>;
   steps: Step[];
