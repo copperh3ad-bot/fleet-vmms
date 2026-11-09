@@ -8,6 +8,8 @@ import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { UserError } from "@/lib/master/service";
 import { confirmClaim, deleteOrganization, extendTrial, proofLink, recordManualPayment, rejectClaim, setComped, setSuspended } from "@/lib/billing/operator";
 import { savePlatformSetting } from "@/lib/billing/settings";
+import { applySettingChanges, askSettingsAssistant, type Change } from "@/lib/billing/settings-ai";
+import type { SettingsAdvice } from "@/lib/ai/settings-assist";
 import { notifyClaimDecided } from "@/lib/billing/payment-mails";
 import { setOrgPlan, setPlanPrice, setProBands } from "@/lib/billing/plans";
 import { markContactHandled } from "@/lib/contact";
@@ -42,6 +44,24 @@ async function run(fn: (operatorId: string) => Promise<string>): Promise<FormSta
   }
 }
 const text = (f: FormData, k: string) => String(f.get(k) ?? "");
+
+export type AssistState = FormState & { advice?: SettingsAdvice; applied?: Change[] };
+
+/** The operator asks the Settings assistant (ADR-083). It only proposes; nothing is changed here. */
+export async function askSettingsAssistantAction(_p: AssistState, f: FormData): Promise<AssistState> {
+  let advice: SettingsAdvice | undefined;
+  const state = await run(async (op) => { advice = await askSettingsAssistant(getDriver(), op, text(f, "request")); return "Done."; });
+  return state.error ? { error: state.error } : { advice };
+}
+
+/** The operator applies the proposals they ticked. Every value is checked again on the server, as a typed one is. */
+export async function applySettingChangesAction(_p: AssistState, f: FormData): Promise<AssistState> {
+  let changes: Change[] = [];
+  try { const raw = JSON.parse(text(f, "changes")); changes = Array.isArray(raw) ? raw.map((c) => ({ key: String(c?.key), value: String(c?.value ?? "") })) : []; } catch { changes = []; }
+  let n = 0;
+  const state = await run(async (op) => { n = await applySettingChanges(getDriver(), op, changes); return `Saved ${n} change${n === 1 ? "" : "s"}.`; });
+  return state.error ? { error: state.error, fields: state.fields } : { ok: state.ok, applied: changes };
+}
 
 export async function confirmClaimAction(claimId: string, _p: FormState, f: FormData): Promise<FormState> {
   return run(async (op) => {

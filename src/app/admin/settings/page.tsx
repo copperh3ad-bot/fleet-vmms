@@ -4,7 +4,8 @@ import { getDriver } from "@/lib/db";
 import { loadPlatformSettings } from "@/lib/billing/settings";
 import { groupedSettings } from "@/lib/billing/setting-groups";
 import { PageHeader, Panel } from "@/components/ui";
-import { saveSettingAction, checkStorageAction } from "../actions";
+import { saveSettingAction, checkStorageAction, askSettingsAssistantAction, applySettingChangesAction } from "../actions";
+import { settingsAssistantOffered } from "@/lib/billing/settings-ai";
 import { SettingsBoard } from "./board";
 import { ToggleButton } from "../forms";
 
@@ -22,7 +23,7 @@ async function Inner() {
   return (
     <main className="mx-auto max-w-3xl space-y-5 p-6 text-zinc-900">
       <PageHeader title="Settings" sub="Testing switches, limits, payments, invoices, contacts and legal details. Search, or open a section." />
-      <SettingsBoard groups={groups} values={values} save={saveSettingAction} />
+      <SettingsBoard groups={groups} values={values} save={saveSettingAction} assist={settingsAssistantOffered() ? { ask: askSettingsAssistantAction, apply: applySettingChangesAction } : null} />
       <Panel title="File storage" sub="Saves, reads, links and deletes one tiny test file with the key this server really has, and says which step fails.">
         <ToggleButton action={checkStorageAction} label="Check file storage" />
       </Panel>

@@ -4,6 +4,8 @@
 // src/lib/ai/document.ts checks. The key is read from the server's environment by the SDK, never logged, never sent to a browser.
 import Anthropic from "@anthropic-ai/sdk";
 import { checkPolicyDraft, POLICY_PROMPT, POLICY_SCHEMA, type PolicyDraft } from "./policy-draft";
+import { checkSettingsAdvice, SETTINGS_PROMPT, SETTINGS_SCHEMA, settingsForModel, type SettingsAdvice } from "./settings-assist";
+import type { SettingDef } from "@/lib/billing/settings";
 import { ADVICE_PROMPT, ADVICE_SCHEMA, checkAdvice, type QuoteAdvice } from "./quote-advice";
 import { checkJobCardDraft, JOBCARD_PROMPT, JOBCARD_SCHEMA, type JobCardDraft } from "./jobcard-draft";
 import { checkDraft, DOCUMENT_SCHEMA, SYSTEM_PROMPT, type Draft, type Expectation } from "./document";
@@ -171,6 +173,36 @@ export async function readJobCardMessage(req: { text: string; previous: JobCardD
   } catch (e) {
     // Never the key, the message or the photos: only the kind of failure.
     const why = e instanceof Anthropic.RateLimitError ? "The AI service is busy. Please try again in a minute." : "I could not read that just now. Please try again, or raise the job card in the app.";
+    return { status: "failed", reason: why, ...noUsage(model) };
+  }
+}
+
+export type SettingsResult = ({ status: "ok"; advice: SettingsAdvice } & Usage) | ({ status: "unreadable" | "refused" | "failed"; reason: string } & Usage);
+
+/**
+ * The one model call for the operator's Settings assistant (ADR-083). It gets the operator's request and the settings' keys, explanations and short current values (never the bank
+ * details, never long text). It has no tools and cannot act; the answer is checked against the real settings and only proposed. `create` is passed in so tests need no network.
+ */
+export async function adviseSettings(request: string, defs: SettingDef[], current: Record<string, string>, create: CreateMessage = realCreate): Promise<SettingsResult> {
+  const model = aiModel();
+  try {
+    const res = await create({
+      model, max_tokens: 2000,
+      output_config: { effort: "low", format: { type: "json_schema", schema: SETTINGS_SCHEMA as unknown as Record<string, unknown> } },
+      system: [{ type: "text", text: SETTINGS_PROMPT, cache_control: { type: "ephemeral" } }],
+      messages: [{ role: "user", content: [{ type: "text", text: JSON.stringify({ settings: settingsForModel(defs, current), request: request.slice(0, 1000) }) }] }],
+    });
+    const usage = usageOf(model, res);
+    if (res.stop_reason === "refusal") return { status: "refused", reason: "The assistant declined that request. Change the setting by hand.", ...usage };
+    if (res.stop_reason === "max_tokens") return { status: "failed", reason: "The answer was too long to finish. Ask for fewer changes at a time.", ...usage };
+    const answer = res.content.find((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")?.text ?? "";
+    let raw: unknown;
+    try { raw = JSON.parse(answer); } catch { return { status: "failed", reason: "The assistant's answer could not be read. Try again.", ...usage }; }
+    const advice = checkSettingsAdvice(raw, defs, current);
+    if (!advice) return { status: "unreadable", reason: "The assistant gave no usable answer. Try asking differently.", ...usage };
+    return { status: "ok", advice, ...usage };
+  } catch (e) {
+    const why = e instanceof Anthropic.RateLimitError ? "The AI service is busy. Try again in a minute." : e instanceof Anthropic.APIError ? `The AI service refused the request (${e.status}).` : "The AI service could not be reached.";
     return { status: "failed", reason: why, ...noUsage(model) };
   }
 }

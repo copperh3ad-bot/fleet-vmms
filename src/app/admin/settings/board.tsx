@@ -5,6 +5,7 @@ import { useEffect, useId, useMemo, useState, useActionState } from "react";
 import type { FormState } from "@/app/w/[slug]/actions-util";
 import { inputCls } from "@/components/form";
 import { useFormStatus } from "react-dom";
+import type { AssistState } from "../actions";
 
 export type Def = { key: string; label: string; hint: string; multiline: boolean; oneOf: string[] | null; numeric: boolean };
 export type Group = { id: string; title: string; sub: string; defs: Def[] };
@@ -23,6 +24,7 @@ function Row({ def, saved, save, onSaved }: { def: Def; saved: string; save: Sav
   const [hint, setHint] = useState(false);
   const [state, run] = useActionState<FormState, FormData>(save.bind(null, def.key), {});
   useEffect(() => { if (state.ok) onSaved(def.key, value.replace(/\r\n/g, "\n").trim()); }, [state.ok]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setValue(saved); }, [saved]);                      // the assistant applied a change to this setting
   const clean = value.replace(/\r\n/g, "\n").trim();
   const dirty = clean !== saved;
   const failed = state.fields?.[def.key] ?? (state.error && dirty ? state.error : null);
@@ -57,7 +59,64 @@ function Row({ def, saved, save, onSaved }: { def: Def; saved: string; save: Sav
   );
 }
 
-export function SettingsBoard({ groups, values, save }: { groups: Group[]; values: Record<string, string>; save: Save }) {
+const EXAMPLES = ["Set the daily WhatsApp limit for everyone else to 25", "Turn the WhatsApp codes off for testing", "What does the rate side setting do?"];
+
+/** Ask in plain words; the assistant answers and proposes changes; nothing is saved until the proposals are ticked and applied. */
+function Assistant({ ask, apply, labels, onApplied }: { ask: (p: AssistState, f: FormData) => Promise<AssistState>; apply: (p: AssistState, f: FormData) => Promise<AssistState>; labels: Record<string, string>; onApplied: (changes: { key: string; value: string }[]) => void }) {
+  const [asked, askRun, asking] = useActionState<AssistState, FormData>(ask, {});
+  const [applied, applyRun, applying] = useActionState<AssistState, FormData>(apply, {});
+  const [text, setText] = useState("");
+  const [ticked, setTicked] = useState<Set<string>>(new Set());
+  const advice = asked.advice;
+  useEffect(() => { setTicked(new Set((advice?.proposals ?? []).map((p) => p.key))); }, [advice]);
+  useEffect(() => { if (applied.applied) onApplied(applied.applied); }, [applied.applied]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const chosen = (advice?.proposals ?? []).filter((p) => ticked.has(p.key)).map((p) => ({ key: p.key, value: p.to }));
+  const done = !!applied.applied && !applying;
+  return (
+    <section className="rounded-lg border border-sky-200 bg-sky-50/60 p-4" aria-labelledby="assist-h">
+      <h2 id="assist-h" className="font-semibold text-zinc-900">Ask the assistant</h2>
+      <p className="mt-0.5 text-xs text-zinc-600">Say what you want in plain words. It proposes changes and you choose which to apply; it never saves anything itself.</p>
+      <form action={askRun} className="mt-3 space-y-2">
+        <textarea name="request" value={text} onChange={(e) => setText(e.target.value)} rows={2} maxLength={1000} placeholder="For example: set the daily WhatsApp limit for everyone else to 25" aria-label="What do you want to change or know?" className={`${inputCls} h-auto py-2`} />
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="submit" disabled={asking || text.trim().length < 3} className="h-9 rounded-md bg-sky-800 px-4 text-sm font-medium text-white disabled:bg-zinc-200 disabled:text-zinc-500">{asking ? "Thinking" : "Ask"}</button>
+          {EXAMPLES.map((x) => <button key={x} type="button" onClick={() => setText(x)} className="rounded-full border border-sky-200 bg-white px-3 py-1 text-xs text-sky-900 hover:bg-sky-100">{x}</button>)}
+        </div>
+      </form>
+      {asked.error && <p role="alert" className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{asked.error}</p>}
+      {advice && (
+        <div className="mt-4 space-y-3 text-sm" aria-live="polite">
+          {advice.answer && <p className="text-zinc-800">{advice.answer}</p>}
+          {advice.warnings.length > 0 && <ul className="list-disc space-y-1 rounded-md bg-amber-50 p-3 pl-7 text-amber-900">{advice.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>}
+          {advice.proposals.length > 0 && !done && (
+            <form action={applyRun} className="space-y-3">
+              <ul className="divide-y divide-sky-100 rounded-md border border-sky-100 bg-white">
+                {advice.proposals.map((p) => (
+                  <li key={p.key} className="px-3 py-2">
+                    <label className="flex cursor-pointer items-start gap-3">
+                      <input type="checkbox" checked={ticked.has(p.key)} onChange={() => setTicked((t) => { const n = new Set(t); if (n.has(p.key)) n.delete(p.key); else n.add(p.key); return n; })} className="mt-1" />
+                      <span><span className="block font-medium">{labels[p.key] ?? p.label}</span>
+                        <span className="block text-zinc-700"><span className="text-zinc-500 line-through">{p.from === "" ? "not set" : p.from.length > 60 ? `${p.from.slice(0, 57)}...` : p.from}</span> → <strong>{p.to === "" ? "clear it" : p.to.length > 80 ? `${p.to.slice(0, 77)}...` : p.to}</strong></span>
+                        {p.reason && <span className="block text-xs text-zinc-500">{p.reason}</span>}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+              <input type="hidden" name="changes" value={JSON.stringify(chosen)} />
+              <div className="flex flex-wrap items-center gap-3">
+                <button type="submit" disabled={applying || chosen.length === 0} className="h-9 rounded-md bg-sky-800 px-4 text-sm font-medium text-white disabled:bg-zinc-200 disabled:text-zinc-500">{applying ? "Saving" : `Apply ${chosen.length} change${chosen.length === 1 ? "" : "s"}`}</button>
+                {applied.error && <span role="alert" className="text-sm text-red-700">{applied.error}</span>}
+              </div>
+            </form>
+          )}
+          {done && <p role="status" className="rounded-md border border-green-200 bg-green-50 p-3 text-green-800">{applied.ok}</p>}
+        </div>
+      )}
+    </section>
+  );
+}
+
+export function SettingsBoard({ groups, values, save, assist }: { groups: Group[]; values: Record<string, string>; save: Save; assist: { ask: (p: AssistState, f: FormData) => Promise<AssistState>; apply: (p: AssistState, f: FormData) => Promise<AssistState> } | null }) {
   const [query, setQuery] = useState("");
   const [saved, setSaved] = useState(values);
   const [openIds, setOpenIds] = useState<Set<string>>(new Set(["testing"]));
@@ -70,6 +129,7 @@ export function SettingsBoard({ groups, values, save }: { groups: Group[]; value
 
   return (
     <div className="space-y-4">
+      {assist && <Assistant ask={assist.ask} apply={assist.apply} labels={Object.fromEntries(groups.flatMap((g) => g.defs.map((d) => [d.key, d.label])))} onApplied={(cs) => setSaved((s) => ({ ...s, ...Object.fromEntries(cs.map((c) => [c.key, c.value])) }))} />}
       {codesOff && (
         <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <span><strong>Testing mode is on.</strong> WhatsApp codes are not being asked for when someone joins or opens an invitation, and a number shared inside one company is allowed.</span>
