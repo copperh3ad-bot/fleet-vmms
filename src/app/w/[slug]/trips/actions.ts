@@ -2,7 +2,10 @@
 import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
 import { getDriver } from "@/lib/db";
-import { awardTripQuote, declineTripQuote, recordTripQuote, requestTripQuotes, requestTrip, setPoolCar, transitionTrip } from "@/lib/trips/service";
+import { awardTripQuote, createTripQuoteLink, declineTripQuote, recordTripQuote, requestTripQuotes, requestTrip, setPoolCar, transitionTrip } from "@/lib/trips/service";
+import { origin } from "@/lib/origin";
+import { UserError } from "@/lib/master/service";
+import { sendTemplate, whatsappConfigured } from "@/lib/whatsapp";
 import { runAction, str, typed, type FormState } from "../actions-util";
 
 export async function requestTripAction(slug: string, _prev: FormState, form: FormData): Promise<FormState> {
@@ -64,4 +67,40 @@ export async function awardQuoteAction(slug: string, id: string, quoteId: string
   const state = await runAction(slug, async (m) => { await awardTripQuote(getDriver(), m, id, quoteId, str(form, "note")); return "Awarded."; });
   if (state.ok) refresh();
   return state.error ? { ...state, values: typed(form) } : state;
+}
+
+export type TripLinkState = FormState & { send?: { text: string; digits: string; e164: string; display: string; vendor: string } };
+
+/** A fresh single-use link for one provider, handed to the sender's own WhatsApp or messages app. The link goes to the provider's own number and is not shown on screen. */
+export async function tripQuoteLinkAction(slug: string, quoteId: string, _prev: TripLinkState): Promise<TripLinkState> {
+  const base = await origin();
+  let send: TripLinkState["send"];
+  const state = await runAction(slug, async (m) => {
+    const l = await createTripQuoteLink(getDriver(), m, quoteId);
+    send = {
+      text: `Fleet OTG: please send your quote for trip ${l.trip_no} using this link (works once, valid 7 days): ${base}/q/${l.token}`,
+      digits: l.phone.digits, e164: l.phone.e164, display: l.phone.display, vendor: l.vendor_name,
+    };
+    return "Link ready.";
+  });
+  return { ...state, send };
+}
+
+/** The request sent to the provider's WhatsApp from Fleet OTG itself: an approved template with a button to the one-time link. */
+export async function tripQuoteWhatsappAction(slug: string, quoteId: string, _prev: FormState): Promise<FormState> {
+  const state = await runAction(slug, async (m) => {
+    const template = process.env.WHATSAPP_TRIP_QUOTE_TEMPLATE;
+    if (!whatsappConfigured() || !template) throw new UserError("Sending on WhatsApp from Fleet OTG is not set up yet. Use the phone button.");
+    const l = await createTripQuoteLink(getDriver(), m, quoteId);
+    try {
+      // the template reads: "{provider}, {company} asks for your quote for trip {no}"
+      await sendTemplate(l.phone.e164, { name: template, params: [l.vendor_name, m.tenantName || "A Fleet OTG customer", l.trip_no], buttonUrlSuffix: l.token });
+    } catch (e) {
+      console.error(`trip quote whatsapp request failed: ${e instanceof Error ? e.message.slice(0, 80) : "unknown"}`);   // never the number or the link
+      throw new UserError("The WhatsApp message could not be sent. Try again, or use the phone button.");
+    }
+    return `Sent to ${l.vendor_name} on WhatsApp.`;
+  });
+  if (state.ok) refresh();
+  return state;
 }

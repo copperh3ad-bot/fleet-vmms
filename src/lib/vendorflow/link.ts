@@ -6,13 +6,14 @@ import { withLinkContext, withOrgPlatform } from "@/lib/db/tenant";
 import { findTenantByToken } from "@/lib/orgs";
 import { hashToken } from "@/lib/odometer/link";
 import { invoiceSchema, quotationSchema } from "./service";
+import { tripQuoteSchema } from "@/lib/trips/service";
 
 export const QUOTE_LINK_HOURS = 168;
 /** The one message for unknown, used, expired and revoked links, so nobody can tell them apart. */
 export const DEAD_QUOTE_LINK = "This link is not working. Ask the fleet office for a new one.";
 const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
 
-export type LinkKind = "quotation" | "invoice";
+export type LinkKind = "quotation" | "invoice" | "trip_quote";
 
 export type QuoteLinkView = {
   job_no: string; registration_no: string; make: string | null; model: string | null; year: number | null;
@@ -23,18 +24,22 @@ export type InvoiceLinkView = {
   description: string | null; wo_no: string; approved_amount: string; vendor_name: string; currency: string;
   lines: { id: string; kind: string; description: string; qty: string; unit_cost: string }[];
 };
-export type WorkshopLink = { kind: "quotation"; view: QuoteLinkView } | { kind: "invoice"; view: InvoiceLinkView };
+/** What a logistics provider sees on its quote link (ADR-078): the trip and what is to be moved, nothing about who asked or what others quoted. */
+export type TripQuoteLinkView = {
+  trip_no: string; purpose: string; from_place: string; to_place: string; stops: string | null; start_at: string; end_at: string; passengers: number | null; vendor_name: string; currency: string;
+};
+export type WorkshopLink = { kind: "quotation"; view: QuoteLinkView } | { kind: "invoice"; view: InvoiceLinkView } | { kind: "trip_quote"; view: TripQuoteLinkView };
 
 type Resolved = { kind: LinkKind; schema: string; jobId: string; vendorId: string; currency: string };
 
 async function resolve(driver: Driver, token: string, only?: LinkKind): Promise<Resolved | null> {
   if (!TOKEN_RE.test(token)) return null;
   const hash = hashToken(token);
-  for (const kind of (only ? [only] : ["quotation", "invoice"]) as LinkKind[]) {
+  for (const kind of (only ? [only] : ["quotation", "invoice", "trip_quote"]) as LinkKind[]) {
     const t = await findTenantByToken(driver, kind, hash);            // the control plane says which organization's database to ask
     if (!t) continue;
     const row = (await withOrgPlatform(driver, t.schema, (q) => q.query<{ job_card_id: string; vendor_id: string; currency: string | null }>(
-      `select l.job_card_id, l.vendor_id, t.currency
+      `select coalesce(l.job_card_id, l.trip_quote_id) as job_card_id, l.vendor_id, t.currency
          from public.quotation_links l join public.tenants t on t.id = l.tenant_id
         where l.token_hash = $1 and l.kind = $2 and l.used_at is null and l.revoked_at is null and l.expires_at > now() and t.status = 'active'`, [hash, kind]))).rows[0];
     if (row) return { kind, schema: t.schema, jobId: row.job_card_id, vendorId: row.vendor_id, currency: row.currency || "PKR" };
@@ -52,6 +57,12 @@ export async function lookupWorkshopLink(driver: Driver, token: string): Promise
     "quotation_link");
     return view ? { kind: "quotation", view: { ...view, currency: link.currency } } : null;
   }
+  if (link.kind === "trip_quote") {
+    const view = await withLinkContext(driver, link.schema, async (q) =>
+      (await q.query<Omit<TripQuoteLinkView, "currency">>("select trip_no, purpose, from_place, to_place, stops, start_at::text, end_at::text, passengers, vendor_name from trip_quote_link_info($1)", [link.jobId])).rows[0] ?? null,
+    "quotation_link");
+    return view ? { kind: "trip_quote", view: { ...view, currency: link.currency } } : null;
+  }
   const view = await withLinkContext(driver, link.schema, async (q) =>
     (await q.query<Omit<InvoiceLinkView, "currency">>("select job_no, registration_no, make, model, year, description, wo_no, approved_amount::text, vendor_name, lines from invoice_link_info($1, $2)", [link.jobId, link.vendorId])).rows[0] ?? null,
   "quotation_link");
@@ -68,7 +79,7 @@ export type LinkResult = { ok: true } | { ok: false; reason: "invalid" } | { ok:
 export type QuoteLinkResult = LinkResult;
 
 const DEAD = /link is not valid/;
-const REFUSED = /add at least one line|too many lines|enter the invoice number|not in the approved quotation/;   // the workshop can fix these; the link is not used up
+const REFUSED = /add at least one line|too many lines|enter the invoice number|not in the approved quotation|enter the quoted amount/;   // the workshop can fix these; the link is not used up
 
 function badInput(error: { issues: { path: PropertyKey[]; message: string }[] }, fallback: string): LinkResult {
   const fields: Record<string, string> = {};
@@ -104,6 +115,24 @@ export async function submitViaInvoiceLink(driver: Driver, token: string, input:
   try {
     await withLinkContext(driver, link.schema, async (q) => {
       await q.query("select submit_invoice_via_link($1, $2, $3::jsonb, $4)", [link.jobId, link.vendorId, JSON.stringify({ ...parsed.data, comment: opts.comment }), hashToken(token)]);
+    }, "quotation_link");
+    return { ok: true };
+  } catch (e) {
+    if (e instanceof Error && DEAD.test(e.message)) return { ok: false, reason: "invalid" };
+    if (e instanceof Error && REFUSED.test(e.message)) return { ok: false, reason: "bad_input", message: e.message.replace(/^error:\s*/i, "") };
+    throw e;
+  }
+}
+
+/** Takes one provider's quote for a trip, the same way: the database function marks the link used and saves the quote in one step. */
+export async function submitViaTripQuoteLink(driver: Driver, token: string, input: unknown): Promise<LinkResult> {
+  const parsed = tripQuoteSchema.safeParse(input);
+  if (!parsed.success) return badInput(parsed.error, "Check the quote.");
+  const link = await resolve(driver, token, "trip_quote");
+  if (!link) return { ok: false, reason: "invalid" };
+  try {
+    await withLinkContext(driver, link.schema, async (q) => {
+      await q.query("select submit_trip_quote_via_link($1, $2::jsonb, $3)", [link.jobId, JSON.stringify(parsed.data), hashToken(token)]);
     }, "quotation_link");
     return { ok: true };
   } catch (e) {

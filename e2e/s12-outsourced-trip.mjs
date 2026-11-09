@@ -1,4 +1,4 @@
-import { body, check, go, shot, has, press, scenario, sql, step, waitText } from "./lib.mjs";
+import { body, check, go, has, persona, press, scenario, sql, step, waitText } from "./lib.mjs";
 
 // ADR-078 phase A: a trip goes to three logistics providers, each quotes, the administrator awards the cheapest, and the trip is approved as outsourced.
 // Needs scenarios 2 and 3 first (the company and its administrator). Setup (the module switch, the Pro plan, the vendors and the trip) is done in the database;
@@ -26,7 +26,6 @@ export async function outsourcedTrip(S) {
   await step("the Vendors page tells workshops and logistics providers apart", async () => {
     await go(o, `${base}/vendors`);
     const t = await body(o);
-    await shot(o, "audit-vendors");
     check(has(t, "Alpha Freight") && has(t, "Logistics") && has(t, "Type"), `the vendor list does not show the type: ${t.slice(0, 200)}`);
   });
 
@@ -37,7 +36,6 @@ export async function outsourcedTrip(S) {
     await press(o, "Ask for quotes", { wait: 1500 });
     await waitSql(() => run(`select count(*) from trip_quotes where trip_id = '${trip}'`).split("\n").pop(), "3");
     check(quoteOf("Alpha Freight") === "requested/", "the request was not recorded");
-    await shot(o, "audit-trip-asked");
   });
 
   await step("the quotes are entered; the dearest and the cheapest show their amounts", async () => {
@@ -52,31 +50,41 @@ export async function outsourcedTrip(S) {
     }
   });
 
-  await step("audit shots of the main pages", async () => {
-    await go(o, `${base}/trips/${trip}`); await shot(o, "audit-trip-quoted");
-    for (const [n, path] of [["dashboard", ""], ["vehicles", "/vehicles"], ["jobcards", "/job-cards"], ["trips", "/trips"]]) { await go(o, base + path); await o.page.waitForTimeout(800); await shot(o, `audit-${n}`); }
-  });
-
-  await step("audit shots at phone width", async () => {
-    await o.page.setViewportSize({ width: 390, height: 844 });
-    try {
-      for (const [n, path] of [["dashboard", ""], ["vehicles", "/vehicles"], ["vehicles-new", "/vehicles/new"], ["jobcards", "/job-cards"], ["jobcards-new", "/job-cards/new"], ["trip", `/trips/${trip}`], ["vendors", "/vendors"], ["users", "/users"]]) {
-        await go(o, base + path); await o.page.waitForTimeout(700); await shot(o, `phone-${n}`);
-        const overflow = await o.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-        console.log(`PHONE ${n}: horizontal overflow ${overflow}px`);
-      }
-    } finally { await o.page.setViewportSize({ width: 1280, height: 900 }); }
+  await step("a provider with no account quotes through its single-use link, sent from the trip page", async () => {
+    await go(o, `${base}/trips/${trip}`);
+    const row = o.page.locator("div.border-t", { hasText: "Charlie Cargo" }).first();
+    await row.getByRole("button", { name: /Send the link by phone/ }).click();
+    const wa = row.getByRole("link", { name: /^Send on WhatsApp$/ });
+    await wa.waitFor({ timeout: 8000 });
+    const text = decodeURIComponent(String(await wa.getAttribute("href")));
+    const link = text.match(/https?:\/\/[^\s"'<>]*\/q\/[A-Za-z0-9_-]+/)?.[0];
+    check(link, `no link in the hand-off: ${text.slice(0, 160)}`);
+    const P = await persona("provider", {});
+    await P.page.goto(link, { waitUntil: "networkidle" });
+    const t = await body(P);
+    check(has(t, "Faisalabad") && has(t, "Send your quote"), `the provider does not see the trip: ${t.slice(0, 200)}`);
+    check(!has(t, "Trip Asker") && !has(t, "Alpha Freight") && !has(t, "70,000"), "the provider can see who asked or what others quoted");
+    await P.page.locator("#amount").fill("66,000");
+    await P.page.locator("#vehicle_text").fill("Shehzore LEC-555");
+    await P.page.getByRole("button", { name: "Send quote" }).click();
+    await P.page.getByText(/Thank you/i).waitFor({ timeout: 10000 });
+    await waitSql(() => quoteOf("Charlie Cargo"), "quoted/66000.00");
+    await P.page.goto(link, { waitUntil: "networkidle" });
+    check(has(await body(P), "This link is not working"), "the link works a second time");
+    await go(o, `${base}/trips/${trip}`);
+    const page = await body(o);
+    check(has(page, "Lowest") && has(page, "66,000.00") && has(page, "through a link"), `the lowest quote is not marked, or the history does not say it came by link: ${page.slice(0, 200)}`);
   });
 
   await step("the administrator awards the cheapest; the trip is approved as outsourced and the others close", async () => {
     await go(o, `${base}/trips/${trip}`);
-    await press(o, /Award to Bravo Haulage/, { wait: 2000 });
-    await waitSql(() => run(`select status from trips where id = '${trip}'`).split("\n").pop(), "approved", 8000);
-    check(run(`select outsourced_vendor_id is not null and vehicle_id is null and award_amount = 70000 from trips where id = '${trip}'`).split("\n").pop() === "t", "the trip is not outsourced at 70,000");
-    check(quoteOf("Bravo Haulage").startsWith("awarded") && quoteOf("Alpha Freight").startsWith("closed") && quoteOf("Charlie Cargo").startsWith("closed"), "the other requests did not close");
+    await press(o, /Award to Charlie Cargo/, { wait: 2000 });
+    await waitSql(() => run(`select status from trips where id = '${trip}'`).split("\n").pop(), "approved");
+    check(run(`select outsourced_vendor_id is not null and vehicle_id is null and award_amount = 66000 from trips where id = '${trip}'`).split("\n").pop() === "t", "the trip is not outsourced at 66,000");
+    check(quoteOf("Charlie Cargo").startsWith("awarded") && quoteOf("Alpha Freight").startsWith("closed") && quoteOf("Bravo Haulage").startsWith("closed"), "the other requests did not close");
     await go(o, `${base}/trips/${trip}`);
     const t = await body(o);
-    check(has(t, "Logistics provider") && has(t, "Bravo Haulage") && has(t, "Awarded to Bravo Haulage"), `the page does not show the award: ${t.slice(0, 300)}`);
+    check(has(t, "Logistics provider") && has(t, "Charlie Cargo") && has(t, "Awarded to Charlie Cargo"), `the page does not show the award: ${t.slice(0, 300)}`);
   });
 
   await step("an outsourced trip leaves and returns without asking for an odometer reading", async () => {

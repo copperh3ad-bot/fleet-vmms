@@ -8,6 +8,9 @@ import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
 import { notify, usersWithPermission } from "@/lib/notify";
 import { tenantPlan } from "@/lib/billing/plans";
+import { normalizePhone } from "@/lib/phone";
+import { hashToken, newToken } from "@/lib/odometer/link";
+import { routeToken } from "@/lib/orgs";
 
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
 
@@ -309,4 +312,40 @@ export async function awardTripQuote(driver: Driver, m: Membership, tripId: stri
     catch (e) { friendly(e); }
     await notify(q, [t.requester_user], "trip.approved", { trip_id: tripId, trip_no: t.trip_no, to: "approved", text: `${t.trip_no}: ${t.purpose}` }, m.userId);
   });
+}
+
+// ---------- The provider's quote link (ADR-078 phase B) ----------
+
+export type NewTripQuoteLink = { token: string; expires_at: string; trip_no: string; vendor_name: string; phone: { e164: string; digits: string; display: string } };
+const TRIP_QUOTE_LINK_HOURS = 168;
+
+/**
+ * A fresh single-use link for one provider's quote on one trip, to be sent to that provider's own phone number. Any earlier unused link for the
+ * same request stops working. Providers are added by the organization and never sign up, so this link is how a provider quotes.
+ */
+export async function createTripQuoteLink(driver: Driver, m: Membership, quoteId: string): Promise<NewTripQuoteLink> {
+  await requireOutsourcing(driver, m);
+  const made = await authorized(driver, m, "trip.award", async (q) => {
+    await requireOn(q);
+    const r = (await q.query<{ status: string; trip_status: string; trip_no: string; vendor_id: string; vendor_name: string; phone: string | null }>(
+      `select tq.status, t.status as trip_status, t.trip_no, tq.vendor_id, v.name as vendor_name, v.phone
+         from trip_quotes tq join trips t on t.id = tq.trip_id join vendors v on v.id = tq.vendor_id where tq.id = $1`, [quoteId])).rows[0];
+    if (!r) throw new UserError("Quote request not found.");
+    if (r.trip_status !== "requested" || r.status !== "requested") throw new UserError("This provider is not waiting to quote on a trip that is still open.");
+    const phone = normalizePhone(r.phone ?? "");
+    if (!phone.ok) throw new UserError(`${r.vendor_name} has no mobile number a message can reach. Add it under Vendors first.`);
+    await q.query("update public.quotation_links set revoked_at = now() where tenant_id = $1 and trip_quote_id = $2 and kind = 'trip_quote' and used_at is null and revoked_at is null", [m.tenantId, quoteId]);
+    const token = newToken();
+    const exp = (await q.query<{ e: string }>(
+      `insert into public.quotation_links(token_hash, tenant_id, trip_quote_id, vendor_id, created_by, expires_at, kind)
+       values ($1, $2, $3, $4, $5, now() + ($6 || ' hours')::interval, 'trip_quote') returning expires_at::text as e`,
+      [hashToken(token), m.tenantId, quoteId, r.vendor_id, m.userId, String(TRIP_QUOTE_LINK_HOURS)])).rows[0].e;
+    return { token, expires_at: exp, trip_no: r.trip_no, vendor_name: r.vendor_name, phone: { e164: phone.e164, digits: phone.digits, display: phone.display } };
+  });
+  try { await routeToken(driver, "trip_quote", m.tenantId, hashToken(made.token), made.expires_at); }
+  catch {
+    await authorized(driver, m, "trip.award", (q) => q.query("update public.quotation_links set revoked_at = now() where token_hash = $1", [hashToken(made.token)])).catch(() => undefined);
+    throw new UserError("The link could not be created. Try again.");
+  }
+  return made;
 }

@@ -2,7 +2,10 @@
 import { useActionState } from "react";
 import { Input, Notice, Submit } from "@/components/form";
 import type { FormState } from "../../actions-util";
-import { askQuotesAction, awardQuoteAction, declineQuoteAction, recordQuoteAction } from "../actions";
+import { useFormStatus } from "react-dom";
+import { btn } from "@/components/ui";
+import { smsLink, whatsappLink } from "@/lib/phone";
+import { askQuotesAction, awardQuoteAction, declineQuoteAction, recordQuoteAction, tripQuoteLinkAction, tripQuoteWhatsappAction, type TripLinkState } from "../actions";
 
 /** Choose the logistics providers to ask for a quote on this trip (ADR-078). The ones already asked are ticked and locked. */
 export function AskProviders({ slug, id, providers, asked }: { slug: string; id: string; providers: { id: string; name: string; phone: string | null }[]; asked: string[] }) {
@@ -61,5 +64,40 @@ export function AwardForm({ slug, id, quoteId, vendor }: { slug: string; id: str
       <div className="w-64 max-w-full"><Input id={`award-${quoteId}`} name="note" label="Note (optional)" state={state} /></div>
       <Submit>{`Award to ${vendor}`}</Submit><Notice state={state} />
     </form>
+  );
+}
+
+function Go({ label, pendingLabel }: { label: string; pendingLabel: string }) {
+  const { pending } = useFormStatus();
+  return <button type="submit" disabled={pending} className={`${btn} disabled:opacity-60`}>{pending ? pendingLabel : label}</button>;
+}
+
+/**
+ * Asks one provider for its quote with a single-use link (ADR-078). The link is not printed: it goes out through the sender's own WhatsApp or messages
+ * app to the provider's number, or from Fleet OTG itself when the server can send on WhatsApp.
+ */
+export function SendQuoteLink({ slug, quoteId, vendor, whatsappFromServer }: { slug: string; quoteId: string; vendor: string; whatsappFromServer: boolean }) {
+  const [phone, phoneAction] = useActionState<TripLinkState>(tripQuoteLinkAction.bind(null, slug, quoteId) as (p: TripLinkState) => Promise<TripLinkState>, {});
+  const [wa, waAction] = useActionState<FormState>(tripQuoteWhatsappAction.bind(null, slug, quoteId) as (p: FormState) => Promise<FormState>, {});
+  const send = phone.send;
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {whatsappFromServer && <form action={waAction}><Go label="Ask on WhatsApp" pendingLabel="Sending on WhatsApp" /></form>}
+        <form action={phoneAction}><Go label="Send the link by phone" pendingLabel="Making the link" /></form>
+      </div>
+      {send && (
+        <div className="space-y-2">
+          <p>Ready for {send.vendor}, to <span className="font-mono">{send.display}</span>. The link goes to this number only and is not shown here.</p>
+          <div className="flex flex-wrap gap-2">
+            <a className={btn} href={whatsappLink(send.digits, send.text)} target="_blank" rel="noreferrer">Send on WhatsApp</a>
+            <a className={btn} href={smsLink(send.e164, send.text)}>Send as a text message</a>
+          </div>
+        </div>
+      )}
+      <Notice state={send ? { ...phone, ok: undefined } : phone} />
+      <Notice state={wa} />
+      <span className="sr-only">{vendor}</span>
+    </div>
   );
 }

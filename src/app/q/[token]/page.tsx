@@ -1,4 +1,4 @@
-import { dmy } from "@/lib/format/date";
+import { dmy, dmyTime } from "@/lib/format/date";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import type { Metadata } from "next";
@@ -7,7 +7,8 @@ import { allowShared } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
 import { DEAD_QUOTE_LINK, lookupWorkshopLink } from "@/lib/vendorflow/link";
 import { EstimateForm } from "./form";
-import { sendEstimateAction, sendInvoiceAction } from "./actions";
+import { sendEstimateAction, sendInvoiceAction, sendTripQuoteAction } from "./actions";
+import { TripQuoteForm } from "./trip-form";
 import { InvoiceForm } from "./invoice-form";
 import { Logo } from "@/components/brand";
 
@@ -21,7 +22,9 @@ export default function EstimateLinkPage({ params }: PageProps<"/q/[token]">) {
 async function Inner({ params }: { params: Promise<{ token: string }> }) {
   await connection();
   const { token } = await params;
-  const link = (await allowShared(getDriver(), `quote-view-ip:${await clientIp()}`, 60, 600)) ? await lookupWorkshopLink(getDriver(), token) : null;
+  const found = (await allowShared(getDriver(), `quote-view-ip:${await clientIp()}`, 60, 600)) ? await lookupWorkshopLink(getDriver(), token) : null;
+  if (found?.kind === "trip_quote") return <TripQuotePage token={token} view={found.view} />;
+  const link = found as Exclude<typeof found, { kind: "trip_quote" }>;
   const view = link?.view ?? null;
   const invoice = link?.kind === "invoice" ? link.view : null;
   const car = view ? [view.make, view.model, view.year].filter(Boolean).join(" ") : "";
@@ -47,6 +50,29 @@ async function Inner({ params }: { params: Promise<{ token: string }> }) {
         ) : (
           <p role="status" className="rounded-xl border border-zinc-200 bg-white p-5 text-base">{DEAD_QUOTE_LINK}</p>
         )}
+      </main>
+    </div>
+  );
+}
+
+/** A logistics provider's quote for one trip (ADR-078). Open page: the trip and what is to be moved, nothing about who asked or what other providers quoted. */
+function TripQuotePage({ token, view }: { token: string; view: import("@/lib/vendorflow/link").TripQuoteLinkView }) {
+  return (
+    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-page text-zinc-900">
+      <header className="bg-side px-5 py-5 text-white"><Logo height={40} /></header>
+      <main className="flex flex-1 flex-col gap-5 p-5">
+        <div>
+          <h1 className="text-2xl font-semibold">Send your quote</h1>
+          <p className="mt-1 text-zinc-600">For {view.vendor_name}. The quote is recorded against trip <span className="font-mono">{view.trip_no}</span>.</p>
+        </div>
+        <div className="space-y-2 rounded-xl border border-zinc-200 bg-white p-5">
+          <p className="text-lg font-medium">{view.from_place} → {view.to_place}</p>
+          <p className="text-sm text-zinc-700">{view.purpose}</p>
+          {view.stops && <p className="text-sm text-zinc-700">Other stops: {view.stops}</p>}
+          <p className="text-sm text-zinc-500">Leaves {dmyTime(view.start_at)} · returns {dmyTime(view.end_at)}</p>
+          {view.passengers !== null && <p className="text-sm text-zinc-500">{view.passengers} passenger{view.passengers === 1 ? "" : "s"}</p>}
+        </div>
+        <TripQuoteForm submit={sendTripQuoteAction.bind(null, token)} currency={view.currency} />
       </main>
     </div>
   );

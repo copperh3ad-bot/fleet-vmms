@@ -33,3 +33,9 @@ Tenant migration (next free number): `vendors.kind`; `trips.outsourced_vendor_id
 - **B:** quote link and invoice link for trips, verification, tests.
 - **C:** tenant rate cards, the Pro gate, reports, notifications, browser scenario, copy.
 - **Later (AI):** quote comparison and outlier flags, once Pro is built.
+
+## Amendment, 2026-11-09 (phase A and the quote link built)
+- **Phase A is live** (tenant 0044, control 0023): vendor type, outsourced trips, quotes entered by staff, award, Pro gate.
+- **Phase B, quote link (built, not yet live):** the provider's single-use link is the same `/q/<token>` page and the same `public.quotation_links` table with kind `trip_quote` and a `trip_quote_id` (public 0017, control 0024). Tenant 0045 adds `trip_quote_link_info` and `submit_trip_quote_via_link`, SECURITY DEFINER, executable by role `quotation_link` only. The page shows the trip number, purpose, route, stops, times and passengers; never who asked, any budget or other providers' quotes. The link works once, stops when the trip is rejected, cancelled or awarded or the provider is declined, and a refused quote does not burn it. Staff send it from the trip page: through their own WhatsApp or messages app to the provider's own number (not shown on screen), or from Fleet OTG on WhatsApp when `WHATSAPP_TRIP_QUOTE_TEMPLATE` names an approved template (params: provider, company, trip number; button suffix the token).
+- **Not built:** the provider's invoice link and Finance's check of it (phase B2), rate cards, reports, the AI quote comparison.
+- **Needs the owner:** a WhatsApp utility template for the trip quote request, if sending from Fleet OTG is wanted; until then the hand-off buttons work.

@@ -7,7 +7,8 @@ import { getDriver } from "@/lib/db";
 import { assignables, getTrip, listLogisticsProviders, listTripQuotes, outsourcingOn, tripsEnabled, TRIP_STATUS_LABEL } from "@/lib/trips/service";
 import { PageHeader, Panel, Pill, Plate } from "@/components/ui";
 import { TripStep } from "./steps";
-import { AskProviders, AwardForm, DeclineButton, QuoteForm } from "./outsource";
+import { AskProviders, AwardForm, DeclineButton, QuoteForm, SendQuoteLink } from "./outsource";
+import { tripWhatsappFromServer } from "@/lib/trips/whatsapp";
 
 export default function TripPage({ params }: PageProps<"/w/[slug]/trips/[id]">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} /></Suspense>;
@@ -31,6 +32,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
   const quotes = outsourcing ? await listTripQuotes(driver, m, id) : [];
   const providers = outsourcing && t.status === "requested" ? await listLogisticsProviders(driver, m) : [];
   const outsourced = !!t.outsourced_vendor;
+  const whatsappFromServer = tripWhatsappFromServer();
   const quotedAmounts = quotes.filter((x) => x.status === "quoted").map((x) => Number(x.amount));
   const lowest = quotedAmounts.length > 1 ? Math.min(...quotedAmounts) : null;
   return (
@@ -85,6 +87,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
                     <div className="mt-3"><QuoteForm slug={slug} quoteId={x.id} current={x.status === "quoted" ? x : undefined} /></div></details>
                 )}
                 {t.status === "requested" && x.status === "quoted" && <AwardForm slug={slug} id={id} quoteId={x.id} vendor={x.vendor_name} />}
+                {t.status === "requested" && x.status === "requested" && <SendQuoteLink slug={slug} quoteId={x.id} vendor={x.vendor_name} whatsappFromServer={whatsappFromServer} />}
                 {t.status === "requested" && x.status === "requested" && <DeclineButton slug={slug} quoteId={x.id} />}
               </div>
             ))}
