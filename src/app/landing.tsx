@@ -23,8 +23,11 @@ const FEATURES: Feature[] = [
   { title: "Vehicle requests and departments", text: "HR requests a vehicle for an employee and a manager decides. Departments run their own vehicles under a spending limit.", icon: "users", art: "departments" },
   { title: "Papers, accidents and fines", text: "Insurance, fitness, token tax, accidents and challans in one place, each tied to the vehicle and who held it.", icon: "papers", art: "papers" },
   { title: "Trips, when you want them", text: "An optional module: request, approve and record a trip, with the odometer out and back.", icon: "car", art: "trip" },
+  { title: "Cargo pick-ups and deliveries", text: "Staff ask for a cargo pick-up or delivery. The fleet manager accepts, schedules and follows it to delivery, or turns it into a trip.", icon: "car", art: "trip" },
   { title: "AI that reads workshop paperwork", text: "The AI fills in the form from an emailed estimate or invoice. A person always checks and saves.", icon: "spark", art: "ai", pro: true },
   { title: "Raise a job card on WhatsApp", text: "An employee sends one message, the AI drafts the job card, they confirm, and a manager approves in the app.", icon: "chat", art: "chat", pro: true },
+  { title: "A WhatsApp menu for everyday requests", text: "Say Hi and choose: a job card, a cargo pick-up, a trip or an odometer reading. A few short questions each, so the fleet manager gets complete information.", icon: "chat", art: "phone", pro: true },
+  { title: "Quotes from logistics providers", text: "Send a trip to several providers, compare their quotes with your rate cards (the AI can advise), award one, and check their invoice.", icon: "car", art: "quote", pro: true },
 ];
 
 /** `price` is the price box. It is passed in so the rest of the page can be built ahead of time while the price (read from the
@@ -73,7 +76,7 @@ export function Landing({ price }: { price: ReactNode }) {
 
       <section className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 pb-16">
         <h2 className="text-2xl font-semibold">What you get</h2>
-        <p className="mt-2 max-w-2xl text-zinc-600">Everything below except the two marked Pro is in Basic. <a href="/compare" className="font-medium text-zinc-900 underline">Compare Basic and Pro</a>.</p>
+        <p className="mt-2 max-w-2xl text-zinc-600">Everything below except the ones marked Pro is in Basic. <a href="/compare" className="font-medium text-zinc-900 underline">Compare Basic and Pro</a>.</p>
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
             <div key={f.title} className="group rounded-2xl border border-zinc-200 bg-white p-4 shadow-[var(--shadow-card)]">
@@ -93,7 +96,7 @@ export function Landing({ price }: { price: ReactNode }) {
           <Art name="plans" />
           <div>
             <h2 id="plans-h" className="text-2xl font-semibold">Start with Basic. Add Pro when job cards pile up.</h2>
-            <p className="mt-3 text-zinc-600">Basic has every core feature. Pro adds the AI that reads workshop paperwork and job cards raised from WhatsApp, for one price whatever your fleet size. Any Basic company can try Pro free for 3 days.</p>
+            <p className="mt-3 text-zinc-600">Basic has every core feature. Pro adds the AI that reads workshop paperwork, the WhatsApp menu for job cards, cargo, trips and odometer readings, and quotes from logistics providers. Any Basic company can try Pro free for 3 days.</p>
             <p className="mt-5 flex flex-wrap items-center gap-4"><a href="/pricing" className="shine inline-flex items-center gap-2 rounded-md bg-brand px-5 py-3 font-semibold text-white hover:opacity-90">See pricing <Icon name="arrow" /></a><a href="/compare" className="font-medium text-zinc-900 underline">Compare the plans</a></p>
           </div>
         </div>

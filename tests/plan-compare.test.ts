@@ -8,10 +8,10 @@ import { INDEXABLE_PATHS } from "@/lib/site";
 const rows = COMPARE.flatMap((g) => g.rows);
 
 describe("the comparison data", () => {
-  it("gives Pro everything Basic has, and Basic everything except the AI and WhatsApp rows", () => {
+  it("gives Pro everything Basic has, and Basic everything except the AI, WhatsApp and logistics provider rows", () => {
     for (const r of rows) if (r.basic) expect(r.pro).toBe(true);
-    expect(proOnlyRows().map((r) => r.feature).every((f) => /AI|WhatsApp/.test(f))).toBe(true);
-    expect(proOnlyRows()).toHaveLength(2);
+    expect(proOnlyRows().map((r) => r.feature).every((f) => /AI|WhatsApp|[Ll]ogistics provider/.test(f))).toBe(true);
+    expect(proOnlyRows()).toHaveLength(6);
     expect(rows.filter((r) => r.basic).length).toBeGreaterThan(15);
   });
   it("has no empty or repeated feature, and no group without rows", () => {

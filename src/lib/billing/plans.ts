@@ -54,6 +54,7 @@ export function proOfferFrom(plan: PlanRow | undefined, bands: Band[]): ProOffer
       "Staff raise a job card from one WhatsApp message; the AI drafts it and they confirm",
       "Employees say Hi on WhatsApp to raise a job card, ask for a cargo pick-up, reserve a trip or send an odometer reading, answering a few questions each time",
       "Send a trip to several logistics providers, compare their quotes, and check their invoices, with your own rate cards beside them",
+      "The AI compares the providers' quotes and says which to lean towards and why; you decide who to award",
       "A person always checks and saves, so every approval still carries a real name and time",
       "Switched on by your administrator, and your records are never used to train AI",
       priced && bands.length === 1 ? "One price for every fleet size" : "The price follows the size of your fleet, because a larger fleet sends more documents to read",

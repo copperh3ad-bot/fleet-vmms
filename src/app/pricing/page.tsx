@@ -35,8 +35,8 @@ async function Inner() {
     <SiteShell active="pricing">
       <JsonLd data={breadcrumbLd([["Fleet OTG", "/"], ["Pricing", "/pricing"]])} />
       <JsonLd data={faqLd(PRICING_FAQ)} />
-      <PageHero eyebrow="Pricing" title="Basic, and Pro for larger fleets" chips={["No per-user charges", "Free trial, no card", "Export your data any time", "Pro: one price for every fleet size"]} art={<Art name="plans" />}>
-        <p>Everything in Fleet OTG for your whole company, with no per-user charges. Basic has every core feature and is what every company starts on. Pro adds the AI that reads your workshops&apos; estimates and invoices for you.</p>
+      <PageHero eyebrow="Pricing" title="Basic, and Pro for larger fleets" chips={["No per-user charges", "Free trial, no card", "Export your data any time", "Pro: AI, WhatsApp and logistics providers"]} art={<Art name="plans" />}>
+        <p>Everything in Fleet OTG for your whole company, with no per-user charges. Basic has every core feature and is what every company starts on. Pro adds the AI that reads your workshops&apos; estimates and invoices, the WhatsApp menu, and quotes from logistics providers.</p>
       </PageHero>
       <div className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-12">
         <div className="grid gap-6 md:grid-cols-[1fr_1.3fr]">

@@ -14,7 +14,7 @@ import { loadPlatformSettings } from "@/lib/billing/settings";
 import { COMPARE } from "@/lib/plan-compare";
 
 const TITLE = "Compare plans: Basic and Pro · Fleet OTG";
-const DESCRIPTION = "What Basic and Pro include in Fleet OTG, side by side: job cards and approvals, workshops, servicing, costs, and the AI and WhatsApp features that come with Pro.";
+const DESCRIPTION = "What Basic and Pro include in Fleet OTG, side by side: job cards and approvals, workshops, servicing, costs, and the AI, WhatsApp and logistics provider features that come with Pro.";
 export const metadata = pageMeta(TITLE, DESCRIPTION);
 
 export default function ComparePage() {
@@ -40,7 +40,7 @@ async function Inner() {
       <JsonLd data={webPageLd(TITLE, "/compare", DESCRIPTION)} />
       <JsonLd data={breadcrumbLd([["Fleet OTG", "/"], ["Compare plans", "/compare"]])} />
       <PageHero eyebrow="Compare plans" title="Basic and Pro, side by side" art={<Art name="plans" />}>
-        <p>Basic has every core feature of Fleet OTG except the AI and WhatsApp job cards, and is what every company starts on. Pro adds those two. Neither charges per user.</p>
+        <p>Basic has every core feature of Fleet OTG except the AI, the WhatsApp menu and quotes from logistics providers, and is what every company starts on. Pro adds those. Neither charges per user.</p>
       </PageHero>
       <div className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-12">
         <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-[var(--shadow-card)]">
@@ -57,7 +57,7 @@ async function Inner() {
                 <th scope="col" className="px-4 py-5">
                   <span className="block text-base font-semibold text-brand">Pro</span>
                   <span className="mt-1 block font-normal text-zinc-600">{pro?.priced ? <>{pro.headline} <span className="text-zinc-500">{pro.per}</span></> : "Coming in the second phase"}</span>
-                  <span className="mt-1 block font-normal text-zinc-500">Everything in Basic, plus AI and WhatsApp</span>
+                  <span className="mt-1 block font-normal text-zinc-500">Everything in Basic, plus AI, WhatsApp and logistics providers</span>
                 </th>
               </tr>
             </thead>

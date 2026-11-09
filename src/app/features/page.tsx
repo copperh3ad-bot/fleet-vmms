@@ -8,12 +8,12 @@ import { SELLING_POINTS } from "@/lib/selling-points";
 import { Art } from "@/components/art";
 
 const TITLE = "Fleet maintenance software features · Fleet OTG";
-const DESCRIPTION = "How Fleet OTG handles fleet maintenance: job cards with recorded approvals, workshop quotations checked against invoices, reminders, servicing, budgets, vehicle requests and papers, with AI and WhatsApp job cards on Pro.";
+const DESCRIPTION = "How Fleet OTG handles fleet maintenance: job cards with recorded approvals, workshop quotations checked against invoices, reminders, servicing, budgets, vehicle requests and papers, cargo requests, and on Pro the AI, a WhatsApp menu and quotes from logistics providers.";
 export const metadata = pageMeta(TITLE, DESCRIPTION);
 
 // Static text (ADR-031). Each block is a problem a company with a fleet meets, and the thing in the product that answers it today.
 // Nothing here is a statistic, a customer claim or a price.
-const ART = ["approve", "sheets", "quote", "phone", "budget", "repeat", "papers", "shield", "departments", "bell", "request", "trip", "service"];
+const ART = ["approve", "sheets", "quote", "phone", "budget", "repeat", "papers", "shield", "departments", "bell", "request", "trip", "trip", "service"];
 const STEP_ICONS = ["papers", "approve", "workshop", "budget", "shield", "export"];
 const SOLVES: { problem: string; answer: string; pro?: boolean }[] = [
   { problem: "Nobody can say who approved a repair", answer: "Job cards, quotations and invoices are approved with the person's name and the time. Whoever raises a request cannot approve it, and every step is recorded." },
@@ -28,13 +28,20 @@ const SOLVES: { problem: string; answer: string; pro?: boolean }[] = [
   { problem: "Licences and service dates slip past unnoticed", answer: "Every day the system looks for licences, insurance, fitness and token tax that are running out and for periodic maintenance that is due. The vehicle holder and the fleet managers see it in the app and get one email, so the reminder reaches a person and not an inbox nobody reads." },
   { problem: "Nobody knows who may take a vehicle", answer: "HR requests a vehicle for an employee, a fleet manager decides, and the decision is recorded. An employee has one open request at a time, and nobody decides their own." },
   { problem: "Pool cars and staff transport run on phone calls", answer: "Switch on the optional trips module to request, approve and record a trip, with the odometer out and back, so mileage and the person who had the vehicle are on record." },
+  { problem: "Cargo pick-ups and deliveries are arranged by phone", answer: "Staff ask for a cargo pick-up or delivery with the place, the time, what it is and how heavy. The fleet manager accepts it, schedules it, follows it to delivery and can turn it into a trip, and every step is on record." },
   { problem: "Loaders and forklifts are serviced by hours, not kilometres", answer: "Switch on an hour meter for a vehicle and enter readings or add them to a job card. Service rules can be in hours, kilometres, months or any mix, and cost per engine hour appears beside cost per kilometre in the reports." },
 ];
 
-const PRO: { problem: string; answer: string; pro?: boolean }[] = [
-  { problem: "Typing in every workshop estimate and invoice", answer: "When a workshop emails an estimate or invoice, the AI reads the attached file and fills in the form as a draft. A person always checks the figures and saves, so every approval still carries a real name and time.", pro: true },
-  { problem: "Staff will not open an app to report a fault", answer: "An employee sends one WhatsApp message describing the fault. The AI drafts the job card, asks for anything missing, and the employee confirms. It goes in as a request, and a manager approves it in the app as usual.", pro: true },
+const PRO: { problem: string; answer: string; art: string; pro?: boolean }[] = [
+  { problem: "Typing in every workshop estimate and invoice", answer: "When a workshop emails an estimate or invoice, the AI reads the attached file and fills in the form as a draft. A person always checks the figures and saves, so every approval still carries a real name and time.", art: "ai", pro: true },
+  { problem: "Staff will not open an app to report a fault", answer: "An employee sends one WhatsApp message describing the fault. The AI drafts the job card, asks for anything missing, and the employee confirms. It goes in as a request, and a manager approves it in the app as usual.", art: "chat", pro: true },
 ];
+
+PRO.push(
+  { problem: "Staff need a simple way to ask for things", answer: "An employee says Hi on WhatsApp and picks from a list: submit a job card, ask for a cargo pick-up or delivery, reserve a trip, or send an odometer reading. Each one asks a few short questions, so the fleet manager gets complete information. A job card is one of ten kinds of work (periodic maintenance, brakes, suspension, battery, body work, lights, tyres, wheel balancing and alignment, AC, or others explained in up to 100 words).", art: "chat", pro: true },
+  { problem: "Moving goods or people needs a third-party truck", answer: "Send one trip to several logistics providers. Each quotes through a link on its own phone, and you compare the quotes beside your own rate cards. Whoever may award picks one and the award is recorded; the provider then invoices through a link and finance checks it against the amount awarded.", art: "trip", pro: true },
+  { problem: "Several quotes and no easy way to weigh them", answer: "The AI ranks the quotes by price against your rate cards, the provider's record with you, and the vehicle and start time offered, and explains why. It only advises. A person awards, and the provider's name is never sent to the AI.", art: "ai", pro: true },
+);
 
 const STEPS: [string, string][] = [
   ["Raise the job", "A driver or fleet officer opens a job card for a vehicle and says what is wrong."],
@@ -103,12 +110,12 @@ export default function FeaturesPage() {
         <section className="mt-14" aria-labelledby="pro-h">
           <div className="rounded-2xl border-2 border-brand bg-white p-6 shadow-[var(--shadow-card)] md:p-8">
             <p className="inline-block rounded-full bg-badge px-3 py-1 text-xs font-semibold text-side">Pro</p>
-            <h2 id="pro-h" className="mt-3 text-2xl font-semibold">Pro: let the AI do the typing</h2>
-            <p className="mt-2 max-w-3xl text-zinc-700">For busy fleets, at one price whatever your fleet size. Pro is Basic plus these two, and any Basic company can try it free for 3 days. The AI only drafts; a person always checks and saves.</p>
-            <div className="mt-6 grid gap-5 md:grid-cols-2">
-              {PRO.map((s, i) => (
+            <h2 id="pro-h" className="mt-3 text-2xl font-semibold">Pro: AI, WhatsApp and logistics providers</h2>
+            <p className="mt-2 max-w-3xl text-zinc-700">For busy fleets. Pro is Basic plus these, and any Basic company can try it free for 3 days. The AI only drafts and advises; a person always checks, saves and decides.</p>
+            <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {PRO.map((s) => (
                 <div key={s.problem} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-                  <Art name={i === 0 ? "ai" : "chat"} className="!shadow-none" />
+                  <Art name={s.art} className="!shadow-none" />
                   <h3 className="mt-4 text-lg font-semibold">{s.problem}</h3>
                   <p className="mt-2 text-sm text-zinc-700">{s.answer}</p>
                 </div>
