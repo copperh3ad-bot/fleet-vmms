@@ -3,6 +3,7 @@ import { refresh } from "next/cache";
 import { getDriver } from "@/lib/db";
 import { saveVendor, setVendorStatus } from "@/lib/master/service";
 import { removeProviderRate, saveProviderRate } from "@/lib/trips/outsourced";
+import { setWaMenu } from "@/lib/wa-menu/switch";
 import { runAction, str, typed, type FormState } from "../actions-util";
 
 /** id is "" for a new vendor. Categories are typed as a comma-separated list. */
@@ -39,6 +40,13 @@ export async function addRateAction(slug: string, vendorId: string, _prev: FormS
 
 export async function removeRateAction(slug: string, rateId: string): Promise<FormState> {
   const state = await runAction(slug, async (m) => { await removeProviderRate(getDriver(), m, rateId); return "Removed."; });
+  if (state.ok) refresh();
+  return state;
+}
+
+/** The administrator switches the WhatsApp menu on or off (ADR-079). */
+export async function setWaMenuAction(slug: string, on: boolean, _prev: FormState): Promise<FormState> {
+  const state = await runAction(slug, async (m) => { await setWaMenu(getDriver(), m, on); return on ? "The WhatsApp menu is on." : "The WhatsApp menu is off."; });
   if (state.ok) refresh();
   return state;
 }

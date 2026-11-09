@@ -11,6 +11,7 @@ import { failedStatuses, fetchMedia, statusKinds, parseWebhook, sendReplyText, v
 import { processInboundWhatsApp } from "@/lib/vendorflow/whatsapp-inbound";
 import { processOdometerReply } from "@/lib/odometer/whatsapp";
 import { processWhatsAppJobCard } from "@/lib/wa-jobcards/service";
+import { processWhatsAppMenu } from "@/lib/wa-menu/engine";
 import { loggedRoute } from "@/lib/activity/route";
 
 const MAX_BODY = 200_000;
@@ -48,6 +49,15 @@ async function postImpl(req: NextRequest) {
     for (const m of messages) {
       const odo = await processOdometerReply(driver, m);          // a driver's answer to the monthly odometer request (ADR-050)
       if (odo.handled) { if (odo.reply) await tell(m.from, odo.reply); continue; }
+      // A known employee saying Hi, or answering one of the menu's questions (ADR-079). A failure here is answered kindly and never retried, as below.
+      try {
+        const menu = await processWhatsAppMenu(driver, m);
+        if (menu.handled) { if (menu.reply) await tell(m.from, menu.reply); continue; }
+      } catch (e) {
+        console.error(`inbound-whatsapp: menu failed: ${e instanceof Error ? e.message.slice(0, 120) : "unknown"}`);
+        await tell(m.from, "Sorry, I could not process that just now. Please try again in a few minutes, or use the app.");
+        continue;
+      }
       // A known employee raising a job card (ADR-061). A failure here is answered kindly and never retried: Meta repeating the message would draft it twice.
       try {
         const wj = await processWhatsAppJobCard(driver, deps, m);

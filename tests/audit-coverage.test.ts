@@ -16,6 +16,7 @@ const NOT_AUDITED: Record<string, string> = {
   trip_events: "append-only history of who moved a trip between states; its own audit trail, like job_card_events",
   vehicle_request_events: "append-only history of who moved a vehicle request between states; its own audit trail, like trip_events",
   odometer_wa_messages: "bookkeeping written only by the monthly sender: the hash of an outgoing WhatsApp message and which submission it was about; the submission and its readings are audited",
+  whatsapp_sessions: "the working state of a WhatsApp menu conversation (ADR-079), deleted a day after it closes; what it creates (a trip, a reading, a job card) is audited by its own table",
   policy_readings: "a draft: text found in an uploaded policy; the rules a person applies from it are audited as settings changes",
 };
 

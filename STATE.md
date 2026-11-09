@@ -565,3 +565,6 @@ Tenant 0043 and 0044 and control 0023 applied on live (no drift); deployed. Phas
 
 ## 2026-11-09: V1.4 logistics providers live (ADR-078)
 Applied on live: tenant 0043 to 0047, control 0023 to 0025, public 0017 and 0018 (no drift). Deployed at ad09e43. Live now: vendor types, trips sent to several logistics providers, quotes entered by staff or sent by the provider through a single-use /q/ link, award, provider invoice link, Finance's check, tenant rate cards, the outsourced trips report and CSV, optional WhatsApp send from Fleet OTG (needs the two templates). Pro feature. Not built: AI quote comparison, provider sign-in (both wait on owner decisions, docs/OWNER-CHECKLIST.md). otp_checks is off on live (beta).
+
+## 2026-11-09: WhatsApp menu phase A built (ADR-079), not deployed
+The WhatsApp menu engine, identity, the Pro gate, the administrator's switch (Vendors page) and the flows Reserve a Trip and Submit Odometer Readings are built and tested (1,211 unit tests). Platform 0019, control 0026 and tenant 0048 are NOT applied on live. Phase B (job card questionnaire) and C (cargo requests, manager WhatsApp template) are next.

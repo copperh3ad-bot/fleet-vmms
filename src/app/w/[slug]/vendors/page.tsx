@@ -12,6 +12,8 @@ import { aiConfigured } from "@/lib/ai/claude";
 import { aiDocumentsEnabled } from "@/lib/ai/service";
 import { AiDocumentsPanel } from "./ai-panel";
 import { WaJobCardsPanel } from "./wa-jobcards-panel";
+import { WaMenuPanel } from "./wa-menu-panel";
+import { waMenuState } from "@/lib/wa-menu/switch";
 import { waJobCardsState } from "@/lib/wa-jobcards/service";
 import { tenantPlan } from "@/lib/billing/plans";
 
@@ -31,6 +33,8 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const plan = showAi ? await tenantPlan(getDriver(), m.tenantId) : null;
   const aiOn = showAi && plan?.aiDocuments ? await aiDocumentsEnabled(getDriver(), m.tenantId) : false;
   const wa = showAi ? await waJobCardsState(getDriver(), m) : null;
+  const isAdmin = (await permissionsOf(getDriver(), m)).has("admin.users");
+  const menu = isAdmin ? await waMenuState(getDriver(), m).catch(() => null) : null;
   return (
     <main className="space-y-5 p-6 text-zinc-900">
       <PageHeader title="Vendors" sub={`${rows.length} workshops and logistics providers`} />
@@ -70,6 +74,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
         <div className="space-y-5">
           <Panel title="Add a vendor"><VendorForm slug={slug} /></Panel>
           {showAi && <Panel title="Reading workshop documents with AI">{plan?.aiDocuments ? <AiDocumentsPanel slug={slug} on={aiOn} trialReads={plan.aiTrialReads} /> : <p className="text-sm">This is part of the <strong>Pro</strong> plan: the AI reads the estimates and invoices your workshops email and fills in the form for your staff to check. Your plan is {plan?.name ?? "Basic"}. <a className="underline" href={`/w/${slug}/billing`}>See Billing</a> to change plan.</p>}</Panel>}
+          {menu && <Panel title="WhatsApp menu">{menu.pro ? <WaMenuPanel slug={slug} on={menu.on} /> : <p className="text-sm">This is part of the <strong>Pro</strong> plan: employees say Hi on WhatsApp and choose what to do, answering a few questions each time.</p>}</Panel>}
           {showAi && wa && <Panel title="Job cards by WhatsApp">{wa.pro ? <WaJobCardsPanel slug={slug} on={wa.on} /> : <p className="text-sm">This is part of the <strong>Pro</strong> plan: employees raise a job card by sending one WhatsApp message, and the AI makes the draft for them to confirm. Your plan is {plan?.name ?? "Basic"}. <a className="underline" href={`/w/${slug}/billing`}>See Billing</a> to change plan.</p>}</Panel>}
         </div>
       </div>

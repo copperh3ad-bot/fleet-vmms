@@ -195,3 +195,22 @@ export function reviewReading(driver: Driver, m: Membership, submissionId: strin
     } catch (e) { friendly(e); }
   });
 }
+
+/**
+ * A reading a person sends on their own, outside the monthly request (the WhatsApp menu, ADR-079). It lands in the same table through the same checks: a reading below the last one,
+ * or an impossible jump, is kept but flagged for the fleet office to review, and only accepted readings move the vehicle's odometer. The person must be allowed to enter
+ * readings and to use that vehicle.
+ */
+export function recordOwnReading(driver: Driver, m: Membership, vehicleId: string, km: number): Promise<{ status: string; flag_reason: string | null; last_km: string | null; registration_no: string }> {
+  return authorized(driver, m, "odometer.submit", async (q) => {
+    const v = (await q.query<{ registration_no: string }>(
+      `select v.registration_no from vehicles v where v.id = $1 and dept_ok(v.id)
+          and ($3::boolean = false or exists (select 1 from vehicle_custody c join employees e on e.id = c.employee_id where c.vehicle_id = v.id and c.to_date is null and e.user_id = $2))`,
+      [vehicleId, m.userId, m.vehicleScope === "own"])).rows[0];
+    if (!v) throw new UserError("That vehicle is not one you can send a reading for.");
+    const last = (await q.query<{ reading_km: string }>("select reading_km::text from odometer_readings where vehicle_id = $1 and status = 'accepted' order by read_at desc, created_at desc limit 1", [vehicleId])).rows[0];
+    const r = (await q.query<{ status: string; flag_reason: string | null }>(
+      "insert into odometer_readings(vehicle_id, reading_km, source, entered_by) values ($1, $2, 'manual', $3) returning status, flag_reason", [vehicleId, km, m.userId])).rows[0];
+    return { status: r.status, flag_reason: r.flag_reason, last_km: last?.reading_km ?? null, registration_no: v.registration_no };
+  });
+}

@@ -91,6 +91,11 @@ export const PLATFORM_MIGRATIONS: Migration[] = [
     "name": "0018_trip_invoice_links.sql",
     "sql": "-- ADR-078 phase B2: the single-use link also carries a logistics provider's invoice for an awarded trip (kind 'trip_invoice'). Idempotent.\nalter table public.quotation_links add column if not exists trip_id uuid;                       -- trips.id inside the tenant schema\nalter table public.quotation_links drop constraint if exists quotation_links_kind_check;\nalter table public.quotation_links add constraint quotation_links_kind_check check (kind in ('quotation', 'invoice', 'trip_quote', 'trip_invoice'));\nalter table public.quotation_links drop constraint if exists quotation_links_target_check;\nalter table public.quotation_links add constraint quotation_links_target_check\n  check ((kind = 'trip_quote' and trip_quote_id is not null) or (kind = 'trip_invoice' and trip_id is not null) or (kind in ('quotation', 'invoice') and job_card_id is not null));\ncreate index if not exists quotation_links_trip_idx on public.quotation_links(tenant_id, trip_id) where trip_id is not null;\n",
     "checksum": "8cc31cefbd5bba921ab87a770e09fdcbc0f540d5f424b31e903668c49217e549"
+  },
+  {
+    "name": "0019_wa_menu.sql",
+    "sql": "-- Platform migration 0019 (ADR-079): the WhatsApp menu and its questionnaires are switched on per organization by its administrator. Idempotent.\n-- Off until the administrator says so, which records who and when. The Pro plan is also needed (checked in code).\nalter table public.tenants add column if not exists wa_menu_enabled boolean not null default false;\nalter table public.tenants add column if not exists wa_menu_by uuid;\nalter table public.tenants add column if not exists wa_menu_at timestamptz;\n",
+    "checksum": "03c43dab0db49c17540476f322a09404500c595c7d41f8d2b839e63dd429858b"
   }
 ];
 
@@ -219,6 +224,11 @@ export const CONTROL_MIGRATIONS: Migration[] = [
     "name": "0025_trip_invoice_link_routes.sql",
     "sql": "-- Control-plane migration 0025 (ADR-078 phase B2): the provider's trip invoice link finds its organization like the other links. Idempotent.\nalter table public.link_routes drop constraint if exists link_routes_kind_check;\nalter table public.link_routes add constraint link_routes_kind_check check (kind in ('invite', 'odometer', 'quotation', 'invoice', 'reply', 'odoreply', 'joinconfirm', 'trip_quote', 'trip_invoice'));\n",
     "checksum": "84e251d995df1bf7e23affcbd6dc1686c7648b1b482cd7768b9abd579b548b05"
+  },
+  {
+    "name": "0026_pro_whatsapp_menu.sql",
+    "sql": "-- Control-plane migration 0026 (ADR-079): Pro includes the WhatsApp menu and questionnaires. A feature flag only; no price (CLAUDE.md rule 7). Idempotent.\nupdate public.plans set features = features || '{\"whatsapp_menu\": true}'::jsonb where key = 'pro';\n",
+    "checksum": "4f9054ab13b3c72640743034781d045d0659107b21dfc761b5fc24cc8fc9c8be"
   }
 ];
 
@@ -457,5 +467,10 @@ export const TENANT_MIGRATIONS: Migration[] = [
     "name": "0047_provider_rates.sql",
     "sql": "-- Tenant migration 0047 (ADR-078 phase C): each organization's own reference rates for its logistics providers. Idempotent.\n-- Entered by the organization, never built in and never shared between organizations (the rule for every rate, ADR-018). A rate is reference only: it never replaces a quote.\ncreate table if not exists provider_rates (\n  id         uuid primary key default gen_random_uuid(),\n  vendor_id  uuid not null references vendors(id) on delete cascade,\n  label      text not null check (length(trim(label)) >= 2),          -- the run or service this rate is for, e.g. \"Lahore to Karachi, 10-tonne truck\"\n  basis      text not null check (basis in ('per_trip','per_km','per_day','per_hour')),\n  amount     numeric(14,2) not null check (amount > 0),\n  notes      text,\n  active     boolean not null default true,\n  created_by uuid,\n  created_at timestamptz not null default now()\n);\ncreate index if not exists provider_rates_vendor_idx on provider_rates(vendor_id) where active;\ndrop trigger if exists provider_rates_audit on provider_rates;\ncreate trigger provider_rates_audit after insert or update or delete on provider_rates for each row execute function audit_trigger();\n",
     "checksum": "c6e4e75a634e67a762a7ee9c655ebb1dced35310b646458ebc3e9efa5ccddbe1"
+  },
+  {
+    "name": "0048_whatsapp_sessions.sql",
+    "sql": "-- Tenant migration 0048 (ADR-079 phase A): the open conversation of the WhatsApp menu, one at a time per employee. Idempotent.\n-- A row holds where a person is in a questionnaire and what they have answered so far. Nothing here creates a job card, a trip or a reading: that happens only\n-- when the person replies YES, through the same functions the app uses. Rows are deleted a day after they close.\ncreate table if not exists whatsapp_sessions (\n  id              uuid primary key default gen_random_uuid(),\n  employee_id     uuid not null references employees(id) on delete cascade,\n  flow            text not null,                                   -- 'menu', or the questionnaire being answered\n  step            text not null,                                   -- the question being asked, or 'confirm'\n  answers         jsonb not null default '{}'::jsonb,\n  status          text not null default 'open' check (status in ('open','submitting','done','cancelled','lapsed')),\n  result          text,                                            -- what was made, e.g. 'Trip TR-000123'\n  last_message_id text,                                            -- the last WhatsApp message handled, so a repeated delivery is ignored\n  expires_at      timestamptz not null default (now() + interval '30 minutes'),\n  created_at      timestamptz not null default now(),\n  closed_at       timestamptz\n);\ncreate unique index if not exists whatsapp_sessions_one_open on whatsapp_sessions(employee_id) where status in ('open','submitting');\ncreate index if not exists whatsapp_sessions_closed_idx on whatsapp_sessions(closed_at) where closed_at is not null;\n",
+    "checksum": "04538a86782f5d43a7a1b3a0126de469d151862356312e133fc103b5326562f7"
   }
 ];

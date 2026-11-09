@@ -62,14 +62,14 @@ export function proOfferFrom(plan: PlanRow | undefined, bands: Band[]): ProOffer
 export const loadProOffer = async (driver: Driver): Promise<ProOffer> => proOfferFrom((await listPlans(driver)).find((p) => p.key === PRO), await listBands(driver, PRO));
 
 /** What the plan an organization is on lets it do. An organization with no plan row (the ones that existed before billing) is on none, so has no AI until the operator moves it. */
-export type TenantPlan = { key: string; name: string; aiDocuments: boolean; /** Pro: trips can be sent to logistics providers for quotes (ADR-078) */ outsourcedTrips: boolean; aiPerDay: number; aiTrialReads: number | null; trialing: boolean; /** while a Basic company's free Pro trial runs: when it ends (ADR-068) */ proTrialEndsAt: string | null };
+export type TenantPlan = { key: string; name: string; aiDocuments: boolean; /** Pro: trips can be sent to logistics providers for quotes (ADR-078) */ outsourcedTrips: boolean; /** Pro: the WhatsApp menu and questionnaires (ADR-079) */ whatsappMenu: boolean; aiPerDay: number; aiTrialReads: number | null; trialing: boolean; /** while a Basic company's free Pro trial runs: when it ends (ADR-068) */ proTrialEndsAt: string | null };
 
 export function planFrom(row: { plan_key: string | null; name: string | null; status: string | null; features: Record<string, boolean | undefined> | null; limits: Record<string, number | undefined> | null; ai_reads_per_day?: number | null } | undefined): TenantPlan {
   const features = row?.features ?? {}, limits = row?.limits ?? {};
   const aiDocuments = features.ai_documents === true;
   const trialing = row?.status === "trialing";
   return {
-    key: row?.plan_key ?? "none", name: row?.name ?? "No plan", aiDocuments, outsourcedTrips: features.outsourced_trips === true, trialing, proTrialEndsAt: null,
+    key: row?.plan_key ?? "none", name: row?.name ?? "No plan", aiDocuments, outsourcedTrips: features.outsourced_trips === true, whatsappMenu: features.whatsapp_menu === true, trialing, proTrialEndsAt: null,
     aiPerDay: aiDocuments ? (row?.ai_reads_per_day ?? limits.ai_reads_per_day ?? DEFAULT_AI_PER_DAY) : 0,
     aiTrialReads: aiDocuments && trialing && typeof limits.ai_trial_reads === "number" ? limits.ai_trial_reads : null,
   };
