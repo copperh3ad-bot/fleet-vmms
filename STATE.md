@@ -559,3 +559,6 @@ Live is commit c373081: 19 inline SVG scenes (src/components/art.tsx) on the lan
 
 ## 2026-11-09: custody handover on the same day (tenant 0043)
 Regression R7 observation: Change custody on a vehicle created the same day left the old holder in place (the rule refused a start date on or before the current holder's start). `change_custody` now lets a handover dated the day the holder started replace them (the zero-day row is removed; the audit log keeps it); earlier dates are still refused. Unit test in tests/master.test.ts, browser step in scenario 8. Tenant 0043 NOT yet applied on live; the fix needs it. Live otherwise at 5467971 with 0040-0042 applied.
+
+## 2026-11-09: V1.4 phase A live; keep-warm ping
+Tenant 0043 and 0044 and control 0023 applied on live (no drift); deployed. Phase A of ADR-078 (vendor types, outsourced trips, quotes from several logistics providers, award, Pro feature) is live; phases B (WhatsApp quote and invoice links) and C (rate cards, reports) are not built. A scheduled function (netlify/functions/keep-warm.mts) pings /api/health and /login every four minutes against cold starts. The otp_checks beta switch is still on until the owner sets it to off.
