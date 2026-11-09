@@ -15,6 +15,7 @@ import { checkRecoveryCode, checkUsername, deleteLoginName, hashRecoveryCode, lo
 import { allowShared } from "@/lib/rate-limit";
 import { trialCapFor } from "@/lib/billing/trial";
 import { normalizePhone } from "@/lib/phone";
+import { assertPhoneFree } from "@/lib/phone-owner";
 import { codeChannel, codeHint, type CodeChannel } from "./invite-channel";
 import { authAdminConfigured, createLoginUser, deleteLoginUser, putInboundFile, setLoginPassword } from "@/lib/supabase/admin";
 
@@ -277,6 +278,10 @@ export async function inviteUser(driver: Driver, m: Membership, input: Record<st
   const r = inviteSchema.safeParse(input);
   if (!r.success) throw new UserError("Fix the highlighted fields.", fieldErrors(r.error));
   const d: InviteData = { ...r.data };
+  if (d.phone) {                       // one number belongs to one organization at a time (ADR-082); checked after the permission
+    const n = normalizePhone(d.phone);
+    if (n.ok) { await authorized(driver, m, "admin.users", async () => undefined); await assertPhoneFree(driver, m.tenantId, n.e164); }
+  }
   if (d.email) delete d.username;
   else {
     if (!authAdminConfigured()) throw new UserError("Inviting someone without an email is not switched on yet. Enter their email, or ask the platform owner to finish the set-up.", { email: "Enter an email" });
@@ -316,6 +321,8 @@ export async function addEmployeeWithInvite(driver: Driver, m: Membership, input
   const d = r.data;
   const phone = normalizePhone(d.phone);
   if (!phone.ok) throw new UserError(phone.message, { phone: phone.message });
+  await authorized(driver, m, "admin.users", async () => undefined);
+  await assertPhoneFree(driver, m.tenantId, phone.e164);                // one number belongs to one organization at a time (ADR-082)
   let username: string | undefined;
   if (!d.email) {
     if (!authAdminConfigured()) throw new UserError("Enter their email. Inviting someone without an email is not switched on yet; ask the platform owner to finish the set-up.", { email: "Enter the email" });

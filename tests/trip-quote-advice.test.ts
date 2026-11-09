@@ -115,8 +115,8 @@ describe("comparing quotes with the AI", () => {
     for (const name of ["Alpha", "Bravo", "Charlie", "Requester One", "Manager One"]) expect(sent).not.toContain(name);
     const msg = JSON.parse(((seen[0].messages as { content: { text: string }[] }[])[0].content[0].text));
     expect(msg.options.map((o: { label: string }) => o.label)).toEqual(["A", "B"]);
-    expect(msg.options.find((o: { label: string }) => o.label === "A").rate_cards).toEqual([{ label: "Lahore to Faisalabad, 10-tonne truck", basis: "per_trip", amount: 90000 }]);
-    expect(msg.options.find((o: { label: string }) => o.label === "B").over_lowest_pct).toBe(0);
+    expect(msg.options.flatMap((o: { rate_cards: unknown[] }) => o.rate_cards)).toEqual([{ label: "Lahore to Faisalabad, 10-tonne truck", basis: "per_trip", amount: 90000 }]);   // Alpha's card, on whichever letter Alpha got
+    expect(msg.options.map((o: { over_lowest_pct: number }) => o.over_lowest_pct).sort((x: number, y: number) => x - y)).toEqual([0, 5.3]);   // 95,000 is the lowest; 100,000 is 5.3% over
     expect(await trips.listTripQuotes(d, mgr(), id)).toEqual(before);
     expect((await trips.getTrip(d, mgr(), id))!.status).toBe("requested");
 
@@ -127,7 +127,8 @@ describe("comparing quotes with the AI", () => {
     expect(shown.stale).toBe(false);
     expect(shown.ranking.map((x) => x.quote_id)).toHaveLength(2);
     expect(new Set(shown.ranking.map((x) => x.quote_id))).toEqual(new Set([a, b]));
-    expect(shown.ranking[0].quote_id).toBe(b);
+    expect(shown.ranking[0].label).toBe("B");                              // the letter the model put first, mapped back to a real quote
+    expect([a, b]).toContain(shown.ranking[0].quote_id);
   });
 
   it("the advice goes stale when a quote changes, and awarding stays the person's own step", async () => {

@@ -56,7 +56,7 @@ async function build(kind: "shared" | "dedicated", control: Driver, f: ReturnTyp
   await master.addVehicle(router, admin, { registration_no: `LEAK${tag}-777`, make: "Leakmobile" });
   await master.saveEmployee(router, admin, { full_name: `Zed Leak${tag}`, employee_no: `LK-${tag}`, email: `zed-${tag.toLowerCase()}@example.com` });
   await master.saveVendor(router, admin, { name: `Leak${tag} Workshop`, categories: ["tyres"] });
-  await ad.inviteUser(router, admin, { phone: "0300 1234567", full_name: `Pending ${tag}`, email: `leak-${tag.toLowerCase()}@example.com`, role: "requester", employee_no: `P-${tag}` });
+  await ad.inviteUser(router, admin, { phone: `0300 123456${n}`, full_name: `Pending ${tag}`, email: `leak-${tag.toLowerCase()}@example.com`, role: "requester", employee_no: `P-${tag}` });
   const cycle = await od.openCycle(router, mk("fleet_manager", U(n + 1000)), "2026-11", "2026-11-28").catch(() => null);
   if (cycle) await od.createLinks(router, mk("fleet_manager", U(n + 1000)), cycle).catch(() => undefined);
   const base = { tag, tenantId, schema, admin, manager: mk("fleet_manager", U(n + 1000)), finance: mk("finance", U(n + 2000)) };

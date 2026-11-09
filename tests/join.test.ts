@@ -272,7 +272,7 @@ describe("telling the administrator", () => {
     const C = await signUp(4, "Join Delta");
     const code = (await setJoinCode(router, C.admin, "on"))!;
     await control.transaction(async (q) => { await q.query(`alter table "${C.schema}".notifications rename to notifications_gone`); });
-    await expect(ask(code, "staff", { email: "stillsaved@example.com" })).resolves.toMatchObject({ company: "Join Delta" });
+    await expect(ask(code, "staff", { email: "stillsaved@example.com", phone: "0300 7654321" })).resolves.toMatchObject({ company: "Join Delta" });
     expect(await pending(C)).toEqual(["stillsaved@example.com"]);
     await control.transaction(async (q) => { await q.query(`alter table "${C.schema}".notifications_gone rename to notifications`); });
   });

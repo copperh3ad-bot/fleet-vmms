@@ -8,6 +8,7 @@ import {
   type VehicleInput, type EmployeeInput, type VendorInput,
 } from "./schemas";
 import { csvToObjects } from "./csv";
+import { assertPhoneFree } from "@/lib/phone-owner";
 
 /** A problem the user can fix. Its message is safe to show. */
 export class UserError extends Error {
@@ -161,7 +162,13 @@ export function listEmployeeOptions(driver: Driver, m: Membership): Promise<{ id
     "select id, full_name, employee_no, department from employees where active order by full_name")).rows);
 }
 
-export function saveEmployee(driver: Driver, m: Membership, raw: unknown, id?: string): Promise<{ id: string }> {
+export async function saveEmployee(driver: Driver, m: Membership, raw: unknown, id?: string): Promise<{ id: string }> {
+  // One number belongs to one organization at a time (ADR-082). Checked after the permission, so a person without it learns nothing about other companies' numbers.
+  const given = employeeSchema.safeParse(raw);
+  if (given.success && given.data.phone && given.data.active !== false) {
+    await authorized(driver, m, "employee.manage", async () => undefined);
+    await assertPhoneFree(driver, m.tenantId, given.data.phone);
+  }
   return authorized(driver, m, "employee.manage", async (q) => {
     const p = employeeSchema.safeParse(raw);
     if (!p.success) throw new UserError("Fix the highlighted fields.", fieldErrors(p.error));

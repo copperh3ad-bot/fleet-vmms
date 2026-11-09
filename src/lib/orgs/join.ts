@@ -19,6 +19,7 @@ import { saveVendor } from "@/lib/master/service";
 import { inviteUser } from "@/lib/admin/service";
 import { findTenantByToken, routeToken, unrouteToken, type TenantRef } from "./index";
 import { normalizePhone } from "@/lib/phone";
+import { assertPhoneFree } from "@/lib/phone-owner";
 import { hashToken, newToken } from "@/lib/odometer/link";
 import { learnerAllowed, licenceProblem } from "@/lib/compliance/licences";
 import { sendWhatsApp, whatsappCodeConfigured } from "@/lib/whatsapp";
@@ -143,6 +144,7 @@ export async function submitJoinRequest(driver: Driver, kind: JoinKind, input: J
   if (!t) throw new UserError("That company code is not recognised. Check it with your administrator.", { code: "Not recognised" });
   const phone = normalizePhone(input.phone);
   if (!phone.ok) throw new UserError(phone.message, { phone: phone.message });
+  await assertPhoneFree(driver, t.id, phone.e164);   // one number belongs to one organization at a time (ADR-082)
   const codes = await otpChecksOn(driver);          // the beta switch (ADR-076): off means the request goes straight to the administrator, with no code
   if (codes && !whatsappCodeConfigured()) throw new UserError("Joining with a company code needs a confirmation on WhatsApp, which is not set up yet. Ask your administrator.");
   const allowLearner = await withTenant(driver, { schema: t.schema, userId: SYSTEM_USER, role: "system" }, (q) => learnerAllowed(q));

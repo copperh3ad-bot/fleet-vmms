@@ -26,7 +26,9 @@ export async function seedDemo(driver: Driver, tenant: { tenantId: string; schem
 
   // ---- people (no logins) ----
   const person = async (name: string, no: string, dept: string, login = false) => {
-    const e = await master.saveEmployee(driver, admin, { full_name: name, employee_no: no, department: dept, phone: `+92 300 ${String(1000000 + Number(no.replace(/\D/g, "")) * 37).slice(0, 7)}`, email: `${name.split(" ")[0].toLowerCase()}@delta-textiles.example` });
+    // Demo people carry the same made-up numbers in every demo workspace, so they are inserted directly, not through saveEmployee (a real number belongs to one organization, ADR-082).
+    const e = (await raw(admin, (q) => q.query<{ id: string }>("insert into employees(full_name, employee_no, department, email, phone) values ($1,$2,$3,$4,$5) returning id",
+      [name, no, dept, `${name.split(" ")[0].toLowerCase()}@delta-textiles.example`, `+92 300 ${String(1000000 + Number(no.replace(/\D/g, "")) * 37).slice(0, 7)}`]))).rows[0];
     const userId = randomUUID();
     if (login) await raw(admin, (q) => q.query("update employees set user_id = $1 where id = $2", [userId, e.id]));
     return { id: e.id, userId };
