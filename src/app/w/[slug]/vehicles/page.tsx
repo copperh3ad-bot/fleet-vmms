@@ -92,7 +92,7 @@ async function Vehicles({ params, searchParams }: { params: Promise<{ slug: stri
           <div className="overflow-x-auto">
             <table className="w-full min-w-[960px] text-left text-sm">
               <thead className="border-b border-zinc-200 text-[11px] uppercase tracking-wide text-zinc-500">
-                <tr><th className="px-5 py-3">Vehicle</th><th>Driver</th><th className="text-right">Odometer</th><th className="pl-6">Service</th><th>Spend vs budget</th><th className="text-right">Jobs, 90 d</th><th className="px-5">Flags</th></tr>
+                <tr><th className="px-5 py-3">Vehicle</th><th className="hidden md:table-cell">Driver</th><th className="text-right hidden md:table-cell">Odometer</th><th className="pl-6">Service</th><th className="hidden md:table-cell">Spend vs budget</th><th className="text-right hidden md:table-cell">Jobs, 90 d</th><th className="px-5">Flags</th></tr>
               </thead>
               <tbody>
                 {b.rows.map((r) => {
@@ -100,12 +100,12 @@ async function Vehicles({ params, searchParams }: { params: Promise<{ slug: stri
                   const over = (r.pct ?? 0) >= 100;
                   return (
                     <tr key={r.id} className="border-b border-zinc-100 align-top last:border-0">
-                      <td className="px-5 py-4"><a href={`/w/${slug}/vehicles/${r.id}`}><Plate>{r.registration_no}</Plate></a><span className="mt-1 block text-xs text-zinc-500">{[r.make, r.model, r.year].filter(Boolean).join(" ")}</span>{r.department && <span className="mt-1 block text-xs font-medium text-zinc-700">{r.department}</span>}</td>
-                      <td className="py-4 pr-3">{r.holder ?? <span className="text-zinc-600">Unassigned</span>}</td>
-                      <td className="py-4 pr-3 text-right"><span className="font-mono">{money(r.odometer_km)} km</span>
+                      <td className="px-5 py-4"><a href={`/w/${slug}/vehicles/${r.id}`}><Plate>{r.registration_no}</Plate></a><span className="mt-1 block text-xs text-zinc-500">{[r.make, r.model, r.year].filter(Boolean).join(" ")}</span>{r.department && <span className="mt-1 block text-xs font-medium text-zinc-700">{r.department}</span>}<span className="mt-1 block text-xs text-zinc-600 md:hidden">{r.holder ?? "Unassigned"} · {money(r.odometer_km)} km</span></td>
+                      <td className="py-4 pr-3 hidden md:table-cell">{r.holder ?? <span className="text-zinc-600">Unassigned</span>}</td>
+                      <td className="py-4 pr-3 text-right hidden md:table-cell"><span className="font-mono">{money(r.odometer_km)} km</span>
                         <span className="mt-1 block text-xs text-zinc-500">{r.odometer_age_days === null ? "no reading yet" : r.odometer_stale ? <Pill tone="warn">Stale · {r.odometer_age_days} days</Pill> : `updated ${plural(r.odometer_age_days, "day")} ago`}</span></td>
                       <td className="py-4 pl-6 pr-3"><Pill tone={s.tone}>{s.text}</Pill>{s.sub && <span className="mt-1 block text-xs text-zinc-500">{s.sub}</span>}</td>
-                      <td className="py-4 pr-3 min-w-[190px]">
+                      <td className="py-4 pr-3 min-w-[190px] hidden md:table-cell">
                         {r.budget !== null ? (
                           <>
                             <div className="h-2 rounded bg-zinc-100"><div className={`h-2 rounded ${over ? "bg-red-600" : "bg-brand"}`} style={{ width: `${Math.min(100, r.pct ?? 0)}%` }} /></div>
@@ -113,7 +113,7 @@ async function Vehicles({ params, searchParams }: { params: Promise<{ slug: stri
                           </>
                         ) : <span className="font-mono text-xs text-zinc-500">{money(r.spent)} · no budget</span>}
                       </td>
-                      <td className="py-4 pr-3 text-right font-mono">{r.jobs_90d}</td>
+                      <td className="py-4 pr-3 text-right font-mono hidden md:table-cell">{r.jobs_90d}</td>
                       <td className="px-5 py-4"><div className="flex flex-wrap gap-1.5">
                         {r.flags.length === 0 && r.docs.length === 0 && <span className="text-zinc-600">None</span>}
                         {r.flags.map((f) => <Pill key={f.text} tone={f.tone}>{f.text}</Pill>)}

@@ -39,17 +39,17 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
         {rows.length === 0 ? <div className="p-5 text-sm text-zinc-500"><p>{q || status ? "No job card matches." : "No job cards yet."}</p>{!q && !status && <DepartmentNote department={myDepartment} what="job cards" />}</div> : (
           <div className="overflow-x-auto"><table className="w-full text-left text-sm">
             <thead className="text-[11px] uppercase tracking-wide text-zinc-500">
-              <tr><th className="px-5 py-3">Job</th><th>Vehicle</th><th>Reason</th><th>Requested by</th><th>Priority</th><th className="text-right">Estimate ({cur})</th><th className="px-5">Status</th></tr>
+              <tr><th className="px-5 py-3">Job</th><th>Vehicle</th><th className="hidden md:table-cell">Reason</th><th className="hidden md:table-cell">Requested by</th><th className="hidden md:table-cell">Priority</th><th className="text-right hidden md:table-cell">Estimate ({cur})</th><th className="px-5">Status</th></tr>
             </thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} className="border-t border-zinc-100">
-                  <td className="px-5 py-3 font-medium"><a className="text-sky-800 hover:underline" href={`/w/${slug}/job-cards/${r.id}`}>{r.job_no}</a></td>
+                  <td className="px-5 py-3 font-medium"><a className="text-sky-800 hover:underline" href={`/w/${slug}/job-cards/${r.id}`}>{r.job_no}</a><span className="mt-1 block text-xs font-normal text-zinc-500 md:hidden">{r.reason_label}</span></td>
                   <td className="py-3"><Plate>{r.registration_no}</Plate></td>
-                  <td className="py-3">{r.reason_label}</td>
-                  <td className="py-3">{r.requester_name}</td>
-                  <td className="py-3"><Pill tone={PRIORITY[r.priority] ?? "neutral"}>{r.priority[0].toUpperCase() + r.priority.slice(1)}</Pill></td>
-                  <td className="py-3 text-right font-mono">{r.estimated_cost ? money(r.estimated_cost) : "—"}</td>
+                  <td className="py-3 hidden md:table-cell">{r.reason_label}</td>
+                  <td className="py-3 hidden md:table-cell">{r.requester_name}</td>
+                  <td className="py-3 hidden md:table-cell"><Pill tone={PRIORITY[r.priority] ?? "neutral"}>{r.priority[0].toUpperCase() + r.priority.slice(1)}</Pill></td>
+                  <td className="py-3 text-right font-mono hidden md:table-cell">{r.estimated_cost ? money(r.estimated_cost) : "—"}</td>
                   <td className="px-5 py-3"><StatusBadge status={r.status} /></td>
                 </tr>
               ))}

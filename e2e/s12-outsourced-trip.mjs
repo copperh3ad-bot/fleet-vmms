@@ -57,6 +57,17 @@ export async function outsourcedTrip(S) {
     for (const [n, path] of [["dashboard", ""], ["vehicles", "/vehicles"], ["jobcards", "/job-cards"], ["trips", "/trips"]]) { await go(o, base + path); await o.page.waitForTimeout(800); await shot(o, `audit-${n}`); }
   });
 
+  await step("audit shots at phone width", async () => {
+    await o.page.setViewportSize({ width: 390, height: 844 });
+    try {
+      for (const [n, path] of [["dashboard", ""], ["vehicles", "/vehicles"], ["vehicles-new", "/vehicles/new"], ["jobcards", "/job-cards"], ["jobcards-new", "/job-cards/new"], ["trip", `/trips/${trip}`], ["vendors", "/vendors"], ["users", "/users"]]) {
+        await go(o, base + path); await o.page.waitForTimeout(700); await shot(o, `phone-${n}`);
+        const overflow = await o.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+        console.log(`PHONE ${n}: horizontal overflow ${overflow}px`);
+      }
+    } finally { await o.page.setViewportSize({ width: 1280, height: 900 }); }
+  });
+
   await step("the administrator awards the cheapest; the trip is approved as outsourced and the others close", async () => {
     await go(o, `${base}/trips/${trip}`);
     await press(o, /Award to Bravo Haulage/, { wait: 2000 });

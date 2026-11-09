@@ -30,12 +30,12 @@ export function MakeModelYear({ state, thisYear, extras }: { state: FormState; t
   );
   return (
     <>
-      <Field label="Make *" name="make" state={state} required>
+      <Field label="Make" name="make" state={state} required>
         {pick("make", start.make, (x) => { setMake(x); setModel(""); }, catalog.makes, "Choose")}
         {makeOther && typed("make_other", "Type the make")}
         <p className="mt-1 text-xs text-zinc-500">Not on the list, such as a grey import, a rebuilt or locally modified vehicle? Choose Other and type it. It is saved now, and we add it for everyone once checked.</p>
       </Field>
-      <Field label="Model *" name="model" state={state} required>
+      <Field label="Model" name="model" state={state} required>
         {make === "" ? (
           <select id="model" name="model" disabled className={inputCls}><option>Choose the make first</option></select>
         ) : models.length === 0 ? (
@@ -44,7 +44,7 @@ export function MakeModelYear({ state, thisYear, extras }: { state: FormState; t
           <>{pick("model", make === start.make ? start.model : "", setModel, models, "Choose")}{modelOther && typed("model_other", "Type the model")}</>
         )}
       </Field>
-      <Field label="Year *" name="year" state={state} required>
+      <Field label="Year" name="year" state={state} required>
         <select id="year" name="year" defaultValue={v.year ?? ""} className={inputCls} aria-invalid={!!state.fields?.year}>
           <option value="">Choose</option>
           {yearChoices(thisYear).map((y) => <option key={y} value={y}>{y}</option>)}
