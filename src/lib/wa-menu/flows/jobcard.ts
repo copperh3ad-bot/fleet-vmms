@@ -3,20 +3,30 @@
 import { can } from "@/lib/auth/can";
 import { withTenant } from "@/lib/db/tenant";
 import { createJobCard } from "@/lib/jobcards/service";
-import { REASON_CATEGORY } from "@/lib/labels";
 import { UserError } from "@/lib/master/service";
 import type { Flow } from "../types";
 import { bad, good, listChoices, parseDate, parseNumber, parseText, pickChoice, showDate, type Choice } from "../text";
 import { findVehicleByRegistration, heldVehicles } from "../vehicles";
 import type { StoredPhoto } from "../photos";
 
-const WORK: Choice[] = [
-  { id: "corrective", label: "A repair (something is wrong)" },
-  { id: "preventive", label: "A scheduled service" },
-  { id: "accident", label: "Accident damage" },
-  { id: "inspection", label: "An inspection" },
+// The kinds of work a job card by WhatsApp can be for (owner decision, 2026-11-09). Only "Others" is explained in words (up to 100). Each kind sets the job card's category and
+// its reason; the fleet manager can change the reason when approving.
+type Kind = Choice & { category: string; reason: string };
+const KINDS: Kind[] = [
+  { id: "periodic", label: "Periodic maintenance", category: "preventive", reason: "scheduled_service" },
+  { id: "brakes", label: "Brake work", category: "corrective", reason: "wear_and_tear" },
+  { id: "suspension", label: "Suspension work", category: "corrective", reason: "wear_and_tear" },
+  { id: "battery", label: "Battery replacement", category: "corrective", reason: "wear_and_tear" },
+  { id: "body", label: "Body work", category: "corrective", reason: "other" },
+  { id: "lights", label: "Lights repair or replacement", category: "corrective", reason: "defect" },
+  { id: "tyres", label: "Tyre replacement", category: "corrective", reason: "wear_and_tear" },
+  { id: "alignment", label: "Wheel balancing and alignment", category: "corrective", reason: "wear_and_tear" },
+  { id: "ac", label: "AC works", category: "corrective", reason: "defect" },
+  { id: "others", label: "Others (explain the problem)", category: "corrective", reason: "other" },
 ];
-const CAUSES: Choice[] = Object.entries(REASON_CATEGORY).map(([id, label]) => ({ id, label }));
+const MAX_WORDS = 100;
+const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
+const kindOf = (a: Record<string, unknown>) => KINDS.find((k) => k.id === (a.work as Choice | undefined)?.id);
 const URGENCY: Choice[] = [
   { id: "low", label: "Low: can wait" },
   { id: "normal", label: "Normal" },
@@ -46,12 +56,16 @@ export const jobCardFlow: Flow = {
         return found ? good(found, found.label) : bad("I could not find that vehicle among the ones you can raise a job card for. Please check the registration number.");
       },
     },
-    { key: "work", choices: () => WORK, ask: async () => `What kind of job is it?\n${listChoices(WORK)}`, parse: pick(WORK, "the kind of job") },
-    { key: "cause", choices: () => CAUSES, ask: async () => `What is the main cause?\n${listChoices(CAUSES)}`, parse: pick(CAUSES, "the cause") },
+    { key: "work", choices: () => KINDS, ask: async () => `What kind of work is it?\n${listChoices(KINDS)}`, parse: pick(KINDS, "the kind of work") },
     {
       key: "what",
-      ask: async () => "Describe the problem or the work needed, for example: front left brake grinds when stopping.",
-      parse: async (raw) => parseText(raw, 10, 1000, "what is wrong or what is needed, in a sentence"),
+      skip: (c) => kindOf(c.answers)?.id !== "others",
+      ask: async () => `Please explain the problem or the work needed, in up to ${MAX_WORDS} words.`,
+      parse: async (raw) => {
+        const r = parseText(raw, 10, 1500, "what is wrong or what is needed, in a sentence");
+        if (!r.ok) return r;
+        return wordCount(r.value) > MAX_WORDS ? bad(`That is ${wordCount(r.value)} words. Please keep it to ${MAX_WORDS} words or fewer.`) : r;
+      },
     },
     {
       key: "km",
@@ -76,7 +90,7 @@ export const jobCardFlow: Flow = {
   summary: (a) => {
     const photos = (a.photos as StoredPhoto[] | null | undefined) ?? [];
     return [
-      "Job card:", (a.vehicle as Choice).label, `${(a.work as Choice).label}. Cause: ${(a.cause as Choice).label}.`, String(a.what),
+      "Job card:", (a.vehicle as Choice).label, kindOf(a)?.id === "others" ? `Others: ${String(a.what)}` : (a.work as Choice).label,
       `Odometer: ${Number(a.km).toLocaleString("en-US")} km. Priority: ${(a.priority as Choice).label.split(":")[0]}.`,
       a.needed_by ? `Needed by ${showDate(String(a.needed_by))}` : null,
       photos.length ? `${photos.length} photo${photos.length === 1 ? "" : "s"} attached.` : "No photos.",
@@ -85,12 +99,13 @@ export const jobCardFlow: Flow = {
   async submit(c) {
     const a = c.answers;
     const photos = (a.photos as StoredPhoto[] | null | undefined) ?? [];
+    const kind = kindOf(a)!;
     const reason = (await withTenant(c.driver, c.m, async (q) =>
-      (await q.query<{ id: string }>("select id from reason_codes where active and category = $1 order by code limit 1", [(a.cause as Choice).id])).rows[0]
+      (await q.query<{ id: string }>("select id from reason_codes where active and category = $1 order by code limit 1", [kind.reason])).rows[0]
         ?? (await q.query<{ id: string }>("select id from reason_codes where active order by (category = 'other') desc, code limit 1")).rows[0]));
     if (!reason) throw new UserError("this company has no reasons set up yet");
     const made = await createJobCard(c.driver, c.m, {
-      vehicle_id: (a.vehicle as Choice).id, requested_by: c.me.employeeId, category: (a.work as Choice).id, reason_code_id: reason.id, cause_text: a.what,
+      vehicle_id: (a.vehicle as Choice).id, requested_by: c.me.employeeId, category: kind.category, reason_code_id: reason.id, cause_text: kind.id === "others" ? String(a.what) : `Requested work: ${kind.label}.`,
       priority: (a.priority as Choice).id, needed_by: a.needed_by ?? "", odometer_km: String(a.km),
     }, true);
     await withTenant(c.driver, c.m, async (q) => {

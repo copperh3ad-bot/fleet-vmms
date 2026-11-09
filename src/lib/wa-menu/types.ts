@@ -13,6 +13,8 @@ export type Step = {
   parse: (raw: string, c: Ctx) => Promise<Parsed<unknown>>;
   /** The person may answer SKIP. */
   optional?: boolean;
+  /** True when an earlier answer makes this question unnecessary: it is not asked, its answer is empty, and BACK passes over it. */
+  skip?: (c: Ctx) => boolean;
   /** A step that takes photos (up to three), then DONE or SKIP. */
   photos?: boolean;
   /** The options to show as a tappable list (at most 9, or 10 when it cannot be skipped). Read after `ask`, so a list built there can be returned. The text reply still works. */

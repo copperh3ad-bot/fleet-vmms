@@ -209,7 +209,9 @@ async function continueSession(driver: Driver, m: Membership, me: Candidate, ses
   }
   if (isBack(text)) {
     if (idx === 0) return said(`That is the first question. ${await step.ask(c)}\n\n${FOOTER}`);
-    const prev = flow.steps[idx - 1];
+    let p = idx - 1;
+    while (p > 0 && flow.steps[p].skip?.(c)) { delete answers[flow.steps[p].key]; p--; }            // a question that was not asked is passed over
+    const prev = flow.steps[p];
     delete answers[prev.key];
     await withTenant(driver, m, (q) => save(q, session.id, { step: prev.key, answers }));
     const pc: Ctx = { ...c, answers };
@@ -249,7 +251,9 @@ async function continueSession(driver: Driver, m: Membership, me: Candidate, ses
 
 /** The next question, or the summary when that was the last one. */
 async function advance(driver: Driver, m: Membership, flow: Flow, session: Session, c: Ctx, answers: Answers, idx: number): Promise<MenuOutcome> {
-  const next = flow.steps[idx + 1];
+  let n = idx + 1;
+  while (flow.steps[n]?.skip?.({ ...c, answers })) { answers[flow.steps[n].key] = null; n++; }          // a question the earlier answers make unnecessary is not asked
+  const next = flow.steps[n];
   if (next) {
     const nc: Ctx = { ...c, answers };
     const question = await next.ask(nc);

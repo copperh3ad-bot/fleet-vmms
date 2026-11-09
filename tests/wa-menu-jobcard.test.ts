@@ -72,10 +72,10 @@ describe("Submit a Job Card", () => {
   it("asks every question the web form needs, takes photos, shows a summary, and only YES raises the card", async () => {
     expect(await start()).toMatch(/Which vehicle\?[\s\S]*1\. JCW-001 \(Suzuki Bolan\)/);
     expect(await say("JCW-999")).toMatch(/could not find that vehicle/);
-    expect(await say("1")).toMatch(/What kind of job is it\?[\s\S]*1\. A repair/);
-    expect(await say("1")).toMatch(/What is the main cause\?[\s\S]*2\. Wear and tear/);
-    expect(await say("2")).toMatch(/Describe the problem/);
-    expect(await say("brakes")).toMatch(/at least 10 characters[\s\S]*Describe the problem/);                          // asked again
+    expect(await say("1")).toMatch(/What kind of work is it\?[\s\S]*1\. Periodic maintenance[\s\S]*2\. Brake work[\s\S]*3\. Suspension work[\s\S]*4\. Battery replacement[\s\S]*5\. Body work[\s\S]*6\. Lights repair or replacement[\s\S]*7\. Tyre replacement[\s\S]*8\. Wheel balancing and alignment[\s\S]*9\. AC works[\s\S]*10\. Others/);
+    expect(await say("10")).toMatch(/explain the problem or the work needed, in up to 100 words/);
+    expect(await say("brakes")).toMatch(/at least 10 characters[\s\S]*explain the problem/);                            // asked again
+    expect(await say(Array(101).fill("word").join(" "))).toMatch(/101 words[\s\S]*100 words or fewer[\s\S]*explain the problem/);   // too long
     expect(await say("Front left brake grinds when stopping")).toMatch(/odometer show on JCW-001 now/);
     expect(await say("lots")).toMatch(/as a number/);
     expect(await say("43,000")).toMatch(/How urgent is it\?[\s\S]*3\. High/);
@@ -87,7 +87,7 @@ describe("Submit a Job Card", () => {
     expect(await send("pdf-1")).toMatch(/could not use that file[\s\S]*only ordinary photos/);                       // a PDF is not a photo
     expect(await send("22222", "33333", "44444")).toMatch(/Got it: 3 of 3 photos[\s\S]*1 file was not used[\s\S]*DONE/); // a fourth is turned away
     const summary = await say("done");
-    expect(summary).toMatch(/Job card:[\s\S]*JCW-001 \(Suzuki Bolan\)[\s\S]*A repair[\s\S]*Wear and tear[\s\S]*Front left brake[\s\S]*43,000 km[\s\S]*High[\s\S]*Needed by[\s\S]*3 photos attached[\s\S]*Reply YES/);
+    expect(summary).toMatch(/Job card:[\s\S]*JCW-001 \(Suzuki Bolan\)[\s\S]*Others: Front left brake[\s\S]*43,000 km[\s\S]*High[\s\S]*Needed by[\s\S]*3 photos attached[\s\S]*Reply YES/);
     expect(await cards()).toHaveLength(0);                                                                           // nothing exists before YES
     const done = await say("yes");
     expect(done).toMatch(/Done\. Job card JC-\d+ has been raised for JCW-001 and sent for approval/);
@@ -100,19 +100,21 @@ describe("Submit a Job Card", () => {
 
   it("works without photos or a date: SKIP and SKIP", async () => {
     const before = (await cards()).length;
-    await start(); await say("1"); await say("2"); await say("3"); await say("Engine overheats after twenty minutes"); await say("43,100"); await say("2");
+    await start(); await say("1");
+    expect(await say("1")).toMatch(/odometer show on JCW-001 now/);                                               // periodic maintenance: no explanation is asked
+    await say("43,100"); await say("2");
     await say("skip");                                                                                              // needed by
     const summary = await say("skip");                                                                              // photos
     expect(summary).toMatch(/No photos\./);
     expect(summary).not.toMatch(/Needed by/);
     expect(await say("yes")).toMatch(/Done\. Job card/);
     expect(await cards()).toHaveLength(before + 1);
-    expect((await cards()).at(-1)).toMatchObject({ category: "preventive" });
+    expect((await cards()).at(-1)).toMatchObject({ category: "preventive", cause_text: "Requested work: Periodic maintenance." });
   });
 
   it("tells the person kindly when the app would refuse the card (an odometer below the last reading) and creates nothing", async () => {
     const before = (await cards()).length;
-    await start(); await say("1"); await say("1"); await say("1"); await say("Clutch slips when climbing a slope"); await say("100"); await say("1"); await say("skip");
+    await start(); await say("1"); await say("10"); await say("Clutch slips when climbing a slope"); await say("100"); await say("1"); await say("skip");
     await say("skip");
     expect(await say("yes")).toMatch(/I could not send that:[\s\S]*Please use the app/);
     expect(await cards()).toHaveLength(before);
@@ -121,16 +123,28 @@ describe("Submit a Job Card", () => {
 
   it("a photo sent when the question is not about photos is not stored", async () => {
     const n = stored.length;
-    await start(); await say("1"); await say("1"); await say("1");
+    await start(); await say("1"); await say("10");
     expect(await send("55555")).toMatch(/type your answer/);
     expect(stored).toHaveLength(n);
     await say("cancel");
   });
 
   it("BACK from the photos goes back to the date; the photos already sent are kept until the card is made or the conversation ends", async () => {
-    await start(); await say("1"); await say("1"); await say("1"); await say("Wipers do not clear the screen"); await say("43,200"); await say("1"); await say("skip");
+    await start(); await say("1"); await say("10"); await say("Wipers do not clear the screen"); await say("43,200"); await say("1"); await say("skip");
     await send("66666");
     expect(await say("back")).toMatch(/By when is it needed/);
+    await say("cancel");
+  });
+
+  it("each kind of work sets the card's category and reason, and BACK passes over the explanation that was not asked", async () => {
+    const want: [string, string, string][] = [["2", "corrective", "Requested work: Brake work."], ["4", "corrective", "Requested work: Battery replacement."], ["9", "corrective", "Requested work: AC works."]];
+    for (const [n, category, cause] of want) {
+      await start(); await say("1"); await say(n); await say("43,500"); await say("1"); await say("skip"); await say("skip");
+      expect(await say("yes")).toMatch(/Done\. Job card/);
+      expect((await cards()).at(-1)).toMatchObject({ category, cause_text: cause });
+    }
+    await start(); await say("1"); await say("2");                                                                  // a fixed kind: odometer next
+    expect(await say("back")).toMatch(/What kind of work is it/);                                                   // BACK from the odometer lands on the kind, not on the explanation
     await say("cancel");
   });
 });
