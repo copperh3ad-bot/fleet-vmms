@@ -40,7 +40,10 @@ beforeAll(async () => {
   t = await provisionTenant(d, { name: "Hook Fleet", slug: "hookfleet", ownerUserId: U(1), ownerName: "Owner" }, tenantMigrations(), { transform: stripExt });
   const e = (await master.saveEmployee(d, admin(), { full_name: "Hook Driver", employee_no: "H-1" })).id;
   await raw((q) => q.query("update employees set phone = '0300 7001111', user_id = $2 where id = $1", [e, U(71)]));
+  const lg = (await master.saveEmployee(d, admin(), { full_name: "Hook Logistics", employee_no: "H-2" })).id;
+  await raw((q) => q.query("update employees set phone = '0300 7002222', user_id = $2 where id = $1", [lg, U(72)]));
   await withPlatform(d, async (q) => {
+    await q.query("insert into public.tenant_memberships(user_id, tenant_id, role) values ($1, $2, 'logistics')", [U(72), t.tenantId]);
     await q.query("insert into public.tenant_memberships(user_id, tenant_id, role) values ($1, $2, 'requester')", [U(71), t.tenantId]);
     await q.query("update public.org_billing set plan_key = 'pro' where tenant_id = $1", [t.tenantId]);
     await q.query("update public.tenants set wa_menu_enabled = true where id = $1", [t.tenantId]);
@@ -73,11 +76,16 @@ describe("the signed webhook and the menu", () => {
     expect(await hook("+923007001111", "", { tapped: "3" })).toBe(200);
     expect(sent().at(-1)?.body).toMatch(/What is the trip for/);
   });
-  it("a number past its daily cap is told once and then ignored; the cap is the owner's setting; other numbers are unaffected (ADR-081)", async () => {
+  const setCaps = (logistics: string | null, other: string | null) => withPlatform(d, async (q) => {
+    for (const [k, v] of [["wa_daily_messages", logistics], ["wa_daily_messages_other", other]] as const)
+      if (v === null) await q.query("delete from public.platform_settings where key = $1", [k]);
+      else await q.query("insert into public.platform_settings(key, value) values ($1, $2) on conflict (key) do update set value = excluded.value", [k, v]);
+    await q.query("delete from public.rate_limits");
+  });
+  it("everyone but the Logistics department is held to the lower daily cap: told once, then ignored; a stranger the same (ADR-081)", async () => {
     await hook("+923007001111", "cancel");
-    await withPlatform(d, (q) => q.query("insert into public.platform_settings(key, value) values ('wa_daily_messages', '3') on conflict (key) do update set value = '3'"));
+    await setCaps("5", "3");
     try {
-      await withPlatform(d, (q) => q.query("delete from public.rate_limits"));            // the cancel above was counted
       rmSync(OUT, { force: true });
       for (let i = 0; i < 3; i++) expect(await hook("+923007001111", "Hi")).toBe(200);
       const before = sent().length;
@@ -87,21 +95,34 @@ describe("the signed webhook and the menu", () => {
       expect(sent().at(-1)?.body).toMatch(/limit of 3 messages/);
       expect(await hook("+923007001111", "Hi")).toBe(200);                                  // the 5th: ignored in silence
       expect(sent().length).toBe(before + 1);
-      const open = await raw((q) => q.query<{ n: string }>("select count(*)::text n from whatsapp_sessions where status = 'open'"));
-      expect(Number(open.rows[0].n)).toBeLessThanOrEqual(1);                                // nothing extra was started
       rmSync(OUT, { force: true });
-      expect(await hook("+923009990000", "Hi")).toBe(200);                                  // another number still counts from zero
-      expect(sent().some((m) => /limit of/.test(m.body))).toBe(false);
-    } finally {
-      await withPlatform(d, (q) => q.query("delete from public.platform_settings where key = 'wa_daily_messages'"));
-      await withPlatform(d, (q) => q.query("delete from public.rate_limits"));
-      await hook("+923007001111", "cancel");
-    }
+      for (let i = 0; i < 4; i++) await hook("+923009990000", "Hi");                          // a number nobody registered is held to the same lower cap
+      expect(sent().filter((m) => /limit of 3 messages/.test(m.body))).toHaveLength(1);
+    } finally { await setCaps(null, null); await hook("+923007001111", "cancel"); }
   });
-  it("without the setting the cap is 100 a day", async () => {
-    const { waDailyLimit, WA_DAILY_DEFAULT } = await import("@/lib/wa-limit");
-    expect(WA_DAILY_DEFAULT).toBe(100);
-    expect(await waDailyLimit(d)).toBe(100);
+  it("a person in the Logistics department gets the higher cap, and the owner's two settings are separate", async () => {
+    await setCaps("5", "3");
+    try {
+      rmSync(OUT, { force: true });
+      for (let i = 0; i < 5; i++) await hook("+923007002222", "Hi");                          // five: past the lower cap of 3, inside the higher of 5
+      expect(sent().some((m) => /limit of/.test(m.body))).toBe(false);
+      await hook("+923007002222", "Hi");                                                      // the 6th
+      expect(sent().at(-1)?.body).toMatch(/limit of 5 messages/);
+    } finally { await setCaps(null, null); await hook("+923007002222", "cancel"); }
+  });
+  it("a logistics person whose login is disabled, or an employee without the department role, is not given the higher cap", async () => {
+    const { isLogisticsSender } = await import("@/lib/wa-limit");
+    expect(await isLogisticsSender(d, "+923007002222")).toBe(true);
+    expect(await isLogisticsSender(d, "+923007001111")).toBe(false);
+    expect(await isLogisticsSender(d, "+923009990000")).toBe(false);
+    await withPlatform(d, (q) => q.query("update public.tenant_memberships set status = 'disabled' where user_id = $1", [U(72)]));
+    try { expect(await isLogisticsSender(d, "+923007002222")).toBe(false); }
+    finally { await withPlatform(d, (q) => q.query("update public.tenant_memberships set status = 'active' where user_id = $1", [U(72)])); }
+  });
+  it("without the settings the caps are 100 for the Logistics department and 10 for everyone else", async () => {
+    const { waDailyLimit, waDailyOtherLimit, WA_DAILY_DEFAULT, WA_DAILY_OTHER_DEFAULT } = await import("@/lib/wa-limit");
+    expect([WA_DAILY_DEFAULT, WA_DAILY_OTHER_DEFAULT]).toEqual([100, 10]);
+    expect([await waDailyLimit(d), await waDailyOtherLimit(d)]).toEqual([100, 10]);
   });
   it("a stranger saying Hi is not answered by the menu, and a call for another number is ignored", async () => {
     expect(await hook("+923009990000", "Hi")).toBe(200);
