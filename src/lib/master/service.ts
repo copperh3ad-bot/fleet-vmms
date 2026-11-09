@@ -184,11 +184,11 @@ export function saveEmployee(driver: Driver, m: Membership, raw: unknown, id?: s
 
 // ---------- Vendors ----------
 
-export type VendorRow = { id: string; name: string; categories: string[]; contact: string | null; phone: string | null; email: string | null; status: string };
+export type VendorRow = { id: string; name: string; kind: string; categories: string[]; contact: string | null; phone: string | null; email: string | null; status: string };
 
 export function listVendors(driver: Driver, m: Membership): Promise<VendorRow[]> {
   return authorized(driver, m, "vendor.manage", async (q) => (await q.query<VendorRow>(
-    "select id, name, categories, contact, phone, email, status from vendors order by name")).rows);
+    "select id, name, kind, categories, contact, phone, email, status from vendors order by name")).rows);
 }
 
 export function saveVendor(driver: Driver, m: Membership, raw: unknown, id?: string): Promise<{ id: string }> {
@@ -199,14 +199,14 @@ export function saveVendor(driver: Driver, m: Membership, raw: unknown, id?: str
     try {
       if (id) {
         const r = await q.query<{ id: string }>(
-          "update vendors set name=$2, categories=$3, contact=$4, phone=$5, email=$6 where id=$1 returning id",
-          [id, v.name, v.categories ?? [], v.contact ?? null, v.phone ?? null, v.email ?? null]);
+          "update vendors set name=$2, categories=$3, contact=$4, phone=$5, email=$6, kind=$7 where id=$1 returning id",
+          [id, v.name, v.categories ?? [], v.contact ?? null, v.phone ?? null, v.email ?? null, v.kind]);
         if (r.rows.length === 0) throw new UserError("Vendor not found.");
         return { id };
       }
       const r = await q.query<{ id: string }>(
-        "insert into vendors(name, categories, contact, phone, email) values ($1,$2,$3,$4,$5) returning id",
-        [v.name, v.categories ?? [], v.contact ?? null, v.phone ?? null, v.email ?? null]);
+        "insert into vendors(name, categories, contact, phone, email, kind) values ($1,$2,$3,$4,$5,$6) returning id",
+        [v.name, v.categories ?? [], v.contact ?? null, v.phone ?? null, v.email ?? null, v.kind]);
       return { id: r.rows[0].id };
     } catch (err) { if (err instanceof UserError) throw err; friendly(err); }
   });

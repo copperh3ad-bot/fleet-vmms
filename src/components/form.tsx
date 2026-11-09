@@ -30,12 +30,12 @@ export function Input({ name, label, state, hint, required, id = name, ...rest }
   );
 }
 
-export function Select({ name, label, state, options, blank = "Choose", required, hint }: {
-  name: string; label: string; state: FormState; options: [string, string][]; blank?: string; required?: boolean; hint?: string;
+export function Select({ id, name, label, state, options, blank = "Choose", required, hint }: {
+  id?: string; name: string; label: string; state: FormState; options: [string, string][]; blank?: string; required?: boolean; hint?: string;
 }) {
   return (
-    <Field label={label} name={name} state={state} required={required} hint={hint}>
-      <select key={state.values?.[name] ?? ""} id={name} name={name} className={inputCls} defaultValue={state.values?.[name] ?? ""} aria-invalid={!!state.fields?.[name]}>
+    <Field label={label} name={name} state={state} required={required} hint={hint} id={id}>
+      <select key={state.values?.[name] ?? ""} id={id ?? name} name={name} className={inputCls} defaultValue={state.values?.[name] ?? ""} aria-invalid={!!state.fields?.[name]}>
         <option value="">{blank}</option>
         {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>

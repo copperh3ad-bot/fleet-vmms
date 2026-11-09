@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
 import { getDriver } from "@/lib/db";
-import { requestTrip, setPoolCar, transitionTrip } from "@/lib/trips/service";
+import { awardTripQuote, declineTripQuote, recordTripQuote, requestTripQuotes, requestTrip, setPoolCar, transitionTrip } from "@/lib/trips/service";
 import { runAction, str, typed, type FormState } from "../actions-util";
 
 export async function requestTripAction(slug: string, _prev: FormState, form: FormData): Promise<FormState> {
@@ -33,4 +33,35 @@ export async function poolCarAction(slug: string, vehicleId: string, pool: boole
   const state = await runAction(slug, async (m) => { await setPoolCar(getDriver(), m, vehicleId, pool); return pool ? "Added to the pool." : "Taken out of the pool."; });
   if (state.ok) refresh();
   return state;
+}
+
+/** Ask the chosen logistics providers for a quote on this trip (ADR-078). */
+export async function askQuotesAction(slug: string, id: string, _prev: FormState, form: FormData): Promise<FormState> {
+  const state = await runAction(slug, async (m) => {
+    const n = await requestTripQuotes(getDriver(), m, id, form.getAll("vendor_id").map(String));
+    return n ? `Quote asked from ${n} provider${n === 1 ? "" : "s"}.` : "They were already asked.";
+  });
+  if (state.ok) refresh();
+  return state;
+}
+
+export async function recordQuoteAction(slug: string, quoteId: string, _prev: FormState, form: FormData): Promise<FormState> {
+  const state = await runAction(slug, async (m) => {
+    await recordTripQuote(getDriver(), m, quoteId, { amount: str(form, "amount"), vehicle_text: str(form, "vehicle_text"), driver_text: str(form, "driver_text"), notes: str(form, "notes"), valid_until: str(form, "valid_until") });
+    return "Quote saved.";
+  });
+  if (state.ok) refresh();
+  return state.error || state.fields ? { ...state, values: typed(form) } : state;
+}
+
+export async function declineQuoteAction(slug: string, quoteId: string): Promise<FormState> {
+  const state = await runAction(slug, async (m) => { await declineTripQuote(getDriver(), m, quoteId); return "Marked as declined."; });
+  if (state.ok) refresh();
+  return state;
+}
+
+export async function awardQuoteAction(slug: string, id: string, quoteId: string, _prev: FormState, form: FormData): Promise<FormState> {
+  const state = await runAction(slug, async (m) => { await awardTripQuote(getDriver(), m, id, quoteId, str(form, "note")); return "Awarded."; });
+  if (state.ok) refresh();
+  return state.error ? { ...state, values: typed(form) } : state;
 }

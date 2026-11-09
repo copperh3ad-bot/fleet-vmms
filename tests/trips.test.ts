@@ -222,7 +222,7 @@ describe("roles", () => {
   it("gives the gate role gate.use and vehicle.read only, and the manager and administrator the trip permissions", async () => {
     const perms = async (role: string) => (await raw((q) => q.query<{ permission_key: string }>("select permission_key from role_permissions where role_key = $1 order by 1", [role]))).rows.map((r) => r.permission_key);
     expect(await perms("security")).toEqual(["gate.use", "vehicle.read"]);
-    expect((await perms("fleet_manager")).filter((p) => p.startsWith("trip.")).sort()).toEqual(["trip.approve", "trip.dispatch", "trip.read_all", "trip.request"]);
+    expect((await perms("fleet_manager")).filter((p) => p.startsWith("trip.")).sort()).toEqual(["trip.approve", "trip.award", "trip.dispatch", "trip.read_all", "trip.request"]);
     expect(await perms("logistics")).toEqual(expect.arrayContaining(["trip.dispatch", "trip.request", "vehicle.read"]));
     expect((await perms("requester")).filter((p) => p.startsWith("trip."))).toEqual(["trip.request"]);
     expect((await perms("auditor")).filter((p) => p.startsWith("trip."))).toEqual(["trip.read_all"]);

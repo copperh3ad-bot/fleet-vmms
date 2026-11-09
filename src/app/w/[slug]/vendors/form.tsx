@@ -1,20 +1,21 @@
 "use client";
 import { useActionState } from "react";
-import { Input, Notice, Submit } from "@/components/form";
+import { Input, Notice, Select, Submit } from "@/components/form";
 import type { FormState } from "../actions-util";
 import { saveVendorAction, setVendorStatusAction } from "./actions";
 
-type Vendor = { id: string; name: string; categories: string[]; contact: string | null; phone: string | null; email: string | null };
+type Vendor = { id: string; name: string; kind: string; categories: string[]; contact: string | null; phone: string | null; email: string | null };
 
 export function VendorForm({ slug, vendor }: { slug: string; vendor?: Vendor }) {
   const [state, action] = useActionState<FormState, FormData>(saveVendorAction.bind(null, slug, vendor?.id ?? ""), {});
   const s: FormState = vendor && !state.values
-    ? { ...state, values: { name: vendor.name, categories: vendor.categories.join(", "), contact: vendor.contact ?? "", phone: vendor.phone ?? "", email: vendor.email ?? "" } }
+    ? { ...state, values: { name: vendor.name, kind: vendor.kind, categories: vendor.categories.join(", "), contact: vendor.contact ?? "", phone: vendor.phone ?? "", email: vendor.email ?? "" } }
     : state;
   const p = `vendor-${vendor?.id ?? "new"}-`;   // several of these forms share a page; ids must differ
   return (
     <form action={action} className="grid grid-cols-1 gap-3 sm:grid-cols-2" noValidate>
-      <Input id={p + "name"} name="name" label="Workshop name" state={s} required />
+      <Select id={p + "kind"} name="kind" label="Type" state={s.values ? s : { ...s, values: { kind: "workshop" } }} options={[["workshop", "Workshop (repairs and services)"], ["logistics", "Logistics provider (trips)"]]} />
+      <Input id={p + "name"} name="name" label="Name" state={s} required />
       <Input id={p + "categories"} name="categories" label="Categories" state={s} hint="Comma separated: engine, tyres, electrical" />
       <Input id={p + "contact"} name="contact" label="Contact person" state={s} />
       <Input id={p + "phone"} name="phone" label="Phone" state={s} inputMode="tel" />

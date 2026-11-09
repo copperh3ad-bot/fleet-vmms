@@ -55,6 +55,7 @@ export type EmployeeInput = z.infer<typeof employeeSchema>;
 
 export const vendorSchema = z.object({
   name: z.string().trim().min(2, "Enter the vendor name").max(120),
+  kind: z.enum(["workshop", "logistics"]).default("workshop"),
   categories: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
   contact: text(), phone: text(30),
   email: z.preprocess(blank, z.email("Enter a valid email").optional()),

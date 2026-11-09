@@ -15,6 +15,7 @@ const all = [
   ["quality", () => import("./s7-quality.mjs").then((m) => m.quality(S))],
   ["vehicleform", () => import("./s9-vehicle-form.mjs").then((m) => m.vehicleForm(S))],
   ["workshopflow", () => import("./s11-workshop-flow.mjs").then((m) => m.workshopFlow(S))],
+  ["outsourcedtrip", () => import("./s12-outsourced-trip.mjs").then((m) => m.outsourcedTrip(S))],
   ["decisionforms", () => import("./s10-decision-forms.mjs").then((m) => m.decisionForms(S))],
 ];
 
