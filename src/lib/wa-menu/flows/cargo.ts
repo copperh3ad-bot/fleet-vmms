@@ -6,7 +6,8 @@ import { can } from "@/lib/auth/can";
 import { withTenant } from "@/lib/db/tenant";
 import { createCargoRequest } from "@/lib/cargo/service";
 import type { Flow } from "../types";
-import { bad, good, parseDateTime, parseText, showDateTime } from "../text";
+import { bad, good, parseDateTime, parseNumber, parseText, showDateTime } from "../text";
+import { CARGO_SCREEN, formDateTime, optionOf, UNITS, VEHICLE_TYPES } from "../forms";
 
 const SAME = /^(1|yes|y|same|ok|okay|correct|mine)[.! ]*$/i;
 
@@ -49,6 +50,28 @@ export const cargoFlow: Flow = {
     },
     { key: "instructions", optional: true, ask: async () => "Any special instructions or requirements? Or reply SKIP.", parse: async (raw) => parseText(raw, 2, 500, "the instructions") },
   ],
+  form: {
+    env: "WHATSAPP_FORM_CARGO", screen: CARGO_SCREEN, cta: "Open form", body: "Tap the button to fill in the cargo request. It has dropdowns, so it takes a minute.",
+    read: async (r, c) => {
+      const dept = parseText(r.department ?? "", 2, 80, "the department");
+      const when = formDateTime(r.date, r.time, c.now, "the vehicle needed on", true);
+      const from = parseText(r.pickup ?? "", 2, 200, "the pick-up place");
+      const to = parseText(r.drop ?? "", 2, 200, "the destination");
+      const vehicle = optionOf(VEHICLE_TYPES, r.vehicle, "a vehicle type");
+      const load = parseText(r.material ?? "", 3, 300, "what is being moved");
+      const qty = parseNumber(r.quantity ?? "", { min: 0.01, max: 10_000_000, what: "the quantity" });
+      const unit = optionOf(UNITS, r.unit, "a unit");
+      const poc = parseText(r.contact ?? "", 5, 200, "who to contact and their phone number");
+      const note = (r.instructions ?? "").trim() ? parseText(r.instructions!, 2, 500, "the instructions") : good(null);
+      const bad1 = [dept, when, from, to, vehicle, load, qty, unit, poc, note].find((x) => !x.ok);
+      if (bad1 && !bad1.ok) return { ok: false, error: bad1.error };
+      if (!/\d{7,}/.test(String(poc.ok && poc.value).replace(/[\s-]/g, ""))) return { ok: false, error: "Please include a phone number the driver can call." };
+      return { ok: true, answers: {
+        department: dept.ok && dept.value, pickup_at: when.ok && when.value, pickup_place: from.ok && from.value, drop_place: to.ok && to.value, vehicle_type: vehicle.ok && vehicle.value.title,
+        description: load.ok && load.value, quantity_text: `${qty.ok && qty.value} ${unit.ok && unit.value.title}`, poc_details: poc.ok && poc.value, instructions: note.ok ? note.value : null,
+      } };
+    },
+  },
   summary: (a) => [
     "Cargo request:",
     `Department: ${a.department}`,

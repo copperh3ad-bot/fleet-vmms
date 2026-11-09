@@ -30,6 +30,15 @@ export type Flow = {
   /** Whether this person may use it (permission and module switch). */
   allowed: (driver: Driver, m: Membership) => Promise<boolean>;
   steps: Step[];
+  /**
+   * A WhatsApp form (ADR-084) that asks everything at once, so the request costs about one message from the sender. It is used when the environment names the form
+   * (`env` holds Meta's form id); otherwise, and whenever the person replies TEXT, the questions above are asked one at a time. The answers come back as plain values and are read
+   * (and checked again) by `read`. `after` names chat steps still asked after the form, for what a form cannot take (photos). With none, the request is sent as soon as the form is.
+   */
+  form?: {
+    env: string; screen: string; cta: string; body: string; after?: string[];
+    read: (answers: Record<string, string>, c: Ctx) => Promise<{ ok: true; answers: Answers } | { ok: false; error: string }>;
+  };
   /** The answers in plain words, shown before YES. */
   summary: (a: Answers) => string;
   /** Creates the thing, and says what was made. May throw UserError, which is told to the person kindly. */

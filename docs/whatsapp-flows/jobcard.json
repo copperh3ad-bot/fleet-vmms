@@ -1,0 +1,138 @@
+{
+  "version": "6.3",
+  "screens": [
+    {
+      "id": "JOB",
+      "title": "Job card",
+      "terminal": true,
+      "success": true,
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "TextInput",
+                "name": "vehicle",
+                "label": "Registration no.",
+                "input-type": "text",
+                "required": true,
+                "helper-text": "For example LHR-1001"
+              },
+              {
+                "type": "Dropdown",
+                "name": "work",
+                "label": "Kind of work",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "periodic",
+                    "title": "Periodic maintenance"
+                  },
+                  {
+                    "id": "brakes",
+                    "title": "Brake work"
+                  },
+                  {
+                    "id": "suspension",
+                    "title": "Suspension work"
+                  },
+                  {
+                    "id": "battery",
+                    "title": "Battery replacement"
+                  },
+                  {
+                    "id": "body",
+                    "title": "Body work"
+                  },
+                  {
+                    "id": "lights",
+                    "title": "Lights repair or replacement"
+                  },
+                  {
+                    "id": "tyres",
+                    "title": "Tyre replacement"
+                  },
+                  {
+                    "id": "alignment",
+                    "title": "Wheel balancing and alignment"
+                  },
+                  {
+                    "id": "ac",
+                    "title": "AC works"
+                  },
+                  {
+                    "id": "others",
+                    "title": "Others (explain the problem)"
+                  }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "explain",
+                "label": "Problem (Others)",
+                "required": false,
+                "helper-text": "Only for Others: explain in up to 100 words"
+              },
+              {
+                "type": "TextInput",
+                "name": "km",
+                "label": "Odometer (km)",
+                "input-type": "number",
+                "required": true
+              },
+              {
+                "type": "Dropdown",
+                "name": "urgency",
+                "label": "How urgent",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "low",
+                    "title": "Low: can wait"
+                  },
+                  {
+                    "id": "normal",
+                    "title": "Normal"
+                  },
+                  {
+                    "id": "high",
+                    "title": "High: needed soon"
+                  },
+                  {
+                    "id": "urgent",
+                    "title": "Urgent: cannot be used"
+                  }
+                ]
+              },
+              {
+                "type": "DatePicker",
+                "name": "needed_by",
+                "label": "Needed by",
+                "required": false,
+                "helper-text": "Optional"
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "vehicle": "${form.vehicle}",
+                    "work": "${form.work}",
+                    "explain": "${form.explain}",
+                    "km": "${form.km}",
+                    "urgency": "${form.urgency}",
+                    "needed_by": "${form.needed_by}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,387 @@
+{
+  "version": "6.3",
+  "screens": [
+    {
+      "id": "WHEN_WHERE",
+      "title": "Cargo request",
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "TextInput",
+                "name": "department",
+                "label": "Department",
+                "input-type": "text",
+                "required": true
+              },
+              {
+                "type": "DatePicker",
+                "name": "date",
+                "label": "Date needed",
+                "required": true
+              },
+              {
+                "type": "Dropdown",
+                "name": "time",
+                "label": "Time needed",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "05:00",
+                    "title": "05:00"
+                  },
+                  {
+                    "id": "05:30",
+                    "title": "05:30"
+                  },
+                  {
+                    "id": "06:00",
+                    "title": "06:00"
+                  },
+                  {
+                    "id": "06:30",
+                    "title": "06:30"
+                  },
+                  {
+                    "id": "07:00",
+                    "title": "07:00"
+                  },
+                  {
+                    "id": "07:30",
+                    "title": "07:30"
+                  },
+                  {
+                    "id": "08:00",
+                    "title": "08:00"
+                  },
+                  {
+                    "id": "08:30",
+                    "title": "08:30"
+                  },
+                  {
+                    "id": "09:00",
+                    "title": "09:00"
+                  },
+                  {
+                    "id": "09:30",
+                    "title": "09:30"
+                  },
+                  {
+                    "id": "10:00",
+                    "title": "10:00"
+                  },
+                  {
+                    "id": "10:30",
+                    "title": "10:30"
+                  },
+                  {
+                    "id": "11:00",
+                    "title": "11:00"
+                  },
+                  {
+                    "id": "11:30",
+                    "title": "11:30"
+                  },
+                  {
+                    "id": "12:00",
+                    "title": "12:00"
+                  },
+                  {
+                    "id": "12:30",
+                    "title": "12:30"
+                  },
+                  {
+                    "id": "13:00",
+                    "title": "13:00"
+                  },
+                  {
+                    "id": "13:30",
+                    "title": "13:30"
+                  },
+                  {
+                    "id": "14:00",
+                    "title": "14:00"
+                  },
+                  {
+                    "id": "14:30",
+                    "title": "14:30"
+                  },
+                  {
+                    "id": "15:00",
+                    "title": "15:00"
+                  },
+                  {
+                    "id": "15:30",
+                    "title": "15:30"
+                  },
+                  {
+                    "id": "16:00",
+                    "title": "16:00"
+                  },
+                  {
+                    "id": "16:30",
+                    "title": "16:30"
+                  },
+                  {
+                    "id": "17:00",
+                    "title": "17:00"
+                  },
+                  {
+                    "id": "17:30",
+                    "title": "17:30"
+                  },
+                  {
+                    "id": "18:00",
+                    "title": "18:00"
+                  },
+                  {
+                    "id": "18:30",
+                    "title": "18:30"
+                  },
+                  {
+                    "id": "19:00",
+                    "title": "19:00"
+                  },
+                  {
+                    "id": "19:30",
+                    "title": "19:30"
+                  },
+                  {
+                    "id": "20:00",
+                    "title": "20:00"
+                  },
+                  {
+                    "id": "20:30",
+                    "title": "20:30"
+                  },
+                  {
+                    "id": "21:00",
+                    "title": "21:00"
+                  },
+                  {
+                    "id": "21:30",
+                    "title": "21:30"
+                  },
+                  {
+                    "id": "22:00",
+                    "title": "22:00"
+                  },
+                  {
+                    "id": "22:30",
+                    "title": "22:30"
+                  }
+                ]
+              },
+              {
+                "type": "TextInput",
+                "name": "pickup",
+                "label": "Pick-up location",
+                "input-type": "text",
+                "required": true
+              },
+              {
+                "type": "TextInput",
+                "name": "drop",
+                "label": "Destination",
+                "input-type": "text",
+                "required": true
+              },
+              {
+                "type": "Dropdown",
+                "name": "vehicle",
+                "label": "Vehicle type",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "pickup",
+                    "title": "Pickup / small van"
+                  },
+                  {
+                    "id": "van",
+                    "title": "Van"
+                  },
+                  {
+                    "id": "mini_truck",
+                    "title": "Mini truck (to 3 tonnes)"
+                  },
+                  {
+                    "id": "truck",
+                    "title": "Truck (to 10 tonnes)"
+                  },
+                  {
+                    "id": "big_truck",
+                    "title": "Truck (over 10 tonnes)"
+                  },
+                  {
+                    "id": "container",
+                    "title": "Container / trailer"
+                  },
+                  {
+                    "id": "other",
+                    "title": "Other (say in instructions)"
+                  }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Next",
+                "on-click-action": {
+                  "name": "navigate",
+                  "next": {
+                    "type": "screen",
+                    "name": "LOAD"
+                  },
+                  "payload": {
+                    "department": "${form.department}",
+                    "date": "${form.date}",
+                    "time": "${form.time}",
+                    "pickup": "${form.pickup}",
+                    "drop": "${form.drop}",
+                    "vehicle": "${form.vehicle}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LOAD",
+      "title": "Load and contact",
+      "terminal": true,
+      "success": true,
+      "data": {
+        "department": {
+          "type": "string",
+          "__example__": "example"
+        },
+        "date": {
+          "type": "string",
+          "__example__": "example"
+        },
+        "time": {
+          "type": "string",
+          "__example__": "example"
+        },
+        "pickup": {
+          "type": "string",
+          "__example__": "example"
+        },
+        "drop": {
+          "type": "string",
+          "__example__": "example"
+        },
+        "vehicle": {
+          "type": "string",
+          "__example__": "example"
+        }
+      },
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "TextInput",
+                "name": "material",
+                "label": "Material / load",
+                "input-type": "text",
+                "required": true,
+                "helper-text": "What is being moved"
+              },
+              {
+                "type": "TextInput",
+                "name": "quantity",
+                "label": "Quantity",
+                "input-type": "number",
+                "required": true
+              },
+              {
+                "type": "Dropdown",
+                "name": "unit",
+                "label": "Unit",
+                "required": true,
+                "data-source": [
+                  {
+                    "id": "kg",
+                    "title": "kg"
+                  },
+                  {
+                    "id": "lbs",
+                    "title": "lbs"
+                  },
+                  {
+                    "id": "tonnes",
+                    "title": "tonnes"
+                  },
+                  {
+                    "id": "cartons",
+                    "title": "cartons"
+                  },
+                  {
+                    "id": "bags",
+                    "title": "bags"
+                  },
+                  {
+                    "id": "pieces",
+                    "title": "pieces"
+                  },
+                  {
+                    "id": "pallets",
+                    "title": "pallets"
+                  },
+                  {
+                    "id": "litres",
+                    "title": "litres"
+                  }
+                ]
+              },
+              {
+                "type": "TextInput",
+                "name": "contact",
+                "label": "Contact and phone",
+                "input-type": "text",
+                "required": true,
+                "helper-text": "Name and phone number, for example Ali 0300 1234567"
+              },
+              {
+                "type": "TextArea",
+                "name": "instructions",
+                "label": "Instructions",
+                "required": false,
+                "helper-text": "Optional: anything the driver should know"
+              },
+              {
+                "type": "Footer",
+                "label": "Send request",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "department": "${data.department}",
+                    "date": "${data.date}",
+                    "time": "${data.time}",
+                    "pickup": "${data.pickup}",
+                    "drop": "${data.drop}",
+                    "vehicle": "${data.vehicle}",
+                    "material": "${form.material}",
+                    "quantity": "${form.quantity}",
+                    "unit": "${form.unit}",
+                    "contact": "${form.contact}",
+                    "instructions": "${form.instructions}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

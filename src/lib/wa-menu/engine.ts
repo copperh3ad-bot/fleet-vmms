@@ -20,8 +20,23 @@ const HOUR = 3600;
 
 /** `list` asks the webhook to send a tappable list with this body and these rows. `reply` is the same thing as plain numbered text: it is what goes if the list cannot be sent. */
 export type MenuList = { button: string; body: string; rows: { id: string; title: string; description?: string }[] };
-export type MenuOutcome = { handled: boolean; reply: string | null; list?: MenuList };
+/** `form` asks the webhook to send a WhatsApp form (ADR-084). `reply` is what goes if it cannot be sent. */
+export type MenuForm = { flowId: string; token: string; screen: string; body: string; cta: string; draft?: boolean };
+export type MenuOutcome = { handled: boolean; reply: string | null; list?: MenuList; form?: MenuForm };
 const said = (reply: string | null, list?: MenuList): MenuOutcome => ({ handled: true, reply, ...(list ? { list } : {}) });
+
+/** The form for a flow, when the environment names one. Null means the questions are asked in the chat. */
+function formFor(flow: Flow): { flowId: string; draft: boolean } | null {
+  const id = flow.form ? process.env[flow.form.env]?.trim() : "";
+  return flow.form && id ? { flowId: id, draft: process.env.WHATSAPP_FORMS_DRAFT === "1" } : null;
+}
+const TEXT_ANSWER = /^(text|chat|type|typing)[.! ]*$/i;
+/** Opens the form (again): the form message, and the same words as text if it cannot be sent. */
+function openForm(flow: Flow, session: Session, lead: string): MenuOutcome {
+  const f = formFor(flow)!;
+  const fallback = `${lead}I could not open the form here. Reply TEXT and I will ask the questions in this chat. ${FOOTER}`;
+  return { handled: true, reply: fallback, form: { flowId: f.flowId, token: session.id, screen: flow.form!.screen, body: `${lead}${flow.form!.body}\n\nOr reply TEXT to answer by message. ${FOOTER}`, cta: flow.form!.cta, ...(f.draft ? { draft: true } : {}) } };
+}
 
 const trimTitle = (s: string) => (s.length <= 24 ? s : `${s.slice(0, 23).trimEnd()}…`);
 const rowsFrom = (items: { id: string; label: string; short?: string }[]) => items.map((x) => ({ id: x.id, title: trimTitle(x.short ?? x.label), ...((x.short ?? x.label) !== x.label || x.label.length > 24 ? { description: x.label.slice(0, 72) } : {}) }));
@@ -178,6 +193,10 @@ async function continueSession(driver: Driver, m: Membership, me: Candidate, ses
       return said(`Please reply with a number from 1 to ${ids.length}, or CANCEL.`);
     }
     if (!(await flow.allowed(driver, m).catch(() => false))) { await withTenant(driver, m, (q) => close(q, session.id, "cancelled")); return said("That is not available to you any more. Say Hi to see the menu again."); }
+    if (formFor(flow)) {                                                            // a form asks everything at once (ADR-084)
+      await withTenant(driver, m, (q) => save(q, session.id, { flow: flow.id, step: "form", answers: {} }));
+      return openForm(flow, session, `${flow.label}. `);
+    }
     const c: Ctx = { driver, m, me, answers: {}, now };
     const question = await flow.steps[0].ask(c);
     await withTenant(driver, m, (q) => save(q, session.id, { flow: flow.id, step: flow.steps[0].key, answers: c.answers }));
@@ -187,6 +206,31 @@ async function continueSession(driver: Driver, m: Membership, me: Candidate, ses
   const flow = flowById(session.flow);
   if (!flow) { await withTenant(driver, m, (q) => close(q, session.id, "cancelled")); return said("Something changed, so I stopped that. Say Hi to start again."); }
   const c: Ctx = { driver, m, me, answers, now };
+
+  // The form (ADR-084): its answers come back in one message. TEXT turns to the questions in the chat; anything else points back to the form.
+  if (session.step === "form") {
+    if (!flow.form) { await withTenant(driver, m, (q) => close(q, session.id, "cancelled")); return said("Something changed, so I stopped that. Say Hi to start again."); }
+    if (msg.flow) {
+      if (msg.flow.flow_token !== session.id) return said("That form was for an earlier request. Say Hi to start again.");
+      const r = await flow.form.read(msg.flow, c);
+      if (!r.ok) return openForm(flow, session, `${r.error}\n\n`);
+      const filled: Answers = { ...r.answers, _via_form: true };
+      const after = flow.form.after?.[0] ? flow.steps.find((s) => s.key === flow.form!.after![0]) : undefined;
+      const nc: Ctx = { ...c, answers: filled };
+      if (after) {
+        await withTenant(driver, m, (q) => save(q, session.id, { step: after.key, answers: filled }));
+        return asked(await after.ask(nc), after, nc);
+      }
+      return submit(driver, m, me, session, flow, nc);
+    }
+    if (TEXT_ANSWER.test(text)) {
+      const first = flow.steps[0];
+      await withTenant(driver, m, (q) => save(q, session.id, { step: first.key, answers: {} }));
+      const nc: Ctx = { ...c, answers: {} };
+      return asked(`${await first.ask(nc)}\n\n${FOOTER} Send BACK to go back one question.`, first, nc);
+    }
+    return said(`Please tap the button on the form above to fill it in, or reply TEXT and I will ask the questions here. ${FOOTER}`);
+  }
 
   // The summary: YES sends, EDIT starts again.
   if (session.step === "confirm") {
@@ -260,6 +304,7 @@ async function advance(driver: Driver, m: Membership, flow: Flow, session: Sessi
     await withTenant(driver, m, (q) => save(q, session.id, { step: next.key, answers }));
     return asked(question, next, nc);
   }
+  if (answers._via_form) return submit(driver, m, c.me, session, flow, { ...c, answers });                // the form was the confirmation: nothing more to ask
   await withTenant(driver, m, (q) => save(q, session.id, { step: "confirm", answers }));
   return said(`${flow.summary(answers)}\n\nReply YES to send it, EDIT to start again, or CANCEL.`);
 }

@@ -7,6 +7,7 @@ import { UserError } from "@/lib/master/service";
 import type { Flow } from "../types";
 import { bad, good, listChoices, parseDate, parseNumber, parseText, pickChoice, showDate, type Choice } from "../text";
 import { findVehicleByRegistration, heldVehicles } from "../vehicles";
+import { formDate, JOBCARD_SCREEN, optionOf, URGENCIES, WORK_KINDS } from "../forms";
 import type { StoredPhoto } from "../photos";
 
 // The kinds of work a job card by WhatsApp can be for (owner decision, 2026-11-09). Only "Others" is explained in words (up to 100). Each kind sets the job card's category and
@@ -26,6 +27,12 @@ const KINDS: Kind[] = [
 ];
 const MAX_WORDS = 100;
 const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
+/** The explanation for Others: at least 10 characters, at most 100 words. Used by the chat question and by the form. */
+function parseExplanation(raw: string) {
+  const r = parseText(raw, 10, 1500, "what is wrong or what is needed, in a sentence");
+  if (!r.ok) return r;
+  return wordCount(r.value) > MAX_WORDS ? bad(`That is ${wordCount(r.value)} words. Please keep it to ${MAX_WORDS} words or fewer.`) : r;
+}
 const kindOf = (a: Record<string, unknown>) => KINDS.find((k) => k.id === (a.work as Choice | undefined)?.id);
 const URGENCY: Choice[] = [
   { id: "low", label: "Low: can wait" },
@@ -61,11 +68,7 @@ export const jobCardFlow: Flow = {
       key: "what",
       skip: (c) => kindOf(c.answers)?.id !== "others",
       ask: async () => `Please explain the problem or the work needed, in up to ${MAX_WORDS} words.`,
-      parse: async (raw) => {
-        const r = parseText(raw, 10, 1500, "what is wrong or what is needed, in a sentence");
-        if (!r.ok) return r;
-        return wordCount(r.value) > MAX_WORDS ? bad(`That is ${wordCount(r.value)} words. Please keep it to ${MAX_WORDS} words or fewer.`) : r;
-      },
+      parse: async (raw) => parseExplanation(raw),
     },
     {
       key: "km",
@@ -87,6 +90,30 @@ export const jobCardFlow: Flow = {
       parse: async () => bad("Please send a photo, or reply DONE or SKIP."),
     },
   ],
+  form: {
+    env: "WHATSAPP_FORM_JOBCARD", screen: JOBCARD_SCREEN, cta: "Open form", body: "Tap the button to fill in the job card. It has dropdowns, so it takes a minute. You can add photos afterwards.", after: ["photos"],
+    read: async (r, c) => {
+      const found = (r.vehicle ?? "").trim() ? await withTenant(c.driver, c.m, (q) => findVehicleByRegistration(q, c.me.employeeId, c.m.vehicleScope === "own", r.vehicle!)) : null;
+      if (!found) return { ok: false, error: "I could not find that vehicle among the ones you can raise a job card for. Please check the registration number." };
+      const work = optionOf(WORK_KINDS, r.work, "the kind of work");
+      if (!work.ok) return { ok: false, error: work.error };
+      const others = work.value.id === "others";
+      const what = others ? parseExplanation(r.explain ?? "") : good(null);
+      if (!what.ok) return { ok: false, error: what.error };
+      const km = parseNumber(r.km ?? "", { min: 0, max: 5_000_000, what: "the odometer reading" });
+      if (!km.ok) return { ok: false, error: km.error };
+      const urgency = optionOf(URGENCIES, r.urgency, "how urgent it is");
+      if (!urgency.ok) return { ok: false, error: urgency.error };
+      let needed: string | null = null;
+      if ((r.needed_by ?? "").trim()) {
+        const d = formDate(r.needed_by);
+        const p = d ? parseDate(d, c.now, { notPast: true }) : bad("Please choose the date in the form.");
+        if (!p.ok) return { ok: false, error: p.error };
+        needed = p.value;
+      }
+      return { ok: true, answers: { vehicle: found, work: { id: work.value.id, label: work.value.title }, what: what.value, km: km.value, priority: { id: urgency.value.id, label: urgency.value.title }, needed_by: needed } };
+    },
+  },
   summary: (a) => {
     const photos = (a.photos as StoredPhoto[] | null | undefined) ?? [];
     return [

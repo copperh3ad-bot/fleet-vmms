@@ -201,7 +201,24 @@ export function failedStatuses(payload: unknown, ourPhoneNumberId = process.env.
 }
 
 export type InboundMedia = { id: string; filename: string | null; mime: string | null };
-export type InboundMessage = { id: string; from: string; contextId: string | null; text: string; media: InboundMedia[] };
+/** `flow` is a person's completed WhatsApp form (a Flow): the answers they gave, as plain values. Nothing else is kept from it. */
+export type InboundMessage = { id: string; from: string; contextId: string | null; text: string; media: InboundMedia[]; flow?: Record<string, string> };
+
+const FLOW_KEYS = /^[A-Za-z0-9_]{1,60}$/;
+/** The answers in a completed form: only plain text and numbers, short keys, a bounded size. Anything else is dropped. */
+function flowAnswers(json: unknown): Record<string, string> | null {
+  if (typeof json !== "string" || json.length > 20_000) return null;
+  let o: unknown;
+  try { o = JSON.parse(json); } catch { return null; }
+  if (!o || typeof o !== "object" || Array.isArray(o)) return null;
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(o as Record<string, unknown>).slice(0, 60)) {
+    if (!FLOW_KEYS.test(k)) continue;
+    if (typeof v === "string") out[k] = v.slice(0, 2000);
+    else if (typeof v === "number" && Number.isFinite(v)) out[k] = String(v);
+  }
+  return out;
+}
 
 /** The messages in one webhook call, only those sent to OUR business number, as plain data. Anything unexpected is left out, never an error. */
 export function parseWebhook(payload: unknown, ourPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID): InboundMessage[] {
@@ -222,7 +239,13 @@ export function parseWebhook(payload: unknown, ourPhoneNumberId = process.env.WH
       if (type === "text") text = String((raw.text as { body?: string } | undefined)?.body ?? "");
       else if (type === "interactive") {
         // A row tapped in a list we sent (or a reply button): its id is what the person chose, handled exactly like the same words typed.
-        const i = raw.interactive as { list_reply?: { id?: string }; button_reply?: { id?: string } } | undefined;
+        const i = raw.interactive as { list_reply?: { id?: string }; button_reply?: { id?: string }; nfm_reply?: { response_json?: unknown } } | undefined;
+        if (i?.nfm_reply) {                                            // a form (Flow) the person filled in and sent
+          const flow = flowAnswers(i.nfm_reply.response_json);
+          if (!flow) continue;
+          out.push({ id, from: `+${from}`, contextId: typeof ctx === "string" && ctx.length <= 200 ? ctx : null, text: "", media, flow });
+          continue;
+        }
         const id2 = i?.list_reply?.id ?? i?.button_reply?.id;
         if (typeof id2 !== "string" || !/^[A-Za-z0-9_-]{1,40}$/.test(id2)) continue;
         text = id2;
@@ -296,4 +319,24 @@ export async function sendReplyList(e164: string, body: string, button: string, 
   const file = testFile();
   if (file) { appendFileSync(file, JSON.stringify({ to: e164, body, list: rows.slice(0, 10) }) + "\n"); return; }
   await post(listPayload(e164, body, button, rows), fetchImpl);
+}
+
+export type FlowMessage = { flowId: string; token: string; screen: string; body: string; cta: string; draft?: boolean };
+
+/** The message that opens one of our WhatsApp forms. `token` comes back with the answers, so a reply is matched to the conversation that asked. A draft form can only be opened by the business's own testers. */
+export function flowPayload(e164: string, f: FlowMessage) {
+  return {
+    messaging_product: "whatsapp", to: e164.replace(/\D/g, ""), type: "interactive",
+    interactive: {
+      type: "flow", body: { text: f.body.slice(0, 1024) },
+      action: { name: "flow", parameters: { flow_message_version: "3", flow_token: f.token, flow_id: f.flowId, flow_cta: f.cta.slice(0, 20), flow_action: "navigate", flow_action_payload: { screen: f.screen }, ...(f.draft ? { mode: "draft" } : {}) } },
+    },
+  };
+}
+
+/** Sends the form to someone who wrote to us in the last 24 hours. */
+export async function sendReplyFlow(e164: string, f: FlowMessage, fetchImpl: typeof fetch = fetch): Promise<void> {
+  const file = testFile();
+  if (file) { appendFileSync(file, JSON.stringify({ to: e164, body: f.body, flow: { id: f.flowId, token: f.token, screen: f.screen, cta: f.cta } }) + "\n"); return; }
+  await post(flowPayload(e164, f), fetchImpl);
 }

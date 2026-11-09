@@ -59,3 +59,9 @@ Say "deploy" to publish: the premium dashboard, the cleaned wording, the get-sta
 - [x] **Decision: the dashboard photo for odometer readings.** Decided 2026-11-09: odometer by text only.
 - [x] **Decision: a tappable WhatsApp list.** Decided 2026-11-09 and built: the menu and the questions with options are lists, typing a number still works.
 - [ ] **Test with real phones**: say Hi from an employee's phone, raise a job card with a photo, ask for cargo, reserve a trip and send a reading; then accept the cargo request as a manager and make a trip from it. Tell me anything awkward.
+
+## WhatsApp forms (ADR-084): what is waiting for you (2026-11-09)
+- [ ] **Upload the three forms** in WhatsApp Manager (Account tools, Flows, Create flow, JSON): paste `docs/whatsapp-flows/cargo.json`, `trip.json` and `jobcard.json`. Meta lists any error it finds; send me the text and I will fix the file.
+- [ ] **Try each in draft mode first**: set `WHATSAPP_FORMS_DRAFT=1` and the three ids in Netlify (`WHATSAPP_FORM_CARGO`, `WHATSAPP_FORM_TRIP`, `WHATSAPP_FORM_JOBCARD`, each the id Meta shows for the flow), redeploy, and open each form from a tester phone. Then publish the flows and remove `WHATSAPP_FORMS_DRAFT`.
+- [ ] **Until the ids are set nothing changes**: the questions are still asked in the chat. Reply TEXT in a conversation to get the chat questions instead of the form.
+- [ ] **Tell me what is awkward**: dropdown lists, labels, the date and time boxes, anything that does not read well on a phone.

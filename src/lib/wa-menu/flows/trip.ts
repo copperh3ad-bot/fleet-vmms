@@ -4,8 +4,9 @@ import { can } from "@/lib/auth/can";
 import { withTenant } from "@/lib/db/tenant";
 import { requestTrip, tripsOn } from "@/lib/trips/service";
 import type { Flow } from "../types";
-import { bad, listChoices, parseDateTime, parseNumber, parseText, pickChoice, showDateTime, type Choice } from "../text";
+import { bad, good, listChoices, parseDateTime, parseNumber, parseText, pickChoice, showDateTime, type Choice } from "../text";
 import { pickableVehicles } from "../vehicles";
+import { formDateTime, TRIP_SCREEN } from "../forms";
 
 export const tripFlow: Flow = {
   id: "trip",
@@ -51,6 +52,21 @@ export const tripFlow: Flow = {
       },
     },
   ],
+  form: {
+    env: "WHATSAPP_FORM_TRIP", screen: TRIP_SCREEN, cta: "Open form", body: "Tap the button to fill in the trip request. It has dropdowns, so it takes a minute.",
+    read: async (r, c) => {
+      const purpose = parseText(r.purpose ?? "", 3, 300, "what the trip is for");
+      const from = parseText(r.from ?? "", 2, 120, "the starting place");
+      const to = parseText(r.to ?? "", 2, 120, "the destination");
+      const start = formDateTime(r.start_date, r.start_time, c.now, "the departure");
+      const end = formDateTime(r.end_date, r.end_time, c.now, "the return");
+      const pax = (r.passengers ?? "").trim() ? parseNumber(r.passengers!, { min: 0, max: 200, integer: true, what: "the number of passengers" }) : good(null);
+      const first = [purpose, from, to, start, end, pax].find((x) => !x.ok);
+      if (first && !first.ok) return { ok: false, error: first.error };
+      if (start.ok && end.ok && Date.parse(end.value) <= Date.parse(start.value)) return { ok: false, error: "The return must be after the departure." };
+      return { ok: true, answers: { purpose: purpose.ok && purpose.value, from_place: from.ok && from.value, to_place: to.ok && to.value, start_at: start.ok && start.value, end_at: end.ok && end.value, passengers: pax.ok ? pax.value : null, vehicle: null } };
+    },
+  },
   summary: (a) => [
     "Trip request:", String(a.purpose),
     `${a.from_place} to ${a.to_place}`,
