@@ -210,7 +210,7 @@ describe("custody", () => {
   it("rejects a no-op, a backdated start, an inactive person, and ending a vehicle nobody holds", async () => {
     const { id } = await newVehicle({ employee_id: empA, holding_since: "2026-05-01" });
     await expect(svc.changeCustody(d, admin(), { vehicle_id: id, employee_id: empA })).rejects.toThrow(/already holds/);
-    await expect(svc.changeCustody(d, admin(), { vehicle_id: id, employee_id: empB, from: "2026-04-01" })).rejects.toThrow(/must start after/);
+    await expect(svc.changeCustody(d, admin(), { vehicle_id: id, employee_id: empB, from: "2026-04-01" })).rejects.toThrow(/must start on or after/);
     const gone = (await svc.saveEmployee(d, admin(), { full_name: "Left Company" })).id;
     await svc.saveEmployee(d, admin(), { full_name: "Left Company", active: false }, gone);
     await expect(svc.changeCustody(d, admin(), { vehicle_id: id, employee_id: gone, from: "2026-06-01" })).rejects.toThrow(/not active/);
@@ -219,6 +219,17 @@ describe("custody", () => {
     expect((await svc.getVehicle(d, admin(), id))?.holder_name).toBeNull();
     // old holder is still on record after the vehicle is returned
     expect((await svc.getVehicle(d, admin(), id))?.custody).toHaveLength(1);
+  });
+
+  it("a handover dated the day the current holder started replaces them; a day later keeps them in the history", async () => {
+    const { id } = await newVehicle({ employee_id: empA, holding_since: "2026-05-01" });
+    await svc.changeCustody(d, admin(), { vehicle_id: id, employee_id: empB, from: "2026-05-01" });
+    let v = await svc.getVehicle(d, admin(), id);
+    expect(v?.holder_name).toBe("Bilal Raza");
+    expect(v?.custody.map((c) => [c.full_name, c.from_date, c.to_date])).toEqual([["Bilal Raza", "2026-05-01", null]]);
+    await svc.changeCustody(d, admin(), { vehicle_id: id, employee_id: empC, from: "2026-05-02" });
+    v = await svc.getVehicle(d, admin(), id);
+    expect(v?.custody.map((c) => [c.full_name, c.to_date])).toEqual([["Chand Ali", null], ["Bilal Raza", "2026-05-01"]]);
   });
 
   it("a failed change leaves the current holder in place", async () => {

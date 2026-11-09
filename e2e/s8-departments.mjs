@@ -137,6 +137,18 @@ export async function departments(S) {
     check(!has(await body(o), "Logistics vehicles only"), "the Users page still says a whole-fleet Logistics login sees its vehicles only");
   });
 
+  await step("a vehicle handed over the day its holder started changes holder at once (tenant 0043)", async () => {
+    const vid = sql(`select id from ${sch}.vehicles where registration_no = '${other}'`);
+    const e1 = sql(`set search_path = ${sch}, public; insert into employees(full_name, employee_no) values ('Holder One ${tag}', 'H1-${tag}') returning id`).split("\n").find((l) => /^[0-9a-f-]{36}$/.test(l));
+    const e2 = sql(`set search_path = ${sch}, public; insert into employees(full_name, employee_no) values ('Holder Two ${tag}', 'H2-${tag}') returning id`).split("\n").find((l) => /^[0-9a-f-]{36}$/.test(l));
+    sql(`set search_path = ${sch}, public; insert into vehicle_custody(vehicle_id, employee_id, from_date) values ('${vid}', '${e1}', current_date)`);
+    await go(o, `${base}/vehicles/${vid}`);
+    await o.page.locator("#employee_id").selectOption(e2);
+    await press(o, "Change custody", { wait: 1500 });
+    await waitText(o, `Holder Two ${tag}`, 8000);
+    check(sql(`select employee_id from ${sch}.vehicle_custody where vehicle_id = '${vid}' and to_date is null`) === e2, "the new holder is not the current holder");
+  });
+
   const issuesOfLogistics = (await import("./lib.mjs")).issues.get("logistics") ?? [];
   if (issuesOfLogistics.length) finding("quality", `browser problems for a logistics login: ${[...new Set(issuesOfLogistics)].slice(0, 3).join(" | ")}`);
 }
