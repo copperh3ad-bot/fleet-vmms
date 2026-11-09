@@ -568,3 +568,6 @@ Applied on live: tenant 0043 to 0047, control 0023 to 0025, public 0017 and 0018
 
 ## 2026-11-09: WhatsApp menu phase A built (ADR-079), not deployed
 The WhatsApp menu engine, identity, the Pro gate, the administrator's switch (Vendors page) and the flows Reserve a Trip and Submit Odometer Readings are built and tested (1,211 unit tests). Platform 0019, control 0026 and tenant 0048 are NOT applied on live. Phase B (job card questionnaire) and C (cargo requests, manager WhatsApp template) are next.
+
+## 2026-11-09: WhatsApp menu phases B and C built (ADR-079), not deployed
+Job card questionnaire with photos, cargo requests (own list, web form, WhatsApp flow, link to a trip, notices) and the four-item menu are built and tested. Platform 0019, control 0026, tenant 0048 and 0049 are NOT applied on live. Waiting on the owner: apply and deploy, the manager notice template, phone numbers on records (docs/OWNER-CHECKLIST.md).

@@ -56,6 +56,8 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
                     <>{n.payload.text ?? "A vehicle request changed."} <a className="text-sky-800 hover:underline" href={n.payload.request_id ? `/w/${slug}/vehicle-requests/${n.payload.request_id}` : `/w/${slug}/vehicle-requests`}>Open</a></>
                   ) : n.kind.startsWith("trip.") ? (
                     <>{n.payload.text ?? "A trip changed."} <a className="text-sky-800 hover:underline" href={n.payload.trip_id ? `/w/${slug}/trips/${n.payload.trip_id}` : `/w/${slug}/trips`}>Open</a></>
+                  ) : n.kind.startsWith("cargo.") ? (
+                    <>{n.payload.text ?? "A cargo request changed."} <a className="text-sky-800 hover:underline" href={n.payload.cargo_id ? `/w/${slug}/cargo/${n.payload.cargo_id}` : `/w/${slug}/cargo`}>Open</a></>
                   ) : n.kind.startsWith("billing.") ? (
                     <>{n.payload.text ?? "A billing notice."} <a className="text-sky-800 hover:underline" href={`/w/${slug}/billing`}>Billing</a></>
                   ) : (

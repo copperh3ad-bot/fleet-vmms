@@ -52,6 +52,7 @@ export function proOfferFrom(plan: PlanRow | undefined, bands: Band[]): ProOffer
       "Everything in Basic",
       "The AI reads the estimates and invoices your workshops email and fills in the form for you to check",
       "Staff raise a job card from one WhatsApp message; the AI drafts it and they confirm",
+      "Employees say Hi on WhatsApp to raise a job card, ask for a cargo pick-up, reserve a trip or send an odometer reading, answering a few questions each time",
       "Send a trip to several logistics providers, compare their quotes, and check their invoices, with your own rate cards beside them",
       "A person always checks and saves, so every approval still carries a real name and time",
       "Switched on by your administrator, and your records are never used to train AI",

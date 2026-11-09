@@ -108,8 +108,9 @@ describe("who gets the menu", () => {
     const r = await say("Hi");
     expect(r).toMatch(/Hello Driver, this is Fleet OTG for Menu Fleet/);
     expect(r).toContain("1. Submit a Job Card");
-    expect(r).toContain("2. Reserve a Trip");
-    expect(r).toContain("3. Submit Odometer Readings");
+    expect(r).toContain("2. Schedule Cargo Pick-up and Delivery");
+    expect(r).toContain("3. Reserve a Trip");
+    expect(r).toContain("4. Submit Odometer Readings");
     expect((await sessions()).at(-1)).toMatchObject({ flow: "menu", step: "choose", status: "open" });
   });
   it("a number nobody has, and an employee with no login, get nothing from here", async () => {
@@ -127,7 +128,7 @@ describe("who gets the menu", () => {
   });
   it("Reserve a Trip is not offered while the trips module is off", async () => {
     await raw((q) => q.query("update settings set value = '0' where key = 'module_trips'"));
-    try { const r = await say("Hi"); expect(r).not.toContain("Reserve a Trip"); expect(r).toContain("2. Submit Odometer Readings"); }
+    try { const r = await say("Hi"); expect(r).not.toContain("Reserve a Trip"); expect(r).toContain("3. Submit Odometer Readings"); }
     finally { await raw((q) => q.query("update settings set value = '1' where key = 'module_trips'")); }
   });
 });
@@ -188,7 +189,7 @@ describe("Reserve a Trip", () => {
   it("a person who may not request trips cannot be sent into the flow, even by typing its number after the module is switched off", async () => {
     await say("Hi");
     await raw((q) => q.query("update settings set value = '0' where key = 'module_trips'"));
-    try { expect(await say("2")).toMatch(/not available to you any more/); } finally { await raw((q) => q.query("update settings set value = '1' where key = 'module_trips'")); }
+    try { expect(await say("3")).toMatch(/not available to you any more/); } finally { await raw((q) => q.query("update settings set value = '1' where key = 'module_trips'")); }
   });
 
   it("a chosen vehicle is kept on the request", async () => {
