@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
 import { getDriver } from "@/lib/db";
-import { awardTripQuote, createTripQuoteLink, declineTripQuote, recordTripQuote, requestTripQuotes, requestTrip, setPoolCar, transitionTrip } from "@/lib/trips/service";
+import { awardTripQuote, createTripInvoiceLink, createTripQuoteLink, verifyTripInvoice, declineTripQuote, recordTripQuote, requestTripQuotes, requestTrip, setPoolCar, transitionTrip } from "@/lib/trips/service";
 import { origin } from "@/lib/origin";
 import { UserError } from "@/lib/master/service";
 import { sendTemplate, whatsappConfigured } from "@/lib/whatsapp";
@@ -103,4 +103,30 @@ export async function tripQuoteWhatsappAction(slug: string, quoteId: string, _pr
   });
   if (state.ok) refresh();
   return state;
+}
+
+/** A fresh single-use link for the awarded provider's invoice on a completed trip, handed to the sender's own WhatsApp or messages app. */
+export async function tripInvoiceLinkAction(slug: string, tripId: string, _prev: TripLinkState): Promise<TripLinkState> {
+  const base = await origin();
+  let send: TripLinkState["send"];
+  const state = await runAction(slug, async (m) => {
+    const l = await createTripInvoiceLink(getDriver(), m, tripId);
+    send = {
+      text: `Fleet OTG: please send your invoice for trip ${l.trip_no} using this link (works once, valid 7 days): ${base}/q/${l.token}`,
+      digits: l.phone.digits, e164: l.phone.e164, display: l.phone.display, vendor: l.vendor_name,
+    };
+    return "Link ready.";
+  });
+  return { ...state, send };
+}
+
+/** Finance checks a provider's invoice. */
+export async function verifyTripInvoiceAction(slug: string, invoiceId: string, _prev: FormState, form: FormData): Promise<FormState> {
+  const state = await runAction(slug, async (m) => {
+    const decision = str(form, "decision");
+    await verifyTripInvoice(getDriver(), m, invoiceId, decision, str(form, "note"));
+    return decision === "return" ? "Returned to the provider." : "Checked.";
+  });
+  if (state.ok) refresh();
+  return state.error || state.fields ? { ...state, values: typed(form) } : state;
 }

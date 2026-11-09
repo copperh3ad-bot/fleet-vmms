@@ -1,4 +1,4 @@
-import { body, check, go, has, persona, press, scenario, sql, step, waitText } from "./lib.mjs";
+import { body, check, go, has, persona, press, scenario, sql, step, userId, waitText } from "./lib.mjs";
 
 // ADR-078 phase A: a trip goes to three logistics providers, each quotes, the administrator awards the cheapest, and the trip is approved as outsourced.
 // Needs scenarios 2 and 3 first (the company and its administrator). Setup (the module switch, the Pro plan, the vendors and the trip) is done in the database;
@@ -94,6 +94,51 @@ export async function outsourcedTrip(S) {
     await waitSql(() => run(`select status from trips where id = '${trip}'`).split("\n").pop(), "started", 8000);
     await press(o, "Mark as returned", { wait: 1500 });
     await waitSql(() => run(`select status from trips where id = '${trip}'`).split("\n").pop(), "completed", 8000);
+  });
+
+  let invoiceLink;
+  await step("the provider invoices the returned trip through a single-use link", async () => {
+    await go(o, `${base}/trips/${trip}`);
+    await waitText(o, "Provider invoice", 8000);
+    await o.page.getByRole("button", { name: /Ask for the invoice by phone/ }).click();
+    const wa = o.page.getByRole("link", { name: /^Send on WhatsApp$/ });
+    await wa.waitFor({ timeout: 8000 });
+    invoiceLink = decodeURIComponent(String(await wa.getAttribute("href"))).match(/https?:\/\/[^\s"'<>]*\/q\/[A-Za-z0-9_-]+/)?.[0];
+    check(invoiceLink, "no invoice link in the hand-off");
+    const P = await persona("provider-invoice", {});
+    await P.page.goto(invoiceLink, { waitUntil: "networkidle" });
+    const t = await body(P);
+    check(has(t, "Send your invoice") && has(t, "66,000.00") && has(t, "Faisalabad"), `the provider does not see the trip and the agreed price: ${t.slice(0, 200)}`);
+    check(!has(t, "Trip Asker") && !has(t, "Alpha Freight") && !has(t, "70,000"), "the provider can see who asked or what others quoted");
+    await P.page.locator("#invoice_no").fill("INV-E2E-1");
+    await P.page.locator("#invoice_date").fill(new Date().toISOString().slice(0, 10));
+    await P.page.getByRole("button", { name: "Send invoice" }).click();
+    await P.page.getByText(/Thank you/i).waitFor({ timeout: 10000 });
+    await waitSql(() => run(`select status || '/' || amount from trip_invoices where trip_id = '${trip}'`).split("\n").pop(), "submitted/66000.00");
+    await P.page.goto(invoiceLink, { waitUntil: "networkidle" });
+    check(has(await body(P), "This link is not working"), "the invoice link works a second time");
+  });
+
+  await step("the administrator who awarded the trip cannot check its invoice", async () => {
+    await go(o, `${base}/trips/${trip}`);
+    await waitText(o, "INV-E2E-1", 8000);
+    await press(o, "Record the decision", { wait: 1500 });
+    await waitText(o, "segregation of duties", 8000);
+    check(run(`select status from trip_invoices where trip_id = '${trip}'`).split("\n").pop() === "submitted", "the invoice changed state");
+  });
+
+  await step("Finance checks it at the agreed amount; it is payable", async () => {
+    const uid = await userId(S.mgr.email);
+    const was = sql(`select role from public.tenant_memberships where user_id = '${uid}' and tenant_id = '${tid}'`);
+    sql(`update public.tenant_memberships set role = 'finance' where user_id = '${uid}' and tenant_id = '${tid}'`);
+    try {
+      await go(S.mgr, `${base}/trips/${trip}`);
+      await waitText(S.mgr, "INV-E2E-1", 8000);
+      await press(S.mgr, "Record the decision", { wait: 1500 });
+      await waitSql(() => run(`select status || '/' || payable from trip_invoices where trip_id = '${trip}'`).split("\n").pop(), "verified/66000.00");
+      await go(S.mgr, `${base}/trips/${trip}`);
+      check(has(await body(S.mgr), "Checked"), "the page does not say the invoice was checked");
+    } finally { sql(`update public.tenant_memberships set role = '${was}' where user_id = '${uid}' and tenant_id = '${tid}'`); }
   });
 
   await step("on Basic the section is not offered", async () => {

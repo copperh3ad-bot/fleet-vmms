@@ -4,10 +4,10 @@ import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
-import { assignables, getTrip, listLogisticsProviders, listTripQuotes, outsourcingOn, tripsEnabled, TRIP_STATUS_LABEL } from "@/lib/trips/service";
+import { assignables, getTrip, listLogisticsProviders, listTripInvoices, listTripQuotes, outsourcingOn, tripsEnabled, TRIP_STATUS_LABEL } from "@/lib/trips/service";
 import { PageHeader, Panel, Pill, Plate } from "@/components/ui";
 import { TripStep } from "./steps";
-import { AskProviders, AwardForm, DeclineButton, QuoteForm, SendQuoteLink } from "./outsource";
+import { AskProviders, AwardForm, DeclineButton, QuoteForm, SendInvoiceLink, SendQuoteLink, VerifyTripInvoice } from "./outsource";
 import { tripWhatsappFromServer } from "@/lib/trips/whatsapp";
 
 export default function TripPage({ params }: PageProps<"/w/[slug]/trips/[id]">) {
@@ -32,6 +32,9 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
   const quotes = outsourcing ? await listTripQuotes(driver, m, id) : [];
   const providers = outsourcing && t.status === "requested" ? await listLogisticsProviders(driver, m) : [];
   const outsourced = !!t.outsourced_vendor;
+  // The provider's invoice (ADR-078 B2): seen by those who ask for it and those who check it.
+  const invoices = outsourced && (perms.has("trip.award") || perms.has("invoice.verify")) ? await listTripInvoices(driver, m, id) : [];
+  const liveInvoice = invoices.some((x) => x.status === "submitted" || x.status === "verified");
   const whatsappFromServer = tripWhatsappFromServer();
   const quotedAmounts = quotes.filter((x) => x.status === "quoted").map((x) => Number(x.amount));
   const lowest = quotedAmounts.length > 1 ? Math.min(...quotedAmounts) : null;
@@ -91,6 +94,27 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
                 {t.status === "requested" && x.status === "requested" && <DeclineButton slug={slug} quoteId={x.id} />}
               </div>
             ))}
+          </div>
+        </Panel>
+      )}
+      {outsourced && t.status === "completed" && (perms.has("trip.award") || invoices.length > 0) && (
+        <Panel title="Provider invoice">
+          <div className="space-y-4 text-sm">
+            {invoices.length === 0 && <p className="text-zinc-600">{t.outsourced_vendor} has not sent an invoice yet.</p>}
+            {invoices.map((x) => (
+              <div key={x.id} className="space-y-3 border-t border-zinc-100 pt-3 first:border-t-0 first:pt-0">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="font-medium">{x.invoice_no}</span>
+                  <Pill tone={x.status === "verified" ? "ok" : x.status === "disputed" ? "bad" : "neutral"}>{{ submitted: "Waiting for a check", verified: "Checked", disputed: "Returned" }[x.status] ?? x.status}</Pill>
+                  <span className="font-medium">{Number(x.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                  {x.payable && <span className="text-zinc-600">payable {Number(x.payable).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>}
+                </div>
+                {x.notes && <p className="text-zinc-600">Provider's note: {x.notes}</p>}
+                {x.decision_note && <p className="text-zinc-600">{x.verifier_name ?? "Finance"}: {x.decision_note}</p>}
+                {x.status === "submitted" && perms.has("invoice.verify") && t.award_amount && <VerifyTripInvoice slug={slug} invoiceId={x.id} amount={x.amount} awarded={t.award_amount} />}
+              </div>
+            ))}
+            {!liveInvoice && perms.has("trip.award") && outsourcing && <SendInvoiceLink slug={slug} tripId={id} />}
           </div>
         </Panel>
       )}

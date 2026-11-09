@@ -38,7 +38,7 @@ const KNOWN = [
   /vehicle not found/, /that vehicle is not available[^"]*/, /pick and drop runs use a pool car/, /the driver must be an active employee/, /a reason of at least 5 characters is required/,
   /enter the odometer reading [a-z ]+/, /the return reading is below the departure reading/,
   /this vehicle belongs to another department/, /pool cars belong to the [A-Za-z ]+ department/, /this car is held by someone outside[^"]*/,
-  /that quote is not available to award/,
+  /that quote is not available to award/, /that invoice is not waiting for a check/, /segregation of duties: the person who awarded[^"]*/, /the invoice differs from the awarded amount[^"]*/, /a note of at least 5 characters is required/, /choose a decision/,
   /that vehicle is already booked for part of this time/, /that driver is already on another trip for part of this time/,
 ];
 function friendly(e: unknown): never {
@@ -54,7 +54,7 @@ export async function tripsOn(q: Queryable): Promise<boolean> {
 async function requireOn(q: Queryable) { if (!(await tripsOn(q))) throw new UserError("Trips are not switched on for this organization."); }
 
 export function tripsEnabled(driver: Driver, m: Membership): Promise<boolean> {
-  return authorizedAny(driver, m, ["trip.request", "trip.approve", "trip.dispatch", "trip.read_all", "gate.use", "admin.settings"], (q) => tripsOn(q));
+  return authorizedAny(driver, m, ["trip.request", "trip.approve", "trip.dispatch", "trip.read_all", "gate.use", "admin.settings", "invoice.verify"], (q) => tripsOn(q));
 }
 
 export type TripRow = {
@@ -66,6 +66,8 @@ const DISPATCHABLE = `(t.kind = 'pick_drop' or (acting_department() is not null 
 
 /** A trip that was sent to logistics providers for quotes, or awarded to one. */
 const OUTSOURCED = `(t.outsourced_vendor_id is not null or exists (select 1 from trip_quotes oq where oq.trip_id = t.id))`;
+/** A trip with a provider invoice on it: seen by the people who check invoices. */
+const INVOICED = `exists (select 1 from trip_invoices ti where ti.trip_id = t.id)`;
 
 const ROW_SQL = `select t.id, t.trip_no, t.kind, t.status, t.purpose, t.from_place, t.to_place, t.start_at::text, t.end_at::text,
        re.full_name as requester_name, v.registration_no, d.full_name as driver_name,
@@ -74,14 +76,14 @@ const ROW_SQL = `select t.id, t.trip_no, t.kind, t.status, t.purpose, t.from_pla
 
 /** trip.read_all sees every trip; anyone else sees the trips they asked for or drive. A person limited to their own vehicles sees only trips on them. */
 export function listTrips(driver: Driver, m: Membership, opts: { status?: string } = {}): Promise<TripRow[]> {
-  return authorizedAny(driver, m, ["trip.request", "trip.approve", "trip.dispatch", "trip.read_all", "trip.award"], async (q, held) => {
+  return authorizedAny(driver, m, ["trip.request", "trip.approve", "trip.dispatch", "trip.read_all", "trip.award", "invoice.verify"], async (q, held) => {
     await requireOn(q);
     const params: unknown[] = [m.userId];
     const where: string[] = ["(t.vehicle_id is null or dept_ok(t.vehicle_id))"];
     // Logistics sees every pick and drop run and every trip on its own vehicles, plus its own trips; the others see their own unless they may read or approve all.
     if (!held.has("trip.read_all") && !held.has("trip.approve")) {
       // Someone who awards quotes also sees the trips that were sent to providers, whoever asked for them (ADR-078).
-      const own = `re.user_id = $1 or d.user_id = $1${held.has("trip.dispatch") ? ` or ${DISPATCHABLE}` : ""}${held.has("trip.award") ? ` or ${OUTSOURCED}` : ""}`;
+      const own = `re.user_id = $1 or d.user_id = $1${held.has("trip.dispatch") ? ` or ${DISPATCHABLE}` : ""}${held.has("trip.award") ? ` or ${OUTSOURCED}` : ""}${held.has("invoice.verify") ? ` or ${INVOICED}` : ""}`;
       where.push(`(${own})`);
     }
     if (m.vehicleScope === "own") where.push("(re.user_id = $1 or d.user_id = $1)");
@@ -93,22 +95,22 @@ export function listTrips(driver: Driver, m: Membership, opts: { status?: string
 export type TripEvent = { from_status: string | null; to_status: string; note: string | null; created_at: string; actor_name: string | null };
 export type TripDetail = TripRow & {
   stops: string | null; passengers: number | null; vehicle_id: string | null; driver_id: string | null; preferred_vehicle: string | null; decision_note: string | null;
-  odometer_out: string | null; odometer_in: string | null; requested_by_me: boolean; outsourced_visible: boolean; outsourced_vendor: string | null; award_amount: string | null; vendor_vehicle_text: string | null; vendor_driver_text: string | null; driver_licence_expired: boolean; events: TripEvent[];
+  odometer_out: string | null; odometer_in: string | null; requested_by_me: boolean; outsourced_visible: boolean; invoiced: boolean; outsourced_vendor: string | null; award_amount: string | null; vendor_vehicle_text: string | null; vendor_driver_text: string | null; driver_licence_expired: boolean; events: TripEvent[];
 };
 
 export function getTrip(driver: Driver, m: Membership, id: string): Promise<TripDetail | null> {
-  return authorizedAny(driver, m, ["trip.request", "trip.approve", "trip.dispatch", "trip.read_all", "trip.award"], async (q, held) => {
+  return authorizedAny(driver, m, ["trip.request", "trip.approve", "trip.dispatch", "trip.read_all", "trip.award", "invoice.verify"], async (q, held) => {
     await requireOn(q);
     const t = (await q.query<Omit<TripDetail, "events">>(
       `select t.id, t.trip_no, t.kind, t.stops, t.status, t.purpose, t.from_place, t.to_place, t.start_at::text, t.end_at::text, t.passengers, t.vehicle_id, t.driver_id,
-              t.decision_note, t.odometer_out::text, t.odometer_in::text, ov.name as outsourced_vendor, ${OUTSOURCED} as outsourced_visible, t.award_amount::text, t.vendor_vehicle_text, t.vendor_driver_text, re.full_name as requester_name, v.registration_no, d.full_name as driver_name,
+              t.decision_note, t.odometer_out::text, t.odometer_in::text, ov.name as outsourced_vendor, ${OUTSOURCED} as outsourced_visible, ${INVOICED} as invoiced, t.award_amount::text, t.vendor_vehicle_text, t.vendor_driver_text, re.full_name as requester_name, v.registration_no, d.full_name as driver_name,
               pv.registration_no as preferred_vehicle, (t.odometer_in - t.odometer_out)::text as distance_km, (re.user_id = $2 or d.user_id = $2) as mine,
               (re.user_id = $2) as requested_by_me, ${DISPATCHABLE.replace(/\$1/g, "$2")} as dispatchable,
               coalesce((select l.expires_on < t.end_at::date from driver_licences l where l.employee_id = t.driver_id), false) as driver_licence_expired
          from trips t join employees re on re.id = t.requested_by left join vehicles v on v.id = t.vehicle_id left join employees d on d.id = t.driver_id
          left join vehicles pv on pv.id = t.preferred_vehicle_id left join vendors ov on ov.id = t.outsourced_vendor_id where t.id = $1 and (t.vehicle_id is null or dept_ok(t.vehicle_id))`, [id, m.userId])).rows[0];
     if (!t) return null;
-    if (!held.has("trip.read_all") && !held.has("trip.approve") && !t.mine && !(held.has("trip.dispatch") && t.dispatchable) && !(held.has("trip.award") && t.outsourced_visible)) return null;
+    if (!held.has("trip.read_all") && !held.has("trip.approve") && !t.mine && !(held.has("trip.dispatch") && t.dispatchable) && !(held.has("trip.award") && t.outsourced_visible) && !(held.has("invoice.verify") && t.invoiced)) return null;
     const events = (await q.query<TripEvent>(
       `select e.from_status, e.to_status, e.note, e.created_at::text, coalesce(emp.full_name, null) as actor_name
          from trip_events e left join employees emp on emp.user_id = e.actor_id where e.trip_id = $1 order by e.created_at, e.id`, [id])).rows;
@@ -263,6 +265,13 @@ export async function requestTripQuotes(driver: Driver, m: Membership, tripId: s
   });
 }
 
+export const tripInvoiceSchema = z.object({
+  invoice_no: z.string().trim().min(1, "Enter the invoice number").max(60),
+  invoice_date: z.iso.date("Enter the invoice date"),
+  amount: z.preprocess((v) => (typeof v === "string" ? v.replace(/,/g, "").trim() : v), z.coerce.number("Enter the invoiced amount").positive("Enter an amount above zero").max(1e9)),
+  notes: z.preprocess(blank, z.string().trim().max(1000).optional()),
+});
+
 export const tripQuoteSchema = z.object({
   amount: z.preprocess((v) => (typeof v === "string" ? v.replace(/,/g, "").trim() : v), z.coerce.number("Enter the amount").positive("Enter an amount above zero").max(1e9)),
   vehicle_text: z.preprocess(blank, z.string().trim().max(120).optional()),
@@ -348,4 +357,63 @@ export async function createTripQuoteLink(driver: Driver, m: Membership, quoteId
     throw new UserError("The link could not be created. Try again.");
   }
   return made;
+}
+
+// ---------- The provider's invoice (ADR-078 phase B2) ----------
+
+export type TripInvoice = {
+  id: string; invoice_no: string; invoice_date: string; amount: string; notes: string | null; status: string; decision_note: string | null; payable: string | null;
+  submitted_at: string; verified_at: string | null; verifier_name: string | null;
+};
+
+/** Invoices on a trip: for the people who award, and for those who check invoices. */
+export function listTripInvoices(driver: Driver, m: Membership, tripId: string): Promise<TripInvoice[]> {
+  return authorizedAny(driver, m, ["trip.award", "invoice.verify"], async (q) => {
+    await requireOn(q);
+    return (await q.query<TripInvoice>(
+      `select i.id, i.invoice_no, i.invoice_date::text, i.amount::text, i.notes, i.status, i.decision_note, i.payable::text, i.submitted_at::text, i.verified_at::text, e.full_name as verifier_name
+         from trip_invoices i left join employees e on e.user_id = i.verified_by where i.trip_id = $1 order by i.submitted_at desc`, [tripId])).rows;
+  });
+}
+
+/** A fresh single-use link for the awarded provider's invoice on a completed trip, to be sent to that provider's own phone number. */
+export async function createTripInvoiceLink(driver: Driver, m: Membership, tripId: string): Promise<NewTripQuoteLink> {
+  await requireOutsourcing(driver, m);
+  const made = await authorized(driver, m, "trip.award", async (q) => {
+    await requireOn(q);
+    const r = (await q.query<{ status: string; trip_no: string; vendor_id: string | null; vendor_name: string | null; phone: string | null; live: boolean }>(
+      `select t.status, t.trip_no, t.outsourced_vendor_id as vendor_id, v.name as vendor_name, v.phone,
+              exists (select 1 from trip_invoices i where i.trip_id = t.id and i.status in ('submitted','verified')) as live
+         from trips t left join vendors v on v.id = t.outsourced_vendor_id where t.id = $1`, [tripId])).rows[0];
+    if (!r) throw new UserError("Trip not found.");
+    if (!r.vendor_id) throw new UserError("This trip was not given to a logistics provider.");
+    if (r.status !== "completed") throw new UserError("A provider invoices once the trip is marked as returned.");
+    if (r.live) throw new UserError("An invoice has already been sent for this trip.");
+    const phone = normalizePhone(r.phone ?? "");
+    if (!phone.ok) throw new UserError(`${r.vendor_name} has no mobile number a message can reach. Add one under Vendors first.`);
+    await q.query("update public.quotation_links set revoked_at = now() where tenant_id = $1 and trip_id = $2 and kind = 'trip_invoice' and used_at is null and revoked_at is null", [m.tenantId, tripId]);
+    const token = newToken();
+    const exp = (await q.query<{ e: string }>(
+      `insert into public.quotation_links(token_hash, tenant_id, trip_id, vendor_id, created_by, expires_at, kind)
+       values ($1, $2, $3, $4, $5, now() + ($6 || ' hours')::interval, 'trip_invoice') returning expires_at::text as e`,
+      [hashToken(token), m.tenantId, tripId, r.vendor_id, m.userId, String(TRIP_QUOTE_LINK_HOURS)])).rows[0].e;
+    return { token, expires_at: exp, trip_no: r.trip_no, vendor_name: r.vendor_name ?? "", phone: { e164: phone.e164, digits: phone.digits, display: phone.display } };
+  });
+  try { await routeToken(driver, "trip_invoice", m.tenantId, hashToken(made.token), made.expires_at); }
+  catch {
+    await authorized(driver, m, "trip.award", (q) => q.query("update public.quotation_links set revoked_at = now() where token_hash = $1", [hashToken(made.token)])).catch(() => undefined);
+    throw new UserError("The link could not be created. Try again.");
+  }
+  return made;
+}
+
+/** Finance checks a provider's invoice: pay the awarded amount, pay what was billed (with a note), or send it back (with a note). */
+export async function verifyTripInvoice(driver: Driver, m: Membership, invoiceId: string, decision: string, note?: string): Promise<void> {
+  if (!["pay_approved", "pay_invoiced", "return"].includes(decision)) throw new UserError("Choose a decision.");
+  return authorized(driver, m, "invoice.verify", async (q) => {
+    await requireOn(q);
+    const t = (await q.query<{ trip_id: string; trip_no: string }>("select i.trip_id, t.trip_no from trip_invoices i join trips t on t.id = i.trip_id where i.id = $1", [invoiceId])).rows[0];
+    if (!t) throw new UserError("Invoice not found.");
+    try { await q.query("select trip_invoice_verify($1, $2, $3, $4)", [invoiceId, m.userId, decision, note?.trim() || null]); } catch (e) { friendly(e); }
+  });
 }

@@ -54,7 +54,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
     );
   }
   const [perms, me, unread, counts] = await Promise.all([permissionsOf(driver, m), whoAmI(driver, m), unreadCount(driver, m), getNavCounts(driver, m)]);
-  const tripsOn = perms.has("trip.request") || perms.has("trip.approve") || perms.has("trip.dispatch") || perms.has("trip.read_all") ? await tripsEnabled(driver, m).catch(() => false) : false;
+  const tripsOn = perms.has("trip.request") || perms.has("trip.approve") || perms.has("trip.dispatch") || perms.has("trip.read_all") || perms.has("invoice.verify") ? await tripsEnabled(driver, m).catch(() => false) : false;
   const to =(p: string) => `/w/${slug}${p}`;
   const has = (...p: string[]) => p.some((x) => perms.has(x));
   const sees = has("jobcard.create", "jobcard.read_own", "jobcard.read_all");

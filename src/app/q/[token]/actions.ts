@@ -4,7 +4,7 @@ import { getDriver } from "@/lib/db";
 import { allowShared } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
 import { hashToken } from "@/lib/odometer/link";
-import { DEAD_QUOTE_LINK, submitViaInvoiceLink, submitViaQuoteLink, submitViaTripQuoteLink } from "@/lib/vendorflow/link";
+import { DEAD_QUOTE_LINK, submitViaInvoiceLink, submitViaQuoteLink, submitViaTripInvoiceLink, submitViaTripQuoteLink } from "@/lib/vendorflow/link";
 import { estimateFromForm, invoiceFromForm } from "@/lib/vendorflow/form";
 
 export type QuoteFormState = { error?: string; done?: boolean };
@@ -48,6 +48,21 @@ export async function sendTripQuoteAction(token: string, _prev: QuoteFormState, 
   if (!ipOk || !tokenOk) return { error: "Too many tries. Wait a few minutes and try again." };
   const text = (k: string) => String(form.get(k) ?? "");
   const r = await submitViaTripQuoteLink(driver, token, { amount: text("amount"), vehicle_text: text("vehicle_text"), driver_text: text("driver_text"), notes: text("notes"), valid_until: text("valid_until") });
+  if (r.ok) return { done: true };
+  if (r.reason === "bad_input") return { error: r.message };
+  return { error: DEAD_QUOTE_LINK };
+}
+
+/** One invoice for one awarded trip from a logistics provider (ADR-078). */
+export async function sendTripInvoiceAction(token: string, _prev: QuoteFormState, form: FormData): Promise<QuoteFormState> {
+  const driver = getDriver();
+  const [ipOk, tokenOk] = await Promise.all([
+    allowShared(driver, `tripinvoice-send-ip:${await clientIp()}`, 30, TEN_MIN),
+    allowShared(driver, `tripinvoice-send-token:${hashToken(token)}`, 10, TEN_MIN),
+  ]);
+  if (!ipOk || !tokenOk) return { error: "Too many tries. Wait a few minutes and try again." };
+  const text = (k: string) => String(form.get(k) ?? "");
+  const r = await submitViaTripInvoiceLink(driver, token, { invoice_no: text("invoice_no"), invoice_date: text("invoice_date"), amount: text("amount"), notes: text("notes") });
   if (r.ok) return { done: true };
   if (r.reason === "bad_input") return { error: r.message };
   return { error: DEAD_QUOTE_LINK };

@@ -5,7 +5,7 @@ import type { FormState } from "../../actions-util";
 import { useFormStatus } from "react-dom";
 import { btn } from "@/components/ui";
 import { smsLink, whatsappLink } from "@/lib/phone";
-import { askQuotesAction, awardQuoteAction, declineQuoteAction, recordQuoteAction, tripQuoteLinkAction, tripQuoteWhatsappAction, type TripLinkState } from "../actions";
+import { askQuotesAction, awardQuoteAction, declineQuoteAction, recordQuoteAction, tripInvoiceLinkAction, tripQuoteLinkAction, tripQuoteWhatsappAction, verifyTripInvoiceAction, type TripLinkState } from "../actions";
 
 /** Choose the logistics providers to ask for a quote on this trip (ADR-078). The ones already asked are ticked and locked. */
 export function AskProviders({ slug, id, providers, asked }: { slug: string; id: string; providers: { id: string; name: string; phone: string | null }[]; asked: string[] }) {
@@ -99,5 +99,46 @@ export function SendQuoteLink({ slug, quoteId, vendor, whatsappFromServer }: { s
       <Notice state={wa} />
       <span className="sr-only">{vendor}</span>
     </div>
+  );
+}
+
+/** Asks the awarded provider for its invoice with a single-use link (ADR-078). The link goes through the sender's own WhatsApp or messages app to the provider's own number. */
+export function SendInvoiceLink({ slug, tripId }: { slug: string; tripId: string }) {
+  const [phone, phoneAction] = useActionState<TripLinkState>(tripInvoiceLinkAction.bind(null, slug, tripId) as (p: TripLinkState) => Promise<TripLinkState>, {});
+  const send = phone.send;
+  return (
+    <div className="space-y-2">
+      <form action={phoneAction}><Go label="Ask for the invoice by phone" pendingLabel="Making the link" /></form>
+      {send && (
+        <div className="space-y-2">
+          <p>Ready for {send.vendor}, to <span className="font-mono">{send.display}</span>. The link goes to this number only and is not shown here.</p>
+          <div className="flex flex-wrap gap-2">
+            <a className={btn} href={whatsappLink(send.digits, send.text)} target="_blank" rel="noreferrer">Send on WhatsApp</a>
+            <a className={btn} href={smsLink(send.e164, send.text)}>Send as a text message</a>
+          </div>
+        </div>
+      )}
+      <Notice state={send ? { ...phone, ok: undefined } : phone} />
+    </div>
+  );
+}
+
+/** Finance's check of a provider invoice: pay the agreed amount, pay what was billed, or send it back. */
+export function VerifyTripInvoice({ slug, invoiceId, amount, awarded }: { slug: string; invoiceId: string; amount: string; awarded: string }) {
+  const [state, action] = useActionState<FormState, FormData>(verifyTripInvoiceAction.bind(null, slug, invoiceId), {});
+  const same = Number(amount) === Number(awarded);
+  const money = (v: string) => Number(v).toLocaleString("en-US", { minimumFractionDigits: 2 });
+  return (
+    <form action={action} className="space-y-3" noValidate>
+      <fieldset className="space-y-1.5 text-sm">
+        <legend className="mb-1 text-xs font-medium text-zinc-600">Your decision</legend>
+        {same
+          ? <label className="flex items-center gap-2"><input type="radio" name="decision" value="pay_approved" defaultChecked /> Pay {money(awarded)}, the agreed price</label>
+          : <label className="flex items-center gap-2"><input type="radio" name="decision" value="pay_invoiced" defaultChecked /> Pay {money(amount)} as billed (agreed price {money(awarded)}); say why below</label>}
+        <label className="flex items-center gap-2"><input type="radio" name="decision" value="return" /> Return it to the provider; say why below</label>
+      </fieldset>
+      <Input id={`vi-${invoiceId}`} name="note" label={same ? "Note (needed only if you return it)" : "Note (needed)"} state={state} />
+      <div className="flex items-center gap-3"><Submit>Record the decision</Submit><Notice state={state} /></div>
+    </form>
   );
 }
