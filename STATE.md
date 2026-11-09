@@ -562,3 +562,6 @@ Regression R7 observation: Change custody on a vehicle created the same day left
 
 ## 2026-11-09: V1.4 phase A live; keep-warm ping
 Tenant 0043 and 0044 and control 0023 applied on live (no drift); deployed. Phase A of ADR-078 (vendor types, outsourced trips, quotes from several logistics providers, award, Pro feature) is live; phases B (WhatsApp quote and invoice links) and C (rate cards, reports) are not built. A scheduled function (netlify/functions/keep-warm.mts) pings /api/health and /login every four minutes against cold starts. The otp_checks beta switch is still on until the owner sets it to off.
+
+## 2026-11-09: V1.4 logistics providers live (ADR-078)
+Applied on live: tenant 0043 to 0047, control 0023 to 0025, public 0017 and 0018 (no drift). Deployed at ad09e43. Live now: vendor types, trips sent to several logistics providers, quotes entered by staff or sent by the provider through a single-use /q/ link, award, provider invoice link, Finance's check, tenant rate cards, the outsourced trips report and CSV, optional WhatsApp send from Fleet OTG (needs the two templates). Pro feature. Not built: AI quote comparison, provider sign-in (both wait on owner decisions, docs/OWNER-CHECKLIST.md). otp_checks is off on live (beta).
