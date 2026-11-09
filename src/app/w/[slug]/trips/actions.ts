@@ -130,3 +130,22 @@ export async function verifyTripInvoiceAction(slug: string, invoiceId: string, _
   if (state.ok) refresh();
   return state.error || state.fields ? { ...state, values: typed(form) } : state;
 }
+
+/** The invoice request sent to the provider's WhatsApp from Fleet OTG itself: an approved template with a button to the one-time link. */
+export async function tripInvoiceWhatsappAction(slug: string, tripId: string, _prev: FormState): Promise<FormState> {
+  const state = await runAction(slug, async (m) => {
+    const template = process.env.WHATSAPP_TRIP_INVOICE_TEMPLATE;
+    if (!whatsappConfigured() || !template) throw new UserError("Sending on WhatsApp from Fleet OTG is not set up yet. Use the phone button.");
+    const l = await createTripInvoiceLink(getDriver(), m, tripId);
+    try {
+      // the template reads: "{provider}, the trip {no} for {company} is done. Please send your invoice"
+      await sendTemplate(l.phone.e164, { name: template, params: [l.vendor_name, l.trip_no, m.tenantName || "A Fleet OTG customer"], buttonUrlSuffix: l.token });
+    } catch (e) {
+      console.error(`trip invoice whatsapp request failed: ${e instanceof Error ? e.message.slice(0, 80) : "unknown"}`);   // never the number or the link
+      throw new UserError("The WhatsApp message could not be sent. Try again, or use the phone button.");
+    }
+    return `Sent to ${l.vendor_name} on WhatsApp.`;
+  });
+  if (state.ok) refresh();
+  return state;
+}

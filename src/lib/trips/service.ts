@@ -51,7 +51,7 @@ function friendly(e: unknown): never {
 export async function tripsOn(q: Queryable): Promise<boolean> {
   return (await q.query<{ value: string }>("select value from settings where key = 'module_trips'")).rows[0]?.value === "1";
 }
-async function requireOn(q: Queryable) { if (!(await tripsOn(q))) throw new UserError("Trips are not switched on for this organization."); }
+export async function requireOn(q: Queryable) { if (!(await tripsOn(q))) throw new UserError("Trips are not switched on for this organization."); }
 
 export function tripsEnabled(driver: Driver, m: Membership): Promise<boolean> {
   return authorizedAny(driver, m, ["trip.request", "trip.approve", "trip.dispatch", "trip.read_all", "gate.use", "admin.settings", "invoice.verify"], (q) => tripsOn(q));
@@ -212,7 +212,7 @@ export function setPoolCar(driver: Driver, m: Membership, vehicleId: string, poo
 
 // ---------- Outsourced trips (ADR-078, V1.4): ask logistics providers for quotes, record them, award one. A Pro feature. ----------
 
-async function requireOutsourcing(driver: Driver, m: Membership) {
+export async function requireOutsourcing(driver: Driver, m: Membership) {
   if (!(await tenantPlan(driver, m.tenantId)).outsourcedTrips) throw new UserError("Sending trips to logistics providers for quotes is part of the Pro plan.");
 }
 

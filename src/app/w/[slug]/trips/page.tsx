@@ -5,7 +5,7 @@ import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { listPoolCandidates, listTrips, tripsEnabled, TRIP_STATUS_LABEL } from "@/lib/trips/service";
 import { PoolSwitch } from "./pool-switch";
-import { PageHeader, Panel, Pill, Plate, btnPrimary, type Tone } from "@/components/ui";
+import { PageHeader, Panel, Pill, Plate, btn, btnPrimary, type Tone } from "@/components/ui";
 
 export default function TripsPage({ params, searchParams }: PageProps<"/w/[slug]/trips">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} searchParams={searchParams} /></Suspense>;
@@ -47,7 +47,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   );
   return (
     <main className="space-y-5 p-6 text-zinc-900">
-      <PageHeader title="Trips" sub={`${rows.length} shown`} actions={perms.has("trip.request") ? <a href={`/w/${slug}/trips/new`} className={btnPrimary}>Ask for a trip</a> : undefined} />
+      <PageHeader title="Trips" sub={`${rows.length} shown`} actions={<>{(perms.has("trip.award") || perms.has("trip.read_all") || perms.has("invoice.verify")) && <a href={`/w/${slug}/trips/outsourced`} className={btn}>Outsourced trips</a>}{perms.has("trip.request") && <a href={`/w/${slug}/trips/new`} className={btnPrimary}>Ask for a trip</a>}</>} />
       {waiting.length > 0 && <Panel title="Waiting for your approval" sub={`${waiting.length} request${waiting.length === 1 ? "" : "s"}`} flush>{table(waiting)}</Panel>}
       <form className="flex flex-wrap gap-2" role="search">
         <select name="status" defaultValue={status} className={control} aria-label="Status">

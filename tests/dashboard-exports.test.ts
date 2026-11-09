@@ -77,12 +77,12 @@ describe("exports", () => {
   const forbidden = (p: Promise<unknown>) => p.then(() => false, (e) => e instanceof ForbiddenError);
 
   it("knows exactly the exports listed, and refuses anything else", async () => {
-    expect(EXPORT_KINDS.sort()).toEqual(["accidents", "budgets", "challans", "cost-per-hour", "cost-per-km", "costs-by-vehicle", "documents", "flags", "invoices", "job-cards", "repeat-repairs", "vehicles", "workshop-time"]);
+    expect(EXPORT_KINDS.sort()).toEqual(["accidents", "budgets", "challans", "cost-per-hour", "cost-per-km", "costs-by-vehicle", "documents", "flags", "invoices", "job-cards", "outsourced-trips", "repeat-repairs", "vehicles", "workshop-time"]);
     for (const bad of ["constructor", "__proto__", "toString", "../vehicles", "", "VEHICLES"]) await expect(exportCsv(d, mgr(), bad)).rejects.toBeInstanceOf(UserError);
   });
 
   it("every export runs and has a header row, for a role that holds its permission", async () => {
-    const who: Record<string, Membership> = { vehicles: mgr(), "job-cards": mgr(), invoices: finance(), documents: mgr(), accidents: mgr(), challans: mgr(), budgets: mgr(), "costs-by-vehicle": mgr(), "repeat-repairs": mgr(), flags: mgr(), "cost-per-km": mgr(), "cost-per-hour": mgr(), "workshop-time": mgr() };
+    const who: Record<string, Membership> = { vehicles: mgr(), "job-cards": mgr(), "outsourced-trips": mgr(), invoices: finance(), documents: mgr(), accidents: mgr(), challans: mgr(), budgets: mgr(), "costs-by-vehicle": mgr(), "repeat-repairs": mgr(), flags: mgr(), "cost-per-km": mgr(), "cost-per-hour": mgr(), "workshop-time": mgr() };
     for (const kind of EXPORT_KINDS) {
       const r = await exportCsv(d, who[kind], kind);
       expect(r.csv.startsWith("﻿"), kind).toBe(true);

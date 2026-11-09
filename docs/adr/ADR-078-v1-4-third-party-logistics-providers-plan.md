@@ -47,3 +47,10 @@ Tenant migration (next free number): `vendors.kind`; `trips.outsourced_vendor_id
 - **Check:** `trip_invoice_verify` is the one function that records the decision, with a history line on the trip. Needs `invoice.verify` (Finance, administrator). Decisions: pay the agreed amount (the invoice must equal it), pay what was billed (note required when it differs), or return it (note required). The person who awarded the trip, or asked for it, cannot check its invoice, except a sole-employee administrator (ADR-077).
 - **Who sees it:** Finance sees the Trips menu and an outsourced trip once a provider has invoiced it, nothing else about trips.
 - **Not built:** rate cards, outsourced-trip cost reports, the AI quote comparison, a WhatsApp template for the invoice request.
+
+## Amendment, 2026-11-09 (phase C built: rate cards, the cost report, the Pro copy)
+- **Rate cards (tenant 0047):** `provider_rates`, entered by whoever manages vendors for a logistics provider (label, how it is charged, the rate, a note). Each organization's own, never built in or shared. Shown on the Vendors page and beside each provider's quote on the trip. A Pro feature like the rest. A rate never replaces a quote.
+- **Outsourced trips report:** `/w/<slug>/trips/outsourced`, and a CSV `outsourced-trips`: per provider, trips, awarded, invoiced, payable (what Finance has checked), "saved by comparing" (the highest quote received minus the price awarded, only where more than one provider quoted) and trips still waiting for an invoice. Open to those who award, read all trips or check invoices. Outsourced trips are kept out of the vehicle cost reports, since the vehicle is not the organization's.
+- **WhatsApp from Fleet OTG:** the same optional template send for the invoice request (`WHATSAPP_TRIP_INVOICE_TEMPLATE`), beside the quote one. Without the secrets the hand-off buttons work.
+- **Pro copy:** one new line in the Pro plan's points. No price is stated or set.
+- **Still not built:** the AI quote comparison and a provider sign-in. Both wait on the owner (docs/OWNER-CHECKLIST.md).

@@ -158,6 +158,21 @@ const DEFS: Record<string, Def> = {
       return r.rows.map((x) => ({ ...x, availability: x.availability === null ? "" : (x.availability * 100).toFixed(1) }));
     },
   },
+  "outsourced-trips": {
+    perms: ["trip.award", "trip.read_all", "invoice.verify"],
+    columns: [col("Trip", "trip_no"), col("Provider", "vendor_name"), col("From", "from_place"), col("To", "to_place"), col("Awarded on", "awarded_on"), col("Status", "status"),
+      col("Awarded price", "award_amount"), col("Highest quote", "max_quote"), col("Invoice no", "invoice_no"), col("Invoiced", "invoiced"), col("Invoice status", "invoice_status"), col("Payable", "payable")],
+    async run({ q, f }) {
+      return (await q.query(
+        `select t.trip_no, v.name as vendor_name, t.from_place, t.to_place, t.decided_at::date::text as awarded_on, t.status, t.award_amount::text,
+                (select max(tq.amount) from trip_quotes tq where tq.trip_id = t.id)::text as max_quote,
+                i.invoice_no, i.amount::text as invoiced, i.status as invoice_status, i.payable::text as payable
+           from trips t join vendors v on v.id = t.outsourced_vendor_id
+           left join lateral (select * from trip_invoices x where x.trip_id = t.id and x.status in ('submitted','verified') limit 1) i on true
+          where t.decided_at >= now() - ($1 || ' months')::interval and t.status in ('approved','started','completed')
+          order by t.decided_at desc ${cap}`, [String([3, 6, 12, 24].includes(Number(f.months)) ? Number(f.months) : 12)])).rows;
+    },
+  },
   flags: {
     perms: ["report.view"],
     columns: [col("Vehicle", "registration_no"), col("Flag", "flag"), col("Severity", "severity"), col("Detail", "detail")],

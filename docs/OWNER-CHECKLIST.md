@@ -39,3 +39,14 @@ Say "deploy" to publish: the premium dashboard, the cleaned wording, the get-sta
 
 ## Files in the project folder that are yours (left alone)
 `Vehicle Policy._0001.pdf`, `fleet-vmms-design.zip`, `Pasted 2026-10-22 at 11.21.48 AM.textClipping`, and a stray `.next 2/` folder (an iCloud duplicate of a build folder; safe to delete).
+
+## V1.4 logistics providers (ADR-078): what is waiting for you (2026-11-09)
+- [ ] **Say "apply and deploy"** for phase B2 and C: public 0018, control 0025, tenant 0046 (provider invoices) and 0047 (rate cards), then a deploy. Phase A, the quote link (public 0017, control 0024, tenant 0045) is already applied on live and its code is not yet deployed.
+- [ ] **Two WhatsApp templates (utility category) for Meta approval**, only if you want Fleet OTG to send the requests itself. Until then staff send the links through their own WhatsApp or messages app and everything works.
+  - Quote request, body: `{{1}}, {{2}} asks for your quote for trip {{3}}`, with a URL button `https://www.fleetotg.com/q/{{1}}`. Then set the secret `WHATSAPP_TRIP_QUOTE_TEMPLATE` to its name.
+  - Invoice request, body: `{{1}}, the trip {{2}} for {{3}} is done. Please send your invoice`, same button. Then set `WHATSAPP_TRIP_INVOICE_TEMPLATE`.
+- [ ] **Pro pricing**: Pro now includes outsourced trips (flag `outsourced_trips` on the Pro plan). Nothing is priced; enter the fleet-size bands on the Admin Plans page when you decide.
+- [ ] **AI quote comparison (decision)**: the part of Pro that "manages the quotes with AI" is not built. It needs your decisions: (1) what may be sent to the AI provider (proposed: the quotes' amounts, validity, notes, vehicle text and the organization's reference rates, never names of people), (2) whether it uses the same administrator switch as the AI document reading (ADR-034) or its own, (3) whether it only suggests (proposed) or may also rank on the page. Say the word and I will plan it.
+- [ ] **Provider login (decision)**: today a provider never signs in; it uses links. Say if a logistics provider should also be able to sign in and see its open requests.
+- [ ] **Test it with real people**: add a logistics provider (Vendors, type Logistics provider) with a real mobile number, send a trip, and quote and invoice from a phone. Report anything awkward.
+- [ ] **Enter your rate cards** (Vendors, a logistics provider, Rate card). They are your own reference figures; nothing is built in.

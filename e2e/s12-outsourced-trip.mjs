@@ -141,6 +141,36 @@ export async function outsourcedTrip(S) {
     } finally { sql(`update public.tenant_memberships set role = '${was}' where user_id = '${uid}' and tenant_id = '${tid}'`); }
   });
 
+  await step("an organization keeps its own reference rates for a provider, and sees them beside the quotes", async () => {
+    await go(o, `${base}/vendors`);
+    const row = o.page.locator("tr", { hasText: "Alpha Freight" }).first();
+    await row.locator("summary", { hasText: /^Rate card/ }).click();
+    await row.locator("input[name=label]").fill("Lahore to Karachi, 10-tonne truck");
+    await row.locator("select[name=basis]").selectOption("per_trip");
+    await row.locator("input[name=amount]").fill("185000");
+    await row.getByRole("button", { name: "Add rate" }).click();
+    await o.page.waitForLoadState("networkidle").catch(() => undefined);
+    await waitSql(() => run(`select count(*) from provider_rates r join vendors v on v.id = r.vendor_id where v.name = 'Alpha Freight' and r.active and r.amount = 185000`).split("\n").pop(), "1");
+    await go(o, `${base}/vendors`);
+    await o.page.locator("tr", { hasText: "Alpha Freight" }).first().locator("summary", { hasText: /^Rate card/ }).click();
+    check(has(await body(o), "Lahore to Karachi, 10-tonne truck"), "the rate card does not show the rate");
+    const t2 = run(`insert into trips(requested_by, purpose, from_place, to_place, start_at, end_at) values ('${emp}', 'Rate check', 'Lahore', 'Karachi', now() + interval '6 days', now() + interval '6 days 8 hours') returning id`).split("\n").find((l) => /^[0-9a-f-]{36}$/.test(l));
+    await go(o, `${base}/trips/${t2}`);
+    await o.page.getByLabel(/Alpha Freight/).check();
+    await press(o, "Ask for quotes", { wait: 1500 });
+    await go(o, `${base}/trips/${t2}`);
+    check(has(await body(o), "Your reference rates: Lahore to Karachi, 10-tonne truck, 185,000.00 per trip"), "the reference rate is not shown beside the provider's quote");
+  });
+
+  await step("the Outsourced trips page shows what each provider cost, and downloads as CSV", async () => {
+    await go(o, `${base}/trips/outsourced`);
+    await waitText(o, "By provider", 8000);
+    const t = await body(o);
+    check(has(t, "Charlie Cargo") && has(t, "66,000.00") && has(t, "Saved by comparing"), `the report does not show the awarded trip: ${t.slice(0, 300)}`);
+    const res = await o.page.request.get(`${base}/export/outsourced-trips?months=12`);
+    check(res.ok() && (await res.text()).includes("Charlie Cargo"), "the CSV does not hold the trip");
+  });
+
   await step("on Basic the section is not offered", async () => {
     sql(`update public.org_billing set plan_key = 'standard' where tenant_id = '${tid}'`);
     const t2 = run(`insert into trips(requested_by, purpose, from_place, to_place, start_at, end_at) values ('${emp}', 'Second move', 'Lahore', 'Multan', now() + interval '5 days', now() + interval '5 days 8 hours') returning id`).split("\n").find((l) => /^[0-9a-f-]{36}$/.test(l));

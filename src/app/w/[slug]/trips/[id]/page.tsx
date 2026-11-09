@@ -8,7 +8,8 @@ import { assignables, getTrip, listLogisticsProviders, listTripInvoices, listTri
 import { PageHeader, Panel, Pill, Plate } from "@/components/ui";
 import { TripStep } from "./steps";
 import { AskProviders, AwardForm, DeclineButton, QuoteForm, SendInvoiceLink, SendQuoteLink, VerifyTripInvoice } from "./outsource";
-import { tripWhatsappFromServer } from "@/lib/trips/whatsapp";
+import { tripInvoiceWhatsappFromServer, tripWhatsappFromServer } from "@/lib/trips/whatsapp";
+import { listProviderRates, RATE_BASIS } from "@/lib/trips/outsourced";
 
 export default function TripPage({ params }: PageProps<"/w/[slug]/trips/[id]">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} /></Suspense>;
@@ -30,6 +31,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
   // Sending the trip to logistics providers for quotes (ADR-078): a Pro feature, for people who may award.
   const outsourcing = perms.has("trip.award") && (await outsourcingOn(driver, m));
   const quotes = outsourcing ? await listTripQuotes(driver, m, id) : [];
+  const rates = outsourcing ? await listProviderRates(driver, m).catch(() => []) : [];
   const providers = outsourcing && t.status === "requested" ? await listLogisticsProviders(driver, m) : [];
   const outsourced = !!t.outsourced_vendor;
   // The provider's invoice (ADR-078 B2): seen by those who ask for it and those who check it.
@@ -84,6 +86,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
                   {x.status === "quoted" && lowest !== null && Number(x.amount) > lowest && <span className="text-xs text-zinc-500">+{(Number(x.amount) - lowest).toLocaleString("en-US", { minimumFractionDigits: 2 })} over the lowest</span>}
                   {x.valid_until && <span className="text-zinc-500">valid until {x.valid_until}</span>}
                 </div>
+                {rates.some((r) => r.vendor_id === x.vendor_id) && <p className="text-xs text-zinc-500">Your reference rates: {rates.filter((r) => r.vendor_id === x.vendor_id).map((r) => `${r.label}, ${Number(r.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })} ${RATE_BASIS[r.basis]}`).join("; ")}</p>}
                 {(x.vehicle_text || x.driver_text || x.notes) && <p className="text-zinc-600">{[x.vehicle_text, x.driver_text, x.notes].filter(Boolean).join(" · ")}</p>}
                 {t.status === "requested" && ["requested", "quoted", "declined"].includes(x.status) && (
                   <details><summary className="cursor-pointer text-sky-800">{x.status === "quoted" ? "Correct the quote" : "Enter the quote"}</summary>
@@ -114,7 +117,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
                 {x.status === "submitted" && perms.has("invoice.verify") && t.award_amount && <VerifyTripInvoice slug={slug} invoiceId={x.id} amount={x.amount} awarded={t.award_amount} />}
               </div>
             ))}
-            {!liveInvoice && perms.has("trip.award") && outsourcing && <SendInvoiceLink slug={slug} tripId={id} />}
+            {!liveInvoice && perms.has("trip.award") && outsourcing && <SendInvoiceLink slug={slug} tripId={id} whatsappFromServer={tripInvoiceWhatsappFromServer()} />}
           </div>
         </Panel>
       )}

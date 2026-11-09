@@ -5,7 +5,7 @@ import type { FormState } from "../../actions-util";
 import { useFormStatus } from "react-dom";
 import { btn } from "@/components/ui";
 import { smsLink, whatsappLink } from "@/lib/phone";
-import { askQuotesAction, awardQuoteAction, declineQuoteAction, recordQuoteAction, tripInvoiceLinkAction, tripQuoteLinkAction, tripQuoteWhatsappAction, verifyTripInvoiceAction, type TripLinkState } from "../actions";
+import { askQuotesAction, awardQuoteAction, declineQuoteAction, recordQuoteAction, tripInvoiceLinkAction, tripInvoiceWhatsappAction, tripQuoteLinkAction, tripQuoteWhatsappAction, verifyTripInvoiceAction, type TripLinkState } from "../actions";
 
 /** Choose the logistics providers to ask for a quote on this trip (ADR-078). The ones already asked are ticked and locked. */
 export function AskProviders({ slug, id, providers, asked }: { slug: string; id: string; providers: { id: string; name: string; phone: string | null }[]; asked: string[] }) {
@@ -103,12 +103,16 @@ export function SendQuoteLink({ slug, quoteId, vendor, whatsappFromServer }: { s
 }
 
 /** Asks the awarded provider for its invoice with a single-use link (ADR-078). The link goes through the sender's own WhatsApp or messages app to the provider's own number. */
-export function SendInvoiceLink({ slug, tripId }: { slug: string; tripId: string }) {
+export function SendInvoiceLink({ slug, tripId, whatsappFromServer }: { slug: string; tripId: string; whatsappFromServer: boolean }) {
   const [phone, phoneAction] = useActionState<TripLinkState>(tripInvoiceLinkAction.bind(null, slug, tripId) as (p: TripLinkState) => Promise<TripLinkState>, {});
+  const [wa, waAction] = useActionState<FormState>(tripInvoiceWhatsappAction.bind(null, slug, tripId) as (p: FormState) => Promise<FormState>, {});
   const send = phone.send;
   return (
     <div className="space-y-2">
-      <form action={phoneAction}><Go label="Ask for the invoice by phone" pendingLabel="Making the link" /></form>
+      <div className="flex flex-wrap gap-2">
+        {whatsappFromServer && <form action={waAction}><Go label="Ask on WhatsApp" pendingLabel="Sending on WhatsApp" /></form>}
+        <form action={phoneAction}><Go label="Ask for the invoice by phone" pendingLabel="Making the link" /></form>
+      </div>
       {send && (
         <div className="space-y-2">
           <p>Ready for {send.vendor}, to <span className="font-mono">{send.display}</span>. The link goes to this number only and is not shown here.</p>
@@ -119,6 +123,7 @@ export function SendInvoiceLink({ slug, tripId }: { slug: string; tripId: string
         </div>
       )}
       <Notice state={send ? { ...phone, ok: undefined } : phone} />
+      <Notice state={wa} />
     </div>
   );
 }
