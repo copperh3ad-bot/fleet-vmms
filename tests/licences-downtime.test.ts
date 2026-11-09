@@ -216,7 +216,11 @@ describe("time in the workshop", () => {
     const v = await car("DT-1");
     const rows = () => raw(async (q) => (await q.query<{ status: string; open: boolean }>("select status, to_at is null as open from vehicle_status_history where vehicle_id = $1 order by from_at, id", [v])).rows);
     expect(await rows()).toEqual([{ status: "active", open: true }]);
+    // The rows are ordered by their start time; two changes inside one clock tick would tie and fall back to a random id, so the test waits a tick between them.
+    const tick = () => new Promise((r) => setTimeout(r, 20));
+    await tick();
     await raw((q) => q.query("update vehicles set status = 'in_workshop' where id = $1", [v]));
+    await tick();
     await raw((q) => q.query("update vehicles set status = 'active' where id = $1", [v]));
     await raw((q) => q.query("update vehicles set registration_no = 'DT-1B' where id = $1", [v]));        // not a status change: nothing recorded
     expect(await rows()).toEqual([{ status: "active", open: false }, { status: "in_workshop", open: false }, { status: "active", open: true }]);
