@@ -6,6 +6,7 @@ import { withTenant } from "@/lib/db/tenant";
 import { membershipIn, type Membership } from "@/lib/auth/can";
 import { UserError } from "@/lib/master/service";
 import { allowShared } from "@/lib/rate-limit";
+import { otpChecksOn } from "@/lib/otp-switch";
 import { waJobCardsOffered } from "@/lib/wa-jobcards/service";
 import type { InboundMessage } from "@/lib/whatsapp";
 import { findMenuSender, lastTen } from "./identity";
@@ -39,6 +40,7 @@ const NOT_MINE: MenuOutcome = { handled: false, reply: null };
 
 type Session = { id: string; flow: string; step: string; answers: Answers; last_message_id: string | null; status: string };
 const FOOTER = "Send CANCEL to stop, or MENU for the menu.";
+const allowShared2 = (driver: Driver, tenantId: string, from: string) => allowShared(driver, `wa-menu-msg:${tenantId}:${lastTen(from)}`, MENU_MESSAGES_PER_HOUR, HOUR);
 
 async function openSession(q: Queryable, employeeId: string): Promise<Session | null> {
   await q.query("update whatsapp_sessions set status = 'lapsed', closed_at = now() where status = 'open' and expires_at < now() and employee_id = $1", [employeeId]);
@@ -62,39 +64,72 @@ async function available(driver: Driver, m: Membership): Promise<Flow[]> {
   return out;
 }
 
-async function showMenu(driver: Driver, m: Membership, me: Candidate, old: Session | null): Promise<MenuOutcome> {
+async function showMenu(driver: Driver, m: Membership, me: Candidate, old: Session | null, lastMessageId: string | null = null): Promise<MenuOutcome> {
   const flows = await available(driver, m);
   await withTenant(driver, m, async (q) => {
     if (old) await close(q, old.id, "cancelled");
     await q.query("delete from whatsapp_sessions where closed_at < now() - interval '1 day'");
   });
   if (flows.length === 0) return said(`Hello ${firstName(me.name)}. There is nothing I can do for your role in ${me.tenant.name} here yet. Please use the app.`);
-  await withTenant(driver, m, (q) => q.query("insert into whatsapp_sessions(employee_id, flow, step, answers) values ($1, 'menu', 'choose', $2::jsonb)", [me.employeeId, JSON.stringify({ _menu: flows.map((f) => f.id) })]));
+  await withTenant(driver, m, (q) => q.query("insert into whatsapp_sessions(employee_id, flow, step, answers, last_message_id) values ($1, 'menu', 'choose', $2::jsonb, $3)", [me.employeeId, JSON.stringify({ _menu: flows.map((f) => f.id) }), lastMessageId]));
   const text = `Hello ${firstName(me.name)}, this is Fleet OTG for ${me.tenant.name}. What would you like to do?\n${listChoices(flows.map((f) => ({ id: f.id, label: f.label })))}\n\nReply with a number. ${FOOTER}`;
   return said(text, { button: "Choose", body: `Hello ${firstName(me.name)}, this is Fleet OTG for ${me.tenant.name}. What would you like to do?\n\nTap the button to choose, or reply with a number. ${FOOTER}`, rows: rowsFrom(flows.map((f, i) => ({ id: String(i + 1), label: f.label, short: f.short }))) });
 }
 
 export async function processWhatsAppMenu(driver: Driver, msg: InboundMessage, opts: { now?: Date; photos?: PhotoDeps } = {}): Promise<MenuOutcome> {
-  const { found, shared } = await findMenuSender(driver, msg.from);
+  const betaShared = !(await otpChecksOn(driver));                                 // beta testing mode (ADR-076): a shared number asks who is writing
+  const { found, shared } = await findMenuSender(driver, msg.from, { allowShared: betaShared });
   let text = msg.text.trim();
   if (found.length === 0) return shared && isGreeting(text) ? said("This phone number is used by more than one person, so I cannot tell who is writing. Please use the app.") : NOT_MINE;
 
-  // Which company, when the number belongs to more than one: the message starts with its name and a colon, or the person has a conversation open in one.
-  let me: Candidate | undefined;
-  if (found.length === 1) me = found[0];
+  // Group by company. Which company, when the number belongs to more than one: the message starts with its name and a colon, or the person has a conversation open in one.
+  const groups = [...found.reduce((g, c) => g.set(c.tenant.id, [...(g.get(c.tenant.id) ?? []), c]), new Map<string, Candidate[]>()).values()];
+  const hasOpenIn = async (c: Candidate) => withTenant(driver, { schema: c.tenant.schema, userId: c.userId, role: "system" }, (q) => openSession(q, c.employeeId));
+  let group: Candidate[] | undefined;
+  if (groups.length === 1) group = groups[0];
   else {
     const named = /^([^:\n]{2,60}):\s*([\s\S]*)$/.exec(text);
-    const byName = named ? found.find((c) => c.tenant.name.toLowerCase() === named[1].trim().toLowerCase()) : undefined;
-    if (byName) { me = byName; text = (named![2] ?? "").trim(); }
+    const byName = named ? groups.find((g) => g[0].tenant.name.toLowerCase() === named[1].trim().toLowerCase()) : undefined;
+    if (byName) { group = byName; text = (named![2] ?? "").trim(); }
     else {
-      const open: Candidate[] = [];
-      for (const c of found) if (await withTenant(driver, { schema: c.tenant.schema, userId: c.userId, role: "system" }, (q) => openSession(q, c.employeeId))) open.push(c);
-      if (open.length === 1) me = open[0];
-      else if (isGreeting(text)) return said(`This number is registered with more than one company. Start your message with the company name and a colon, for example: ${found[0].tenant.name}: Hi`);
+      const open: Candidate[][] = [];
+      for (const g of groups) { for (const c of g) if (await hasOpenIn(c)) { open.push(g); break; } }
+      if (open.length === 1) group = open[0];
+      else if (isGreeting(text)) return said(`This number is registered with more than one company. Start your message with the company name and a colon, for example: ${groups[0][0].tenant.name}: Hi`);
       else return NOT_MINE;
     }
   }
-  const mine = me!;
+
+  // Which person, when the number is on the records of several employees of one company (beta testing only). The sender picks from a list; the choice lasts the conversation.
+  let me: Candidate | undefined;
+  if (group.length === 1) me = group[0];
+  else {
+    for (const c of group) { const s = await hasOpenIn(c); if (s && s.flow !== "who") { me = c; break; } }
+    if (!me) {
+      const anchor = group[0];
+      const asking = await withTenant(driver, { schema: anchor.tenant.schema, userId: anchor.userId, role: "system" }, (q) => openSession(q, anchor.employeeId));
+      const ask = () => said(
+        `This phone number is on more than one person's record (testing mode). Who is writing?\n${listChoices(group.map((c) => ({ id: c.employeeId, label: c.name })))}\n\nReply with a number.`,
+        { button: "Choose", body: "This phone number is on more than one person's record (testing mode). Who is writing?\n\nTap the button to choose, or reply with a number.", rows: group.map((c, i) => ({ id: String(i + 1), title: trimTitle(c.name) })) });
+      if (asking && asking.flow === "who") {
+        const sysA = { schema: anchor.tenant.schema, userId: anchor.userId, role: "system" };
+        if (isCancel(text)) { await withTenant(driver, sysA, (q) => close(q, asking.id, "cancelled")); return said("Cancelled. Say Hi whenever you need me."); }
+        const n = /^\d{1,2}$/.test(text) ? Number(text) : 0;
+        const chosen = group[n - 1];
+        if (!chosen) return ask();
+        await withTenant(driver, sysA, (q) => close(q, asking.id, "cancelled"));
+        const cm = await membershipIn(driver, chosen.tenant, chosen.userId);
+        if (!cm) return said(`Your login for ${chosen.tenant.name} is not active. Please ask your administrator.`);
+        return showMenu(driver, cm, chosen, null, msg.id);
+      }
+      if (!isGreeting(text)) return NOT_MINE;
+      if (!(await allowShared2(driver, group[0].tenant.id, msg.from))) return said("You have sent a lot of messages. Please wait a while, or use the app.");
+      await withTenant(driver, { schema: anchor.tenant.schema, userId: anchor.userId, role: "system" }, (q) =>
+        q.query("insert into whatsapp_sessions(employee_id, flow, step, answers, last_message_id) values ($1, 'who', 'choose', $2::jsonb, $3)", [anchor.employeeId, JSON.stringify({ _who: group.map((c) => c.employeeId) }), msg.id]));
+      return ask();
+    }
+  }
+  const mine = me;
   const sys = { schema: mine.tenant.schema, userId: mine.userId, role: "system" };
 
   const hasOpen = await withTenant(driver, sys, (q) => openSession(q, mine.employeeId));

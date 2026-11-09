@@ -289,3 +289,55 @@ describe("the tappable list", () => {
     await out("cancel");
   });
 });
+
+describe("a number shared by several people, in beta testing mode (ADR-076)", () => {
+  const out = (text: string) => processWhatsAppMenu(d, msg(text, SHARED));
+  const setBeta = (off: boolean) => withPlatform(d, (q) => off
+    ? q.query("insert into public.platform_settings(key, value) values ('otp_checks', 'off') on conflict (key) do update set value = 'off'")
+    : q.query("delete from public.platform_settings where key = 'otp_checks'"));
+  const openFor = () => raw(async (q) => (await q.query<{ employee_id: string; flow: string }>("select employee_id, flow from whatsapp_sessions where status = 'open'")).rows);
+
+  it("is refused while the testing mode is off, exactly as before", async () => {
+    await setBeta(false);
+    expect((await out("Hi")).reply).toMatch(/used by more than one person/);
+  });
+
+  it("asks who is writing, shows the menu of the person picked, and the conversation is theirs", async () => {
+    await setBeta(true);
+    try {
+      await raw((q) => q.query("update whatsapp_sessions set status = 'cancelled', closed_at = now() where status = 'open'"));
+      const ask = await out("Hi");
+      expect(ask.reply).toMatch(/on more than one person's record \(testing mode\)\. Who is writing\?[\s\S]*1\. Shared A[\s\S]*2\. Shared B/);
+      expect(ask.list?.rows).toEqual([{ id: "1", title: "Shared A" }, { id: "2", title: "Shared B" }]);
+      expect((await out("9")).reply).toMatch(/Who is writing/);                       // not a person on the list: asked again
+      const pick = msg("2", SHARED);
+      const menu = await processWhatsAppMenu(d, pick);
+      expect(menu.reply).toMatch(/Hello Shared, this is Fleet OTG for Menu Fleet[\s\S]*1\. Submit a Job Card/);
+      expect(await openFor()).toEqual([{ employee_id: emps[65], flow: "menu" }]);       // the session belongs to Shared B
+      expect((await processWhatsAppMenu(d, pick)).reply).toBeNull();                  // Meta repeated the tap: not handled twice
+      expect(await openFor()).toEqual([{ employee_id: emps[65], flow: "menu" }]);
+      // the next messages run as Shared B, with no more questions about who
+      const odo = await out("4");
+      expect(odo.reply).toMatch(/Which vehicle/);
+      expect((await out("cancel")).reply).toMatch(/Cancelled/);
+    } finally { await setBeta(false); }
+  });
+
+  it("a new conversation asks again, the other person can be picked, and CANCEL leaves the question", async () => {
+    await setBeta(true);
+    try {
+      await out("Hi");
+      await out("1");
+      expect(await openFor()).toEqual([{ employee_id: emps[64], flow: "menu" }]);       // Shared A this time
+      await out("cancel");
+      expect((await out("Hi")).reply).toMatch(/Who is writing/);
+      expect((await out("cancel")).reply).toMatch(/Cancelled/);
+      expect(await openFor()).toEqual([]);
+    } finally { await setBeta(false); }
+  });
+
+  it("a person who is not shared is unaffected by the testing mode", async () => {
+    await setBeta(true);
+    try { expect((await processWhatsAppMenu(d, msg("Hi", DRIVER))).reply).toMatch(/Hello Driver/); await processWhatsAppMenu(d, msg("cancel", DRIVER)); } finally { await setBeta(false); }
+  });
+});

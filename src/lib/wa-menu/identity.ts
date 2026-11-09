@@ -15,7 +15,11 @@ export async function waMenuOffered(driver: Driver, tenantId: string): Promise<b
   return on && (await tenantPlan(driver, tenantId)).whatsappMenu && (await loadAccess(driver, tenantId)).full;
 }
 
-export async function findMenuSender(driver: Driver, from: string): Promise<{ found: Candidate[]; shared: boolean }> {
+/**
+ * `allowShared` is the beta testing mode (ADR-076, the same switch as the WhatsApp codes): a number on the records of several employees of one company gives every one of them as a
+ * candidate, and the engine asks the sender which person they are. Without it, such a number is never guessed.
+ */
+export async function findMenuSender(driver: Driver, from: string, opts: { allowShared?: boolean } = {}): Promise<{ found: Candidate[]; shared: boolean }> {
   const digits = lastTen(from);
   if (digits.length < 7) return { found: [], shared: false };
   const tenants = await withPlatform(driver, async (q) =>
@@ -27,11 +31,11 @@ export async function findMenuSender(driver: Driver, from: string): Promise<{ fo
     const tenant: ActiveTenant = { id: t.id, schema: t.schema_name, name: t.name, currency: t.currency ?? undefined };
     const rows = await withTenant(driver, { schema: t.schema_name, userId: "00000000-0000-0000-0000-000000000000", role: "system" }, async (q) =>
       (await q.query<{ id: string; user_id: string; full_name: string }>(
-        `select id, user_id, full_name from employees where active and user_id is not null and right(regexp_replace(coalesce(phone, ''), '\\D', '', 'g'), 10) = $1 limit 2`, [digits])).rows);
+        `select id, user_id, full_name from employees where active and user_id is not null and right(regexp_replace(coalesce(phone, ''), '\\D', '', 'g'), 10) = $1 order by full_name, id limit 10`, [digits])).rows);
     if (rows.length === 0) continue;
-    if (rows.length > 1) { shared = true; continue; }                  // one number, two people: never guess
+    if (rows.length > 1 && !opts.allowShared) { shared = true; continue; }          // one number, two people: never guess
     if (!(await waMenuOffered(driver, t.id))) continue;
-    found.push({ tenant, employeeId: rows[0].id, userId: rows[0].user_id, name: rows[0].full_name });
+    for (const r of rows) found.push({ tenant, employeeId: r.id, userId: r.user_id, name: r.full_name });
   }
   return { found, shared };
 }

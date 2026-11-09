@@ -74,3 +74,8 @@ The engine with a fake sender: each flow end to end, a bad answer asked again, B
 - **Typing still works and is the fallback.** A tapped row arrives as its id (the number, or `skip`) and is handled exactly like the same words typed. Every list is also sent as plain numbered text in the reply, which is what goes if WhatsApp refuses the list.
 - **Odometer by text only** (owner decision): no dashboard photo, now or planned. The reading is typed.
 - Lists are free-form messages, so they work only inside Meta's 24-hour window after the person writes; the menu always starts with the person's own message, so it does.
+
+## Amendment, 2026-11-09 (owner decision: shared numbers allowed while testing)
+- **Beta testing mode** is the existing switch of ADR-076: while the stored setting `otp_checks` is `off`, a phone number that is on the records of several employees of one company is no longer refused. The menu asks "Who is writing?" as a tappable list of those employees and shows the menu of the one picked; the conversation, and everything it creates, is that person's. A new conversation asks again; CANCEL leaves the question.
+- **This is weaker identity**, accepted for testing only: anyone holding the number can act as any employee who shares it, within that employee's role. Switching the codes back on (`otp_checks` empty or `on`) restores the rule that a shared number is never guessed. Nothing else changes: the same permission and approval checks run for the person picked.
+- A number used by one employee is unaffected. A number shared across different companies still asks for the company name first.
