@@ -46,9 +46,9 @@ export function Landing({ price }: { price: ReactNode }) {
         <Hero3D />
         <div className="relative mx-auto grid w-full max-w-6xl 2xl:max-w-[96rem] items-center gap-12 px-5 py-16 md:grid-cols-[1fr_1.05fr] md:py-24 [@media(max-height:640px)]:gap-6 [@media(max-height:640px)]:py-8 md:[@media(max-height:640px)]:py-8">
           <div>
-            <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-[#C9D5DC]"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-badge" /> Your Fleet Manager, from maintenance to the whole fleet</p>
+            <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-[#C9D5DC]"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-badge" /> Maintenance first. Operations when you&apos;re ready.</p>
             <h1 className="mt-5 text-[40px] font-semibold leading-[1.08] md:text-5xl">Know what you&apos;re spending on your fleet&apos;s maintenance, <span className="text-badge">and why.</span></h1>
-            <p className="mt-5 max-w-xl text-lg text-[#B6C6D0]">Maintenance for company fleets: job cards, approvals, workshops, budgets, servicing and reminders in one place, reached from any phone. On Pro, trips, cargo and logistics too, so it runs the whole fleet.</p>
+            <p className="mt-5 max-w-xl text-lg text-[#B6C6D0]">Maintenance for company fleets: job cards, approvals, workshops, budgets, servicing and reminders in one place, reached from any phone. On Pro, trips, cargo and logistics too, so it covers fleet operations too.</p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <a href="/signup" className="shine rounded-md bg-badge px-6 py-3 text-base font-semibold text-side hover:opacity-90">Start your free trial</a>
               <a href="/login" className="inline-block py-2 text-[#C9D5DC] underline">I already have an account</a>
@@ -99,8 +99,8 @@ export function Landing({ price }: { price: ReactNode }) {
         <div className="grid items-center gap-8 rounded-3xl border border-zinc-200 bg-white p-6 shadow-[var(--shadow-card)] md:grid-cols-[1fr_1.1fr] md:p-10">
           <Art name="plans" />
           <div>
-            <h2 id="plans-h" className="text-2xl font-semibold">Start with Basic for maintenance. Move to Pro for the whole fleet.</h2>
-            <p className="mt-3 text-zinc-600">Basic is maintenance management, with every core feature. Pro is total fleet management: trip scheduling, cargo requests, quotes from logistics providers, the AI that reads workshop paperwork, and the WhatsApp menu. Any Basic company can try Pro free for 3 days.</p>
+            <h2 id="plans-h" className="text-2xl font-semibold">Start with Basic for maintenance. Move to Pro for fleet operations.</h2>
+            <p className="mt-3 text-zinc-600">Basic is maintenance management, with every core feature. Pro is fleet operations: trip scheduling, cargo requests, quotes from logistics providers, the AI that reads workshop paperwork, and the WhatsApp menu. Any Basic company can try Pro free for 3 days.</p>
             <p className="mt-5 flex flex-wrap items-center gap-4"><a href="/pricing" className="shine inline-flex items-center gap-2 rounded-md bg-brand px-5 py-3 font-semibold text-white hover:opacity-90">See pricing <Icon name="arrow" /></a><a href="/compare" className="font-medium text-zinc-900 underline">Compare the plans</a></p>
           </div>
         </div>

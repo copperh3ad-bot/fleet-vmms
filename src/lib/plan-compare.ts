@@ -1,5 +1,5 @@
 // What each plan includes, for the public comparison page (ADR-063). Plain text with no price: the price lives in the plans table (CLAUDE.md rule 7) and the page
-// reads it from there. Every row is something the product does today. Basic is maintenance management: every feature that is not fleet operations, the AI or WhatsApp. Pro is the whole fleet: Basic plus trip scheduling, cargo requests, logistics providers, the AI and WhatsApp (ADR-035, ADR-078, ADR-079, ADR-080, ADR-085).
+// reads it from there. Every row is something the product does today. Basic is maintenance management: every feature that is not fleet operations, the AI or WhatsApp. Pro is fleet operations: Basic plus trip scheduling, cargo requests, logistics providers, the AI and WhatsApp (ADR-035, ADR-078, ADR-079, ADR-080, ADR-085).
 export type CompareRow = { feature: string; detail?: string; basic: boolean; pro: boolean };
 export type CompareGroup = { title: string; rows: CompareRow[] };
 

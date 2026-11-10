@@ -77,7 +77,7 @@ export default function AboutPage() {
           <ul className="mt-3 list-disc space-y-2 pl-5 text-zinc-700">
             <li><span className="font-medium text-zinc-900">Your data stays yours.</span> Each company&apos;s records are kept apart from every other company&apos;s, and you can export everything at any time, even if your subscription lapses.</li>
             <li><span className="font-medium text-zinc-900">Everyone in one system.</span> Drivers, managers, workshops and finance each see what they need, and nothing more.</li>
-            <li><span className="font-medium text-zinc-900">Simple pricing.</span> Basic is maintenance management and costs about one month&apos;s wage of an unskilled labourer; Pro is total fleet management, adding trips, cargo, logistics provider quotes, AI and WhatsApp for busy fleets, at one price for every fleet size. No charge per user, and a free trial first.</li>
+            <li><span className="font-medium text-zinc-900">Simple pricing.</span> Basic is maintenance management and costs about one month&apos;s wage of an unskilled labourer; Pro is fleet operations, adding trips, cargo, logistics provider quotes, AI and WhatsApp for busy fleets, at one price for every fleet size. No charge per user, and a free trial first.</li>
           </ul>
         </section>
 

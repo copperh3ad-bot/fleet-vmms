@@ -8,7 +8,7 @@ import { Landing, PriceBox, PriceBoxPlaceholder } from "../landing";
 // The signed-out home page. The proxy rewrites "/" here when there is no login cookie, so a visitor gets a page built ahead of
 // time and served from the edge instead of one rebuilt, with a login check and a database read, on every visit. The address
 // the visitor and crawlers see stays "/", so the link tags below name "/" and not "/welcome".
-const TITLE = "Fleet OTG: Your Fleet Manager, from Maintenance to the Whole Fleet";
+const TITLE = "Fleet OTG: Your Fleet Manager, from Maintenance to Operations";
 const DESCRIPTION = "Job cards, approvals, workshops, budgets and servicing for company fleets, in one place";
 export const metadata: Metadata = {
   alternates: { canonical: "/" },

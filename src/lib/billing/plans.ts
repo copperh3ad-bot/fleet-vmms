@@ -49,7 +49,7 @@ export function proOfferFrom(plan: PlanRow | undefined, bands: Band[]): ProOffer
     per: "per month, per company",
     trialDays: plan?.trial_days ?? 0,
     points: [
-      "Everything in Basic, and the whole fleet: trip scheduling and cargo requests",
+      "Everything in Basic, and fleet operations: trip scheduling and cargo requests",
       "The AI reads the estimates and invoices your workshops email and fills in the form for you to check",
       "Staff raise a job card from one WhatsApp message; the AI drafts it and they confirm",
       "Employees say Hi on WhatsApp to raise a job card, ask for a cargo pick-up, reserve a trip or send an odometer reading, answering a few questions each time",

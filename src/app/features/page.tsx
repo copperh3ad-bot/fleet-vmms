@@ -7,8 +7,8 @@ import { PageHero, CtaBand } from "@/components/page-hero";
 import { SELLING_POINTS } from "@/lib/selling-points";
 import { Art } from "@/components/art";
 
-const TITLE = "Fleet management and maintenance software features · Fleet OTG";
-const DESCRIPTION = "How Fleet OTG handles fleet maintenance: job cards with recorded approvals, workshop quotations checked against invoices, reminders, servicing, budgets, vehicle requests and papers. Pro makes it a total fleet management solution with trip scheduling, cargo requests, logistics provider quotes, the AI and a WhatsApp menu.";
+const TITLE = "Fleet maintenance and operations software features · Fleet OTG";
+const DESCRIPTION = "How Fleet OTG handles fleet maintenance: job cards with recorded approvals, workshop quotations checked against invoices, reminders, servicing, budgets, vehicle requests and papers. Pro makes it a fleet operations solution with trip scheduling, cargo requests, logistics provider quotes, the AI and a WhatsApp menu.";
 export const metadata = pageMeta(TITLE, DESCRIPTION);
 
 // Static text (ADR-031). Each block is a problem a company with a fleet meets, and the thing in the product that answers it today.
@@ -65,8 +65,8 @@ export default function FeaturesPage() {
     <SiteShell active="features">
       <JsonLd data={webPageLd(TITLE, "/features", DESCRIPTION)} />
       <JsonLd data={breadcrumbLd([["Fleet OTG", "/"], ["Features", "/features"]])} />
-      <PageHero eyebrow="Features" title="Fleet management software: maintenance on Basic, the whole fleet on Pro" chips={["Approvals on record", "Quote vs invoice", "Reminders by email", "Trips and cargo on Pro", "Per-vehicle cost"]} art={<Art name="fleet" />}>
-        <p>Fleet OTG is fleet management software for companies that run their own vehicles, and it starts with maintenance. Every repair becomes one job card with a recorded approval trail, so you can see what each vehicle costs, who approved the work, and what is coming due. Basic is maintenance management. Pro adds fleet operations (trip scheduling, cargo requests and logistics providers), the AI and WhatsApp, which makes it a total fleet management solution.</p>
+      <PageHero eyebrow="Features" title="Fleet maintenance software: maintenance on Basic, operations on Pro" chips={["Approvals on record", "Quote vs invoice", "Reminders by email", "Trips and cargo on Pro", "Per-vehicle cost"]} art={<Art name="fleet" />}>
+        <p>Fleet OTG is fleet maintenance and operations software for companies that run their own vehicles, and it starts with maintenance. Every repair becomes one job card with a recorded approval trail, so you can see what each vehicle costs, who approved the work, and what is coming due. Basic is maintenance management. Pro adds fleet operations (trip scheduling, cargo requests and logistics providers), the AI and WhatsApp, which makes it a fleet operations solution.</p>
       </PageHero>
       <article className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-12">
         <section aria-labelledby="why" className="mb-14">
@@ -118,7 +118,7 @@ export default function FeaturesPage() {
         <section className="mt-14" aria-labelledby="pro-h">
           <div className="rounded-2xl border-2 border-brand bg-white p-6 shadow-[var(--shadow-card)] md:p-8">
             <p className="inline-block rounded-full bg-badge px-3 py-1 text-xs font-semibold text-side">Pro</p>
-            <h2 id="pro-h" className="mt-3 text-2xl font-semibold">Pro: the whole fleet, with AI and WhatsApp</h2>
+            <h2 id="pro-h" className="mt-3 text-2xl font-semibold">Pro: fleet operations, with AI and WhatsApp</h2>
             <p className="mt-2 max-w-3xl text-zinc-700">For busy fleets that move vehicles, people and cargo as well as repair them. Pro is Basic plus these, and any Basic company can try it free for 3 days. The AI only drafts and advises; a person always checks, saves and decides.</p>
             <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {PRO.map((s) => (

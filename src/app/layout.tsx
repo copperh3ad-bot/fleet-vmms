@@ -12,8 +12,8 @@ const sans = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], 
 const condensed = IBM_Plex_Sans_Condensed({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-plex-cond", display: "swap" });
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-plex-mono", display: "swap" });
 
-const TITLE = "Fleet OTG: Fleet Management and Maintenance Software";
-const DESCRIPTION = "Fleet management software for company fleets. Maintenance on Basic: job cards, approvals, workshops, servicing and budgets. Trips, cargo, AI and WhatsApp on Pro.";
+const TITLE = "Fleet OTG: Fleet Maintenance and Operations Software";
+const DESCRIPTION = "Fleet maintenance and operations software for company fleets. Maintenance on Basic: job cards, approvals, workshops, servicing and budgets. Trips, cargo, AI and WhatsApp on Pro.";
 
 // What a shared link, a search result and a phone home screen show. The share picture is src/app/opengraph-image.png and the
 // phone icon src/app/apple-icon.png (Next adds their tags). A page that sets its own title and description gets its own preview.

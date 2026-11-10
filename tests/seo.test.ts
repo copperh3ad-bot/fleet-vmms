@@ -81,7 +81,7 @@ describe("the features page and the pages that carry markup", () => {
     expect(src.match(/<PageHero\b/g)?.length).toBe(1);
     expect(src.match(/<h1\b/g)).toBeNull();
     expect(readFileSync("src/components/page-hero.tsx", "utf8").match(/<h1\b/g)?.length).toBe(1);
-    expect(src).toMatch(/Fleet OTG is fleet management software/);
+    expect(src).toMatch(/Fleet OTG is fleet maintenance and operations software/);
     expect(src).not.toMatch(/\$\s?\d|USD\s?\d|Rs\.?\s?\d|PKR\s?\d/i);
   });
   it("puts structured data on the layout, the home page and the pricing page", () => {
