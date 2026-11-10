@@ -14,6 +14,8 @@ export const COMPARE: CompareGroup[] = [
       both("Approvals with the person's name and the time", "Whoever raises a request cannot approve it."),
       both("Repeat repairs flagged", "A fault coming back on the same vehicle is shown, with the reason recorded for every job."),
       both("Vehicle requests from HR", "HR asks for a vehicle for an employee; a manager gives one from the pool or approves buying one."),
+      both("Photos and files on job cards, accidents and vehicles", "Including the registration book scan."),
+      both("Offline job card form in Excel", "Download it, fill it in without a connection, and upload it as drafts."),
     ],
   },
   {
@@ -22,6 +24,8 @@ export const COMPARE: CompareGroup[] = [
       both("Workshops never sign up", "A one-time link on the workshop's phone, or an email reply, filed on the job card."),
       both("Quotations approved before work starts"),
       both("Invoices checked against the approved quotation", "And not by whoever approved the job."),
+      both("Workshop scorecard", "Days taken, quotation against the final bill, and how often the work comes back, for every workshop."),
+      both("Rate cards for each workshop", "Your agreed prices kept per workshop."),
     ],
   },
   {
@@ -30,8 +34,18 @@ export const COMPARE: CompareGroup[] = [
       both("Vehicle records and who held each vehicle", "Cost follows whoever had it at the time."),
       both("Servicing rules with due and overdue", "By months, kilometres or engine hours, with a reminder when a service is due."),
       both("Reminders for papers and driving licences", "Insurance, fitness, token tax and licence expiry, with reminders before they run out."),
+      both("Driving licences with class and emergency contact"),
+      both("Accidents, fines (challans) and route permits", "Each has its own record, with photos and reports."),
       both("Odometer and engine hours from a phone link", "Drivers need no account and no app."),
       both("Departments with their own vehicles", "With a spending limit above which a manager decides."),
+    ],
+  },
+  {
+    title: "Maintenance policy",
+    rows: [
+      both("Your maintenance policy in the app, with versions", "Replacement age, the accidents the company covers and the driver's share of a repair are applied for you."),
+      both("A policy reader that finds the rules in your file", "A person reviews what it found before anything is saved."),
+      both("Vehicles due for replacement listed", "From the replacement age in your policy."),
     ],
   },
   {
@@ -39,7 +53,12 @@ export const COMPARE: CompareGroup[] = [
     rows: [
       both("Budgets per vehicle and per period"),
       both("Cost per vehicle, per kilometre and per department"),
-      both("Reports and exports of your own data"),
+      both("Cost per engine hour and per driver"),
+      both("Time in the workshop and fleet availability", "How many days each vehicle was off the road."),
+      both("A report on why it keeps breaking", "Jobs grouped by reason and by driver, vehicle or workshop, with a check on the quality of the reasons recorded."),
+      both("Budget alerts and next-year planning"),
+      both("A dashboard built for each role", "Approvals waiting, service due, a year of spend, the costliest vehicles and papers about to expire."),
+      both("CSV exports of your own data", "Every list and report, and you can still export when a workspace is locked."),
       both("Import your vehicles from Excel"),
     ],
   },
@@ -47,6 +66,9 @@ export const COMPARE: CompareGroup[] = [
     title: "Accounts and security",
     rows: [
       both("Every sign-in tied to an employee code and a role", "So each action traces to a person."),
+      both("Named roles, with a table of what each can do", "Administrator, fleet manager, finance, HR and a read-only auditor."),
+      both("A driver sees only their own vehicle", "Their own dashboard and job cards, and nothing else."),
+      both("Notifications in the app", "Approvals and reminders arrive in an inbox as well as by email."),
       both("Your company's data kept apart from every other company's"),
       both("No per-user charges", "The whole company is covered by one plan."),
     ],
@@ -57,6 +79,7 @@ export const COMPARE: CompareGroup[] = [
       proOnly("Trip scheduling", "Request a trip, approve it and give it a vehicle and a driver, with clashes shown and the odometer recorded out and back."),
       proOnly("Cargo requests: pick-up and delivery", "Staff ask for a cargo pick-up or delivery; the fleet manager accepts it, schedules it and follows it to delivery, and can turn it into a trip."),
       proOnly("AI reads a workshop's emailed estimate or invoice", "It fills in the form; a person always checks and saves."),
+      proOnly("AI reads your maintenance policy", "It drafts the rules from the file for a person to check. Off until your administrator switches it on."),
       proOnly("Raise a job card by sending one WhatsApp message", "The AI makes a draft, the employee confirms, and a manager approves it in the app."),
       proOnly("WhatsApp menu with a short questionnaire for each task", "An employee says Hi and chooses: submit a job card (ten kinds of work, explained in up to 100 words only for Others), ask for a cargo pick-up or delivery, reserve a trip, or send an odometer reading. Coming soon: cargo, trip and job card requests as one short form with dropdowns and a date picker, so a request takes a single message instead of a long chat. Complete answers reach the fleet manager, who approves in the app."),
       proOnly("Quotes from several logistics providers for one trip", "Send a trip to the providers you choose. Each quotes through a link on its own phone, you compare the quotes beside your own rate cards, and one is awarded with the award recorded."),

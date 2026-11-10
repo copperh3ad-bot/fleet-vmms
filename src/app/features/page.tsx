@@ -13,7 +13,7 @@ export const metadata = pageMeta(TITLE, DESCRIPTION);
 
 // Static text (ADR-031). Each block is a problem a company with a fleet meets, and the thing in the product that answers it today.
 // Nothing here is a statistic, a customer claim or a price.
-const ART = ["approve", "sheets", "quote", "phone", "budget", "repeat", "papers", "shield", "departments", "bell", "request", "service"];
+const ART = ["approve", "sheets", "quote", "phone", "budget", "repeat", "papers", "shield", "departments", "bell", "request", "papers", "workshop", "service", "repeat", "sheets", "shield", "budget", "service"];
 const STEP_ICONS = ["papers", "approve", "workshop", "budget", "shield", "export"];
 const SOLVES: { problem: string; answer: string; pro?: boolean }[] = [
   { problem: "Nobody can say who approved a repair", answer: "Job cards, quotations and invoices are approved with the person's name and the time. Whoever raises a request cannot approve it, and every step is recorded." },
@@ -27,10 +27,18 @@ const SOLVES: { problem: string; answer: string; pro?: boolean }[] = [
   { problem: "One department runs its own vehicles", answer: "Mark vehicles as belonging to a department such as Logistics or Operations. A person in that department raises, approves and follows jobs on its own vehicles only, with a spending limit above which a fleet manager decides, while the rest of the fleet and the company's money stay out of sight." },
   { problem: "Licences and service dates slip past unnoticed", answer: "Every day the system looks for licences, insurance, fitness and token tax that are running out and for periodic maintenance that is due. The vehicle holder and the fleet managers see it in the app and get one email, so the reminder reaches a person and not an inbox nobody reads." },
   { problem: "Nobody knows who may take a vehicle", answer: "HR requests a vehicle for an employee, a fleet manager decides, and the decision is recorded. An employee has one open request at a time, and nobody decides their own." },
+  { problem: "The maintenance policy sits in a drawer", answer: "Upload the policy and keep every version. The app applies it: when a vehicle is due for replacement, which accidents the company covers, and the driver's share of a repair. A reader finds the rules in your file, and a person reviews them before anything is saved." },
+  { problem: "Nobody can say which workshop is best", answer: "Every workshop has a scorecard: the days it takes, its quotation against the final bill, and how often its work comes back. Keep your agreed rate card for each workshop." },
+  { problem: "Vehicles sit in the workshop and nobody counts the days", answer: "See the time each vehicle spent in the workshop and the fleet's availability, beside cost per kilometre, per engine hour and per driver, for any period you choose." },
+  { problem: "Nobody knows why the same jobs keep happening", answer: "The Why it keeps breaking report groups jobs by reason and by driver, vehicle or workshop, and checks the quality of the reasons people recorded." },
+  { problem: "Photos and papers are scattered across phones", answer: "Attach photos and files to job cards, accidents and vehicles, including the registration book scan. Accidents, fines (challans), route permits and driving licences each have a record, with reminders before papers expire." },
+  { problem: "Some people see too much, and others too little", answer: "Roles for the administrator, fleet manager, finance, HR and a read-only auditor, with a table of what each can do. A driver or requester limited to one vehicle sees only that vehicle's dashboard and job cards." },
+  { problem: "Reports live in one person's spreadsheet", answer: "A dashboard is built for each role: approvals waiting, service due, a year of spend, the costliest vehicles. Budgets warn early and plan next year, and every list and report exports to CSV, even when a workspace is locked." },
   { problem: "Loaders and forklifts are serviced by hours, not kilometres", answer: "Switch on an hour meter for a vehicle and enter readings or add them to a job card. Service rules can be in hours, kilometres, months or any mix, and cost per engine hour appears beside cost per kilometre in the reports." },
 ];
 
 const PRO: { problem: string; answer: string; art: string; pro?: boolean }[] = [
+  { problem: "Maintenance rules take hours to write down", answer: "The AI reads the maintenance policy you upload and drafts the rules from it. A person checks and saves them, and it stays off until your administrator switches it on.", art: "ai", pro: true },
   { problem: "Pool cars and staff transport run on phone calls", answer: "Request, approve and schedule a trip, with a vehicle and a driver, clashes shown, and the odometer recorded out and back, so mileage and the person who had the vehicle are on record.", art: "trip", pro: true },
   { problem: "Cargo pick-ups and deliveries are arranged by phone", answer: "Staff ask for a cargo pick-up or delivery with the place, the time, what it is and how heavy. The fleet manager accepts it, schedules it, follows it to delivery and can turn it into a trip, and every step is on record.", art: "trip", pro: true },
   { problem: "Typing in every workshop estimate and invoice", answer: "When a workshop emails an estimate or invoice, the AI reads the attached file and fills in the form as a draft. A person always checks the figures and saves, so every approval still carries a real name and time.", art: "ai", pro: true },

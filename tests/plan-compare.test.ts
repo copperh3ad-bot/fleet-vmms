@@ -11,8 +11,8 @@ describe("the comparison data", () => {
   it("gives Pro everything Basic has, and Basic everything except the fleet operations, AI, WhatsApp and logistics provider rows", () => {
     for (const r of rows) if (r.basic) expect(r.pro).toBe(true);
     expect(proOnlyRows().map((r) => r.feature).every((f) => /AI|WhatsApp|[Ll]ogistics provider|Trip scheduling|Cargo requests/.test(f))).toBe(true);
-    expect(proOnlyRows()).toHaveLength(8);
-    expect(rows.filter((r) => r.basic).length).toBeGreaterThan(15);
+    expect(proOnlyRows()).toHaveLength(9);
+    expect(rows.filter((r) => r.basic).length).toBeGreaterThan(30);
   });
   it("has no empty or repeated feature, and no group without rows", () => {
     expect(new Set(rows.map((r) => r.feature)).size).toBe(rows.length);
