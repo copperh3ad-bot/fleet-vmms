@@ -31,7 +31,7 @@ export function offerFrom(plan: { key: string; limits: Record<string, number | u
     yearly: formatPrice(plan.price_cents * billedMonths(12), plan.currency),
     headline: "The monthly wage of an unskilled labourer",
     points: [
-      "Every core feature included",
+      "Every maintenance feature included: job cards, workshops, servicing, budgets and papers",
       l.max_vehicles ? `Up to ${l.max_vehicles} vehicles` : "Any number of vehicles",
       l.max_users ? `Up to ${l.max_users} users` : "Any number of users",
       "Your data kept apart from every other company's",

@@ -8,12 +8,12 @@ import { SELLING_POINTS } from "@/lib/selling-points";
 import { Art } from "@/components/art";
 
 const TITLE = "Fleet maintenance software features · Fleet OTG";
-const DESCRIPTION = "How Fleet OTG handles fleet maintenance: job cards with recorded approvals, workshop quotations checked against invoices, reminders, servicing, budgets, vehicle requests and papers, cargo requests, and on Pro the AI, a WhatsApp menu and quotes from logistics providers.";
+const DESCRIPTION = "How Fleet OTG handles fleet maintenance: job cards with recorded approvals, workshop quotations checked against invoices, reminders, servicing, budgets, vehicle requests and papers. Pro makes it a total fleet management solution with trip scheduling, cargo requests, logistics provider quotes, the AI and a WhatsApp menu.";
 export const metadata = pageMeta(TITLE, DESCRIPTION);
 
 // Static text (ADR-031). Each block is a problem a company with a fleet meets, and the thing in the product that answers it today.
 // Nothing here is a statistic, a customer claim or a price.
-const ART = ["approve", "sheets", "quote", "phone", "budget", "repeat", "papers", "shield", "departments", "bell", "request", "trip", "trip", "service"];
+const ART = ["approve", "sheets", "quote", "phone", "budget", "repeat", "papers", "shield", "departments", "bell", "request", "service"];
 const STEP_ICONS = ["papers", "approve", "workshop", "budget", "shield", "export"];
 const SOLVES: { problem: string; answer: string; pro?: boolean }[] = [
   { problem: "Nobody can say who approved a repair", answer: "Job cards, quotations and invoices are approved with the person's name and the time. Whoever raises a request cannot approve it, and every step is recorded." },
@@ -27,12 +27,12 @@ const SOLVES: { problem: string; answer: string; pro?: boolean }[] = [
   { problem: "One department runs its own vehicles", answer: "Mark vehicles as belonging to a department such as Logistics or Operations. A person in that department raises, approves and follows jobs on its own vehicles only, with a spending limit above which a fleet manager decides, while the rest of the fleet and the company's money stay out of sight." },
   { problem: "Licences and service dates slip past unnoticed", answer: "Every day the system looks for licences, insurance, fitness and token tax that are running out and for periodic maintenance that is due. The vehicle holder and the fleet managers see it in the app and get one email, so the reminder reaches a person and not an inbox nobody reads." },
   { problem: "Nobody knows who may take a vehicle", answer: "HR requests a vehicle for an employee, a fleet manager decides, and the decision is recorded. An employee has one open request at a time, and nobody decides their own." },
-  { problem: "Pool cars and staff transport run on phone calls", answer: "Switch on the optional trips module to request, approve and record a trip, with the odometer out and back, so mileage and the person who had the vehicle are on record." },
-  { problem: "Cargo pick-ups and deliveries are arranged by phone", answer: "Staff ask for a cargo pick-up or delivery with the place, the time, what it is and how heavy. The fleet manager accepts it, schedules it, follows it to delivery and can turn it into a trip, and every step is on record." },
   { problem: "Loaders and forklifts are serviced by hours, not kilometres", answer: "Switch on an hour meter for a vehicle and enter readings or add them to a job card. Service rules can be in hours, kilometres, months or any mix, and cost per engine hour appears beside cost per kilometre in the reports." },
 ];
 
 const PRO: { problem: string; answer: string; art: string; pro?: boolean }[] = [
+  { problem: "Pool cars and staff transport run on phone calls", answer: "Request, approve and schedule a trip, with a vehicle and a driver, clashes shown, and the odometer recorded out and back, so mileage and the person who had the vehicle are on record.", art: "trip", pro: true },
+  { problem: "Cargo pick-ups and deliveries are arranged by phone", answer: "Staff ask for a cargo pick-up or delivery with the place, the time, what it is and how heavy. The fleet manager accepts it, schedules it, follows it to delivery and can turn it into a trip, and every step is on record.", art: "trip", pro: true },
   { problem: "Typing in every workshop estimate and invoice", answer: "When a workshop emails an estimate or invoice, the AI reads the attached file and fills in the form as a draft. A person always checks the figures and saves, so every approval still carries a real name and time.", art: "ai", pro: true },
   { problem: "Staff will not open an app to report a fault", answer: "An employee sends one WhatsApp message describing the fault. The AI drafts the job card, asks for anything missing, and the employee confirms. It goes in as a request, and a manager approves it in the app as usual.", art: "chat", pro: true },
 ];
@@ -57,8 +57,8 @@ export default function FeaturesPage() {
     <SiteShell active="features">
       <JsonLd data={webPageLd(TITLE, "/features", DESCRIPTION)} />
       <JsonLd data={breadcrumbLd([["Fleet OTG", "/"], ["Features", "/features"]])} />
-      <PageHero eyebrow="Features" title="Fleet maintenance management software, built around the job card" chips={["Approvals on record", "Quote vs invoice", "Reminders by email", "WhatsApp-ready", "Per-vehicle cost"]} art={<Art name="fleet" />}>
-        <p>Fleet OTG is fleet maintenance management software for companies that run their own vehicles. Every repair becomes one job card with a recorded approval trail, so you can see what each vehicle costs, who approved the work, and what is coming due.</p>
+      <PageHero eyebrow="Features" title="Fleet maintenance management software, built around the job card" chips={["Approvals on record", "Quote vs invoice", "Reminders by email", "Trips and cargo on Pro", "Per-vehicle cost"]} art={<Art name="fleet" />}>
+        <p>Fleet OTG is fleet maintenance management software for companies that run their own vehicles. Every repair becomes one job card with a recorded approval trail, so you can see what each vehicle costs, who approved the work, and what is coming due. Basic is maintenance management. Pro adds fleet operations (trip scheduling, cargo requests and logistics providers), the AI and WhatsApp, which makes it a total fleet management solution.</p>
       </PageHero>
       <article className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-12">
         <section aria-labelledby="why" className="mb-14">
@@ -110,8 +110,8 @@ export default function FeaturesPage() {
         <section className="mt-14" aria-labelledby="pro-h">
           <div className="rounded-2xl border-2 border-brand bg-white p-6 shadow-[var(--shadow-card)] md:p-8">
             <p className="inline-block rounded-full bg-badge px-3 py-1 text-xs font-semibold text-side">Pro</p>
-            <h2 id="pro-h" className="mt-3 text-2xl font-semibold">Pro: AI, WhatsApp and logistics providers</h2>
-            <p className="mt-2 max-w-3xl text-zinc-700">For busy fleets. Pro is Basic plus these, and any Basic company can try it free for 3 days. The AI only drafts and advises; a person always checks, saves and decides.</p>
+            <h2 id="pro-h" className="mt-3 text-2xl font-semibold">Pro: the whole fleet, with AI and WhatsApp</h2>
+            <p className="mt-2 max-w-3xl text-zinc-700">For busy fleets that move vehicles, people and cargo as well as repair them. Pro is Basic plus these, and any Basic company can try it free for 3 days. The AI only drafts and advises; a person always checks, saves and decides.</p>
             <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {PRO.map((s) => (
                 <div key={s.problem} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">

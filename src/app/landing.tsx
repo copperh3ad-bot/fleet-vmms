@@ -22,8 +22,8 @@ const FEATURES: Feature[] = [
   { title: "Budgets and repeat-repair flags", text: "See what each vehicle and department costs against its budget, and which faults keep coming back.", icon: "budget", art: "budget" },
   { title: "Vehicle requests and departments", text: "HR requests a vehicle for an employee and a manager decides. Departments run their own vehicles under a spending limit.", icon: "users", art: "departments" },
   { title: "Papers, accidents and fines", text: "Insurance, fitness, token tax, accidents and challans in one place, each tied to the vehicle and who held it.", icon: "papers", art: "papers" },
-  { title: "Trips, when you want them", text: "An optional module: request, approve and record a trip, with the odometer out and back.", icon: "car", art: "trip" },
-  { title: "Cargo pick-ups and deliveries", text: "Staff ask for a cargo pick-up or delivery. The fleet manager accepts, schedules and follows it to delivery, or turns it into a trip.", icon: "car", art: "trip" },
+  { title: "Trip scheduling", text: "Request, approve and schedule a trip with a vehicle and a driver, with the odometer out and back.", icon: "car", art: "trip", pro: true },
+  { title: "Cargo pick-ups and deliveries", text: "Staff ask for a cargo pick-up or delivery. The fleet manager accepts, schedules and follows it to delivery, or turns it into a trip.", icon: "car", art: "trip", pro: true },
   { title: "AI that reads workshop paperwork", text: "The AI fills in the form from an emailed estimate or invoice. A person always checks and saves.", icon: "spark", art: "ai", pro: true },
   { title: "Raise a job card on WhatsApp", text: "An employee sends one message, the AI drafts the job card, they confirm, and a manager approves in the app.", icon: "chat", art: "chat", pro: true },
   { title: "A WhatsApp menu for everyday requests", text: "Say Hi and choose: a job card, a cargo pick-up, a trip or an odometer reading. A few short questions each, so the fleet manager gets complete information. Coming soon: one short form with dropdowns for each request.", icon: "chat", art: "phone", pro: true },
@@ -44,7 +44,7 @@ export function Landing({ price }: { price: ReactNode }) {
           <div>
             <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-[#C9D5DC]"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-badge" /> Your Fleet Maintenance Manager</p>
             <h1 className="mt-5 text-[40px] font-semibold leading-[1.08] md:text-5xl">Know what you&apos;re spending on your fleet&apos;s maintenance, <span className="text-badge">and why.</span></h1>
-            <p className="mt-5 max-w-xl text-lg text-[#B6C6D0]">Maintenance for company fleets: job cards, approvals, workshops, budgets, servicing and reminders in one place, reached from any phone, including WhatsApp.</p>
+            <p className="mt-5 max-w-xl text-lg text-[#B6C6D0]">Maintenance for company fleets: job cards, approvals, workshops, budgets, servicing and reminders in one place, reached from any phone. On Pro, trips, cargo and logistics too, so it runs the whole fleet.</p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <a href="/signup" className="shine rounded-md bg-badge px-6 py-3 text-base font-semibold text-side hover:opacity-90">Start your free trial</a>
               <a href="/login" className="inline-block py-2 text-[#C9D5DC] underline">I already have an account</a>
@@ -95,8 +95,8 @@ export function Landing({ price }: { price: ReactNode }) {
         <div className="grid items-center gap-8 rounded-3xl border border-zinc-200 bg-white p-6 shadow-[var(--shadow-card)] md:grid-cols-[1fr_1.1fr] md:p-10">
           <Art name="plans" />
           <div>
-            <h2 id="plans-h" className="text-2xl font-semibold">Start with Basic. Add Pro when job cards pile up.</h2>
-            <p className="mt-3 text-zinc-600">Basic has every core feature. Pro adds the AI that reads workshop paperwork, the WhatsApp menu for job cards, cargo, trips and odometer readings, and quotes from logistics providers. Any Basic company can try Pro free for 3 days.</p>
+            <h2 id="plans-h" className="text-2xl font-semibold">Start with Basic for maintenance. Move to Pro for the whole fleet.</h2>
+            <p className="mt-3 text-zinc-600">Basic is maintenance management, with every core feature. Pro is total fleet management: trip scheduling, cargo requests, quotes from logistics providers, the AI that reads workshop paperwork, and the WhatsApp menu. Any Basic company can try Pro free for 3 days.</p>
             <p className="mt-5 flex flex-wrap items-center gap-4"><a href="/pricing" className="shine inline-flex items-center gap-2 rounded-md bg-brand px-5 py-3 font-semibold text-white hover:opacity-90">See pricing <Icon name="arrow" /></a><a href="/compare" className="font-medium text-zinc-900 underline">Compare the plans</a></p>
           </div>
         </div>

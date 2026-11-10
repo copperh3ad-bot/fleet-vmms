@@ -40,7 +40,7 @@ async function Inner() {
       <JsonLd data={webPageLd(TITLE, "/compare", DESCRIPTION)} />
       <JsonLd data={breadcrumbLd([["Fleet OTG", "/"], ["Compare plans", "/compare"]])} />
       <PageHero eyebrow="Compare plans" title="Basic and Pro, side by side" art={<Art name="plans" />}>
-        <p>Basic has every core feature of Fleet OTG except the AI, the WhatsApp menu and quotes from logistics providers, and is what every company starts on. Pro adds those. Neither charges per user.</p>
+        <p>Basic is maintenance management, with every core feature for job cards, workshops, servicing and costs, and is what every company starts on. Pro is total fleet management: it adds trip scheduling, cargo requests, quotes from logistics providers, the AI and the WhatsApp menu. Neither charges per user.</p>
       </PageHero>
       <div className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-12">
         <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-[var(--shadow-card)]">

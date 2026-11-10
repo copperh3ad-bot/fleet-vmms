@@ -1,5 +1,5 @@
 // What each plan includes, for the public comparison page (ADR-063). Plain text with no price: the price lives in the plans table (CLAUDE.md rule 7) and the page
-// reads it from there. Every row is something the product does today. Basic has every feature that is not the AI, the WhatsApp menu or the logistics provider quotes; Pro is Basic plus those rows (ADR-035, ADR-078, ADR-079, ADR-080).
+// reads it from there. Every row is something the product does today. Basic is maintenance management: every feature that is not fleet operations, the AI or WhatsApp. Pro is the whole fleet: Basic plus trip scheduling, cargo requests, logistics providers, the AI and WhatsApp (ADR-035, ADR-078, ADR-079, ADR-080, ADR-085).
 export type CompareRow = { feature: string; detail?: string; basic: boolean; pro: boolean };
 export type CompareGroup = { title: string; rows: CompareRow[] };
 
@@ -32,8 +32,6 @@ export const COMPARE: CompareGroup[] = [
       both("Reminders for papers and driving licences", "Insurance, fitness, token tax and licence expiry, with reminders before they run out."),
       both("Odometer and engine hours from a phone link", "Drivers need no account and no app."),
       both("Departments with their own vehicles", "With a spending limit above which a manager decides."),
-      both("Trip requests (optional module)", "Request, approve and record a trip, with the odometer out and back."),
-      both("Cargo requests: pick-up and delivery", "Staff ask for a cargo pick-up or delivery; the fleet manager accepts it, schedules it and follows it to delivery, and can turn it into a trip."),
     ],
   },
   {
@@ -54,8 +52,10 @@ export const COMPARE: CompareGroup[] = [
     ],
   },
   {
-    title: "AI, WhatsApp and logistics providers",
+    title: "Fleet operations, AI and WhatsApp",
     rows: [
+      proOnly("Trip scheduling", "Request a trip, approve it and give it a vehicle and a driver, with clashes shown and the odometer recorded out and back."),
+      proOnly("Cargo requests: pick-up and delivery", "Staff ask for a cargo pick-up or delivery; the fleet manager accepts it, schedules it and follows it to delivery, and can turn it into a trip."),
       proOnly("AI reads a workshop's emailed estimate or invoice", "It fills in the form; a person always checks and saves."),
       proOnly("Raise a job card by sending one WhatsApp message", "The AI makes a draft, the employee confirms, and a manager approves it in the app."),
       proOnly("WhatsApp menu with a short questionnaire for each task", "An employee says Hi and chooses: submit a job card (ten kinds of work, explained in up to 100 words only for Others), ask for a cargo pick-up or delivery, reserve a trip, or send an odometer reading. Coming soon: cargo, trip and job card requests as one short form with dropdowns and a date picker, so a request takes a single message instead of a long chat. Complete answers reach the fleet manager, who approves in the app."),

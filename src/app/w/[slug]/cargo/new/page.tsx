@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { forbidden } from "next/navigation";
 import { requireMembership } from "@/lib/auth/session";
+import { fleetOpsOn, FLEET_OPS_MESSAGE } from "@/lib/billing/fleet-ops";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { PageHeader, Panel } from "@/components/ui";
@@ -13,6 +14,7 @@ export default function NewCargoPage({ params }: { params: Promise<{ slug: strin
 async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const m = await requireMembership(slug);
+  if (!(await fleetOpsOn(getDriver(), m.tenantId))) return <main className="p-6 text-sm text-zinc-600">{FLEET_OPS_MESSAGE}</main>;
   if (!(await permissionsOf(getDriver(), m)).has("cargo.request")) forbidden();
   return (
     <main className="space-y-5 p-6 text-zinc-900">

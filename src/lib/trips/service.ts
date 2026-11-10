@@ -1,9 +1,10 @@
-// Trip requests and their approval (ADR-045, phase 5a). An optional module: off until an administrator sets settings.module_trips to 1.
+// Trip requests and their approval (ADR-045, phase 5a). Part of the Pro plan (ADR-085) and an optional module: off until an administrator sets settings.module_trips to 1.
 // Every status change goes through transitionTrip (CLAUDE.md rule 4), which calls the SQL function trip_transition; that function
 // writes the trip_events row and, on departure and return, the odometer reading. Nothing else updates trips.status.
 import { z } from "zod";
 import type { Driver, Queryable } from "@/lib/db/types";
-import { authorized, authorizedAny, ForbiddenError, type Membership } from "@/lib/auth/can";
+import { ForbiddenError, type Membership } from "@/lib/auth/can";
+import { fleetAuthorized as authorized, fleetAuthorizedAny as authorizedAny, fleetOpsOn } from "@/lib/billing/fleet-ops";
 import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
 import { notify, usersWithPermission } from "@/lib/notify";
@@ -53,7 +54,8 @@ export async function tripsOn(q: Queryable): Promise<boolean> {
 }
 export async function requireOn(q: Queryable) { if (!(await tripsOn(q))) throw new UserError("Trips are not switched on for this organization."); }
 
-export function tripsEnabled(driver: Driver, m: Membership): Promise<boolean> {
+export async function tripsEnabled(driver: Driver, m: Membership): Promise<boolean> {
+  if (!(await fleetOpsOn(driver, m.tenantId))) return false;
   return authorizedAny(driver, m, ["trip.request", "trip.approve", "trip.dispatch", "trip.read_all", "gate.use", "admin.settings", "invoice.verify"], (q) => tripsOn(q));
 }
 

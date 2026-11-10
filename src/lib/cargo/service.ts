@@ -2,7 +2,8 @@
 // into a trip. Every status change goes through cargo_transition (CLAUDE.md rule 4), which writes the history row. Requests come from the app's form or from the WhatsApp menu.
 import { z } from "zod";
 import type { Driver, Queryable } from "@/lib/db/types";
-import { authorized, authorizedAny, ForbiddenError, type Membership } from "@/lib/auth/can";
+import { ForbiddenError, type Membership } from "@/lib/auth/can";
+import { fleetAuthorized as authorized, fleetAuthorizedAny as authorizedAny, requireFleetOps } from "@/lib/billing/fleet-ops";
 import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
 import { notify, usersWithPermission } from "@/lib/notify";
@@ -57,6 +58,7 @@ async function myEmployee(q: Queryable, userId: string): Promise<string> {
 }
 
 export async function createCargoRequest(driver: Driver, m: Membership, raw: unknown, source: "app" | "whatsapp" = "app"): Promise<{ id: string; cargo_no: string }> {
+  await requireFleetOps(driver, m);
   const p = cargoSchema.safeParse(raw);
   if (!p.success) throw new UserError("Fix the highlighted fields.", fieldErrors(p.error));
   const c = p.data;

@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { requireMembership } from "@/lib/auth/session";
+import { fleetOpsOn, FLEET_OPS_MESSAGE } from "@/lib/billing/fleet-ops";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { CARGO_STATUS_LABEL, listCargo } from "@/lib/cargo/service";
@@ -16,6 +17,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const { slug } = await params;
   const { status } = await searchParams;
   const m = await requireMembership(slug);
+  if (!(await fleetOpsOn(getDriver(), m.tenantId))) return <main className="p-6 text-sm text-zinc-600">{FLEET_OPS_MESSAGE}</main>;
   const driver = getDriver();
   const [rows, perms] = await Promise.all([listCargo(driver, m, { status: status && CARGO_STATUS_LABEL[status] ? status : undefined }), permissionsOf(driver, m)]);
   const handler = perms.has("cargo.handle");

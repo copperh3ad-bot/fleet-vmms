@@ -229,6 +229,11 @@ export const CONTROL_MIGRATIONS: Migration[] = [
     "name": "0026_pro_whatsapp_menu.sql",
     "sql": "-- Control-plane migration 0026 (ADR-079): Pro includes the WhatsApp menu and questionnaires. A feature flag only; no price (CLAUDE.md rule 7). Idempotent.\nupdate public.plans set features = features || '{\"whatsapp_menu\": true}'::jsonb where key = 'pro';\n",
     "checksum": "4f9054ab13b3c72640743034781d045d0659107b21dfc761b5fc24cc8fc9c8be"
+  },
+  {
+    "name": "0027_pro_fleet_operations.sql",
+    "sql": "-- Control-plane migration 0027 (ADR-085): trip scheduling and cargo requests are part of Pro. Basic is maintenance management; Pro is the whole fleet. A feature flag only; no price (CLAUDE.md rule 7). Idempotent.\nupdate public.plans set features = features || '{\"fleet_ops\": false}'::jsonb where key = 'standard';\nupdate public.plans set features = features || '{\"fleet_ops\": true}'::jsonb where key = 'pro';\n",
+    "checksum": "8c143703a48f364087f2aee1617b52783b468260680785af6b3f7413b18cadf3"
   }
 ];
 

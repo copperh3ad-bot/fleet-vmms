@@ -2,7 +2,8 @@
 // Rates are entered by the organization and never built in; a rate is a reference beside the quotes and never replaces one.
 import { z } from "zod";
 import type { Driver } from "@/lib/db/types";
-import { authorized, authorizedAny, type Membership } from "@/lib/auth/can";
+import type { Membership } from "@/lib/auth/can";
+import { fleetAuthorized as authorized, fleetAuthorizedAny as authorizedAny } from "@/lib/billing/fleet-ops";
 import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
 import { requireOutsourcing, requireOn } from "./service";

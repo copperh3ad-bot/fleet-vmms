@@ -4,6 +4,7 @@ import { permissionsOf, whoAmI } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { unreadCount } from "@/lib/jobcards/service";
 import { tripsEnabled } from "@/lib/trips/service";
+import { fleetOpsOn } from "@/lib/billing/fleet-ops";
 import { getNavCounts } from "@/lib/dashboard/service";
 import { signOut } from "@/app/login/actions";
 import { NavLink } from "@/components/shell/nav-link";
@@ -55,6 +56,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
   }
   const [perms, me, unread, counts] = await Promise.all([permissionsOf(driver, m), whoAmI(driver, m), unreadCount(driver, m), getNavCounts(driver, m)]);
   const tripsOn = perms.has("trip.request") || perms.has("trip.approve") || perms.has("trip.dispatch") || perms.has("trip.read_all") || perms.has("invoice.verify") ? await tripsEnabled(driver, m).catch(() => false) : false;
+  const fleetOps = await fleetOpsOn(driver, m.tenantId).catch(() => true);
   const to =(p: string) => `/w/${slug}${p}`;
   const has = (...p: string[]) => p.some((x) => perms.has(x));
   const sees = has("jobcard.create", "jobcard.read_own", "jobcard.read_all");
@@ -66,7 +68,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
     { href: to("/job-cards"), label: "Job cards", show: sees, badge: counts.approvals },
     { href: to("/vehicles"), label: "Vehicles", show: has("vehicle.read"), exclude: [to("/vehicles/new"), to("/vehicles/import")] },
     { href: to("/trips"), label: "Trips", show: tripsOn },
-    { href: to("/cargo"), label: "Cargo", show: has("cargo.request", "cargo.handle") },
+    { href: to("/cargo"), label: "Cargo", show: fleetOps && has("cargo.request", "cargo.handle") },
     { href: to("/vehicle-requests"), label: "Vehicle requests", show: has("vreq.request", "vreq.decide", "vreq.read_all") },
     { href: to("/odometer"), label: "Odometer", show: has("odometer.review"), badge: counts.odometer },
     { href: to("/vendors"), label: "Vendors", show: has("vendor.manage") },

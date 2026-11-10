@@ -2,7 +2,8 @@
 // own rate cards for that provider and the provider's history with this company. It is advice only. Awarding is still the person's click through awardTripQuote, which
 // runs the same permission and segregation-of-duties checks. The provider names never leave the server: the model sees options A, B, C.
 import type { Driver } from "@/lib/db/types";
-import { authorized, type Membership } from "@/lib/auth/can";
+import type { Membership } from "@/lib/auth/can";
+import { fleetAuthorized as authorized } from "@/lib/billing/fleet-ops";
 import { UserError } from "@/lib/master/service";
 import { tenantPlan } from "@/lib/billing/plans";
 import { allowShared } from "@/lib/rate-limit";

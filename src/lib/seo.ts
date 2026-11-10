@@ -5,7 +5,7 @@ import { SITE_URL } from "@/lib/site";
 import type { Faq } from "@/lib/faq";
 
 export const SITE_NAME = "Fleet OTG";
-export const SITE_SUMMARY = "Fleet maintenance management software: job cards with approvals, workshop quotations and invoices, servicing, budgets and vehicle papers for company fleets.";
+export const SITE_SUMMARY = "Fleet maintenance management software: job cards with approvals, workshop quotations and invoices, servicing, budgets and vehicle papers for company fleets. The Pro plan adds trips, cargo and logistics for total fleet management.";
 
 type Json = Record<string, unknown>;
 const ORG_ID = `${SITE_URL}/#organization`;

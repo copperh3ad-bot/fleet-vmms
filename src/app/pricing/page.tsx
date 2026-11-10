@@ -14,7 +14,7 @@ import { PageHero } from "@/components/page-hero";
 import { SELLING_POINTS } from "@/lib/selling-points";
 import { Art } from "@/components/art";
 
-export const metadata = pageMeta("Pricing · Fleet OTG", "The price of Basic and Pro. Basic costs about one month's wage of an unskilled labourer; Pro adds AI, WhatsApp and logistics providers at one price for every fleet size. Free trial, no card needed.");
+export const metadata = pageMeta("Pricing · Fleet OTG", "The price of Basic and Pro. Basic costs about one month's wage of an unskilled labourer; Pro is total fleet management, adding trips, cargo, AI and WhatsApp at one price for every fleet size. Free trial, no card needed.");
 
 export default function PricingPage() {
   return <Suspense fallback={<SiteShell active="pricing"><p className="p-6 text-sm text-zinc-500">Loading</p></SiteShell>}><Inner /></Suspense>;
@@ -36,7 +36,7 @@ async function Inner() {
       <JsonLd data={breadcrumbLd([["Fleet OTG", "/"], ["Pricing", "/pricing"]])} />
       <JsonLd data={faqLd(PRICING_FAQ)} />
       <PageHero eyebrow="Pricing" title="Basic, and Pro for larger fleets" chips={["No per-user charges", "Free trial, no card", "Export your data any time", "Pro: AI, WhatsApp and logistics providers"]} art={<Art name="plans" />}>
-        <p>Everything in Fleet OTG for your whole company, with no per-user charges. Basic has every core feature and is what every company starts on. Pro adds the AI that reads your workshops&apos; estimates and invoices, the WhatsApp menu, and quotes from logistics providers.</p>
+        <p>Everything in Fleet OTG for your whole company, with no per-user charges. Basic is maintenance management, with every core feature, and is what every company starts on. Pro is total fleet management: it adds trip scheduling, cargo requests, quotes from logistics providers, the AI that reads your workshops&apos; estimates and invoices, and the WhatsApp menu.</p>
       </PageHero>
       <div className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-12">
         <div className="grid gap-6 md:grid-cols-[1fr_1.3fr]">

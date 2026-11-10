@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/auth/session";
+import { fleetOpsOn, FLEET_OPS_MESSAGE } from "@/lib/billing/fleet-ops";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { CARGO_STATUS_LABEL, getCargo, HANDLING } from "@/lib/cargo/service";
@@ -15,6 +16,7 @@ export default function CargoDetailPage({ params }: { params: Promise<{ slug: st
 async function Inner({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = await params;
   const m = await requireMembership(slug);
+  if (!(await fleetOpsOn(getDriver(), m.tenantId))) return <main className="p-6 text-sm text-zinc-600">{FLEET_OPS_MESSAGE}</main>;
   const driver = getDriver();
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const [c, perms] = await Promise.all([getCargo(driver, m, id), permissionsOf(driver, m)]);
