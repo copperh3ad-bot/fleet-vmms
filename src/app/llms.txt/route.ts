@@ -32,7 +32,7 @@ export function GET() {
     "- Reminders: every day, licences, insurance, fitness and token tax that are running out and periodic maintenance that is due are shown in the app and emailed to the vehicle holder and the fleet managers.",
     "- Vehicle requests and trips: HR requests a vehicle for an employee and a manager decides; an optional trips module records the odometer out and back.",
     "- Cargo requests: staff ask for a cargo pick-up or delivery; the fleet manager accepts, schedules and follows it, or turns it into a trip.",
-    "- Pro plan: AI that reads workshop estimates and invoices into a draft; job cards raised from one WhatsApp message; a WhatsApp menu (job card, cargo, trip, odometer) with a short questionnaire each; and trips sent to several logistics providers for quotes, with the AI advising on which to award. A person always checks, saves and decides. See the Compare plans page.",
+    "- Pro plan: AI that reads workshop estimates and invoices into a draft; job cards raised from one WhatsApp message; a WhatsApp menu (job card, cargo, trip, odometer) where cargo, trip and job card requests open as one short form with dropdowns; and trips sent to several logistics providers for quotes, with the AI advising on which to award. A person always checks, saves and decides. See the Compare plans page.",
     "- Servicing, budgets and papers: what is due or overdue, spend per vehicle against its budget, and insurance, fitness, token tax, accident and fine records with expiry reminders.",
     "",
     "## Pages",
