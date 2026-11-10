@@ -36,11 +36,11 @@
   .legend { margin-top: 1.2mm; font-size: 7.2pt; color: var(--mist); }
   .legend i { display: inline-block; width: 2.6mm; height: 2.6mm; background: var(--rust); vertical-align: -.5mm; margin-right: 1mm; }
 
-  .grid { margin-top: 4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 2.8mm; }
-  .card { background: rgba(255,255,255,.06); border: .3mm solid rgba(255,255,255,.16); border-left: 1.2mm solid var(--gold); border-radius: .8mm; padding: 2.5mm 3.5mm; display: grid; grid-template-columns: 10mm 1fr; column-gap: 3mm; align-content: start; }
+  .grid { margin-top: 4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 2.2mm; }
+  .card { background: rgba(255,255,255,.06); border: .3mm solid rgba(255,255,255,.16); border-left: 1.2mm solid var(--gold); border-radius: .8mm; padding: 1.8mm 3.5mm; display: grid; grid-template-columns: 10mm 1fr; column-gap: 3mm; align-content: start; }
   .card h3, .card p { grid-column: 2; }
   .card h3 { font-size: 12pt; font-weight: 700; color: #fff; margin-bottom: 1mm; text-transform: uppercase; letter-spacing: .02em; }
-  .card p { font-size: 8.6pt; line-height: 1.3; color: var(--mist); }
+  .card p { font-size: 8.2pt; line-height: 1.28; color: var(--mist); }
   .card p.pain { color: #e9b8a4; margin-bottom: 1mm; }
   .card p.fix { color: #d3d9dd; }
   .card p b { display: inline-block; font-size: 6.8pt; letter-spacing: .12em; text-transform: uppercase; padding: .2mm 1.4mm; margin-right: 1.4mm; vertical-align: 1px; }
@@ -50,11 +50,15 @@
   .ico svg { width: 6.4mm; height: 6.4mm; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .ico::after { content: attr(data-n); position: absolute; right: -1.6mm; top: -1.6mm; width: 4mm; height: 4mm; line-height: 4mm; text-align: center; background: var(--gold); color: var(--ink); font-size: 6.6pt; font-weight: 800; }
 
-  .soon { margin-top: 4mm; border: .5mm dashed var(--gold); padding: 5mm 6mm 4mm; margin-bottom: 4mm; background: rgba(255,194,14,.08); position: relative; display: grid; grid-template-columns: 1fr 15mm; column-gap: 5mm; align-items: center; }
+  .soon { margin-top: 4mm; border: .5mm dashed var(--gold); padding: 5mm 6mm 4mm; margin-bottom: 2mm; background: rgba(255,194,14,.08); position: relative; display: grid; grid-template-columns: 1fr 15mm; column-gap: 5mm; align-items: center; }
   .tag { position: absolute; top: -3.2mm; left: 6mm; background: var(--gold); color: var(--ink); font-size: 8.5pt; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; padding: 1mm 3mm; }
   .soon h2 { font-size: 13.5pt; line-height: 1.15; text-transform: uppercase; letter-spacing: .01em; }
   .soon h2 em { font-style: normal; color: var(--gold); }
   .soon p { margin-top: 1.2mm; font-size: 9pt; line-height: 1.36; color: #d3d9dd; }
+  .pro-list { list-style: none; margin-top: 1.6mm; display: grid; grid-template-columns: 1fr 1fr; gap: .8mm 5mm; font-size: 8.8pt; color: #fff; }
+  .pro-list li::before { content: ""; display: inline-block; width: 1.8mm; height: 1.8mm; background: var(--gold); margin-right: 2mm; vertical-align: .1mm; }
+  .basic-label { margin-top: 4mm; font-size: 9pt; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+  .basic-label span { color: var(--mist); font-weight: 400; letter-spacing: .08em; }
   .soon svg { width: 15mm; height: 15mm; }
 
   .foot { position: absolute; left: 15mm; right: 15mm; bottom: 11mm; display: flex; justify-content: space-between; align-items: flex-end; gap: 8mm; }
@@ -137,6 +141,7 @@
     </div>
   </div>
 
+  <div class="basic-label cond">Basic <span>&middot; the whole workflow, where every company starts</span></div>
   <div class="grid">
     <div class="card"><span class="ico" data-n="1"><svg><use href="#i-stamp"/></svg></span><h3 class="cond">Every approval on record</h3><p class="pain"><b>Problem</b>Repairs get approved by chat or phone call, and nobody can say later who said yes.</p><p class="fix"><b>Fix</b>Approvals carry the person's name and the time. Only the administrator may decide on their own request, and it is recorded.</p></div>
     <div class="card"><span class="ico" data-n="2"><svg><use href="#i-card"/></svg></span><h3 class="cond">One card, even offline</h3><p class="pain"><b>Problem</b>History is scattered across spreadsheets and chats, and written up late.</p><p class="fix"><b>Fix</b>One job card per repair, every step logged. Fill the Excel form offline and upload it later.</p></div>
@@ -151,14 +156,22 @@
   <div class="soon">
     <span class="tag">Pro</span>
     <div>
-      <h2 class="cond">Pro: <em>AI that reads</em> workshop paperwork.</h2>
-      <p>For busy fleets, with one price for every fleet size. The AI reads what a workshop sends, fills in the form and compares logistics quotes. Staff raise job cards, cargo and trip requests on WhatsApp, with short forms coming soon. A person always decides. Any Basic company can try it free for 3 days.</p>
+      <h2 class="cond">Pro: <em>everything in Basic</em>, plus AI and WhatsApp.</h2>
+      <ul class="pro-list">
+        <li>AI reads workshop estimates and invoices</li>
+        <li>Job cards from one WhatsApp message</li>
+        <li>WhatsApp menu: job card, cargo, trip, odometer</li>
+        <li>Quotes from several logistics providers</li>
+        <li>AI compares the quotes and advises</li>
+        <li>Provider invoices checked before payment</li>
+      </ul>
+      <p>One price for every fleet size. A person always decides. WhatsApp forms coming soon.</p>
     </div>
     <svg viewBox="0 0 24 24" fill="none" stroke="#ffc20e" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-phone2"/></svg>
   </div>
 
   <div class="foot">
-    <div class="price"><b class="cond">Basic has the whole workflow</b>Basic costs about a month's wage for an unskilled labourer. Start with a 3-day free trial, then try Pro free too.</div>
+    <div class="price"><b class="cond">3-day free trial, no card</b>No charge per user. Basic costs about a month's wage for an unskilled labourer.</div>
     <div class="cta"><div class="url cond">www.fleetotg.com</div><div class="sub">sales@fleetotg.com</div></div>
   </div>
 </div>

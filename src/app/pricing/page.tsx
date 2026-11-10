@@ -14,7 +14,7 @@ import { PageHero } from "@/components/page-hero";
 import { SELLING_POINTS } from "@/lib/selling-points";
 import { Art } from "@/components/art";
 
-export const metadata = pageMeta("Pricing · Fleet OTG", "The price of Basic and Pro. Basic costs about one month's wage of an unskilled labourer; Pro costs less than a fleet manager's monthly salary. Free trial, no card needed.");
+export const metadata = pageMeta("Pricing · Fleet OTG", "The price of Basic and Pro. Basic costs about one month's wage of an unskilled labourer; Pro adds AI, WhatsApp and logistics providers at one price for every fleet size. Free trial, no card needed.");
 
 export default function PricingPage() {
   return <Suspense fallback={<SiteShell active="pricing"><p className="p-6 text-sm text-zinc-500">Loading</p></SiteShell>}><Inner /></Suspense>;

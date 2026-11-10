@@ -13,7 +13,7 @@ export type Offer = {
 };
 
 /** What every public page except /pricing says about Pro instead of its figure (ADR-065). Basic's line is `Offer.headline`. */
-export const PRO_HEADLINE = "Less than a fleet manager's monthly salary";
+export const PRO_HEADLINE = "One price for every fleet size";
 
 const SYMBOL: Record<string, string> = { USD: "$", PKR: "Rs ", EUR: "€", GBP: "£" };
 
