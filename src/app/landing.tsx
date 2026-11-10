@@ -26,7 +26,7 @@ const FEATURES: Feature[] = [
   { title: "Cargo pick-ups and deliveries", text: "Staff ask for a cargo pick-up or delivery. The fleet manager accepts, schedules and follows it to delivery, or turns it into a trip.", icon: "car", art: "trip" },
   { title: "AI that reads workshop paperwork", text: "The AI fills in the form from an emailed estimate or invoice. A person always checks and saves.", icon: "spark", art: "ai", pro: true },
   { title: "Raise a job card on WhatsApp", text: "An employee sends one message, the AI drafts the job card, they confirm, and a manager approves in the app.", icon: "chat", art: "chat", pro: true },
-  { title: "A WhatsApp menu for everyday requests", text: "Say Hi and choose: a job card, a cargo pick-up, a trip or an odometer reading. Cargo, trip and job card requests open as one short form with dropdowns, so the fleet manager gets complete information in a single message.", icon: "chat", art: "phone", pro: true },
+  { title: "A WhatsApp menu for everyday requests", text: "Say Hi and choose: a job card, a cargo pick-up, a trip or an odometer reading. A few short questions each, so the fleet manager gets complete information. Coming soon: one short form with dropdowns for each request.", icon: "chat", art: "phone", pro: true },
   { title: "Quotes from logistics providers", text: "Send a trip to several providers, compare their quotes with your rate cards (the AI can advise), award one, and check their invoice.", icon: "car", art: "quote", pro: true },
 ];
 
