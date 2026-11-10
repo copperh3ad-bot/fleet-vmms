@@ -4,7 +4,7 @@
 export type Faq = { q: string; a: string };
 
 export const HOME_FAQ: Faq[] = [
-  { q: "What is Fleet OTG?", a: "Fleet OTG is fleet maintenance management software for companies that run vehicles. Every repair is one job card with an approval trail, workshop quotations are compared with invoices before payment, and servicing, budgets, papers and fines are kept in one place per company." },
+  { q: "What is Fleet OTG?", a: "Fleet OTG is fleet management software for companies that run vehicles, and it starts with maintenance. On Basic, every repair is one job card with an approval trail, workshop quotations are compared with invoices before payment, and servicing, budgets, papers and fines are kept in one place per company. On Pro it also runs the rest of the fleet: trip scheduling, cargo requests, logistics providers, AI and WhatsApp." },
   { q: "Who is Fleet OTG for?", a: "Companies that run their own vehicles and want to know what each one costs: fleet officers who raise jobs, managers who approve them, drivers who report odometer readings, and the workshops that repair the vehicles." },
   { q: "Is my data separate from other companies?", a: "Yes. Every company's records are kept apart from every other company's. People from other companies cannot see them, and we check this with automated tests." },
   { q: "Can workshops send their quotation through Fleet OTG?", a: "Yes. A workshop gets a one-time link on its own phone number, opens it without an account, and sends its estimate. The estimate is recorded against the job card number, so it sits with the job it is for." },

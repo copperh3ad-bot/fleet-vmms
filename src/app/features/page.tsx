@@ -7,7 +7,7 @@ import { PageHero, CtaBand } from "@/components/page-hero";
 import { SELLING_POINTS } from "@/lib/selling-points";
 import { Art } from "@/components/art";
 
-const TITLE = "Fleet maintenance software features · Fleet OTG";
+const TITLE = "Fleet management and maintenance software features · Fleet OTG";
 const DESCRIPTION = "How Fleet OTG handles fleet maintenance: job cards with recorded approvals, workshop quotations checked against invoices, reminders, servicing, budgets, vehicle requests and papers. Pro makes it a total fleet management solution with trip scheduling, cargo requests, logistics provider quotes, the AI and a WhatsApp menu.";
 export const metadata = pageMeta(TITLE, DESCRIPTION);
 
@@ -65,8 +65,8 @@ export default function FeaturesPage() {
     <SiteShell active="features">
       <JsonLd data={webPageLd(TITLE, "/features", DESCRIPTION)} />
       <JsonLd data={breadcrumbLd([["Fleet OTG", "/"], ["Features", "/features"]])} />
-      <PageHero eyebrow="Features" title="Fleet maintenance management software, built around the job card" chips={["Approvals on record", "Quote vs invoice", "Reminders by email", "Trips and cargo on Pro", "Per-vehicle cost"]} art={<Art name="fleet" />}>
-        <p>Fleet OTG is fleet maintenance management software for companies that run their own vehicles. Every repair becomes one job card with a recorded approval trail, so you can see what each vehicle costs, who approved the work, and what is coming due. Basic is maintenance management. Pro adds fleet operations (trip scheduling, cargo requests and logistics providers), the AI and WhatsApp, which makes it a total fleet management solution.</p>
+      <PageHero eyebrow="Features" title="Fleet management software: maintenance on Basic, the whole fleet on Pro" chips={["Approvals on record", "Quote vs invoice", "Reminders by email", "Trips and cargo on Pro", "Per-vehicle cost"]} art={<Art name="fleet" />}>
+        <p>Fleet OTG is fleet management software for companies that run their own vehicles, and it starts with maintenance. Every repair becomes one job card with a recorded approval trail, so you can see what each vehicle costs, who approved the work, and what is coming due. Basic is maintenance management. Pro adds fleet operations (trip scheduling, cargo requests and logistics providers), the AI and WhatsApp, which makes it a total fleet management solution.</p>
       </PageHero>
       <article className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-12">
         <section aria-labelledby="why" className="mb-14">
