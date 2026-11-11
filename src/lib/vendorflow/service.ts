@@ -294,10 +294,15 @@ export type CompareRow = {
   key: string; item: string; kind: string; quoted: number | null; approved: number | null; invoiced: number | null;
   check: "ok" | "not_approved" | "qty" | "price" | "not_billed";
 };
+/** The warranty a workshop gives on a repair, in days (owner decision G2 of 2026-11-11). */
+export const WARRANTY_DAYS = 7;
+
 export type InvoiceReview = InvoiceCheck & {
   vehicle_id: string; vehicle_label: string; driver: string | null; reason: string; requester_name: string; approver_name: string | null; approved_on: string | null; wo_no: string;
   /** set when the job card repeats earlier work (ADR-094): who the approver said pays, and why */
   repeat: { of: string; payer: string; reason: string } | null;
+  /** the same workshop finished work on this vehicle within the warranty period before this card was raised (ADR-095) */
+  warranty: { of: string; days: number; warrantyDays: number } | null;
   comparison: CompareRow[];
   totals: { approved: number; invoiced: number; over: number; overPct: number | null };
   /** the person checking may not be the one who approved or raised the job card */
@@ -350,11 +355,18 @@ export async function getInvoiceReview(driver: Driver, m: Membership, id: string
       : me && me === j.requested_by ? { by: "requester" as const, name: j.requester_name } : null;
 
     const waitingRows = (await q.query<{ id: string }>("select i.id from invoices i where i.status = 'submitted' and i.id <> $1 order by i.invoice_date, i.id", [id])).rows;
+    const wr = (await q.query<{ job_no: string; days: number }>(
+      `select p.job_no, greatest(0, (cur.created_at::date - e.at::date))::int as days
+         from invoices i join work_orders wo on wo.id = i.work_order_id join job_cards cur on cur.id = wo.job_card_id
+         join job_cards p on p.vehicle_id = cur.vehicle_id and p.id <> cur.id and p.vendor_id = wo.vendor_id and p.created_at < cur.created_at
+         join lateral (select min(ev.created_at) as at from job_card_events ev where ev.job_card_id = p.id and ev.to_status in ('completed', 'invoiced')) e on e.at is not null
+        where i.id = $1 and e.at <= cur.created_at and cur.created_at - e.at <= ($2 || ' days')::interval order by e.at desc limit 1`, [id, String(WARRANTY_DAYS)])).rows[0];
     const rep = (await q.query<{ of_no: string | null; repeat_payer: string | null; repeat_payer_reason: string | null }>(
       "select (select r.job_no from job_cards r where r.id = jc.repeat_of) as of_no, jc.repeat_payer, jc.repeat_payer_reason from invoices i join work_orders wo on wo.id = i.work_order_id join job_cards jc on jc.id = wo.job_card_id where i.id = $1", [id])).rows[0];
     return {
       ...base, lines: [], vehicle_id: j.vehicle_id, vehicle_label: j.label, driver: j.driver, reason: j.reason, requester_name: j.requester_name,
       approver_name: j.approver_name, approved_on: j.approved_on, wo_no: j.wo_no, comparison,
+      warranty: wr ? { of: wr.job_no, days: wr.days, warrantyDays: WARRANTY_DAYS } : null,
       repeat: rep?.repeat_payer && rep.of_no ? { of: rep.of_no, payer: rep.repeat_payer, reason: rep.repeat_payer_reason ?? "" } : null,
       totals: { approved, invoiced, over, overPct: approved > 0 ? Math.round((over / approved) * 1000) / 10 : null },
       blocked, next: waitingRows[0]?.id ?? null, waiting: waitingRows.length,

@@ -49,6 +49,7 @@ beforeAll(async () => {
 
 describe("repeat repairs", () => {
   it("counts the same fault coming back inside the window, never routine service, never a different fault", async () => {
+    await setSetting("flag_repeat_days", "60");          // a company that chose 60; a new company starts at 30 (tenant 0063)
     await clearJobs();
     await job(car["H-1"], "WEAR_BRAKES", 100, 500);
     await job(car["H-1"], "WEAR_BRAKES", 60, 500);          // 40 days after the first: repeat at 60 days
@@ -64,6 +65,7 @@ describe("repeat repairs", () => {
   });
 
   it("names the workshop whose earlier job came back", async () => {
+    await setSetting("flag_repeat_days", "60");
     await clearJobs();
     const v = (await master.saveVendor(d, owner(), { name: "Quick Fix Motors" })).id;
     await job(car["H-2"], "WEAR_BRAKES", 70, 800, { vendor: v });

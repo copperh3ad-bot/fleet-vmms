@@ -5,6 +5,7 @@ import { withTenant } from "@/lib/db/tenant";
 import { ForbiddenError, type Membership } from "@/lib/auth/can";
 import * as jc from "@/lib/jobcards/service";
 import { UserError } from "@/lib/master/service";
+import { getPolicyForJob } from "@/lib/master/policy-rules";
 import { seedDemo } from "@/lib/demo/seed";
 
 let d: Awaited<ReturnType<typeof testDriver>>;
@@ -116,5 +117,54 @@ describe("approve and assign in one step", () => {
     const poor = await raw(async (q) => (await q.query<{ id: string }>("select id from reason_codes where code = 'REPEAT_POOR_REPAIR'")).rows[0].id);
     await raw((q) => q.query("update job_cards set reason_code_id = $2 where id = $1", [pick.id, poor]));
     expect((await jc.getReviewContext(d, approver, pick.id))!.repeat).not.toBeNull();
+  });
+
+  it("G1: a new company's repeat window is 30 days (tenant 0063); the demo company keeps 60 so its six-week repeat shows", async () => {
+    const fresh = await provisionTenant(d, { name: "Window Co", slug: "windowco" }, tenantMigrations(), { transform: stripExt });
+    const v = (await withTenant(d, { ...fresh, userId: "00000000-0000-0000-0000-0000000000cc", role: "tenant_admin", vehicleScope: "all" } as Membership, async (q) => (await q.query<{ value: string }>("select value from settings where key = 'flag_repeat_days'")).rows[0])).value;
+    expect(v).toBe("30");
+  });
+
+  it("G1: choosing the workshop that already worked on the vehicle within the window makes it a repeat, and the review says which", async () => {
+    const approver = mem("fleet_manager", await userOf("E-202"));
+    const pick = await raw(async (q) => (await q.query<{ id: string; vendor_id: string; job_no: string }>(
+      `select jc.id, p.vendor_id, p.job_no from job_cards jc join job_cards p on p.vehicle_id = jc.vehicle_id and p.id <> jc.id and p.vendor_id is not null and p.created_at < jc.created_at
+         join reason_codes pr on pr.id = p.reason_code_id
+        where jc.status in ('submitted','returned_for_edit','draft') and pr.category <> 'scheduled_service' and p.status not in ('draft','cancelled','rejected')
+          and p.created_at >= jc.created_at - interval '30 days' order by jc.created_at limit 1`)).rows[0]);
+    expect(pick).toBeDefined();
+    const ctx = (await jc.getReviewContext(d, approver, pick.id))!;
+    expect(ctx.vendorRepeats.find((x) => x.vendor_id === pick.vendor_id)?.job_no).toBe(pick.job_no);
+  });
+
+  it("G5: the requester may reopen a rejected card with a reason; nobody else can, and a reason is needed", async () => {
+    const approver = mem("fleet_manager", await userOf("E-202"));
+    const row = await raw(async (q) => (await q.query<{ id: string; uid: string }>(
+      "select jc.id, e.user_id as uid from job_cards jc join employees e on e.id = jc.requested_by where jc.status = 'submitted' and e.user_id is not null order by jc.created_at desc limit 1")).rows[0]);
+    expect(row).toBeDefined();
+    await jc.transitionJobCard(d, approver, row.id, "rejected", { comment: "Not needed this month" });
+    const requester = mem("requester", row.uid);
+    const noReason = await jc.transitionJobCard(d, requester, row.id, "submitted").catch((e) => e);
+    expect(noReason).toBeInstanceOf(UserError);
+    await expect(jc.transitionJobCard(d, approver, row.id, "submitted", { comment: "Please look again" })).rejects.toBeDefined();   // only the requester
+    await jc.transitionJobCard(d, requester, row.id, "submitted", { comment: "The fault got worse, it needs doing now" });
+    const c = (await jc.getJobCard(d, approver, row.id))!;
+    expect(c.status).toBe("submitted");
+    expect(c.events.at(-1)!.comment).toBe("The fault got worse, it needs doing now");
+  });
+
+  it("G3: the policy lines name the rule, whether it applies, and the driver's amount", async () => {
+    const approver = mem("fleet_manager", await userOf("E-202"));
+    await raw((q) => q.query("insert into settings(key, value) values ('policy_driver_share_pct', '40') on conflict (key) do update set value = '40'"));
+    const pick = await raw(async (q) => (await q.query<{ id: string; category: string; estimated_cost: string | null }>(
+      `select jc.id, rc.category, jc.estimated_cost::text from job_cards jc join reason_codes rc on rc.id = jc.reason_code_id
+        where rc.category not in ('scheduled_service','wear_and_tear','accident_damage') and jc.estimated_cost > 0 and not exists (select 1 from work_orders w where w.job_card_id = jc.id) limit 1`)).rows[0]);
+    expect(pick).toBeDefined();
+    const line = (await getPolicyForJob(d, approver, pick.id)).find((l) => l.rule === "Driver's share of repairs")!;
+    expect(line.applies).toBe(true);
+    expect(line.amount).toBe(Math.round(Number(pick.estimated_cost) * 40) / 100);
+    const wear = await raw(async (q) => (await q.query<{ id: string }>(
+      "select jc.id from job_cards jc join reason_codes rc on rc.id = jc.reason_code_id where rc.category in ('scheduled_service','wear_and_tear') limit 1")).rows[0]);
+    expect((await getPolicyForJob(d, approver, wear.id)).find((l) => l.rule === "Driver's share of repairs")!.applies).toBe(false);
   });
 });

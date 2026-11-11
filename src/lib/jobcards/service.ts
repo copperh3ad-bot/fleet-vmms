@@ -179,9 +179,9 @@ type RepeatRow = { id: string; job_no: string; created_at: string; days_ago: num
 
 /**
  * The earlier job card this one repeats, if any: the same vehicle, not routine service, within the repeat window (setting flag_repeat_days), with the same reason or the same
- * type of service on one of its lines. A card whose own reason is "previous repair not effective" repeats the latest earlier one whatever the window.
+ * type of service on one of its lines, or the same workshop when `vendorId` is given (the workshop chosen on the review screen). A card whose own reason is "previous repair not effective" repeats the latest earlier one whatever the window.
  */
-async function findRepeat(q: Queryable, jobId: string): Promise<RepeatRow | undefined> {
+async function findRepeat(q: Queryable, jobId: string, vendorId?: string | null): Promise<RepeatRow | undefined> {
   const window = Number((await q.query<{ d: string }>("select setting_num('flag_repeat_days', 60)::text d")).rows[0].d);
   return (await q.query<RepeatRow>(
     `select p.id, p.job_no, p.created_at::text, (current_date - p.created_at::date)::int as days_ago, coalesce(c.cost, 0)::text as cost, rc.label as reason,
@@ -193,14 +193,15 @@ async function findRepeat(q: Queryable, jobId: string): Promise<RepeatRow | unde
         and (cr.category = 'poor_previous_repair'
              or (p.created_at >= cur.created_at - ($2 || ' days')::interval
                  and (p.reason_code_id = cur.reason_code_id
+                      or ($3::uuid is not null and p.vendor_id = $3::uuid)
                       or exists (select 1 from job_card_lines a join job_card_lines b on b.service_type_key = a.service_type_key
                                   where a.job_card_id = cur.id and b.job_card_id = p.id and a.service_type_key is not null))))
-      order by p.created_at desc limit 1`, [jobId, String(window)])).rows[0];
+      order by p.created_at desc limit 1`, [jobId, String(window), vendorId ?? null])).rows[0];
 }
 
 /** At approval on the review screen (`require`): a repeat card needs the approver's answer to "who pays", with a written reason. Saved on the card. Rolls the approval back when it is missing. */
-async function recordRepeatPayer(q: Queryable, id: string, payer?: string, reason?: string, require = false) {
-  const rp = await findRepeat(q, id);
+async function recordRepeatPayer(q: Queryable, id: string, payer?: string, reason?: string, require = false, vendorId?: string | null) {
+  const rp = await findRepeat(q, id, vendorId);
   if (!rp) return;
   if (!require && !payer) return;
   const why = (reason ?? "").trim();
@@ -218,6 +219,8 @@ export type ReviewContext = {
   previousReading: { km: number; read_at: string } | null;
   budget: { budget: number; spent: number; pct: number; after: number; afterPct: number } | null;
   repeat: { job_id: string; job_no: string; created_at: string; days_ago: number; cost: number; reason: string; vendor_id: string | null; vendor: string | null; cause_text: string } | null;
+  /** workshops that already did work on this vehicle within the repeat window: choosing one makes this a repeat (ADR-094) */
+  vendorRepeats: { vendor_id: string; job_no: string; days_ago: number }[];
   due: { label: string; status: string; due_on: string | null; days: number | null }[];
   vendors: { id: string; name: string; jobs: number; avg_days: number | null; quote_vs_bill_pct: number | null; rework_pct: number | null; warning: string | null }[];
   queue: { position: number; total: number; prev: string | null; next: string | null } | null;
@@ -242,6 +245,14 @@ export function getReviewContext(driver: Driver, m: Membership, jobId: string): 
     const rp = await findRepeat(q, jobId);
     const repeat = rp ? { job_id: rp.id, job_no: rp.job_no, created_at: rp.created_at, days_ago: rp.days_ago, cost: Number(rp.cost), reason: rp.reason, vendor_id: rp.vendor_id, vendor: rp.vendor, cause_text: rp.cause_text } : null;
 
+    const window = Number((await q.query<{ d: string }>("select setting_num('flag_repeat_days', 60)::text d")).rows[0].d);
+    const vendorRepeats = (await q.query<{ vendor_id: string; job_no: string; days_ago: number }>(
+      `select distinct on (p.vendor_id) p.vendor_id, p.job_no, (current_date - p.created_at::date)::int as days_ago
+         from job_cards p join reason_codes rc on rc.id = p.reason_code_id
+        where p.vehicle_id = $1 and p.id <> $2 and p.vendor_id is not null and rc.category <> 'scheduled_service' and p.status not in ('draft','cancelled','rejected')
+          and p.created_at < $3::timestamptz and p.created_at >= $3::timestamptz - ($4 || ' days')::interval order by p.vendor_id, p.created_at desc`,
+      [jc.vehicle_id, jobId, jc.created_at, String(window)])).rows;
+
     const due = (await q.query<{ label: string; status: string; due_on: string | null; days: number | null }>(
       "select label, pm_status as status, due_on::text, days_remaining::int as days from v_pm_status where vehicle_id = $1 and pm_status in ('overdue','due_soon') order by coalesce(days_remaining, 99999)", [jc.vehicle_id])).rows;
 
@@ -262,7 +273,7 @@ export function getReviewContext(driver: Driver, m: Membership, jobId: string): 
       if (i >= 0) queue = { position: i + 1, total: ids.length, prev: ids[i - 1] ?? null, next: ids[i + 1] ?? null };
     }
     return { vehicle: { id: v.id, label: v.label, holder: v.holder, department: v.department, odometer_km: Number(v.km) },
-      previousReading: prev ? { km: Number(prev.km), read_at: prev.read_at } : null, budget, repeat, due, vendors, queue };
+      previousReading: prev ? { km: Number(prev.km), read_at: prev.read_at } : null, budget, repeat, vendorRepeats, due, vendors, queue };
   });
 }
 
@@ -273,7 +284,7 @@ export async function approveAndAssign(driver: Driver, m: Membership, id: string
     const ok = await q.query("select 1 from role_permissions where role_key = $1 and permission_key = 'jobcard.assign_vendor'", [m.role]);
     if (ok.rows.length === 0) throw new ForbiddenError("jobcard.assign_vendor");
     try {
-      await transitionInTx(q, m, id, "approved", { comment: opts.comment, reasonCodeId: opts.reasonCodeId, repeatPayer: opts.repeatPayer, repeatReason: opts.repeatReason, requireRepeatPayer: true });
+      await transitionInTx(q, m, id, "approved", { comment: opts.comment, reasonCodeId: opts.reasonCodeId, repeatPayer: opts.repeatPayer, repeatReason: opts.repeatReason, requireRepeatPayer: true, repeatVendorId: opts.vendorId });
       await transitionInTx(q, m, id, "vendor_assigned", { vendorId: opts.vendorId });
     } catch (e) { friendly(e); }
   });
@@ -281,13 +292,13 @@ export async function approveAndAssign(driver: Driver, m: Membership, id: string
 
 // ---------- The one way a status changes ----------
 
-export type TransitionOptions = { comment?: string; reasonCodeId?: string; vendorId?: string; repeatPayer?: string; repeatReason?: string; /** the review screen: a repeat card cannot be approved without an answer */ requireRepeatPayer?: boolean };
+export type TransitionOptions = { comment?: string; reasonCodeId?: string; vendorId?: string; repeatPayer?: string; repeatReason?: string; /** the workshop chosen with the approval, so "same vehicle, same workshop" counts as a repeat */ repeatVendorId?: string; /** the review screen: a repeat card cannot be approved without an answer */ requireRepeatPayer?: boolean };
 
 /** The one place a status is changed inside a transaction: the SQL function (guard + event row) and the notices. */
 async function transitionInTx(q: Queryable, m: Membership, id: string, to: string, opts: TransitionOptions = {}) {
   await q.query("select transition_job_card($1, $2, $3, $4, $5::jsonb)", [
     id, to, m.userId, opts.comment ?? null, JSON.stringify({ reason_code_id: opts.reasonCodeId ?? null, vendor_id: opts.vendorId ?? null })]);
-  if (to === "approved") await recordRepeatPayer(q, id, opts.repeatPayer, opts.repeatReason, opts.requireRepeatPayer);       // ADR-094: a repeat card is not approved without "who pays" and why
+  if (to === "approved") await recordRepeatPayer(q, id, opts.repeatPayer, opts.repeatReason, opts.requireRepeatPayer, opts.repeatVendorId);       // ADR-094: a repeat card is not approved without "who pays" and why
   await notifyAfter(q, m, id, to);
 }
 
@@ -295,6 +306,11 @@ export async function transitionJobCard(driver: Driver, m: Membership, id: strin
   const permission = TRANSITION_PERMISSION[to];
   if (!permission) throw new UserError("That step is not available yet.");
   return authorized(driver, m, permission, async (q) => {
+    if (to === "submitted") {
+      // G5: the requester may reopen a rejected card, and says why
+      const was = (await q.query<{ status: string }>("select status from job_cards where id = $1", [id])).rows[0]?.status;
+      if (was === "rejected" && (opts.comment ?? "").trim().length < 5) throw new UserError("Say why this job card should be looked at again.", { comment: "Give the reason, at least a few words" });
+    }
     try { await transitionInTx(q, m, id, to, opts); } catch (e) { friendly(e); }
   });
 }

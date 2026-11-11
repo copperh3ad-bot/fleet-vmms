@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/auth/session";
 import { adminBlockedFromOthers, permissionsOf } from "@/lib/auth/can";
 import { REPEAT_PAYERS } from "@/lib/jobcards/schemas";
+import { getPolicyForJob } from "@/lib/master/policy-rules";
+import { PolicyLines } from "@/components/policy-lines";
 import { getDriver } from "@/lib/db";
 import { getInvoiceReview, listCommercialFiles, type CompareRow } from "@/lib/vendorflow/service";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
@@ -31,6 +33,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
   const files = await listCommercialFiles(driver, await supabaseBlobStore(), m, "invoice", id);
   const payments = await getPayments(driver, m, "workshop", id);
   const canVerify = (await permissionsOf(driver, m)).has("invoice.verify");
+  const policy = await getPolicyForJob(driver, m, inv.job_card_id);
   const blockedCheck = canVerify && inv.status === "submitted" ? await adminBlockedFromOthers(driver, m, "invoice.verify") : false;   // company rule (ADR-088): the database refuses, so no form is shown
   const to = (p: string) => `/w/${slug}/${p}`;
   const bad = inv.comparison.filter((r) => r.check === "not_approved");
@@ -105,12 +108,19 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
             </dl>
           </Panel>
 
+          {inv.warranty && (
+            <p role="status" className="rounded-md bg-amber-100 p-3 text-sm text-amber-800">
+              {inv.vendor_name} finished {inv.warranty.of} on this vehicle {inv.warranty.days === 0 ? "the same day" : `${inv.warranty.days} day${inv.warranty.days === 1 ? "" : "s"}`} before this job was raised, within the {inv.warranty.warrantyDays}-day warranty. Check whether this work should be redone free.
+            </p>
+          )}
           {inv.repeat && (
             <p role="status" className="rounded-md bg-amber-100 p-3 text-sm text-amber-800">
               This job repeats {inv.repeat.of}. The approver said who pays: <strong>{REPEAT_PAYERS[inv.repeat.payer] ?? inv.repeat.payer}</strong>. Reason: {inv.repeat.reason}
               {inv.repeat.payer === "workshop" && " Check whether the amount payable should be less than the invoice."}
             </p>
           )}
+
+          {policy.length > 0 && <Panel title="Company policy" sub="For reference. Nothing here blocks a decision."><PolicyLines lines={policy} money={money} /></Panel>}
 
           <Panel title="Your decision">
             {inv.status === "submitted" && !canVerify ? (

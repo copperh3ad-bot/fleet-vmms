@@ -55,6 +55,11 @@ export function DraftPanel({ slug, id }: { slug: string; id: string }) {
   );
 }
 
+/** G5: the requester asks for a rejected job card to be looked at again, with a reason. */
+export function ReopenPanel({ slug, id }: { slug: string; id: string }) {
+  return <Step slug={slug} id={id} to="submitted" label="Send it for approval again" comment="required" commentLabel="Why should it be looked at again?" />;
+}
+
 export function ClosePanel({ slug, id }: { slug: string; id: string }) {
   return <Step slug={slug} id={id} to="closed" label="Close this job card" comment="optional" commentLabel="Note (optional)" />;
 }

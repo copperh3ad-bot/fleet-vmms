@@ -9,12 +9,14 @@ import { adminBlockedFromOthers, adminMayDecideOwn, permissionsOf } from "@/lib/
 import { getDriver } from "@/lib/db";
 import { getJobCard, getReviewContext, listActiveVendors, listReasonCodes } from "@/lib/jobcards/service";
 import { REPEAT_PAYERS } from "@/lib/jobcards/schemas";
+import { getPolicyForJob } from "@/lib/master/policy-rules";
+import { PolicyLines } from "@/components/policy-lines";
 import { STATUS_LABEL, StatusBadge, Stepper } from "../status";
 import { listJobCardAttachments } from "@/lib/jobcards/attachments";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { getJobFlow, listWorkshopEmails, MAX_WORKSHOPS_PER_CARD } from "@/lib/vendorflow/service";
 import { Panel, Pill, Plate, btn, money } from "@/components/ui";
-import { ClosePanel, DraftPanel, VendorPanel } from "./panel";
+import { ClosePanel, DraftPanel, ReopenPanel, VendorPanel } from "./panel";
 import { DecisionForm } from "./decision";
 import { QuoteDecision } from "./quote-decision";
 import { RateWorkshop, WorkshopScore } from "./workshop-score";
@@ -56,6 +58,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
   const workshopEmails = commercial && canHandleEmails ? await listWorkshopEmails(driver, m, id) : [];
   const canDecideQuote = c.status === "quotation_received" && perms.has("quotation.approve") && (!c.requester_is_me || adminSelfQuote) && !blockedQuote;
   const canClose = c.status === "invoice_verified" && perms.has("invoice.verify");
+  const policy = perms.has("jobcard.read_all") ? await getPolicyForJob(driver, m, id) : [];
   const [files, ctx, reasons, assignable] = await Promise.all([
     listJobCardAttachments(driver, await supabaseBlobStore(), m, id),
     getReviewContext(driver, m, id),
@@ -219,7 +222,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
         <aside className="space-y-5">
           {canDecide && ctx && (
             <Panel title="Your decision">
-              <DecisionForm slug={slug} id={id} requester={c.requester_name} reasons={reasons} currentReasonId={c.reason_code_id} vendors={ctx.vendors} canAssign={perms.has("jobcard.assign_vendor")} repeat={ctx.repeat} raisedByMe={c.requester_is_me} />
+              <DecisionForm slug={slug} id={id} requester={c.requester_name} reasons={reasons} currentReasonId={c.reason_code_id} vendors={ctx.vendors} canAssign={perms.has("jobcard.assign_vendor")} repeat={ctx.repeat} vendorRepeats={ctx.vendorRepeats} raisedByMe={c.requester_is_me} />
             </Panel>
           )}
           {blockedApprove && <p role="status" className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-600">Your company rule keeps the administrator from deciding job cards while a fleet manager or another approver is active. They decide this one. You can change the rule under Service rules.</p>}
@@ -231,8 +234,10 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
               <DraftPanel slug={slug} id={id} />
             </Panel>
           )}
+          {c.status === "rejected" && c.mine && perms.has("jobcard.create") && <Panel title="Rejected"><p className="mb-3 text-sm text-zinc-600">If you think this was rejected by mistake or the situation has changed, send it again with your reason. It goes back to the approvers.</p><ReopenPanel slug={slug} id={id} /></Panel>}
           {canClose && <Panel title="Finish"><ClosePanel slug={slug} id={id} /></Panel>}
 
+          {policy.length > 0 && <Panel title="Company policy" sub="For reference. Nothing here blocks a decision."><PolicyLines lines={policy} money={money} /></Panel>}
           {ctx?.budget && (
             <Panel title={<>Budget impact, <span className="font-mono">{c.registration_no}</span></>}>
               <p className="flex items-baseline justify-between font-mono text-sm"><span>{money(ctx.budget.spent)} now</span><span className={ctx.budget.afterPct >= 100 ? "font-semibold text-red-700" : ""}>{money(ctx.budget.after)} after</span></p>

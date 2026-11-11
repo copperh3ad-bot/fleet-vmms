@@ -24,6 +24,9 @@ export async function seedDemo(driver: Driver, tenant: { tenantId: string; schem
   const existing = await raw(admin, async (q) => (await q.query<{ c: number }>("select count(*)::int c from vehicles")).rows[0].c);
   if (existing > 0) throw new Error("This workspace already has vehicles. The demo data is only for an empty workspace.");
 
+  // The demo shows a repeat repair that came back about six weeks later, so the demo company keeps the older 60-day window (a real company starts at 30, ADR-095).
+  await raw(admin, (q) => q.query("insert into settings(key, value) values ('flag_repeat_days', '60') on conflict (key) do update set value = '60'"));
+
   // ---- people (no logins) ----
   const person = async (name: string, no: string, dept: string, login = false) => {
     // Demo people carry the same made-up numbers in every demo workspace, so they are inserted directly, not through saveEmployee (a real number belongs to one organization, ADR-082).

@@ -20,14 +20,16 @@ const OPTIONS: [Decision, string, string][] = [
   ["reject", "Reject", "Ends the job card. A note is required."],
 ];
 
-export function DecisionForm({ slug, id, requester, reasons, currentReasonId, vendors, canAssign, repeat = null, raisedByMe = false }: {
+export function DecisionForm({ slug, id, requester, reasons, currentReasonId, vendors, canAssign, repeat = null, vendorRepeats = [], raisedByMe = false }: {
   slug: string; id: string; requester: string; /** the person deciding raised this card themselves (the administrator may, ADR-029) */ raisedByMe?: boolean;
-  reasons: { id: string; label: string }[]; currentReasonId: string; vendors: ReviewContext["vendors"]; canAssign: boolean; /** the earlier card this one repeats, if any (ADR-094) */ repeat?: ReviewContext["repeat"];
+  reasons: { id: string; label: string }[]; currentReasonId: string; vendors: ReviewContext["vendors"]; canAssign: boolean; /** the earlier card this one repeats, if any (ADR-094) */ repeat?: ReviewContext["repeat"]; /** workshops that already worked on this vehicle within the repeat window */ vendorRepeats?: ReviewContext["vendorRepeats"];
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(reviewDecisionAction.bind(null, slug, id), {});
   const [decision, setDecision] = useState<Decision>("approve");
   const [vendor, setVendor] = useState(state.values?.vendor_id ?? "");
   const chosen = vendors.find((v) => v.id === vendor);
+  const sameShop = vendorRepeats.find((x) => x.vendor_id === vendor);
+  const earlier = repeat ? { job_no: repeat.job_no, days_ago: repeat.days_ago, why: repeat.reason.toLowerCase() } : sameShop ? { job_no: sameShop.job_no, days_ago: sameShop.days_ago, why: `same workshop, ${chosen?.name ?? "chosen"}` } : null;
   const days = (n: number | null) => (n === null ? "—" : `${n} days`);
   const pct = (n: number | null) => (n === null ? "—" : `${n > 0 ? "+" : ""}${n}%`);
 
@@ -67,9 +69,9 @@ export function DecisionForm({ slug, id, requester, reasons, currentReasonId, ve
         </fieldset>
       )}
 
-      {decision === "approve" && canAssign && repeat && (
+      {decision === "approve" && canAssign && earlier && (
         <fieldset className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3">
-          <legend className="px-1 text-xs font-medium text-amber-900">This repeats {repeat.job_no} ({repeat.days_ago} days ago, {repeat.reason.toLowerCase()}). Who pays?</legend>
+          <legend className="px-1 text-xs font-medium text-amber-900">This repeats {earlier.job_no} ({earlier.days_ago} days ago, {earlier.why}). Who pays?</legend>
           {Object.entries(REPEAT_PAYERS).map(([k, label]) => (
             <label key={k} className="flex items-center gap-2 text-sm"><input type="radio" name="repeat_payer" value={k} defaultChecked={state.values?.repeat_payer === k} className="accent-[#c2410c]" />{label}</label>
           ))}
