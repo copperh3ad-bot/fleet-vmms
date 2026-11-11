@@ -296,6 +296,8 @@ export type CompareRow = {
 };
 export type InvoiceReview = InvoiceCheck & {
   vehicle_id: string; vehicle_label: string; driver: string | null; reason: string; requester_name: string; approver_name: string | null; approved_on: string | null; wo_no: string;
+  /** set when the job card repeats earlier work (ADR-094): who the approver said pays, and why */
+  repeat: { of: string; payer: string; reason: string } | null;
   comparison: CompareRow[];
   totals: { approved: number; invoiced: number; over: number; overPct: number | null };
   /** the person checking may not be the one who approved or raised the job card */
@@ -348,9 +350,12 @@ export async function getInvoiceReview(driver: Driver, m: Membership, id: string
       : me && me === j.requested_by ? { by: "requester" as const, name: j.requester_name } : null;
 
     const waitingRows = (await q.query<{ id: string }>("select i.id from invoices i where i.status = 'submitted' and i.id <> $1 order by i.invoice_date, i.id", [id])).rows;
+    const rep = (await q.query<{ of_no: string | null; repeat_payer: string | null; repeat_payer_reason: string | null }>(
+      "select (select r.job_no from job_cards r where r.id = jc.repeat_of) as of_no, jc.repeat_payer, jc.repeat_payer_reason from invoices i join work_orders wo on wo.id = i.work_order_id join job_cards jc on jc.id = wo.job_card_id where i.id = $1", [id])).rows[0];
     return {
       ...base, lines: [], vehicle_id: j.vehicle_id, vehicle_label: j.label, driver: j.driver, reason: j.reason, requester_name: j.requester_name,
       approver_name: j.approver_name, approved_on: j.approved_on, wo_no: j.wo_no, comparison,
+      repeat: rep?.repeat_payer && rep.of_no ? { of: rep.of_no, payer: rep.repeat_payer, reason: rep.repeat_payer_reason ?? "" } : null,
       totals: { approved, invoiced, over, overPct: approved > 0 ? Math.round((over / approved) * 1000) / 10 : null },
       blocked, next: waitingRows[0]?.id ?? null, waiting: waitingRows.length,
     };

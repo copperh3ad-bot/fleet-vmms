@@ -8,6 +8,7 @@ import { requireMembership } from "@/lib/auth/session";
 import { adminBlockedFromOthers, adminMayDecideOwn, permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { getJobCard, getReviewContext, listActiveVendors, listReasonCodes } from "@/lib/jobcards/service";
+import { REPEAT_PAYERS } from "@/lib/jobcards/schemas";
 import { STATUS_LABEL, StatusBadge, Stepper } from "../status";
 import { listJobCardAttachments } from "@/lib/jobcards/attachments";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
@@ -101,6 +102,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
               <div className="sm:col-span-2"><dt className="text-xs text-zinc-500">Reason chosen</dt><dd className="mt-0.5">{c.requested_reason_label}{c.reason_label !== c.requested_reason_label && <span className="text-zinc-500"> · changed to {c.reason_label}{c.approver_name ? ` by ${c.approver_name}` : ""}</span>}</dd></div>
               {c.needed_by && <div><dt className="text-xs text-zinc-500">Needed by</dt><dd className="mt-0.5">{dayMonth(c.needed_by)}</dd></div>}
               {c.approver_name && <div><dt className="text-xs text-zinc-500">Approved by</dt><dd className="mt-0.5">{c.approver_name}</dd></div>}
+              {c.repeat_payer && <div className="sm:col-span-2"><dt className="text-xs text-zinc-500">Repeat of {c.repeat_of_no}: who pays</dt><dd className="mt-0.5"><strong>{REPEAT_PAYERS[c.repeat_payer] ?? c.repeat_payer}</strong>. {c.repeat_payer_reason}</dd></div>}
               {c.vendor_name && <div><dt className="text-xs text-zinc-500">Workshop</dt><dd className="mt-0.5">{c.vendor_name}</dd></div>}
             </dl>
             <div className="mt-4 rounded-md bg-zinc-50 p-4 text-sm"><p className="text-xs text-zinc-500">What the driver wrote</p><p className="mt-1 whitespace-pre-wrap">“{c.cause_text}”</p>{c.description && <p className="mt-2 whitespace-pre-wrap text-zinc-600">{c.description}</p>}</div>
@@ -217,7 +219,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
         <aside className="space-y-5">
           {canDecide && ctx && (
             <Panel title="Your decision">
-              <DecisionForm slug={slug} id={id} requester={c.requester_name} reasons={reasons} currentReasonId={c.reason_code_id} vendors={ctx.vendors} canAssign={perms.has("jobcard.assign_vendor")} raisedByMe={c.requester_is_me} />
+              <DecisionForm slug={slug} id={id} requester={c.requester_name} reasons={reasons} currentReasonId={c.reason_code_id} vendors={ctx.vendors} canAssign={perms.has("jobcard.assign_vendor")} repeat={ctx.repeat} raisedByMe={c.requester_is_me} />
             </Panel>
           )}
           {blockedApprove && <p role="status" className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-600">Your company rule keeps the administrator from deciding job cards while a fleet manager or another approver is active. They decide this one. You can change the rule under Service rules.</p>}

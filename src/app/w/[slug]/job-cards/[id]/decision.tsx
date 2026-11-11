@@ -4,6 +4,7 @@ import { keepForm } from "@/components/keep-form";
 import { Notice, inputCls } from "@/components/form";
 import { btn } from "@/components/ui";
 import type { ReviewContext } from "@/lib/jobcards/service";
+import { REPEAT_PAYERS } from "@/lib/jobcards/schemas";
 import type { FormState } from "../../actions-util";
 import { reviewDecisionAction } from "../actions";
 
@@ -19,9 +20,9 @@ const OPTIONS: [Decision, string, string][] = [
   ["reject", "Reject", "Ends the job card. A note is required."],
 ];
 
-export function DecisionForm({ slug, id, requester, reasons, currentReasonId, vendors, canAssign, raisedByMe = false }: {
+export function DecisionForm({ slug, id, requester, reasons, currentReasonId, vendors, canAssign, repeat = null, raisedByMe = false }: {
   slug: string; id: string; requester: string; /** the person deciding raised this card themselves (the administrator may, ADR-029) */ raisedByMe?: boolean;
-  reasons: { id: string; label: string }[]; currentReasonId: string; vendors: ReviewContext["vendors"]; canAssign: boolean;
+  reasons: { id: string; label: string }[]; currentReasonId: string; vendors: ReviewContext["vendors"]; canAssign: boolean; /** the earlier card this one repeats, if any (ADR-094) */ repeat?: ReviewContext["repeat"];
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(reviewDecisionAction.bind(null, slug, id), {});
   const [decision, setDecision] = useState<Decision>("approve");
@@ -63,6 +64,19 @@ export function DecisionForm({ slug, id, requester, reasons, currentReasonId, ve
             </label>
           ))}
           {state.fields?.vendor_id && <p role="alert" className="text-xs text-red-700">{state.fields.vendor_id}</p>}
+        </fieldset>
+      )}
+
+      {decision === "approve" && canAssign && repeat && (
+        <fieldset className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3">
+          <legend className="px-1 text-xs font-medium text-amber-900">This repeats {repeat.job_no} ({repeat.days_ago} days ago, {repeat.reason.toLowerCase()}). Who pays?</legend>
+          {Object.entries(REPEAT_PAYERS).map(([k, label]) => (
+            <label key={k} className="flex items-center gap-2 text-sm"><input type="radio" name="repeat_payer" value={k} defaultChecked={state.values?.repeat_payer === k} className="accent-[#c2410c]" />{label}</label>
+          ))}
+          {state.fields?.repeat_payer && <p role="alert" className="text-xs text-red-700">{state.fields.repeat_payer}</p>}
+          <label htmlFor="repeat_payer_reason" className="block text-xs font-medium text-amber-900">Why? This is kept on the card and shown with the quotation and the invoice. <span className="text-red-700">*</span></label>
+          <textarea id="repeat_payer_reason" name="repeat_payer_reason" rows={2} defaultValue={state.values?.repeat_payer_reason ?? ""} className={`${inputCls} h-auto py-2`} aria-invalid={!!state.fields?.repeat_payer_reason} />
+          {state.fields?.repeat_payer_reason && <p role="alert" className="text-xs text-red-700">{state.fields.repeat_payer_reason}</p>}
         </fieldset>
       )}
 

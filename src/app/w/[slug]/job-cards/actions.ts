@@ -64,6 +64,7 @@ export async function transitionAction(slug: string, id: string, to: string, _pr
   const state = await runAction(slug, async (m) => {
     await transitionJobCard(getDriver(), m, id, to, {
       comment: str(form, "comment") || undefined, reasonCodeId: str(form, "reason_code_id") || undefined, vendorId: str(form, "vendor_id") || undefined,
+      repeatPayer: str(form, "repeat_payer") || undefined, repeatReason: str(form, "repeat_payer_reason") || undefined,
     });
     return { approved: "Approved.", rejected: "Rejected.", returned_for_edit: "Sent back for edit.", submitted: "Submitted for approval.", cancelled: "Cancelled.", vendor_assigned: "Vendor assigned.", closed: "Closed." }[to] ?? "Done.";
   });
@@ -157,7 +158,7 @@ export async function reviewDecisionAction(slug: string, id: string, _prev: Form
   const note = str(form, "comment");
   const state = await runAction(slug, async (m) => {
     if (intent === "approve") {
-      await approveAndAssign(getDriver(), m, id, { vendorId: str(form, "vendor_id"), reasonCodeId: str(form, "reason_code_id") || undefined, comment: note || undefined });
+      await approveAndAssign(getDriver(), m, id, { vendorId: str(form, "vendor_id"), reasonCodeId: str(form, "reason_code_id") || undefined, comment: note || undefined, repeatPayer: str(form, "repeat_payer") || undefined, repeatReason: str(form, "repeat_payer_reason") || undefined });
       return "Approved. The workshop has been asked for a quotation.";
     }
     if (intent === "return") { await transitionJobCard(getDriver(), m, id, "returned_for_edit", { comment: note }); return "Sent back for edit."; }

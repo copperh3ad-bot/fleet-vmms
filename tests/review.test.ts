@@ -4,6 +4,7 @@ import { provisionTenant } from "@/lib/db/provision";
 import { withTenant } from "@/lib/db/tenant";
 import { ForbiddenError, type Membership } from "@/lib/auth/can";
 import * as jc from "@/lib/jobcards/service";
+import { UserError } from "@/lib/master/service";
 import { seedDemo } from "@/lib/demo/seed";
 
 let d: Awaited<ReturnType<typeof testDriver>>;
@@ -76,8 +77,17 @@ describe("approve and assign in one step", () => {
   it("approves and assigns: both events in order, the approver recorded, the comment kept, the workshop told", async () => {
     const approver = mem("fleet_manager", await userOf("E-202"));
     const job = await cardOf("BKL-302", "submitted");
-    await jc.approveAndAssign(d, approver, job, { vendorId: await vendorId("Quick Fix Motors"), comment: "Check the guarantee first" });
+    // BKL-302 repeats an earlier job (demo data), so the approver must say who pays (ADR-094)
+    const refused = await jc.approveAndAssign(d, approver, job, { vendorId: await vendorId("Quick Fix Motors"), comment: "Check the guarantee first" }).catch((e) => e);
+    expect(refused).toBeInstanceOf(UserError);
+    expect((refused as UserError).fields).toMatchObject({ repeat_payer: expect.any(String), repeat_payer_reason: expect.any(String) });
+    expect((await jc.getJobCard(d, approver, job))!.status).toBe("submitted");                    // nothing was approved
+    await expect(jc.approveAndAssign(d, approver, job, { vendorId: await vendorId("Quick Fix Motors"), repeatPayer: "workshop", repeatReason: "ok" })).rejects.toBeInstanceOf(UserError);   // too short a reason
+    await jc.approveAndAssign(d, approver, job, { vendorId: await vendorId("Quick Fix Motors"), comment: "Check the guarantee first", repeatPayer: "workshop", repeatReason: "Same fault came back inside the guarantee" });
     const c = (await jc.getJobCard(d, approver, job))!;
+    expect(c.repeat_payer).toBe("workshop");                                                     // kept on the card with the earlier card it repeats
+    expect(c.repeat_payer_reason).toBe("Same fault came back inside the guarantee");
+    expect(c.repeat_of_no).toMatch(/^JC-/);
     expect(c.status).toBe("vendor_assigned");
     expect(c.approver_name).toBe("Ayesha Noor");
     expect(c.vendor_name).toBe("Quick Fix Motors");
@@ -93,5 +103,18 @@ describe("approve and assign in one step", () => {
     const c = (await jc.getJobCard(d, approver, job))!;
     expect(c.reason_label).toMatch(/overload/i);
     expect(c.requested_reason_label).toMatch(/tyre/i);
+  });
+
+  it("a card whose reason is \"previous repair not effective\" repeats the latest earlier job on the vehicle, whatever the window (ADR-094)", async () => {
+    const approver = mem("fleet_manager", await userOf("E-202"));
+    const pick = await raw(async (q) => (await q.query<{ id: string }>(
+      `select jc.id from job_cards jc where jc.status in ('submitted','returned_for_edit','draft')
+          and exists (select 1 from job_cards p join reason_codes pr on pr.id = p.reason_code_id where p.vehicle_id = jc.vehicle_id and p.id <> jc.id and p.created_at < jc.created_at
+                       and p.status not in ('draft','cancelled','rejected') and pr.category <> 'scheduled_service')
+        order by jc.created_at limit 1`)).rows[0]);
+    expect(pick).toBeDefined();
+    const poor = await raw(async (q) => (await q.query<{ id: string }>("select id from reason_codes where code = 'REPEAT_POOR_REPAIR'")).rows[0].id);
+    await raw((q) => q.query("update job_cards set reason_code_id = $2 where id = $1", [pick.id, poor]));
+    expect((await jc.getReviewContext(d, approver, pick.id))!.repeat).not.toBeNull();
   });
 });

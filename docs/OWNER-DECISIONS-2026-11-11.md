@@ -59,7 +59,7 @@ Built 2026-11-11 as ADR-088 (migration 0054); not deployed.
 | # | Decision |
 |---|---|
 | G1 | A repeat is: same vehicle and same workshop within the window; or reason "poor previous repair" (any); or same part or service type. Window **30 days**. |
-| G2 | Warranty period for a workshop repair: **7 days**. Who pays for a repeat repair: **depends on the reason** (answered Q2). The owner has not yet given the rule; proposed default, to be confirmed: reasons "poor previous repair" and "defect" inside the warranty are the workshop's to redo free (invoice not payable, a Fleet Manager may override with a reason); wear and tear, environmental, accident and driver misuse are payable and flagged. |
+| G2 | Warranty period for a workshop repair: **7 days**. Who pays for a repeat repair: **depends on the reason** (answered Q2). Owner's later answer: the reasoning on each repeat card justifies which party pays, so the approver chooses who pays and writes why (ADR-094). The older proposal, no longer used: proposed default, to be confirmed: reasons "poor previous repair" and "defect" inside the warranty are the workshop's to redo free (invoice not payable, a Fleet Manager may override with a reason); wear and tear, environmental, accident and driver misuse are payable and flagged. |
 | G3 | Show the relevant policy rules read-only on the approval and invoice screens, with the rule and the amount that applies. |
 | G4 | The assistant **may read** `Vehicle Policy._0001.pdf` and use it as the test policy. |
 | G5 | A requester **may reopen a rejected job card** with a reason. |

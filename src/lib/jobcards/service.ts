@@ -7,7 +7,7 @@ import { UserError } from "@/lib/master/service";
 import { assertHoursPlausible } from "@/lib/hours/service";
 import { notify, usersWithPermission } from "@/lib/notify";
 import { fieldErrors } from "@/lib/master/schemas";
-import { jobCardSchema, TRANSITION_PERMISSION, type JobCardData, type JobCardInput } from "./schemas";
+import { jobCardSchema, REPEAT_PAYERS, TRANSITION_PERMISSION, type JobCardData, type JobCardInput } from "./schemas";
 
 /** Messages raised by the job card SQL functions that a person can act on. Anything else is a bug and stays loud. */
 const KNOWN = [
@@ -173,6 +173,44 @@ export function getJobContext(driver: Driver, m: Membership, vehicleId: string):
   });
 }
 
+// ---------- Repeat work and who pays (ADR-094) ----------
+
+type RepeatRow = { id: string; job_no: string; created_at: string; days_ago: number; cost: string; reason: string; vendor_id: string | null; vendor: string | null; cause_text: string };
+
+/**
+ * The earlier job card this one repeats, if any: the same vehicle, not routine service, within the repeat window (setting flag_repeat_days), with the same reason or the same
+ * type of service on one of its lines. A card whose own reason is "previous repair not effective" repeats the latest earlier one whatever the window.
+ */
+async function findRepeat(q: Queryable, jobId: string): Promise<RepeatRow | undefined> {
+  const window = Number((await q.query<{ d: string }>("select setting_num('flag_repeat_days', 60)::text d")).rows[0].d);
+  return (await q.query<RepeatRow>(
+    `select p.id, p.job_no, p.created_at::text, (current_date - p.created_at::date)::int as days_ago, coalesce(c.cost, 0)::text as cost, rc.label as reason,
+            p.vendor_id, vn.name as vendor, p.cause_text
+       from job_cards cur join reason_codes cr on cr.id = cur.reason_code_id
+       join job_cards p on p.vehicle_id = cur.vehicle_id and p.id <> cur.id and p.created_at < cur.created_at and p.status not in ('draft','cancelled','rejected')
+       join reason_codes rc on rc.id = p.reason_code_id left join vendors vn on vn.id = p.vendor_id left join v_vehicle_job_cost c on c.job_card_id = p.id
+      where cur.id = $1 and rc.category <> 'scheduled_service'
+        and (cr.category = 'poor_previous_repair'
+             or (p.created_at >= cur.created_at - ($2 || ' days')::interval
+                 and (p.reason_code_id = cur.reason_code_id
+                      or exists (select 1 from job_card_lines a join job_card_lines b on b.service_type_key = a.service_type_key
+                                  where a.job_card_id = cur.id and b.job_card_id = p.id and a.service_type_key is not null))))
+      order by p.created_at desc limit 1`, [jobId, String(window)])).rows[0];
+}
+
+/** At approval on the review screen (`require`): a repeat card needs the approver's answer to "who pays", with a written reason. Saved on the card. Rolls the approval back when it is missing. */
+async function recordRepeatPayer(q: Queryable, id: string, payer?: string, reason?: string, require = false) {
+  const rp = await findRepeat(q, id);
+  if (!rp) return;
+  if (!require && !payer) return;
+  const why = (reason ?? "").trim();
+  const fields: Record<string, string> = {};
+  if (!payer || !REPEAT_PAYERS[payer]) fields.repeat_payer = "Say who pays for this repeat work";
+  if (why.length < 5) fields.repeat_payer_reason = "Give the reason, at least a few words";
+  if (Object.keys(fields).length) throw new UserError(`This repeats ${rp.job_no}. Say who pays, and why.`, fields);
+  await q.query("update job_cards set repeat_of = $2, repeat_payer = $3, repeat_payer_reason = $4 where id = $1", [id, rp.id, payer, why.slice(0, 500)]);
+}
+
 // ---------- The review screen: what the decider needs to know ----------
 
 export type ReviewContext = {
@@ -201,14 +239,7 @@ export function getReviewContext(driver: Driver, m: Membership, jobId: string): 
     const est = Number(jc.estimated_cost ?? 0);
     const budget = b ? { budget: Number(b.budget), spent: Number(b.spent), pct: Number(b.pct ?? 0), after: Number(b.spent) + est, afterPct: Math.round(((Number(b.spent) + est) / Number(b.budget)) * 100) } : null;
 
-    const window = Number((await q.query<{ d: string }>("select setting_num('flag_repeat_days', 60)::text d")).rows[0].d);
-    const rp = (await q.query<{ id: string; job_no: string; created_at: string; days_ago: number; cost: string; reason: string; vendor_id: string | null; vendor: string | null; cause_text: string }>(
-      `select p.id, p.job_no, p.created_at::text, (current_date - p.created_at::date)::int as days_ago, coalesce(c.cost, 0)::text as cost, rc.label as reason,
-              p.vendor_id, vn.name as vendor, p.cause_text
-         from job_cards p join reason_codes rc on rc.id = p.reason_code_id left join vendors vn on vn.id = p.vendor_id left join v_vehicle_job_cost c on c.job_card_id = p.id
-        where p.vehicle_id = $1 and p.reason_code_id = $2 and p.id <> $3 and rc.category <> 'scheduled_service' and p.status not in ('draft','cancelled','rejected')
-          and p.created_at < $4::timestamptz and p.created_at >= $4::timestamptz - ($5 || ' days')::interval order by p.created_at desc limit 1`,
-      [jc.vehicle_id, jc.reason_code_id, jobId, jc.created_at, String(window)])).rows[0];
+    const rp = await findRepeat(q, jobId);
     const repeat = rp ? { job_id: rp.id, job_no: rp.job_no, created_at: rp.created_at, days_ago: rp.days_ago, cost: Number(rp.cost), reason: rp.reason, vendor_id: rp.vendor_id, vendor: rp.vendor, cause_text: rp.cause_text } : null;
 
     const due = (await q.query<{ label: string; status: string; due_on: string | null; days: number | null }>(
@@ -236,13 +267,13 @@ export function getReviewContext(driver: Driver, m: Membership, jobId: string): 
 }
 
 /** Approve and assign the workshop in one step, as the review screen does. Needs both permissions; one transaction. */
-export async function approveAndAssign(driver: Driver, m: Membership, id: string, opts: { vendorId: string; reasonCodeId?: string; comment?: string }): Promise<void> {
+export async function approveAndAssign(driver: Driver, m: Membership, id: string, opts: { vendorId: string; reasonCodeId?: string; comment?: string; repeatPayer?: string; repeatReason?: string }): Promise<void> {
   if (!opts.vendorId) throw new UserError("Choose a workshop.", { vendor_id: "Choose a workshop" });
   return authorized(driver, m, "jobcard.approve", async (q) => {
     const ok = await q.query("select 1 from role_permissions where role_key = $1 and permission_key = 'jobcard.assign_vendor'", [m.role]);
     if (ok.rows.length === 0) throw new ForbiddenError("jobcard.assign_vendor");
     try {
-      await transitionInTx(q, m, id, "approved", { comment: opts.comment, reasonCodeId: opts.reasonCodeId });
+      await transitionInTx(q, m, id, "approved", { comment: opts.comment, reasonCodeId: opts.reasonCodeId, repeatPayer: opts.repeatPayer, repeatReason: opts.repeatReason, requireRepeatPayer: true });
       await transitionInTx(q, m, id, "vendor_assigned", { vendorId: opts.vendorId });
     } catch (e) { friendly(e); }
   });
@@ -250,12 +281,13 @@ export async function approveAndAssign(driver: Driver, m: Membership, id: string
 
 // ---------- The one way a status changes ----------
 
-export type TransitionOptions = { comment?: string; reasonCodeId?: string; vendorId?: string };
+export type TransitionOptions = { comment?: string; reasonCodeId?: string; vendorId?: string; repeatPayer?: string; repeatReason?: string; /** the review screen: a repeat card cannot be approved without an answer */ requireRepeatPayer?: boolean };
 
 /** The one place a status is changed inside a transaction: the SQL function (guard + event row) and the notices. */
 async function transitionInTx(q: Queryable, m: Membership, id: string, to: string, opts: TransitionOptions = {}) {
   await q.query("select transition_job_card($1, $2, $3, $4, $5::jsonb)", [
     id, to, m.userId, opts.comment ?? null, JSON.stringify({ reason_code_id: opts.reasonCodeId ?? null, vendor_id: opts.vendorId ?? null })]);
+  if (to === "approved") await recordRepeatPayer(q, id, opts.repeatPayer, opts.repeatReason, opts.requireRepeatPayer);       // ADR-094: a repeat card is not approved without "who pays" and why
   await notifyAfter(q, m, id, to);
 }
 
@@ -301,6 +333,7 @@ export type JobCardDetail = JobCardRow & { source: string;
   cause_text: string; description: string | null; odometer_km: string | null; engine_hours: string | null; custodian_name: string | null;
   requested_reason_label: string; reason_code_id: string; requested_by: string; approver_name: string | null; approved_by: string | null;
   vendor_id: string | null; vendor_name: string | null; mine: boolean; requester_is_me: boolean; age_days: number;
+  repeat_of: string | null; repeat_of_no: string | null; repeat_payer: string | null; repeat_payer_reason: string | null;
   lines: { id: string; kind: string; description: string; qty: string; unit_cost: string; service_type_key: string | null }[];
   events: { id: string; from_status: string | null; to_status: string; actor_name: string | null; comment: string | null; created_at: string }[];
 };
@@ -310,7 +343,8 @@ export function getJobCard(driver: Driver, m: Membership, id: string): Promise<J
     const jc = (await q.query<JobCardDetail>(
       `select jc.id, jc.job_no, jc.source, jc.status, jc.category, jc.priority, jc.created_at::text, jc.needed_by::text, jc.vehicle_id,
               jc.cause_text, jc.description, jc.odometer_km::text, jc.engine_hours::text, jc.estimated_cost::text, jc.reason_code_id, jc.requested_by, jc.approved_by,
-              jc.vendor_id, v.registration_no, re.full_name as requester_name, rc.label as reason_label, rq.label as requested_reason_label,
+              jc.vendor_id, jc.repeat_of, (select r.job_no from job_cards r where r.id = jc.repeat_of) as repeat_of_no, jc.repeat_payer, jc.repeat_payer_reason,
+              v.registration_no, re.full_name as requester_name, rc.label as reason_label, rq.label as requested_reason_label,
               cu.full_name as custodian_name, ap.full_name as approver_name, vn.name as vendor_name,
               job_card_is_mine(jc.id, $2) as mine, (jc.requested_by = actor_employee($2)) as requester_is_me, greatest(0, current_date - jc.created_at::date)::int as age_days
          from job_cards jc

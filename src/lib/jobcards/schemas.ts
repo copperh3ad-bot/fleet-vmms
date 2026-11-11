@@ -44,3 +44,6 @@ export const TRANSITION_PERMISSION: Record<string, string> = {
   // quotation_received, quotation_approved, in_progress, completed, invoiced and invoice_verified are not asked for
   // directly: they happen inside submit_quotation, approve_quotation, vendor_*_work, submit_invoice and verify_invoice.
 };
+
+/** Who can pay for repeat work (ADR-094). Shared by the server and the review form. */
+export const REPEAT_PAYERS: Record<string, string> = { company: "The company", workshop: "The workshop, under its guarantee", driver: "The driver" };

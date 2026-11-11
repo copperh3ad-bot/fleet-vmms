@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/auth/session";
 import { adminBlockedFromOthers, permissionsOf } from "@/lib/auth/can";
+import { REPEAT_PAYERS } from "@/lib/jobcards/schemas";
 import { getDriver } from "@/lib/db";
 import { getInvoiceReview, listCommercialFiles, type CompareRow } from "@/lib/vendorflow/service";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
@@ -103,6 +104,13 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
               <div><dt className="text-xs text-zinc-500">Work order</dt><dd className="mt-0.5 font-mono">{inv.wo_no}</dd></div>
             </dl>
           </Panel>
+
+          {inv.repeat && (
+            <p role="status" className="rounded-md bg-amber-100 p-3 text-sm text-amber-800">
+              This job repeats {inv.repeat.of}. The approver said who pays: <strong>{REPEAT_PAYERS[inv.repeat.payer] ?? inv.repeat.payer}</strong>. Reason: {inv.repeat.reason}
+              {inv.repeat.payer === "workshop" && " Check whether the amount payable should be less than the invoice."}
+            </p>
+          )}
 
           <Panel title="Your decision">
             {inv.status === "submitted" && !canVerify ? (
