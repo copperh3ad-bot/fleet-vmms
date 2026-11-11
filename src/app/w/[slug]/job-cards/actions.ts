@@ -8,7 +8,7 @@ import { ForbiddenError } from "@/lib/auth/can";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { addJobCardAttachment, removeJobCardAttachment } from "@/lib/jobcards/attachments";
 import { UserError } from "@/lib/master/service";
-import { createWorkshopLink, decideQuotation, setWorkshopEmailStatus, workshopContact, type WorkshopLinkKind } from "@/lib/vendorflow/service";
+import { createWorkshopLink, decideQuotation, inviteWorkshop, uninviteWorkshop, setWorkshopEmailStatus, workshopContact, type WorkshopLinkKind } from "@/lib/vendorflow/service";
 import { notifyWorkshop } from "@/lib/vendorflow/whatsapp-notify";
 import { rateVendor } from "@/lib/vendorflow/scorecard";
 import { enterForWorkshop } from "@/lib/vendorflow/entry";
@@ -95,13 +95,31 @@ export async function removeAttachmentAction(slug: string, attachmentId: string)
 
 export async function decideQuotationAction(slug: string, quotationId: string, decision: "approve" | "reject", _prev: FormState, form: FormData): Promise<FormState> {
   const state = await runAction(slug, async (m) => {
-    const { jobId } = await decideQuotation(getDriver(), m, quotationId, decision, str(form, "comment") || undefined);
+    const { jobId, vendorId } = await decideQuotation(getDriver(), m, quotationId, decision, str(form, "comment") || undefined);
     // the workshop is told on WhatsApp too (ADR-056); a message problem never undoes the decision
-    await notifyWorkshop(decision === "approve" ? "estimate_approved" : "estimate_declined", await workshopContact(getDriver(), m, jobId).catch(() => null), m.tenantName || "A Fleet OTG customer", str(form, "comment"));
+    await notifyWorkshop(decision === "approve" ? "estimate_approved" : "estimate_declined", await workshopContact(getDriver(), m, jobId, vendorId).catch(() => null), m.tenantName || "A Fleet OTG customer", str(form, "comment"));
     return decision === "approve" ? "Quotation approved. Work order issued." : "Quotation rejected. The vendor can send a new one.";
   });
   if (state.ok) refresh();
   return state.error || state.fields ? { ...state, values: typed(form) } : state;
+}
+
+/** Ask one more workshop for an estimate on this job card (C1, ADR-090). */
+export async function inviteWorkshopAction(slug: string, jobId: string, _prev: FormState, form: FormData): Promise<FormState> {
+  const state = await runAction(slug, async (m) => {
+    const vendorId = str(form, "vendor_id");
+    if (!vendorId) throw new UserError("Choose a workshop.", { vendor_id: "Choose a workshop" });
+    await inviteWorkshop(getDriver(), m, jobId, vendorId);
+    return "Workshop asked. Now send it the estimate link.";
+  });
+  if (state.ok) refresh();
+  return state.error || state.fields ? { ...state, values: typed(form) } : state;
+}
+
+export async function uninviteWorkshopAction(slug: string, jobId: string, vendorId: string, _prev: FormState): Promise<FormState> {
+  const state = await runAction(slug, async (m) => { await uninviteWorkshop(getDriver(), m, jobId, vendorId); return "Request withdrawn."; });
+  if (state.ok) refresh();
+  return state;
 }
 
 /** The Fleet Manager rates (and may flag) the workshop on a quotation (C4). */
@@ -156,11 +174,11 @@ const askText = (kind: WorkshopLinkKind, jobNo: string, url: string) =>
   `Fleet OTG: please send your ${kind === "quotation" ? "estimate" : "invoice"} for job card ${jobNo} using this link (works once, valid 7 days): ${url}`;
 
 /** A fresh single-use link for the assigned workshop, for the estimate or the invoice. It goes to the workshop's own phone number only and is not shown on screen (ADR-030, ADR-033). */
-export async function createWorkshopLinkAction(slug: string, jobId: string, kind: WorkshopLinkKind, _prev: QuoteLinkState): Promise<QuoteLinkState> {
+export async function createWorkshopLinkAction(slug: string, jobId: string, kind: WorkshopLinkKind, vendorId: string | null, _prev: QuoteLinkState): Promise<QuoteLinkState> {
   const base = await origin();
   let send: QuoteLinkState["send"];
   const state = await runAction(slug, async (m) => {
-    const l = await createWorkshopLink(getDriver(), m, jobId, kind);
+    const l = await createWorkshopLink(getDriver(), m, jobId, kind, { vendorId });
     if (!l.phone.e164) throw new UserError(`${l.vendor_name} has no mobile number a message can reach. Add it under Vendors, or send the link by email.`);
     send = { text: askText(kind, l.job_no, `${base}/q/${l.token}`), digits: l.phone.digits, e164: l.phone.e164, display: l.phone.display, vendor: l.vendor_name, expires_at: l.expires_at };
     return "Link ready.";
@@ -173,11 +191,11 @@ export async function createWorkshopLinkAction(slug: string, jobId: string, kind
  * The same link, sent by email to the workshop's own address on the Vendors page (ADR-033). The email goes out from here, so the link is never
  * shown to the person pressing the button; it reaches only the address the organization entered for that workshop.
  */
-export async function emailWorkshopLinkAction(slug: string, jobId: string, kind: WorkshopLinkKind, _prev: QuoteLinkState): Promise<QuoteLinkState> {
+export async function emailWorkshopLinkAction(slug: string, jobId: string, kind: WorkshopLinkKind, vendorId: string | null, _prev: QuoteLinkState): Promise<QuoteLinkState> {
   const base = await origin();
   const state = await runAction(slug, async (m) => {
     if (!emailConfigured()) throw new UserError("Email is not set up on this server yet. Send the link by phone instead.");
-    const l = await createWorkshopLink(getDriver(), m, jobId, kind, { withReply: true });
+    const l = await createWorkshopLink(getDriver(), m, jobId, kind, { withReply: true, vendorId });
     if (!l.vendor_email) throw new UserError(`${l.vendor_name} has no email address. Add it under Vendors, or send the link by phone.`);
     try {
       await sendMail(buildWorkshopMail({ to: l.vendor_email, kind, vendorName: l.vendor_name, orgName: m.tenantName || "A Fleet OTG customer", jobNo: l.job_no, url: `${base}/q/${l.token}`, siteUrl: SITE_URL, replyTo: l.replyCode ? replyAddress(l.replyCode) : undefined }));
@@ -194,12 +212,12 @@ export async function emailWorkshopLinkAction(slug: string, jobId: string, kind:
  * The request sent to the workshop's WhatsApp from Fleet OTG itself (ADR-042): an approved template with a button to the one-time link, and the workshop may also just
  * reply to the message with its estimate or invoice, which is filed on the job card. The link is never shown to the person pressing the button.
  */
-export async function whatsappWorkshopLinkAction(slug: string, jobId: string, kind: WorkshopLinkKind, _prev: QuoteLinkState): Promise<QuoteLinkState> {
+export async function whatsappWorkshopLinkAction(slug: string, jobId: string, kind: WorkshopLinkKind, vendorId: string | null, _prev: QuoteLinkState): Promise<QuoteLinkState> {
   const state = await runAction(slug, async (m) => {
     const specific = process.env[kind === "quotation" ? "WHATSAPP_ESTIMATE_REQUEST_TEMPLATE" : "WHATSAPP_INVOICE_REQUEST_TEMPLATE"];
     const template = specific || process.env.WHATSAPP_REQUEST_TEMPLATE;
     if (!whatsappConfigured() || !template) throw new UserError("Sending on WhatsApp from Fleet OTG is not set up yet. Use the phone buttons.");
-    const l = await createWorkshopLink(getDriver(), m, jobId, kind);
+    const l = await createWorkshopLink(getDriver(), m, jobId, kind, { vendorId });
     if (!l.phone.e164) throw new UserError(`${l.vendor_name} has no mobile number a message can reach. Add it under Vendors, or send the link by email.`);
     let messageId: string;
     try {

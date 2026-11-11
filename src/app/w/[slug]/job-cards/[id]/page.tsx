@@ -11,12 +11,13 @@ import { getJobCard, getReviewContext, listActiveVendors, listReasonCodes } from
 import { STATUS_LABEL, StatusBadge, Stepper } from "../status";
 import { listJobCardAttachments } from "@/lib/jobcards/attachments";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
-import { getJobFlow, listWorkshopEmails } from "@/lib/vendorflow/service";
+import { getJobFlow, listWorkshopEmails, MAX_WORKSHOPS_PER_CARD } from "@/lib/vendorflow/service";
 import { Panel, Pill, Plate, btn, money } from "@/components/ui";
 import { ClosePanel, DraftPanel, VendorPanel } from "./panel";
 import { DecisionForm } from "./decision";
 import { QuoteDecision } from "./quote-decision";
 import { RateWorkshop, WorkshopScore } from "./workshop-score";
+import { AskAnotherWorkshop, WithdrawWorkshop } from "./ask-workshops";
 import { RemoveFile, UploadForm } from "./files";
 import { dayMonth, plural } from "@/lib/labels";
 
@@ -41,6 +42,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
   const adminSelfApprove = c.requester_is_me && c.status === "submitted" ? await adminMayDecideOwn(driver, m, "jobcard.approve", { vehicleId: c.vehicle_id, amount: c.estimated_cost }) : false;
   const canDecide = c.status === "submitted" && perms.has("jobcard.approve") && (!c.requester_is_me || adminSelfApprove);
   const canAssign = c.status === "approved" && perms.has("jobcard.assign_vendor");
+  const canAsk = ["vendor_assigned", "quotation_received"].includes(c.status) && perms.has("jobcard.assign_vendor");
   const canEdit = c.mine && perms.has("jobcard.create") && ["draft", "returned_for_edit"].includes(c.status);
   const commercial = perms.has("jobcard.read_all") && !["draft", "submitted", "returned_for_edit", "rejected", "cancelled", "approved"].includes(c.status);
   const flow = commercial ? await getJobFlow(driver, m, id) : null;
@@ -54,7 +56,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
     listJobCardAttachments(driver, await supabaseBlobStore(), m, id),
     getReviewContext(driver, m, id),
     canDecide ? listReasonCodes(driver, m) : Promise.resolve([]),
-    canAssign ? listActiveVendors(driver, m) : Promise.resolve([]),
+    canAssign || canAsk ? listActiveVendors(driver, m) : Promise.resolve([]),
   ]);
   const total = c.lines.reduce((s, l) => s + Number(l.qty) * Number(l.unit_cost), 0);
   const lastReturn = c.status === "returned_for_edit" ? [...c.events].reverse().find((e) => e.to_status === "returned_for_edit") : null;
@@ -150,9 +152,26 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
 
           {flow && (
             <Panel title="Quotation, work order and invoice">
-              {c.status === "vendor_assigned" && <p className="mb-3 text-sm text-zinc-600">Waiting for {c.vendor_name} to send a quotation.</p>}
+              {["vendor_assigned", "quotation_received"].includes(c.status) && flow.workshops.length > 0 && (
+                <div className="mb-3 text-sm">
+                  <p className="font-medium">{flow.workshops.length === 1 ? "Workshop asked for an estimate" : `${flow.workshops.length} workshops asked for an estimate`}</p>
+                  <ul className="mt-1 space-y-1 text-zinc-700">
+                    {flow.workshops.map((w) => (
+                      <li key={w.vendor_id}>{w.name} · {w.has_waiting_estimate ? "estimate received" : w.has_any_estimate ? "estimate declined, may send another" : "waiting for its estimate"}
+                        {!w.first && !w.has_any_estimate && perms.has("jobcard.assign_vendor") && <> · <WithdrawWorkshop slug={slug} jobId={id} vendorId={w.vendor_id} name={w.name} /></>}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <WorkshopEmails slug={slug} jobId={id} emails={workshopEmails} />
-              {c.status === "vendor_assigned" && c.vendor_name && (perms.has("jobcard.assign_vendor") || perms.has("quotation.approve")) && <QuoteLink whatsappFromServer={whatsappConfigured() && !!process.env.WHATSAPP_REQUEST_TEMPLATE} slug={slug} jobId={id} vendor={c.vendor_name} kind="quotation" />}
+              {["vendor_assigned", "quotation_received"].includes(c.status) && (perms.has("jobcard.assign_vendor") || perms.has("quotation.approve")) &&
+                flow.workshops.filter((w) => !w.has_waiting_estimate).map((w) => <QuoteLink key={w.vendor_id} whatsappFromServer={whatsappConfigured() && !!process.env.WHATSAPP_REQUEST_TEMPLATE} slug={slug} jobId={id} vendor={w.name} vendorId={w.first ? null : w.vendor_id} kind="quotation" />)}
+              {canAsk && flow.workshops.length < MAX_WORKSHOPS_PER_CARD && (
+                <div className="mb-3 rounded-md border border-zinc-200 p-3">
+                  <AskAnotherWorkshop slug={slug} jobId={id} options={assignable.filter((v) => !flow.workshops.some((w) => w.vendor_id === v.id)).map((v): [string, string] => [v.id, v.name])} />
+                  <p className="mt-1 text-xs text-zinc-500">Up to {MAX_WORKSHOPS_PER_CARD} workshops. Each gets its own link, and you compare the estimates side by side below.</p>
+                </div>
+              )}
               {["quotation_approved", "in_progress", "completed"].includes(c.status) && c.vendor_name && (perms.has("jobcard.assign_vendor") || perms.has("quotation.approve") || perms.has("invoice.verify")) && <QuoteLink whatsappFromServer={whatsappConfigured() && !!process.env.WHATSAPP_REQUEST_TEMPLATE} slug={slug} jobId={id} vendor={c.vendor_name} kind="invoice" />}
               {flow.quotations.map((qt) => (
                 <div key={qt.id} className="mb-4 rounded-md border border-zinc-200 p-4 text-sm">

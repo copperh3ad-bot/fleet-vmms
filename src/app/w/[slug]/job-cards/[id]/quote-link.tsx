@@ -17,10 +17,10 @@ function Go({ label, pendingLabel }: { label: string; pendingLabel: string }) {
  * Asks the workshop for its estimate or its invoice with a single-use link (ADR-030, ADR-033). Workshops are added by the organization and never
  * sign up. The link is not printed: it goes out through the sender's own WhatsApp or messages app, or by email to the workshop's own address.
  */
-export function QuoteLink({ slug, jobId, vendor, kind, whatsappFromServer = false }: { slug: string; jobId: string; vendor: string; kind: Kind; /** the server can send the request on WhatsApp itself (set up, with its template) */ whatsappFromServer?: boolean }) {
-  const [phone, phoneAction] = useActionState<QuoteLinkState, FormData>(createWorkshopLinkAction.bind(null, slug, jobId, kind), {});
-  const [mail, mailAction] = useActionState<QuoteLinkState, FormData>(emailWorkshopLinkAction.bind(null, slug, jobId, kind), {});
-  const [wa, waAction] = useActionState<QuoteLinkState, FormData>(whatsappWorkshopLinkAction.bind(null, slug, jobId, kind), {});
+export function QuoteLink({ slug, jobId, vendor, kind, vendorId = null, whatsappFromServer = false }: { slug: string; jobId: string; vendor: string; kind: Kind; /** one of several workshops asked (C1); empty means the workshop on the card */ vendorId?: string | null; /** the server can send the request on WhatsApp itself (set up, with its template) */ whatsappFromServer?: boolean }) {
+  const [phone, phoneAction] = useActionState<QuoteLinkState, FormData>(createWorkshopLinkAction.bind(null, slug, jobId, kind, vendorId), {});
+  const [mail, mailAction] = useActionState<QuoteLinkState, FormData>(emailWorkshopLinkAction.bind(null, slug, jobId, kind, vendorId), {});
+  const [wa, waAction] = useActionState<QuoteLinkState, FormData>(whatsappWorkshopLinkAction.bind(null, slug, jobId, kind, vendorId), {});
   const send = phone.send;
   const what = kind === "quotation" ? "estimate" : "invoice";
   return (

@@ -141,7 +141,7 @@ describe("maintenance by logistics", () => {
     const qid = await raw(async (q) => (await q.query<{ id: string }>("insert into quotations(job_card_id, vendor_id, amount) values ($1, $2, 50) returning id", [other.id, vendor])).rows[0].id);
     expect((await vf.listQuotations(d, l2())).every((r) => r.registration_no.startsWith("LOG-"))).toBe(true);
     expect((await vf.listQuotations(d, mgr())).some((r) => r.id === qid)).toBe(true);
-    expect(await vf.getJobFlow(d, l2(), other.id)).toEqual({ quotations: [], workOrder: null, invoices: [] });
+    expect(await vf.getJobFlow(d, l2(), other.id)).toEqual({ workshops: [], quotations: [], workOrder: null, invoices: [] });
     await expect(vf.decideQuotation(d, l2(), qid, "approve")).rejects.toBeInstanceOf(UserError);
     expect(await vf.listWorkshopEmails(d, l2(), other.id)).toEqual([]);
     expect((await vf.createWorkshopLink(d, l2(), other.id, "quotation").catch((e) => e))).toBeInstanceOf(UserError);

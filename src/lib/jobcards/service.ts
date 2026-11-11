@@ -18,6 +18,8 @@ const KNOWN = [
   /illegal job card transition [a-z_]+ -> [a-z_]+/, /job card not found/,
   // vendor flow (migration 0007) and invoice check (verify_invoice)
   /this login is not linked to an active vendor/, /this job is not waiting for a quotation/, /add at least one line/,
+  /you have already sent an estimate for this job/, /estimates can be asked for only while the job card is waiting for them/, /choose an active workshop/,
+  /this workshop is already asked/, /at most three workshops can be asked on one job card/, /this workshop has already sent an estimate/, /this workshop was not asked as an extra workshop/,
   /this quotation is not awaiting a decision/, /quotation not found/, /work order not found/, /this work order has already been started/,
   /start the work before completing it/, /the work must be completed before invoicing/, /an invoice is already open for this work order/,
   /enter the invoice number/, /an invoice line points at a line that is not in the approved quotation/,

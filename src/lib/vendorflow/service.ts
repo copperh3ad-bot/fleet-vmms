@@ -59,7 +59,12 @@ export type InvoiceView = {
   decision: string | null; decision_note: string | null;
   lines: { id: string; kind: string; description: string; qty: string; unit_cost: string; quotation_line_id: string | null }[];
 };
+/** A workshop asked for an estimate on this card (C1). `first` is the one assigned on the card; the others were added with "Ask another workshop". */
+export type AskedWorkshop = { vendor_id: string; name: string; first: boolean; has_waiting_estimate: boolean; has_any_estimate: boolean };
+export const MAX_WORKSHOPS_PER_CARD = 3;
 export type JobFlow = {
+  /** every workshop asked for an estimate, first one first; empty before a workshop is assigned */
+  workshops: AskedWorkshop[];
   quotations: QuotationView[];
   workOrder: { id: string; wo_no: string; status: string; approved_amount: string; issued_at: string; completed_at: string | null } | null;
   invoices: InvoiceView[];
@@ -73,7 +78,14 @@ async function jobVisible(q: import("@/lib/db/types").Queryable, jobId: string):
 
 export function getJobFlow(driver: Driver, m: Membership, jobId: string): Promise<JobFlow> {
   return authorized(driver, m, "jobcard.read_all", async (q) => {
-    if (!(await jobVisible(q, jobId))) return { quotations: [], workOrder: null, invoices: [] };
+    if (!(await jobVisible(q, jobId))) return { workshops: [], quotations: [], workOrder: null, invoices: [] };
+    const workshops = (await q.query<AskedWorkshop>(
+      `select x.vendor_id, vn.name, x.first,
+              exists (select 1 from quotations o where o.job_card_id = $1 and o.vendor_id = x.vendor_id and o.status = 'submitted') as has_waiting_estimate,
+              exists (select 1 from quotations o where o.job_card_id = $1 and o.vendor_id = x.vendor_id) as has_any_estimate
+         from (select jc.vendor_id, true as first, null::timestamptz as at from job_cards jc where jc.id = $1 and jc.vendor_id is not null
+               union all select i.vendor_id, false, i.invited_at from job_card_invitees i where i.job_card_id = $1 and i.vendor_id is distinct from (select vendor_id from job_cards where id = $1)) x
+         join vendors vn on vn.id = x.vendor_id order by x.first desc, x.at, vn.name`, [jobId])).rows;
     const quotations = (await q.query<Omit<QuotationView, "lines" | "score" | "warnings">>(
       `select q.id, q.status, q.amount::text, q.details, q.days_needed, q.valid_until::text, q.warranty_months, q.created_at::text, vn.name as vendor_name, q.vendor_id
          from quotations q join vendors vn on vn.id = q.vendor_id where q.job_card_id = $1 order by q.created_at desc`, [jobId])).rows as QuotationView[];
@@ -91,14 +103,36 @@ export function getJobFlow(driver: Driver, m: Membership, jobId: string): Promis
          from invoices where work_order_id = $1 order by invoice_date desc, id`, [workOrder.id])).rows as InvoiceView[] : [];
     for (const i of invoices) i.lines = (await q.query<InvoiceView["lines"][number]>(
       "select id, kind, description, qty::text, unit_cost::text, quotation_line_id from invoice_lines where invoice_id = $1 order by id", [i.id])).rows;
-    return { quotations, workOrder, invoices };
+    return { workshops, quotations, workOrder, invoices };
   });
 }
 
-export function decideQuotation(driver: Driver, m: Membership, quotationId: string, decision: "approve" | "reject", note?: string): Promise<{ jobId: string }> {
+/** C1: ask one more workshop for an estimate on a card that is waiting for estimates. At most three workshops in all. */
+export function inviteWorkshop(driver: Driver, m: Membership, jobId: string, vendorId: string): Promise<void> {
+  return authorized(driver, m, "jobcard.assign_vendor", async (q) => {
+    if (!(await jobVisible(q, jobId))) throw new UserError("Job card not found.");
+    try { await q.query("select invite_workshop($1, $2, $3)", [jobId, vendorId, m.userId]); } catch (e) { friendly(e); }
+    const jobNo = (await q.query<{ job_no: string }>("select job_no from job_cards where id = $1", [jobId])).rows[0].job_no;
+    const vu = (await q.query<{ user_id: string | null }>("select user_id from vendors where id = $1", [vendorId])).rows[0]?.user_id ?? null;
+    await notify(q, [vu], "jobcard.vendor_assigned", { job_card_id: jobId, job_no: jobNo, to: "vendor_assigned" }, m.userId);
+  });
+}
+
+/** Take back a request to an extra workshop that has not answered yet. */
+export function uninviteWorkshop(driver: Driver, m: Membership, jobId: string, vendorId: string): Promise<void> {
+  return authorized(driver, m, "jobcard.assign_vendor", async (q) => {
+    if (!(await jobVisible(q, jobId))) throw new UserError("Job card not found.");
+    try { await q.query("select uninvite_workshop($1, $2)", [jobId, vendorId]); } catch (e) { friendly(e); }
+    await q.query("update public.quotation_links set revoked_at = now() where tenant_id = $1 and job_card_id = $2 and vendor_id = $3 and kind = 'quotation' and used_at is null and revoked_at is null", [m.tenantId, jobId, vendorId]);
+  });
+}
+
+export function decideQuotation(driver: Driver, m: Membership, quotationId: string, decision: "approve" | "reject", note?: string): Promise<{ jobId: string; vendorId: string }> {
   return authorized(driver, m, "quotation.approve", async (q) => {
-    const jobId = (await q.query<{ job_card_id: string }>("select qt.job_card_id from quotations qt join job_cards jc on jc.id = qt.job_card_id where qt.id = $1 and dept_ok(jc.vehicle_id)", [quotationId])).rows[0]?.job_card_id;
-    if (!jobId) throw new UserError("Quotation not found.");
+    const found = (await q.query<{ job_card_id: string; vendor_id: string; user_id: string | null }>(
+      "select qt.job_card_id, qt.vendor_id, vn.user_id from quotations qt join job_cards jc on jc.id = qt.job_card_id join vendors vn on vn.id = qt.vendor_id where qt.id = $1 and dept_ok(jc.vehicle_id)", [quotationId])).rows[0];
+    if (!found) throw new UserError("Quotation not found.");
+    const jobId = found.job_card_id;
     // C3: warn, never block. Approving a quotation far above the estimate, or one that breaks the vehicle's budget, needs a written reason.
     if (decision === "approve") {
       const warnings = await quotationWarningsIn(q, quotationId);
@@ -112,16 +146,17 @@ export function decideQuotation(driver: Driver, m: Membership, quotationId: stri
       else await q.query("select reject_quotation($1, $2, $3)", [quotationId, m.userId, note ?? null]);
     } catch (e) { friendly(e); }
     if (decision === "approve") await notifyAfter(q, m, jobId, "quotation_approved");
-    else await notify(q, [await vendorUserOfJob(q, jobId)], "quotation.rejected", { job_card_id: jobId, job_no: (await q.query<{ job_no: string }>("select job_no from job_cards where id = $1", [jobId])).rows[0].job_no }, m.userId);
-    return { jobId };
+    else await notify(q, [found.user_id], "quotation.rejected", { job_card_id: jobId, job_no: (await q.query<{ job_no: string }>("select job_no from job_cards where id = $1", [jobId])).rows[0].job_no }, m.userId);
+    return { jobId, vendorId: found.vendor_id };
   });
 }
 
 /** Who to tell on WhatsApp about a job card's estimate or invoice (ADR-056): the workshop on it, its mobile number made international, and the job number. Null when it has no mobile number. */
-export function workshopContact(driver: Driver, m: Membership, jobId: string): Promise<{ vendor_name: string; phone: string; job_no: string } | null> {
+export function workshopContact(driver: Driver, m: Membership, jobId: string, vendorId?: string): Promise<{ vendor_name: string; phone: string; job_no: string } | null> {
   return authorizedAny(driver, m, INVOICE_LINK_PERMS, async (q) => {
+    // with several workshops asked (C1) the caller may name one; it must be asked on this card. Otherwise it is the workshop on the card.
     const r = (await q.query<{ job_no: string; name: string | null; phone: string | null }>(
-      "select jc.job_no, vn.name, vn.phone from job_cards jc left join vendors vn on vn.id = jc.vendor_id where jc.id = $1 and dept_ok(jc.vehicle_id)", [jobId])).rows[0];
+      "select jc.job_no, vn.name, vn.phone from job_cards jc left join vendors vn on vn.id = coalesce($2::uuid, jc.vendor_id) where jc.id = $1 and dept_ok(jc.vehicle_id) and ($2::uuid is null or workshop_invited(jc.id, $2::uuid))", [jobId, vendorId ?? null])).rows[0];
     const p = r?.phone ? normalizePhone(r.phone) : null;
     return r && r.name && p?.ok ? { vendor_name: r.name, phone: p.e164, job_no: r.job_no } : null;
   });
@@ -133,25 +168,28 @@ const QUOTE_LINK_HOURS = 168;
 const QUOTE_LINK_PERMS = ["jobcard.assign_vendor", "quotation.approve"];
 const INVOICE_LINK_PERMS = ["jobcard.assign_vendor", "quotation.approve", "invoice.verify"];
 /** The job card statuses in which each kind of link makes sense: waiting for an estimate, or an approved estimate still to be billed. */
-const LINK_STATUSES: Record<WorkshopLinkKind, string[]> = { quotation: ["vendor_assigned"], invoice: ["quotation_approved", "in_progress", "completed"] };
+const LINK_STATUSES: Record<WorkshopLinkKind, string[]> = { quotation: ["vendor_assigned", "quotation_received"], invoice: ["quotation_approved", "in_progress", "completed"] };
 
 /**
  * A fresh single-use link for the workshop on this job card, to be sent to the workshop's own phone number (ADR-030) or email (ADR-033).
  * `quotation` asks for the estimate; `invoice` asks for the invoice against the approved estimate. Any earlier unused link of the same
  * kind on this job card stops working. Workshops never sign up, so these links are how they send anything.
  */
-export async function createWorkshopLink(driver: Driver, m: Membership, jobId: string, kind: WorkshopLinkKind, opts: { withReply?: boolean } = {}): Promise<NewQuoteLink> {
+export async function createWorkshopLink(driver: Driver, m: Membership, jobId: string, kind: WorkshopLinkKind, opts: { withReply?: boolean; /** C1: an estimate link for one of the workshops asked; default is the workshop on the card */ vendorId?: string | null } = {}): Promise<NewQuoteLink> {
   const perms = kind === "quotation" ? QUOTE_LINK_PERMS : INVOICE_LINK_PERMS;
   const made = await authorizedAny(driver, m, perms, async (q) => {
+    const asked = kind === "quotation" ? opts.vendorId ?? null : null;       // an invoice always goes to the workshop on the card (the winner)
     const j = (await q.query<{ job_no: string; status: string; vendor_id: string | null; vendor_name: string | null; phone: string | null; email: string | null; plate: string }>(
-      "select jc.job_no, jc.status, jc.vendor_id, vn.name as vendor_name, vn.phone, vn.email, v.registration_no as plate from job_cards jc join vehicles v on v.id = jc.vehicle_id left join vendors vn on vn.id = jc.vendor_id where jc.id = $1 and dept_ok(jc.vehicle_id)", [jobId])).rows[0];
+      "select jc.job_no, jc.status, vn.id as vendor_id, vn.name as vendor_name, vn.phone, vn.email, v.registration_no as plate from job_cards jc join vehicles v on v.id = jc.vehicle_id left join vendors vn on vn.id = coalesce($2::uuid, jc.vendor_id) where jc.id = $1 and dept_ok(jc.vehicle_id) and ($2::uuid is null or workshop_invited(jc.id, $2::uuid))", [jobId, asked])).rows[0];
     if (!j) throw new UserError("Job card not found.");
     if (!j.vendor_id || !LINK_STATUSES[kind].includes(j.status)) throw new UserError(kind === "quotation" ? "This job card is not waiting for a workshop estimate." : "This job card has no approved estimate waiting to be invoiced.");
+    if (kind === "quotation" && (await q.query("select workshop_has_waiting_estimate($1, $2) as w", [jobId, j.vendor_id])).rows[0].w) throw new UserError(`${j.vendor_name} has already sent an estimate. Decide on it first.`);
     if (kind === "invoice" && (await q.query("select 1 from work_orders wo where wo.job_card_id = $1 and wo.vendor_id = $2 and wo.status in ('issued','in_progress','completed') and not exists (select 1 from invoices i where i.work_order_id = wo.id and i.status in ('submitted','verified','paid'))", [jobId, j.vendor_id])).rows.length === 0)
       throw new UserError("An invoice has already been sent for this job card.");
     const phone = normalizePhone(j.phone ?? "");
     if (!phone.ok && !j.email) throw new UserError(`${j.vendor_name} has no mobile number or email a message can reach. Add one under Vendors first.`);
-    await q.query("update public.quotation_links set revoked_at = now() where tenant_id = $1 and job_card_id = $2 and kind = $3 and used_at is null and revoked_at is null", [m.tenantId, jobId, kind]);
+    // an earlier unused link of the same kind to the SAME workshop stops working; the other workshops asked keep theirs
+    await q.query("update public.quotation_links set revoked_at = now() where tenant_id = $1 and job_card_id = $2 and kind = $3 and vendor_id = $4 and used_at is null and revoked_at is null", [m.tenantId, jobId, kind, j.vendor_id]);
     const token = newToken();
     const replyCode = opts.withReply && inboundConfigured() ? newReplyCode() : null;     // only an emailed request can be answered by replying
     const exp = (await q.query<{ e: string }>(

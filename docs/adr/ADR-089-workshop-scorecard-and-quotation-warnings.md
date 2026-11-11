@@ -12,7 +12,7 @@ Status: accepted 2026-11-11 (owner decisions C2 to C4, docs/OWNER-DECISIONS-2026
   that takes the vehicle over its current budget, needs a written reason of at least 5 letters. The reason is kept in the job card event comment.
 
 ## Not in this decision
-Asking 2 to 3 workshops for the same card (C1) changes the single-vendor job card state machine and the unauthenticated quotation link functions
+Asking 2 to 3 workshops for the same card (C1) is ADR-090. It changes the single-vendor job card state machine and the unauthenticated quotation link functions
 (`quote_link_info`, `submit_quotation_via_link`). It is a separate step with its own ADR.
 
 ## Consequences
