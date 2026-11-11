@@ -5,6 +5,7 @@ import { listDepartments, listEmployeeOptions, listServiceTypes } from "@/lib/ma
 import { loadCatalogExtras } from "@/lib/master/vehicle-names";
 import { PageHeader, btnPrimary } from "@/components/ui";
 import { purchaseAwaitingVehicle } from "@/lib/vehicle-requests/service";
+import { depotNames } from "@/lib/depots/service";
 import { AddVehicleForm } from "./form";
 
 export default function NewVehiclePage({ params, searchParams }: PageProps<"/w/[slug]/vehicles/new">) {
@@ -27,7 +28,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
         actions={<a href={`/w/${slug}/vehicles/import`} className={btnPrimary}>Import data</a>} />
       {added && <p role="status" className="mt-4 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">{added} saved. Add the next one below.{note && <span className="block text-amber-800">{note}</span>}</p>}
       {purchase && <p role="status" className="mt-4 rounded-md border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">Adding the vehicle bought for {purchase.request_no}{purchase.vehicle_class ? ` (${purchase.vehicle_class})` : ""}. Saving it closes the request and makes {purchase.for_name} its holder.</p>}
-      <AddVehicleForm purchaseRequest={purchase?.id} slug={slug} currency={m.currency} employees={employees} departments={departments} serviceTypes={serviceTypes} extras={extras} year={new Date().getFullYear()} />
+      <AddVehicleForm places={await depotNames(getDriver(), m)} purchaseRequest={purchase?.id} slug={slug} currency={m.currency} employees={employees} departments={departments} serviceTypes={serviceTypes} extras={extras} year={new Date().getFullYear()} />
     </main>
   );
 }

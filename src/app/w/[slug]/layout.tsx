@@ -88,6 +88,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
     { href: to("/users"), label: "Users and roles", show: has("admin.users"), badge: counts.joins },
     { href: to("/settings"), label: "Service rules", show: has("service.manage", "budget.manage", "admin.settings") },
     { href: to("/employees"), label: "Employees", show: has("employee.manage") },
+    { href: to("/depots"), label: "Depots and places", show: has("depot.manage") },
     { href: to("/vehicles/new"), label: "Add a vehicle", show: has("vehicle.write") },
   ];
   // Someone limited to their own vehicle gets the dashboard and the job cards, nothing else (the pages say no as well).

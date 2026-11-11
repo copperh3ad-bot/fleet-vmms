@@ -45,6 +45,7 @@ Role keys: **Adm** tenant_admin, **FM** fleet_manager, **Fin** finance, **Req** 
 | vreq.see_pool (see free vehicles, read-only, ADR-088) | ✔ | ✔ | | | | ✔ | ✔ | | |
 | vreq.decide (approve a purchase, or reject) | ✔ | ✔ | | | | | | | |
 | vreq.confirm_budget (confirm the budget for a purchase, migration 0058) | ✔ | | ✔ | | | | | | |
+| depot.manage (depots and places, migration 0060) | ✔ | ✔ | | | | ✔ | | | |
 | **Trips** | | | | | | | | | |
 | trip.request | ✔ | ✔ | | ✔ | | ✔ | | | |
 | trip.read_all | ✔ | ✔ | | | ✔ | | | | |

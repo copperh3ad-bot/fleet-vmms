@@ -7,7 +7,7 @@ import { withTenant } from "@/lib/db/tenant";
 import { createCargoRequest } from "@/lib/cargo/service";
 import type { Flow } from "../types";
 import { bad, good, parseDateTime, parseNumber, parseText, showDateTime } from "../text";
-import { CARGO_SCREEN, formDateTime, optionOf, UNITS, VEHICLE_TYPES } from "../forms";
+import { CARGO_SCREEN, formDateTime, optionOf, UNITS, VEHICLE_TYPES, WEIGHT_UNIT_KG } from "../forms";
 
 const SAME = /^(1|yes|y|same|ok|okay|correct|mine)[.! ]*$/i;
 
@@ -41,6 +41,11 @@ export const cargoFlow: Flow = {
     { key: "description", ask: async () => "Inventory or material load details: what is being moved? For example: sacks of grain, sample fabric, spare parts.", parse: async (raw) => parseText(raw, 3, 300, "what is being moved") },
     { key: "quantity_text", ask: async () => "Quantity of the load, with its unit. For example: 18000 lbs (180 bags), 12 cartons, 300 kg.", parse: async (raw) => parseText(raw, 1, 120, "how much there is, with the unit") },
     {
+      key: "weight_kg", optional: true,
+      ask: async () => "Total weight of the load in kilograms, so the fleet office can pick a vehicle that can carry it. For example: 2500. Or reply SKIP.",
+      parse: async (raw) => parseNumber(raw, { min: 0.1, max: 1_000_000, what: "the weight in kilograms" }),
+    },
+    {
       key: "poc_details",
       ask: async () => "Person or persons to contact, with phone numbers. For example: Ali 0300 1234567 / Sara 0321 7654321.",
       parse: async (raw) => {
@@ -60,14 +65,17 @@ export const cargoFlow: Flow = {
       const vehicle = optionOf(VEHICLE_TYPES, r.vehicle, "a vehicle type");
       const load = parseText(r.material ?? "", 3, 300, "what is being moved");
       const qty = parseNumber(r.quantity ?? "", { min: 0.01, max: 10_000_000, what: "the quantity" });
+      // the weight: given directly, or worked out when the quantity is itself a weight (kg, lbs, tonnes); empty when neither
+      const weightGiven = (r.weight ?? "").trim() ? parseNumber(r.weight!, { min: 0.1, max: 1_000_000, what: "the weight in kilograms" }) : good(null);
       const unit = optionOf(UNITS, r.unit, "a unit");
       const poc = parseText(r.contact ?? "", 5, 200, "who to contact and their phone number");
       const note = (r.instructions ?? "").trim() ? parseText(r.instructions!, 2, 500, "the instructions") : good(null);
-      const bad1 = [dept, when, from, to, vehicle, load, qty, unit, poc, note].find((x) => !x.ok);
+      const bad1 = [dept, when, from, to, vehicle, load, qty, unit, poc, note, weightGiven].find((x) => !x.ok);
       if (bad1 && !bad1.ok) return { ok: false, error: bad1.error };
       if (!/\d{7,}/.test(String(poc.ok && poc.value).replace(/[\s-]/g, ""))) return { ok: false, error: "Please include a phone number the driver can call." };
       return { ok: true, answers: {
         department: dept.ok && dept.value, pickup_at: when.ok && when.value, pickup_place: from.ok && from.value, drop_place: to.ok && to.value, vehicle_type: vehicle.ok && vehicle.value.title,
+        weight_kg: weightGiven.ok && weightGiven.value !== null ? weightGiven.value : unit.ok && qty.ok && WEIGHT_UNIT_KG[unit.value.id] ? Math.round(qty.value * WEIGHT_UNIT_KG[unit.value.id] * 10) / 10 : null,
         description: load.ok && load.value, quantity_text: `${qty.ok && qty.value} ${unit.ok && unit.value.title}`, poc_details: poc.ok && poc.value, instructions: note.ok ? note.value : null,
       } };
     },
@@ -80,13 +88,14 @@ export const cargoFlow: Flow = {
     `To: ${a.drop_place}`,
     `Load: ${a.description}, ${a.quantity_text}`,
     `Contact: ${a.poc_details}`,
+    ...(a.weight_kg ? [`Weight: ${Number(a.weight_kg).toLocaleString("en-US")} kg`] : []),
     a.instructions ? `Instructions: ${a.instructions}` : "No special instructions",
   ].join("\n"),
   async submit(c) {
     const a = c.answers;
     const made = await createCargoRequest(c.driver, c.m, {
       department: a.department, pickup_at: a.pickup_at, pickup_place: a.pickup_place, drop_place: a.drop_place, vehicle_type: a.vehicle_type,
-      description: a.description, quantity_text: a.quantity_text, poc_details: a.poc_details, instructions: a.instructions ?? "",
+      description: a.description, quantity_text: a.quantity_text, weight_kg: a.weight_kg ?? "", poc_details: a.poc_details, instructions: a.instructions ?? "",
     }, "whatsapp");
     return `Done. Cargo request ${made.cargo_no} has been sent to the fleet office. They will confirm it with you. You can follow it in the app.`;
   },

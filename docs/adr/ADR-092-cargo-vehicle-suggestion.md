@@ -17,5 +17,5 @@ Status: accepted 2026-11-11 (owner decisions F1 to F4, docs/OWNER-DECISIONS-2026
   without a vehicle, where the existing quote flow (ADR-078) lets the user choose which providers to ask.
 
 ## Not built
-F5 (depots and locations added during onboarding) is not part of this step: locations are the vehicle's base location text and the places named on trips. Suggestions are not
-sent to WhatsApp. The WhatsApp cargo form has no weight question yet (it needs a change to the Meta flow); Logistics enters the weight on the request.
+F5 (depots and locations added during onboarding) is ADR-093. Suggestions are not
+sent to WhatsApp. The weight on WhatsApp (form and chat) is ADR-093.

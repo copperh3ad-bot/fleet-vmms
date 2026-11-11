@@ -26,9 +26,9 @@ beforeAll(async () => {
 describe("get-started walk-through", () => {
   it("a brand-new company has nothing done, and the steps come in the order they build on each other", async () => {
     const o = (await getOnboarding(d, owner()))!;
-    expect(o.steps.map((s) => s.key)).toEqual(["vehicles", "history", "people", "drivers", "workshop", "budget", "papers", "team", "job"]);
+    expect(o.steps.map((s) => s.key)).toEqual(["vehicles", "history", "people", "drivers", "depots", "workshop", "budget", "papers", "team", "job"]);
     // the owner is an employee already, so "people" and "team" need someone besides them; "history" is not done for vehicles that do not exist
-    expect(await status(owner())).toMatchObject({ vehicles: false, history: false, people: false, drivers: false, workshop: false, budget: false, papers: false, team: false, job: false });
+    expect(await status(owner())).toMatchObject({ vehicles: false, history: false, people: false, drivers: false, depots: false, workshop: false, budget: false, papers: false, team: false, job: false });
   });
 
   it("each step turns done by itself when the company's own data appears", async () => {

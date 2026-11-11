@@ -345,6 +345,14 @@
               },
               {
                 "type": "TextInput",
+                "name": "weight",
+                "label": "Total weight in kg",
+                "input-type": "number",
+                "required": false,
+                "helper-text": "Optional if the unit above is kg, lbs or tonnes"
+              },
+              {
+                "type": "TextInput",
                 "name": "contact",
                 "label": "Contact and phone",
                 "input-type": "text",
@@ -373,6 +381,7 @@
                     "material": "${form.material}",
                     "quantity": "${form.quantity}",
                     "unit": "${form.unit}",
+                    "weight": "${form.weight}",
                     "contact": "${form.contact}",
                     "instructions": "${form.instructions}"
                   }

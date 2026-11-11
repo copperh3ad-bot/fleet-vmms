@@ -16,6 +16,8 @@ export const UNITS: Option[] = [
   { id: "kg", title: "kg" }, { id: "lbs", title: "lbs" }, { id: "tonnes", title: "tonnes" }, { id: "cartons", title: "cartons" }, { id: "bags", title: "bags" },
   { id: "pieces", title: "pieces" }, { id: "pallets", title: "pallets" }, { id: "litres", title: "litres" },
 ];
+/** Units that are a weight, with how many kilograms one is: a quantity in these gives the cargo weight without asking again (ADR-092). */
+export const WEIGHT_UNIT_KG: Record<string, number> = { kg: 1, lbs: 0.45359237, tonnes: 1000 };
 export const WORK_KINDS: Option[] = [
   { id: "periodic", title: "Periodic maintenance" }, { id: "brakes", title: "Brake work" }, { id: "suspension", title: "Suspension work" }, { id: "battery", title: "Battery replacement" },
   { id: "body", title: "Body work" }, { id: "lights", title: "Lights repair or replacement" }, { id: "tyres", title: "Tyre replacement" },
@@ -70,7 +72,7 @@ export const cargoFormJson = () => flowJson([
   },
   {
     id: "LOAD", title: "Load and contact", button: "Send request", fields: [
-      text("material", "Material / load", { help: "What is being moved" }), text("quantity", "Quantity", { type: "number" }), pick("unit", "Unit", UNITS),
+      text("material", "Material / load", { help: "What is being moved" }), text("quantity", "Quantity", { type: "number" }), pick("unit", "Unit", UNITS), text("weight", "Total weight in kg", { type: "number", required: false, help: "Optional if the unit above is kg, lbs or tonnes" }),
       text("contact", "Contact and phone", { help: "Name and phone number, for example Ali 0300 1234567" }), area("instructions", "Instructions", { help: "Optional: anything the driver should know" }),
     ],
   },

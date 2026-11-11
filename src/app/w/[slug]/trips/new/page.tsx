@@ -3,6 +3,7 @@ import { requireMembership } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
 import { assignables, tripsEnabled } from "@/lib/trips/service";
 import { PageHeader, Panel } from "@/components/ui";
+import { depotNames } from "@/lib/depots/service";
 import { TripRequestForm } from "./form";
 
 export default function NewTripPage({ params }: PageProps<"/w/[slug]/trips/new">) {
@@ -18,7 +19,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   return (
     <main className="space-y-5 p-6 text-zinc-900">
       <PageHeader title="Ask for a trip" sub="A manager approves it and assigns the vehicle and driver." />
-      <Panel><TripRequestForm slug={slug} vehicles={vehicles.map((v): [string, string] => [v.id, `${v.registration_no}${v.label ? " · " + v.label : ""}`])} /></Panel>
+      <Panel><TripRequestForm slug={slug} places={await depotNames(driver, m)} vehicles={vehicles.map((v): [string, string] => [v.id, `${v.registration_no}${v.label ? " · " + v.label : ""}`])} /></Panel>
     </main>
   );
 }

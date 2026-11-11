@@ -5,6 +5,7 @@ import { fleetOpsOn, FLEET_OPS_MESSAGE } from "@/lib/billing/fleet-ops";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { PageHeader, Panel } from "@/components/ui";
+import { depotNames } from "@/lib/depots/service";
 import { CargoRequestForm } from "./form";
 
 export default function NewCargoPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -19,7 +20,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   return (
     <main className="space-y-5 p-6 text-zinc-900">
       <PageHeader crumb={<a href={`/w/${slug}/cargo`} className="text-sky-800 hover:underline">Cargo</a>} title="Ask for a cargo pick-up and delivery" sub="The fleet office confirms it with you, and may send it with one of its own vehicles or a logistics provider." />
-      <Panel><CargoRequestForm slug={slug} /></Panel>
+      <Panel><CargoRequestForm slug={slug} places={await depotNames(getDriver(), m)} /></Panel>
     </main>
   );
 }

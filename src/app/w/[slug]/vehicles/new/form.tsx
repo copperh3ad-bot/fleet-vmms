@@ -45,7 +45,7 @@ function checklist(v: Record<string, string>, serviceTypes: { key: string; label
   ];
 }
 
-export function AddVehicleForm({ purchaseRequest, slug, employees, departments = [], serviceTypes, year, currency = "PKR", extras }: { extras?: CatalogExtras; /** an approved purchase request this vehicle is bought for (ADR-091) */ purchaseRequest?: string; slug: string; employees: Employee[]; departments?: string[]; serviceTypes: { key: string; label: string }[]; year: number; currency?: string }) {
+export function AddVehicleForm({ places = [], purchaseRequest, slug, employees, departments = [], serviceTypes, year, currency = "PKR", extras }: { places?: string[]; extras?: CatalogExtras; /** an approved purchase request this vehicle is bought for (ADR-091) */ purchaseRequest?: string; slug: string; employees: Employee[]; departments?: string[]; serviceTypes: { key: string; label: string }[]; year: number; currency?: string }) {
   const [state, action, pending] = useActionState<FormState, FormData>(createVehicleAction.bind(null, slug), {});
   const [snap, setSnap] = useState<Record<string, string>>({});
   const holder = employees.find((e) => e.id === snap.employee_id);
@@ -78,7 +78,8 @@ export function AddVehicleForm({ purchaseRequest, slug, employees, departments =
               <Field label="Holder's department" name="holder_department">
                 <p className={`${inputCls} flex items-center bg-zinc-50 text-zinc-600`}>{holder ? holder.department ?? "Not set" : "From the person you choose"}</p>
               </Field>
-              {f("base_location", "Base location")}
+              {f("base_location", "Base location", { list: "places" })}
+              <datalist id="places">{places.map((p) => <option key={p} value={p} />)}</datalist>
               {f("seats", "Seats", { inputMode: "numeric" })}
               {f("load_capacity_kg", "Load capacity (kg)", { inputMode: "decimal" })}
             </div>

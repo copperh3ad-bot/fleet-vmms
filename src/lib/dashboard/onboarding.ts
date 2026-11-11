@@ -37,6 +37,8 @@ const STEPS: Def[] = [
     sql: "select count(*)::int n from employees", done: (n) => n > 1 },
   { key: "drivers", perm: "vehicle.write", title: "Say who drives which vehicle", why: "Cost lands on whoever held the vehicle at the time, and drivers see their own vehicle.", href: "vehicles", cta: "Open vehicles",
     sql: "select count(*)::int n from vehicle_custody where to_date is null", done: (n) => n > 0 },
+  { key: "depots", perm: "depot.manage", title: "Add your depots and places", why: "Forms suggest them, and vehicles can be matched to the cargo waiting at the place they are in.", href: "depots", cta: "Add depots",
+    sql: "select count(*)::int n from depots", done: (n) => n > 0 },
   { key: "workshop", perm: "vendor.manage", title: "Add a workshop you use", why: "Jobs can be sent out for a quotation, and the workshop scorecard begins.", href: "vendors", cta: "Add a workshop",
     sql: "select count(*)::int n from vendors", done: (n) => n > 0 },
   { key: "budget", perm: "budget.manage", title: "Set a budget", why: "Spend is shown against it, and vehicles over budget are flagged.", href: "budgets", cta: "Set a budget",

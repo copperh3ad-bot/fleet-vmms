@@ -81,6 +81,21 @@ describe("cargo by a form", () => {
     expect((await out("Hi")).reply).toMatch(/What would you like to do/);                                          // the conversation ended with the request
   });
 
+  it("takes the weight from the form: given in kg, or worked out when the quantity is a weight, or left empty (ADR-092)", async () => {
+    const weightOf = async (material: string) => (await getCargo(d, mgr(), (await listCargo(d, mgr())).find((r) => r.description === material)!.id))!.weight_kg;
+    const send = async (over: Record<string, string>) => { const o = await open(/Schedule Cargo Pick-up and Delivery/); return out("", cargoAnswers(o.form!.token, over)); };
+    expect((await send({ material: "W direct", weight: "2,500" })).reply).toMatch(/Done\./);
+    expect(await weightOf("W direct")).toBe("2500.0");
+    expect((await send({ material: "W tonnes", quantity: "3", unit: "tonnes" })).reply).toMatch(/Done\./);
+    expect(await weightOf("W tonnes")).toBe("3000.0");
+    expect((await send({ material: "W lbs", quantity: "18000", unit: "lbs" })).reply).toMatch(/Done\./);
+    expect(await weightOf("W lbs")).toBe("8164.7");
+    expect((await send({ material: "W bags" })).reply).toMatch(/Done\./);                                     // bags are not a weight
+    expect(await weightOf("W bags")).toBeNull();
+    expect((await send({ material: "W bad", weight: "heavy" })).reply).toMatch(/weight in kilograms/i);          // a bad weight comes back with a reason
+    await out("cancel");
+  });
+
   it("checks every answer again: a past time, no phone number, no unit, a made-up vehicle, a bad quantity: each comes back with a reason and the form again", async () => {
     const o = await open(/Schedule Cargo Pick-up and Delivery/);
     for (const [over, why] of [[{ date: "2020-01-01" }, /already passed/], [{ contact: "Ali Khan" }, /phone number/], [{ unit: "" }, /choose a unit/], [{ vehicle: "rocket" }, /vehicle type/], [{ quantity: "lots" }, /quantity/]] as const) {
