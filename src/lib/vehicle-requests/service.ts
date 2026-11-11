@@ -75,9 +75,18 @@ export function employeesToChoose(driver: Driver, m: Membership) {
   return authorized(driver, m, "vreq.request", async (q) => (await q.query<{ id: string; full_name: string; employee_no: string | null }>(
     "select id, full_name, employee_no from employees where active order by full_name")).rows);
 }
+export type PoolVehicle = { id: string; registration_no: string; label: string; seats: number | null; load_capacity_kg: string | null; vehicle_class: string | null; base_location: string | null; warnings: string[] };
+
+/** The SQL that finds what is wrong with a pool vehicle (D1): expired papers (latest of each kind) and an open repair. */
+const WARNINGS_SQL = `array_remove(array[
+  (select 'papers expired: ' || string_agg(replace(d.doc_type, '_', ' '), ', ' order by d.doc_type) from v_documents_status d where d.vehicle_id = v.id and d.doc_status = 'expired'),
+  (select 'open repair: ' || string_agg(j.job_no, ', ' order by j.job_no) from job_cards j where j.vehicle_id = v.id and j.status not in ('closed','cancelled','rejected'))
+], null)`;
+
 export function poolVehicles(driver: Driver, m: Membership) {
-  return authorizedAny(driver, m, ["vreq.assign", "vreq.decide", "vreq.see_pool"], async (q) => (await q.query<{ id: string; registration_no: string; label: string }>(
-    `select v.id, v.registration_no, concat_ws(' ', v.make, v.model) as label from vehicles v
+  return authorizedAny(driver, m, ["vreq.assign", "vreq.decide", "vreq.see_pool"], async (q) => (await q.query<PoolVehicle>(
+    `select v.id, v.registration_no, concat_ws(' ', v.make, v.model) as label, v.seats, v.load_capacity_kg::text, v.vehicle_class, v.base_location, ${WARNINGS_SQL} as warnings
+       from vehicles v
       where v.status = 'active' and not exists (select 1 from vehicle_custody c where c.vehicle_id = v.id and c.to_date is null) order by v.registration_no`)).rows);
 }
 
@@ -110,7 +119,7 @@ export async function requestVehicle(driver: Driver, m: Membership, raw: unknown
 export const VREQ_TRANSITION_PERMISSION: Record<string, string> = { assigned: "vreq.assign", purchase_approved: "vreq.decide", rejected: "vreq.decide", cancelled: "vreq.request" };
 
 /** The one way a vehicle request changes status. */
-export async function transitionVehicleRequest(driver: Driver, m: Membership, id: string, to: string, opts: { note?: string; vehicleId?: string } = {}): Promise<void> {
+export async function transitionVehicleRequest(driver: Driver, m: Membership, id: string, to: string, opts: { note?: string; vehicleId?: string; warnReason?: string } = {}): Promise<void> {
   const permission = VREQ_TRANSITION_PERMISSION[to];
   if (!permission) throw new UserError("That step is not available.");
   return authorizedAny(driver, m, ["vreq.decide", "vreq.assign", "vreq.request"], async (q, held) => {
@@ -120,8 +129,18 @@ export async function transitionVehicleRequest(driver: Driver, m: Membership, id
     const mine = r.requester_user === m.userId;
     // giving a pool vehicle needs vreq.assign (Logistics, Fleet Manager, Admin); buying one or rejecting needs vreq.decide (A2); cancelling is also open to the asker
     if (!(held.has(permission) || (to === "cancelled" && (held.has("vreq.decide") || held.has("vreq.assign") || (mine && held.has("vreq.request")))))) throw new ForbiddenError(permission);
+    // D1: warn, never block. A vehicle with expired papers or an open repair may still be given, with a written reason that is kept in the note.
+    let note = opts.note ?? null;
+    if (to === "assigned" && opts.vehicleId) {
+      const w = (await q.query<{ warnings: string[] }>(`select ${WARNINGS_SQL} as warnings from vehicles v where v.id = $1`, [opts.vehicleId])).rows[0]?.warnings ?? [];
+      if (w.length > 0) {
+        const why = (opts.warnReason ?? "").trim();
+        if (why.length < 5) throw new UserError(`This vehicle has a warning (${w.join("; ")}). Write why you still give it (at least 5 letters).`, { warn_reason: "Write why you still give this vehicle" });
+        note = [note, `Warning accepted (${w.join("; ")}): ${why}`].filter(Boolean).join(" | ");
+      }
+    }
     try {
-      await q.query("select vehicle_request_transition($1, $2, $3, $4, $5)", [id, to, m.userId, opts.note ?? null, opts.vehicleId || null]);
+      await q.query("select vehicle_request_transition($1, $2, $3, $4, $5)", [id, to, m.userId, note, opts.vehicleId || null]);
     } catch (e) { friendly(e); }
     const payload = { request_id: id, request_no: r.request_no, to, text: `${r.request_no}: ${r.reason}` };
     if (to === "cancelled") await notify(q, await usersWithPermission(q, m.tenantId, "vreq.assign"), "vreq.cancelled", payload, m.userId);

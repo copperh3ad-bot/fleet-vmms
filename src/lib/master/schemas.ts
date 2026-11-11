@@ -22,6 +22,9 @@ export const vehicleSchema = z.object({
   fuel_type: z.preprocess((v) => (typeof v === "string" ? blank(v.trim().toLowerCase()) : v), z.enum(FUEL_TYPES).optional()),
   vehicle_class: z.preprocess((v) => (typeof v === "string" ? blank(v.trim().toLowerCase()) : v), z.enum(VEHICLE_CLASSES).optional()),
   vin: text(40), engine_no: text(40), colour: text(40), base_location: text(),
+  /** D2: seats and the load the vehicle may carry, used to match pool vehicles and cargo */
+  seats: z.preprocess(blank, z.coerce.number().int().min(1, "At least 1 seat").max(200).optional()),
+  load_capacity_kg: num(),
   /** the operating department that runs the vehicle (ADR-048); saved after the vehicle, with one spelling per name */
   department: text(60),
   odometer_km: num(),

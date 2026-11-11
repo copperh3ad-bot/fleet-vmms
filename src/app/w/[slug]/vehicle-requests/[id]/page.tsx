@@ -42,7 +42,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
       {assigner && (r.status === "requested" || r.status === "purchase_approved") && (
         <Panel title="Give a vehicle from the pool" sub="Vehicles that are in service and that nobody holds at the moment. The employee becomes its holder.">
           {pool.length === 0 ? <p className="text-sm text-zinc-500">No vehicle is free. Approve buying one, then give it here once it has been added.</p>
-            : <VehicleRequestStep {...step} to="assigned" label="Give this vehicle" fields={["vehicle", "note"]} vehicles={pool.map((v): [string, string] => [v.id, `${v.registration_no}${v.label ? " · " + v.label : ""}`])} />}
+            : <VehicleRequestStep {...step} to="assigned" label="Give this vehicle" fields={["vehicle", "note"]} vehicles={pool.map((v) => ({ id: v.id, warnings: v.warnings, label: [v.registration_no, v.label, v.vehicle_class, v.seats ? `${v.seats} seats` : "", v.load_capacity_kg ? `${v.load_capacity_kg} kg` : "", v.base_location].filter(Boolean).join(" · ") }))} />}
         </Panel>
       )}
       {decider && r.status === "requested" && <Panel title="Approve buying one"><VehicleRequestStep {...step} to="purchase_approved" label="Approve the purchase" fields={["note"]} /></Panel>}

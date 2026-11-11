@@ -18,7 +18,7 @@ export async function requestVehicleAction(slug: string, _prev: FormState, form:
 /** One button per next step; `to` is bound by the page. The note and the vehicle come from the form. */
 export async function vehicleRequestStepAction(slug: string, id: string, to: string, _prev: FormState, form: FormData): Promise<FormState> {
   const state = await runAction(slug, async (m) => {
-    await transitionVehicleRequest(getDriver(), m, id, to, { note: str(form, "note"), vehicleId: str(form, "vehicle_id") });
+    await transitionVehicleRequest(getDriver(), m, id, to, { note: str(form, "note"), vehicleId: str(form, "vehicle_id"), warnReason: str(form, "warn_reason") });
     return "Done.";
   });
   if (state.ok) refresh();

@@ -162,3 +162,34 @@ describe("deciding", () => {
     expect(await holder(free)).toBe(emps[32]);
   });
 });
+
+// Owner decision D1 and D2 (2026-11-11): warn, never block; vehicles carry seats and load capacity.
+describe("pool vehicle warnings and capacity", () => {
+  it("stores seats and load capacity and shows them with the pool", async () => {
+    const id = (await master.addVehicle(d, owner(), { registration_no: "VRQ-W01", make: "Isuzu", model: "NPR", vehicle_class: "truck", base_location: "Lahore", seats: 3, load_capacity_kg: 4500 })).id;
+    const row = (await vr.poolVehicles(d, mgr())).find((v) => v.id === id)!;
+    expect(row).toMatchObject({ seats: 3, load_capacity_kg: "4500.0", vehicle_class: "truck", base_location: "Lahore", warnings: [] });
+  });
+
+  it("warns about expired papers, and lets the vehicle go only with a written reason", async () => {
+    const id = (await master.addVehicle(d, owner(), { registration_no: "VRQ-W02", make: "Suzuki", model: "Bolan", documents: [{ doc_type: "fitness", expires_on: "2020-01-01" }] })).id;
+    expect((await vr.poolVehicles(d, mgr())).find((v) => v.id === id)!.warnings.join()).toMatch(/papers expired: fitness/);
+    const req = await vr.requestVehicle(d, hr(), R(35));
+    await expect(vr.transitionVehicleRequest(d, mgr(), req, "assigned", { vehicleId: id })).rejects.toThrow(/has a warning/);
+    expect(await status(req)).toBe("requested");
+    await vr.transitionVehicleRequest(d, mgr(), req, "assigned", { vehicleId: id, warnReason: "Fitness renewal booked for Monday" });
+    expect(await status(req)).toBe("assigned");
+    const note = await raw(async (q) => (await q.query<{ decision_note: string }>("select decision_note from vehicle_requests where id = $1", [req])).rows[0].decision_note);
+    expect(note).toMatch(/Warning accepted \(papers expired: fitness\): Fitness renewal booked for Monday/);
+  });
+
+  it("warns about an open repair", async () => {
+    const id = (await master.addVehicle(d, owner(), { registration_no: "VRQ-W03", make: "Honda", model: "Civic" })).id;
+    await raw(async (q) => {
+      const rc = (await q.query<{ id: string }>("select id from reason_codes limit 1")).rows[0].id;
+      const jc = (await q.query<{ id: string }>("insert into job_cards(vehicle_id, requested_by, reason_code_id, cause_text) values ($1,$2,$3,'Brakes are squealing badly') returning id", [id, emps[31], rc])).rows[0].id;
+      await q.query("insert into job_card_events(job_card_id, from_status, to_status) values ($1, null, 'draft')", [jc]);
+    });
+    expect((await vr.poolVehicles(d, mgr())).find((v) => v.id === id)!.warnings.join()).toMatch(/open repair: JC-/);
+  });
+});

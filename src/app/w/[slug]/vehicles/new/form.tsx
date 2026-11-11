@@ -78,6 +78,8 @@ export function AddVehicleForm({ slug, employees, departments = [], serviceTypes
                 <p className={`${inputCls} flex items-center bg-zinc-50 text-zinc-600`}>{holder ? holder.department ?? "Not set" : "From the person you choose"}</p>
               </Field>
               {f("base_location", "Base location")}
+              {f("seats", "Seats", { inputMode: "numeric" })}
+              {f("load_capacity_kg", "Load capacity (kg)", { inputMode: "decimal" })}
             </div>
             <div className={`${three} mt-3`}>
               <Input name="department" label="Operating department" state={state} list="departments" hint="Which department runs this vehicle, for example Logistics or Operations. Empty is the general fleet." />
