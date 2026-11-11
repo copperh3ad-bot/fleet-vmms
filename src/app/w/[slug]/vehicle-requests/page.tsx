@@ -5,6 +5,7 @@ import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { listVehicleRequests, poolVehicles, VREQ_STATUS_LABEL } from "@/lib/vehicle-requests/service";
 import { PageHeader, Panel, Pill, Plate, btnPrimary, type Tone } from "@/components/ui";
+import { ExportLink } from "@/components/export-link";
 
 export default function VehicleRequestsPage({ params, searchParams }: PageProps<"/w/[slug]/vehicle-requests">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} searchParams={searchParams} /></Suspense>;
@@ -43,7 +44,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   );
   return (
     <main className="space-y-5 p-6 text-zinc-900">
-      <PageHeader title="Vehicle requests" sub={`${rows.length} shown`} actions={perms.has("vreq.request") ? <a href={`/w/${slug}/vehicle-requests/new`} className={btnPrimary}>Ask for a vehicle</a> : undefined} />
+      <PageHeader title="Vehicle requests" sub={`${rows.length} shown`} actions={<>{perms.has("vreq.read_all") && <ExportLink slug={slug} kind="vehicle-requests" query={{ status }} />}{perms.has("vreq.request") && <a href={`/w/${slug}/vehicle-requests/new`} className={btnPrimary}>Ask for a vehicle</a>}</>} />
       {waiting.length > 0 && <Panel title="Waiting for your decision" sub={`${waiting.length} request${waiting.length === 1 ? "" : "s"}`} flush>{table(waiting)}</Panel>}
       {pool && (
         <Panel title="Vehicles free now" sub="In service and held by nobody. Read-only: Logistics gives them out." flush>

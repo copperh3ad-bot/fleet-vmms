@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { testDriver, tenantMigrations, stripExt } from "./helpers";
 import { provisionTenant } from "@/lib/db/provision";
 import { withPlatform, withTenant } from "@/lib/db/tenant";
-import { ForbiddenError, type Membership } from "@/lib/auth/can";
+import { ForbiddenError, adminBlockedFromOthers, type Membership } from "@/lib/auth/can";
 import * as master from "@/lib/master/service";
 import { UserError } from "@/lib/master/service";
 import * as jc from "@/lib/jobcards/service";
@@ -65,6 +65,15 @@ describe("A1: the administrator and other people's decisions", () => {
     expect((e as UserError).message).toMatch(/administrator does not decide job cards/i);
     await jc.transitionJobCard(d, fm(), id, "approved");                                      // the fleet manager still can
     expect((await jc.getJobCard(d, fm(), id))!.status).toBe("approved");
+  });
+
+  it("the screens can ask: adminBlockedFromOthers is true for the strict administrator only, so the Approve button is not shown (QA R10)", async () => {
+    expect(await adminBlockedFromOthers(d, owner(), "jobcard.approve")).toBe(true);
+    expect(await adminBlockedFromOthers(d, fm(), "jobcard.approve")).toBe(false);          // another role is never blocked by this rule
+    await setOpen("1");
+    expect(await adminBlockedFromOthers(d, owner(), "jobcard.approve")).toBe(false);       // the company allows it
+    await setOpen("0");
+    expect(await adminBlockedFromOthers(d, owner(), "jobcard.approve")).toBe(true);
   });
 
   it("open: switched on, the administrator may decide too", async () => {

@@ -34,5 +34,6 @@ vehicles of their department.
 
 ## Consequences
 Existing companies with a fleet manager become strict on the next deploy; to keep the old behaviour they switch `admin_decides_others` on.
-The job card page still shows the administrator an Approve button; pressing it gives the company-rule message. Hiding the button needs the page to know the
-rule and is left for later.
+The job card page used to show the administrator an Approve button that failed with the company-rule message (QA run R10). It no longer does: `adminBlockedFromOthers`
+(`src/lib/auth/can.ts`) asks the database function, and the job card page (approve and quotation approve) and the invoice page (check) show the rule in words instead of the button or form.
+The database still refuses the decision either way.

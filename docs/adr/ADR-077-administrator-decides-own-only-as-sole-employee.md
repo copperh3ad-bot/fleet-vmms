@@ -2,6 +2,8 @@
 
 Status: built; tenant migration 0042 to be applied on live (no code depends on it: it only tightens the database function). Owner decision (2026-11-09). Supersedes ADR-072's test ("nobody else could decide it") and ADR-074's per-card scope test.
 
+> Scope note (2026-11-11): this ADR is about the administrator deciding **their own** work. What the administrator may do with **other people's** items is stricter and is set by ADR-088: while a fleet manager, Logistics or another approver is active, the administrator does not decide them unless the company switches `admin_decides_others` on. "Sole employee" here is not the rule for other people's items.
+
 ## Context
 
 The tenant administrator handles system settings, sign-in and onboarding; a Fleet manager (or a Logistics person, who sees the whole fleet, ADR-075) approves job cards and quotations, and finance checks invoices. ADR-072 let the administrator decide their own work while no other active member held the permission, and ADR-074 refined "could decide" to the card's vehicle and amount. Both let the administrator through in a company that has other employees but no approver.

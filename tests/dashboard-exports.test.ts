@@ -77,12 +77,12 @@ describe("exports", () => {
   const forbidden = (p: Promise<unknown>) => p.then(() => false, (e) => e instanceof ForbiddenError);
 
   it("knows exactly the exports listed, and refuses anything else", async () => {
-    expect(EXPORT_KINDS.sort()).toEqual(["accidents", "budgets", "challans", "cost-per-hour", "cost-per-km", "costs-by-vehicle", "documents", "flags", "invoices", "job-cards", "outsourced-trips", "repeat-repairs", "vehicles", "workshop-time"]);
+    expect(EXPORT_KINDS.sort()).toEqual(["accidents", "budgets", "cargo", "challans", "cost-per-hour", "cost-per-km", "costs-by-vehicle", "documents", "flags", "invoices", "job-cards", "outsourced-trips", "repeat-repairs", "vehicle-requests", "vehicles", "workshop-time"]);
     for (const bad of ["constructor", "__proto__", "toString", "../vehicles", "", "VEHICLES"]) await expect(exportCsv(d, mgr(), bad)).rejects.toBeInstanceOf(UserError);
   });
 
   it("every export runs and has a header row, for a role that holds its permission", async () => {
-    const who: Record<string, Membership> = { vehicles: mgr(), "job-cards": mgr(), "outsourced-trips": mgr(), invoices: finance(), documents: mgr(), accidents: mgr(), challans: mgr(), budgets: mgr(), "costs-by-vehicle": mgr(), "repeat-repairs": mgr(), flags: mgr(), "cost-per-km": mgr(), "cost-per-hour": mgr(), "workshop-time": mgr() };
+    const who: Record<string, Membership> = { vehicles: mgr(), "job-cards": mgr(), "outsourced-trips": mgr(), invoices: finance(), documents: mgr(), accidents: mgr(), challans: mgr(), budgets: mgr(), "costs-by-vehicle": mgr(), "repeat-repairs": mgr(), flags: mgr(), "cost-per-km": mgr(), "cost-per-hour": mgr(), "workshop-time": mgr(), cargo: mgr(), "vehicle-requests": mgr() };
     for (const kind of EXPORT_KINDS) {
       const r = await exportCsv(d, who[kind], kind);
       expect(r.csv.startsWith("﻿"), kind).toBe(true);
@@ -98,6 +98,7 @@ describe("exports", () => {
       ["documents", mgr(), true], ["documents", auditor(), true], ["documents", driver(), false], ["documents", mem("vendor", 21), false],
       ["accidents", auditor(), true], ["accidents", driver(), false], ["challans", finance(), true], ["challans", driver(), false],
       ["budgets", finance(), true], ["budgets", driver(), false],
+      ["cargo", mgr(), true], ["cargo", auditor(), true], ["cargo", driver(), false], ["vehicle-requests", mgr(), true], ["vehicle-requests", auditor(), true], ["vehicle-requests", driver(), false],
       ["costs-by-vehicle", auditor(), true], ["costs-by-vehicle", driver(), false], ["costs-by-vehicle", mem("vendor", 21), false],
       ["repeat-repairs", auditor(), true], ["repeat-repairs", driver(), false], ["flags", driver(), false], ["flags", finance(), true],
     ];

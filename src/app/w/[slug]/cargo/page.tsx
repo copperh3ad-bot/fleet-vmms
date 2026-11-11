@@ -6,6 +6,7 @@ import { getDriver } from "@/lib/db";
 import { CARGO_STATUS_LABEL, listCargo } from "@/lib/cargo/service";
 import { dmyTime } from "@/lib/format/date";
 import { btnPrimary, PageHeader, Panel, Pill, type Tone } from "@/components/ui";
+import { ExportLink } from "@/components/export-link";
 
 export default function CargoPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ status?: string }> }) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} searchParams={searchParams} /></Suspense>;
@@ -23,7 +24,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const handler = perms.has("cargo.handle");
   return (
     <main className="space-y-5 p-6 text-zinc-900">
-      <PageHeader title="Cargo" sub={`${rows.length} shown${handler || perms.has("cargo.read_all") ? "" : ", your requests"}`} actions={perms.has("cargo.request") ? <a href={`/w/${slug}/cargo/new`} className={btnPrimary}>Ask for a pick-up and delivery</a> : undefined} />
+      <PageHeader title="Cargo" sub={`${rows.length} shown${handler || perms.has("cargo.read_all") ? "" : ", your requests"}`} actions={<>{(handler || perms.has("cargo.read_all")) && <ExportLink slug={slug} kind="cargo" query={{ status }} />}{perms.has("cargo.request") && <a href={`/w/${slug}/cargo/new`} className={btnPrimary}>Ask for a pick-up and delivery</a>}</>} />
       <nav aria-label="Status" className="flex flex-wrap gap-2 text-sm">
         {[["", "All"], ...Object.entries(CARGO_STATUS_LABEL)].map(([k, label]) => (
           <a key={k} href={k ? `/w/${slug}/cargo?status=${k}` : `/w/${slug}/cargo`} aria-current={(status ?? "") === k ? "page" : undefined} className={`rounded-full border px-3 py-1 ${(status ?? "") === k ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300 bg-white"}`}>{label}</a>

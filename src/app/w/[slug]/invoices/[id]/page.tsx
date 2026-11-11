@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/auth/session";
-import { permissionsOf } from "@/lib/auth/can";
+import { adminBlockedFromOthers, permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { getInvoiceReview, listCommercialFiles, type CompareRow } from "@/lib/vendorflow/service";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
@@ -30,6 +30,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
   const files = await listCommercialFiles(driver, await supabaseBlobStore(), m, "invoice", id);
   const payments = await getPayments(driver, m, "workshop", id);
   const canVerify = (await permissionsOf(driver, m)).has("invoice.verify");
+  const blockedCheck = canVerify && inv.status === "submitted" ? await adminBlockedFromOthers(driver, m, "invoice.verify") : false;   // company rule (ADR-088): the database refuses, so no form is shown
   const to = (p: string) => `/w/${slug}/${p}`;
   const bad = inv.comparison.filter((r) => r.check === "not_approved");
   const changed = inv.comparison.filter((r) => r.check === "qty" || r.check === "price");
@@ -108,6 +109,8 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
               <p className="text-sm text-zinc-600">Waiting for Finance to check this invoice.</p>
             ) : inv.status !== "submitted" ? (
               <p className="text-sm">{inv.status === "disputed" ? "Returned to the workshop" : "Checked"}{inv.payable_amount ? `, payable ${money(Number(inv.payable_amount))}` : ""}.{inv.decision_note ? ` Note: ${inv.decision_note}` : ""}</p>
+            ) : blockedCheck ? (
+              <p role="status" className="rounded-md bg-amber-100 p-3 text-sm text-amber-800">Your company rule keeps the administrator from checking invoices while Finance or another approver is active. They check this one.</p>
             ) : inv.blocked ? (
               <p role="status" className="rounded-md bg-amber-100 p-3 text-sm text-amber-800">{inv.blocked.by === "approver" ? `You approved this job card, so you cannot check its invoice. Ask someone else in finance.` : `You raised this job card, so you cannot check its invoice. Ask someone else in finance.`}</p>
             ) : (

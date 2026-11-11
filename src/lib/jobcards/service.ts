@@ -326,7 +326,13 @@ export function getJobCard(driver: Driver, m: Membership, id: string): Promise<J
     jc.lines = (await q.query<JobCardDetail["lines"][number]>(
       "select id, kind, description, qty::text, unit_cost::text, service_type_key from job_card_lines where job_card_id = $1 order by id", [id])).rows;
     jc.events = (await q.query<JobCardDetail["events"][number]>(
-      `select ev.id, ev.from_status, ev.to_status, coalesce(e.full_name, vn.name) as actor_name, ev.comment, ev.created_at::text
+      // A workshop acting through a single-use link has no login, so its events have no actor. They are named "Workshop (link)" (I3). With several workshops asked
+      // the card's workshop is only known after one is approved, so an earlier link event could be any of them and is not named.
+      `select ev.id, ev.from_status, ev.to_status,
+              coalesce(e.full_name, vn.name,
+                case when ev.actor_id is null and ev.comment ~ '(through a link|when the workshop sent its invoice)'
+                     then coalesce(case when exists (select 1 from job_card_invitees i where i.job_card_id = ev.job_card_id) then null else (select x.name from job_cards j join vendors x on x.id = j.vendor_id where j.id = ev.job_card_id) end, 'A workshop') || ' (link)' end) as actor_name,
+              ev.comment, ev.created_at::text
          from job_card_events ev left join employees e on e.user_id = ev.actor_id left join vendors vn on vn.user_id = ev.actor_id
         where ev.job_card_id = $1 order by ev.seq`, [id])).rows;
     return jc;

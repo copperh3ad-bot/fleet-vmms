@@ -117,6 +117,16 @@ export async function adminMayDecideOwn(driver: Driver, m: Membership, permissio
 }
 
 /**
+ * Is this administrator kept from deciding other people's items by the company rule (setting admin_decides_others, ADR-088)? The database refuses the decision either way;
+ * this lets a screen hide the button instead of showing one that fails. False for every other role, and false if the database does not have the function yet.
+ */
+export async function adminBlockedFromOthers(driver: Driver, m: Membership, permission: string): Promise<boolean> {
+  if (m.role !== "tenant_admin") return false;
+  try { return await withTenant(driver, m, async (q) => (await q.query<{ ok: boolean }>("select admin_blocked_from_others($1) as ok", [permission])).rows[0].ok); }
+  catch { return false; }
+}
+
+/**
  * The department this person's role is limited to (ADR-048), or null for a role that sees the whole fleet (the fleet manager, and Logistics by default, ADR-075). A department login sees only the vehicles whose own
  * department is this one, whatever department the person is listed under as an employee, so the empty pages use this name to say why they look empty.
  */

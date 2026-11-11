@@ -173,6 +173,30 @@ const DEFS: Record<string, Def> = {
           order by t.decided_at desc ${cap}`, [String([3, 6, 12, 24].includes(Number(f.months)) ? Number(f.months) : 12)])).rows;
     },
   },
+  cargo: {
+    perms: ["cargo.handle", "cargo.read_all"],
+    columns: [col("Request", "cargo_no"), col("Raised", "created_at"), col("Requested by", "requester"), col("Department", "department"), col("What", "description"), col("Quantity", "quantity_text"), col("Weight kg", "weight_kg"),
+      col("Handling", "handling"), col("Pick up from", "pickup_place"), col("Pick up at", "pickup_at"), col("Deliver to", "drop_place"), col("Deliver by", "deliver_by"), col("Status", "status"), col("Trip", "trip_no"), col("Decision note", "decision_note")],
+    async run({ q, f }) {
+      const p: unknown[] = []; if (f.status) p.push(f.status);
+      return (await q.query(
+        `select c.cargo_no, c.created_at::date::text as created_at, re.full_name as requester, c.department, c.description, c.quantity_text, c.weight_kg::text, c.handling,
+                c.pickup_place, c.pickup_at::text, c.drop_place, c.deliver_by::text, c.status, t.trip_no, c.decision_note
+           from cargo_requests c join employees re on re.id = c.requested_by left join trips t on t.id = c.trip_id ${f.status ? "where c.status = $1" : ""} order by c.created_at desc ${cap}`, p)).rows;
+    },
+  },
+  "vehicle-requests": {
+    perms: ["vreq.read_all"],
+    columns: [col("Request", "request_no"), col("Raised", "created_at"), col("Asked by", "requester"), col("For", "for_name"), col("Why", "reason"), col("Kind wanted", "vehicle_class"), col("Needed from", "needed_from"),
+      col("Status", "status"), col("Vehicle", "registration_no"), col("Decision note", "decision_note")],
+    async run({ q, f }) {
+      const p: unknown[] = []; if (f.status) p.push(f.status);
+      return (await q.query(
+        `select r.request_no, r.created_at::date::text as created_at, re.full_name as requester, fe.full_name as for_name, r.reason, r.vehicle_class, r.needed_from::text, r.status, v.registration_no, r.decision_note
+           from vehicle_requests r join employees re on re.id = r.requested_by join employees fe on fe.id = r.for_employee left join vehicles v on v.id = r.vehicle_id
+          ${f.status ? "where r.status = $1" : ""} order by r.created_at desc ${cap}`, p)).rows;
+    },
+  },
   flags: {
     perms: ["report.view"],
     columns: [col("Vehicle", "registration_no"), col("Flag", "flag"), col("Severity", "severity"), col("Detail", "detail")],

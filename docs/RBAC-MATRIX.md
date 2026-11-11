@@ -46,6 +46,7 @@ Role keys: **Adm** tenant_admin, **FM** fleet_manager, **Fin** finance, **Req** 
 | vreq.decide (approve a purchase, or reject) | ✔ | ✔ | | | | | | | |
 | vreq.confirm_budget (confirm the budget for a purchase, migration 0058) | ✔ | | ✔ | | | | | | |
 | depot.manage (depots and places, migration 0060) | ✔ | ✔ | | | | ✔ | | | |
+| activity.read (company activity log, read-only, migration 0061) | ✔ | | | | ✔ | | | | |
 | **Trips** | | | | | | | | | |
 | trip.request | ✔ | ✔ | | ✔ | | ✔ | | | |
 | trip.read_all | ✔ | ✔ | | | ✔ | | | | |
@@ -77,4 +78,4 @@ Role keys: **Adm** tenant_admin, **FM** fleet_manager, **Fin** finance, **Req** 
    checked an invoice, or approved or raised its job card, cannot record its payment.
 2. HR holds only `vreq.request` and `vreq.read_all`, and no `vehicle.read`.
 3. Logistics can approve job cards and quotations (within the department limit) and also dispatch and award trips.
-4. The auditor can read job cards, trips, vehicle requests and reports but has no cargo read permission.
+4. The auditor can read job cards, trips, vehicle requests, cargo (`cargo.read_all`, read-only) and reports, and the company activity log (`activity.read`).

@@ -5,7 +5,7 @@ import { whatsappConfigured } from "@/lib/whatsapp";
 import { WorkshopEmails } from "./workshop-emails";
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/auth/session";
-import { adminMayDecideOwn, permissionsOf } from "@/lib/auth/can";
+import { adminBlockedFromOthers, adminMayDecideOwn, permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { getJobCard, getReviewContext, listActiveVendors, listReasonCodes } from "@/lib/jobcards/service";
 import { STATUS_LABEL, StatusBadge, Stepper } from "../status";
@@ -40,7 +40,10 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
 
   // the administrator may decide a card they raised only while they are the only employee (ADR-077)
   const adminSelfApprove = c.requester_is_me && c.status === "submitted" ? await adminMayDecideOwn(driver, m, "jobcard.approve", { vehicleId: c.vehicle_id, amount: c.estimated_cost }) : false;
-  const canDecide = c.status === "submitted" && perms.has("jobcard.approve") && (!c.requester_is_me || adminSelfApprove);
+  // company rule (ADR-088): while a fleet manager or another approver is active the administrator does not decide; the database refuses, so the button is not shown
+  const blockedApprove = c.status === "submitted" && perms.has("jobcard.approve") ? await adminBlockedFromOthers(driver, m, "jobcard.approve") : false;
+  const blockedQuote = c.status === "quotation_received" && perms.has("quotation.approve") ? await adminBlockedFromOthers(driver, m, "quotation.approve") : false;
+  const canDecide = c.status === "submitted" && perms.has("jobcard.approve") && (!c.requester_is_me || adminSelfApprove) && !blockedApprove;
   const canAssign = c.status === "approved" && perms.has("jobcard.assign_vendor");
   const canAsk = ["vendor_assigned", "quotation_received"].includes(c.status) && perms.has("jobcard.assign_vendor");
   const canEdit = c.mine && perms.has("jobcard.create") && ["draft", "returned_for_edit"].includes(c.status);
@@ -50,7 +53,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
   const adminSelfQuote = c.requester_is_me && c.status === "quotation_received" ? await adminMayDecideOwn(driver, m, "quotation.approve", { vehicleId: c.vehicle_id, amount: waitingQuote?.amount ?? null }) : false;
   const canHandleEmails = perms.has("jobcard.assign_vendor") || perms.has("quotation.approve") || perms.has("invoice.verify");
   const workshopEmails = commercial && canHandleEmails ? await listWorkshopEmails(driver, m, id) : [];
-  const canDecideQuote = c.status === "quotation_received" && perms.has("quotation.approve") && (!c.requester_is_me || adminSelfQuote);
+  const canDecideQuote = c.status === "quotation_received" && perms.has("quotation.approve") && (!c.requester_is_me || adminSelfQuote) && !blockedQuote;
   const canClose = c.status === "invoice_verified" && perms.has("invoice.verify");
   const [files, ctx, reasons, assignable] = await Promise.all([
     listJobCardAttachments(driver, await supabaseBlobStore(), m, id),
@@ -184,6 +187,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
                   {canDecideQuote && qt.status === "submitted" && <QuoteDecision slug={slug} quotationId={qt.id} mustExplain={qt.warnings.length > 0} />}
                 </div>
               ))}
+              {blockedQuote && <p role="status" className="mb-3 rounded-md bg-amber-100 p-3 text-sm text-amber-800">Your company rule keeps the administrator from approving quotations while a fleet manager or another approver is active. They decide this one.</p>}
               {c.status === "quotation_received" && !canDecideQuote && c.requester_is_me && perms.has("quotation.approve") && (
                 <p role="status" className="mb-3 rounded-md bg-amber-100 p-3 text-sm text-amber-800">You raised this card, so someone else has to approve the quotation.</p>
               )}
@@ -216,6 +220,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
               <DecisionForm slug={slug} id={id} requester={c.requester_name} reasons={reasons} currentReasonId={c.reason_code_id} vendors={ctx.vendors} canAssign={perms.has("jobcard.assign_vendor")} raisedByMe={c.requester_is_me} />
             </Panel>
           )}
+          {blockedApprove && <p role="status" className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-600">Your company rule keeps the administrator from deciding job cards while a fleet manager or another approver is active. They decide this one. You can change the rule under Service rules.</p>}
           {c.status === "submitted" && c.requester_is_me && !canDecide && <p role="status" className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-600">{perms.has("jobcard.approve") ? "You raised this card, so someone else has to approve it." : "Waiting for a manager to approve."}</p>}
           {canAssign && <Panel title="Choose a workshop"><VendorPanel slug={slug} id={id} vendors={assignable} /></Panel>}
           {canEdit && (
