@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
-import { listVehicleRequests, VREQ_STATUS_LABEL } from "@/lib/vehicle-requests/service";
+import { listVehicleRequests, poolVehicles, VREQ_STATUS_LABEL } from "@/lib/vehicle-requests/service";
 import { PageHeader, Panel, Pill, Plate, btnPrimary, type Tone } from "@/components/ui";
 
 export default function VehicleRequestsPage({ params, searchParams }: PageProps<"/w/[slug]/vehicle-requests">) {
@@ -19,7 +19,8 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const m = await requireMembership(slug);
   const driver = getDriver();
   const [rows, perms] = await Promise.all([listVehicleRequests(driver, m, { status: status || undefined }), permissionsOf(driver, m)]);
-  const waiting = perms.has("vreq.decide") ? rows.filter((r) => r.status === "requested") : [];
+  const waiting = perms.has("vreq.decide") || perms.has("vreq.assign") ? rows.filter((r) => r.status === "requested") : [];
+  const pool = perms.has("vreq.see_pool") && !perms.has("vreq.assign") && !perms.has("vreq.decide") ? await poolVehicles(driver, m) : null;   // HR sees what is free, read-only (A5)
   const control = "h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm";
   const table = (list: typeof rows) => (
     <div className="overflow-x-auto"><table className="w-full text-left text-sm">
@@ -44,6 +45,13 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
     <main className="space-y-5 p-6 text-zinc-900">
       <PageHeader title="Vehicle requests" sub={`${rows.length} shown`} actions={perms.has("vreq.request") ? <a href={`/w/${slug}/vehicle-requests/new`} className={btnPrimary}>Ask for a vehicle</a> : undefined} />
       {waiting.length > 0 && <Panel title="Waiting for your decision" sub={`${waiting.length} request${waiting.length === 1 ? "" : "s"}`} flush>{table(waiting)}</Panel>}
+      {pool && (
+        <Panel title="Vehicles free now" sub="In service and held by nobody. Read-only: Logistics gives them out." flush>
+          {pool.length === 0 ? <p className="p-5 text-sm text-zinc-500">No vehicle is free at the moment.</p> : (
+            <ul className="divide-y divide-zinc-100 text-sm">{pool.map((v) => <li key={v.id} className="flex flex-wrap items-center gap-3 px-5 py-3"><Plate>{v.registration_no}</Plate><span className="text-zinc-600">{v.label}</span></li>)}</ul>
+          )}
+        </Panel>
+      )}
       <form className="flex flex-wrap gap-2" role="search">
         <select name="status" defaultValue={status} className={control} aria-label="Status">
           <option value="">Any status</option>

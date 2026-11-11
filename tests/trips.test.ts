@@ -252,6 +252,24 @@ describe("staff pick and drop by pool cars (logistics)", () => {
     await expect(trips.transitionTrip(d, logi(), ordinary, "approved", { vehicleId: car, driverId: emps[14] })).rejects.toBeInstanceOf(ForbiddenError);
   });
 
+  it("in whole-fleet mode (the default) logistics sees and decides an ordinary trip that has no vehicle yet; scoped to a department it does not (A3)", async () => {
+    const asker = req2();
+    const ordinary = await trips.requestTrip(d, asker, T({ purpose: "Site visit", start_at: at(9, 8), end_at: at(9, 12) }));
+    const setMode = (all: boolean) => withTenant(d, owner(), (q) => q.query("update role_departments set sees_all_vehicles = $1 where role_key = 'logistics'", [all]));
+    await setMode(true);
+    try {
+      expect((await trips.listTrips(d, logi())).some((r) => r.id === ordinary)).toBe(true);
+      expect(await trips.getTrip(d, logi(), ordinary)).not.toBeNull();
+      await trips.transitionTrip(d, logi(), ordinary, "approved", { vehicleId: car, driverId: emps[17] });
+      expect(await trips.getTrip(d, logi(), ordinary)).toMatchObject({ status: "approved" });
+      const another = await trips.requestTrip(d, asker, T({ purpose: "Bank run", start_at: at(10, 8), end_at: at(10, 9) }));
+      await trips.transitionTrip(d, logi(), another, "rejected", { note: "No car free that day" });
+      expect(await trips.getTrip(d, logi(), another)).toMatchObject({ status: "rejected" });
+    } finally { await setMode(false); }
+    const third = await trips.requestTrip(d, asker, T({ purpose: "Courier", start_at: at(11, 8), end_at: at(11, 9) }));
+    expect(await trips.getTrip(d, logi(), third)).toBeNull();                                  // scoped again: out of reach
+  });
+
   it("logistics sees every pick and drop run but not other people's ordinary trips; an ordinary trip may use a pool car", async () => {
     const ordinary = await trips.requestTrip(d, req2(), T({ purpose: "Private errand", start_at: at(7, 8), end_at: at(7, 9) }));
     const rows = await trips.listTrips(d, logi());

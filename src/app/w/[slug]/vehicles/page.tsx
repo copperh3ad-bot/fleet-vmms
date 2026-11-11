@@ -33,7 +33,8 @@ async function Vehicles({ params, searchParams }: { params: Promise<{ slug: stri
   const { slug } = await params;
   const sp = await searchParams;
   const q = one(sp.q).slice(0, 80), filter = one(sp.filter), page = Number(one(sp.page)) || 1, dept = one(sp.dept).slice(0, 60);
-  const m = await requireMembership(slug, { fullScope: true });
+  const m = await requireMembership(slug);                  // someone limited to their own vehicle sees only that vehicle: the board filters by custody (A6)
+  const ownOnly = m.vehicleScope === "own";
   const driver = getDriver();
   const [b, perms, plan, myDepartment] = await Promise.all([getBoard(driver, m, { q: q || undefined, filter, page, dept: dept || undefined }), permissionsOf(driver, m), planUsage(driver, m), departmentOf(driver, m)]);
   const canWrite = perms.has("vehicle.write");
@@ -47,12 +48,12 @@ async function Vehicles({ params, searchParams }: { params: Promise<{ slug: stri
     ["all", "All"], ["overdue", "Overdue"], ["due_soon", `Due within ${b.warnDays} days`], ["scheduled", "Scheduled"], ["no_history", "No history"], ["ok", "On track"],
   ];
   const sub = [`${plural(b.counts.all, "active vehicle")}`, b.ruleText,
-    plan.vehicles.limit !== null ? `${plan.vehicles.used} of ${plan.vehicles.limit} allowed by your plan` : null].filter(Boolean).join(" · ");
+    !ownOnly && plan.vehicles.limit !== null ? `${plan.vehicles.used} of ${plan.vehicles.limit} allowed by your plan` : null].filter(Boolean).join(" · ");
 
   return (
     <main className="space-y-5 p-6 text-zinc-900">
       <PageHeader title="Vehicles" sub={sub} actions={<>
-        <ExportLink slug={slug} kind="vehicles" query={{ q, status: "", dept: b.dept }} />
+        {!ownOnly && <ExportLink slug={slug} kind="vehicles" query={{ q, status: "", dept: b.dept }} />}
         {canWrite && <a href={`/w/${slug}/vehicles/import`} className={btnPrimary}>Import data</a>}
         {canWrite && <a href={`/w/${slug}/vehicles/new`} className={btnPrimary}>Add vehicle</a>}
       </>} />

@@ -108,10 +108,10 @@ const ROW = `select c.id, c.cargo_no, c.status, c.description, c.quantity_text, 
 
 /** Those who handle cargo see every request; anyone else sees only their own. */
 export function listCargo(driver: Driver, m: Membership, opts: { status?: string } = {}): Promise<CargoRow[]> {
-  return authorizedAny(driver, m, ["cargo.request", "cargo.handle"], async (q, held) => {
+  return authorizedAny(driver, m, ["cargo.request", "cargo.handle", "cargo.read_all"], async (q, held) => {
     const params: unknown[] = [m.userId];
     const where: string[] = [];
-    if (!held.has("cargo.handle")) where.push("re.user_id = $1");
+    if (!held.has("cargo.handle") && !held.has("cargo.read_all")) where.push("re.user_id = $1");
     if (opts.status) { params.push(opts.status); where.push(`c.status = $${params.length}`); }
     return (await q.query<CargoRow>(`${ROW} ${where.length ? "where " + where.join(" and ") : ""} order by c.pickup_at desc limit 300`, params)).rows;
   });
@@ -124,12 +124,12 @@ export type CargoDetail = CargoRow & {
 };
 
 export function getCargo(driver: Driver, m: Membership, id: string): Promise<CargoDetail | null> {
-  return authorizedAny(driver, m, ["cargo.request", "cargo.handle"], async (q, held) => {
+  return authorizedAny(driver, m, ["cargo.request", "cargo.handle", "cargo.read_all"], async (q, held) => {
     const c = (await q.query<Omit<CargoDetail, "events">>(
       `select c.id, c.cargo_no, c.status, c.description, c.quantity_text, c.pickup_place, c.drop_place, c.pickup_at::text, c.deliver_by::text, re.full_name as requester_name, (re.user_id = $2) as mine,
               c.source, c.trip_id, c.pickup_contact, c.pickup_phone, c.drop_contact, c.drop_phone, c.handling, c.department, c.decision_note, c.vehicle_type, c.poc_details, c.instructions, c.created_at::text, t.trip_no
          from cargo_requests c join employees re on re.id = c.requested_by left join trips t on t.id = c.trip_id where c.id = $1`, [id, m.userId])).rows[0];
-    if (!c || (!held.has("cargo.handle") && !c.mine)) return null;
+    if (!c || (!held.has("cargo.handle") && !held.has("cargo.read_all") && !c.mine)) return null;
     const events = (await q.query<CargoDetail["events"][number]>(
       `select e.to_status, e.note, e.created_at::text, emp.full_name as actor_name from cargo_events e left join employees emp on emp.user_id = e.actor_id where e.cargo_id = $1 order by e.created_at, e.id`, [id])).rows;
     return { ...c, events };

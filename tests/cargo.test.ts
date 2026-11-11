@@ -70,7 +70,9 @@ describe("asking for cargo to be moved", () => {
     expect((await listCargo(d, req2())).map((r) => r.id)).toContain(mine.id);
     expect((await listCargo(d, logi())).map((r) => r.id)).toContain(mine.id);
     expect(await getCargo(d, req(), mine.id)).toBeNull();
-    expect(await listCargo(d, aud()).catch((e) => e)).toBeInstanceOf(ForbiddenError);
+    expect((await listCargo(d, aud())).map((r) => r.id)).toContain(mine.id);                  // the auditor reads every request (A4) ...
+    expect(await getCargo(d, aud(), mine.id)).not.toBeNull();
+    await expect(transitionCargo(d, aud(), mine.id, "accepted")).rejects.toBeInstanceOf(ForbiddenError);   // ... but changes nothing
   });
 });
 

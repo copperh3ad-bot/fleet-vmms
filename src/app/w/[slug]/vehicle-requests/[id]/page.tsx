@@ -20,9 +20,10 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const [r, perms] = await Promise.all([getVehicleRequest(driver, m, id), permissionsOf(driver, m)]);
   if (!r) notFound();
-  const decider = perms.has("vreq.decide") && r.for_user !== m.userId;
-  const canCancel = (perms.has("vreq.decide") || (r.requested_by_me && perms.has("vreq.request"))) && (r.status === "requested" || r.status === "purchase_approved");
-  const pool = decider && (r.status === "requested" || r.status === "purchase_approved") ? await poolVehicles(driver, m) : [];
+  const assigner = (perms.has("vreq.assign") || perms.has("vreq.decide")) && r.for_user !== m.userId;     // may give a pool vehicle (A2)
+  const decider = perms.has("vreq.decide") && r.for_user !== m.userId;                                      // may approve buying one, or reject
+  const canCancel = (perms.has("vreq.decide") || perms.has("vreq.assign") || (r.requested_by_me && perms.has("vreq.request"))) && (r.status === "requested" || r.status === "purchase_approved");
+  const pool = assigner && (r.status === "requested" || r.status === "purchase_approved") ? await poolVehicles(driver, m) : [];
   const step = { slug, id };
   return (
     <main className="space-y-5 p-6 text-zinc-900">
@@ -38,7 +39,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
         </dl>
       </Panel>
 
-      {decider && (r.status === "requested" || r.status === "purchase_approved") && (
+      {assigner && (r.status === "requested" || r.status === "purchase_approved") && (
         <Panel title="Give a vehicle from the pool" sub="Vehicles that are in service and that nobody holds at the moment. The employee becomes its holder.">
           {pool.length === 0 ? <p className="text-sm text-zinc-500">No vehicle is free. Approve buying one, then give it here once it has been added.</p>
             : <VehicleRequestStep {...step} to="assigned" label="Give this vehicle" fields={["vehicle", "note"]} vehicles={pool.map((v): [string, string] => [v.id, `${v.registration_no}${v.label ? " · " + v.label : ""}`])} />}

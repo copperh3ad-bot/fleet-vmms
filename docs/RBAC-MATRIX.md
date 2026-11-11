@@ -39,8 +39,10 @@ Role keys: **Adm** tenant_admin, **FM** fleet_manager, **Fin** finance, **Req** 
 | vendor.manage | ✔ | ✔ | | | | | | | |
 | **Vehicle requests (HR)** | | | | | | | | | |
 | vreq.request | | | | | | | ✔ | | |
-| vreq.read_all | ✔ | ✔ | | | ✔ | | ✔ | | |
-| vreq.decide (give a pool vehicle or approve a purchase) | ✔ | ✔ | | | | | | | |
+| vreq.read_all | ✔ | ✔ | | | ✔ | ✔ | ✔ | | |
+| vreq.assign (give a pool vehicle, ADR-088) | ✔ | ✔ | | | | ✔ | | | |
+| vreq.see_pool (see free vehicles, read-only, ADR-088) | ✔ | ✔ | | | | ✔ | ✔ | | |
+| vreq.decide (approve a purchase, or reject) | ✔ | ✔ | | | | | | | |
 | **Trips** | | | | | | | | | |
 | trip.request | ✔ | ✔ | | ✔ | | ✔ | | | |
 | trip.read_all | ✔ | ✔ | | | ✔ | | | | |
@@ -51,6 +53,7 @@ Role keys: **Adm** tenant_admin, **FM** fleet_manager, **Fin** finance, **Req** 
 | **Cargo** | | | | | | | | | |
 | cargo.request | ✔ | ✔ | | ✔ | | ✔ | | | |
 | cargo.handle | ✔ | ✔ | | | | ✔ | | | |
+| cargo.read_all (read-only, ADR-088) | | | | | ✔ | | | | |
 | **Administration** | | | | | | | | | |
 | admin.users (invite employees) | ✔ | | | | | | | | |
 | employee.manage | ✔ | ✔ | | | | | | | |
@@ -58,9 +61,10 @@ Role keys: **Adm** tenant_admin, **FM** fleet_manager, **Fin** finance, **Req** 
 
 ## Rules on top of the table
 - Segregation of duties: nobody approves their own job card, quotation or invoice check. The administrator may decide their own
-  only while they are the sole active employee (ADR-077).
+  only while they are the sole active employee (ADR-077). The administrator also may not decide **other people's** while a fleet manager or another approver is
+  active, unless the company switches `admin_decides_others` on (ADR-088, default strict).
 - Logistics approves only up to the setting `dept_approval_limit`; above it a fleet manager must approve. Vehicles of the
-  department are in scope by default (ADR-048, ADR-075).
+  department are in scope by default (ADR-048, ADR-075). Logistics decides a trip with no vehicle yet, in whole-fleet mode (ADR-088).
 - A driver or requester limited to one vehicle sees only that vehicle's dashboard and job cards.
 - Trip and cargo permissions work only on the Pro plan (ADR-085); the AI and the WhatsApp menu are also Pro.
 - Vendors hold no login; they act only through single-use links (ADR-030, ADR-033).

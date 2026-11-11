@@ -36,7 +36,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
   const { slug, id } = await params;
   const sp = await searchParams;
   if (!UUID.test(id)) notFound();
-  const m = await requireMembership(slug, { fullScope: true });
+  const m = await requireMembership(slug);                  // own-vehicle members reach only their own vehicle: getVehicleRecord returns nothing for another (A6)
   const driver = getDriver();
   const perms = await permissionsOf(driver, m);
   const v = await getVehicleRecord(driver, m, id);

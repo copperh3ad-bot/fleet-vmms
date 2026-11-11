@@ -87,7 +87,7 @@ describe("an HR login", () => {
     expect(await getNavCounts(d, hr()).catch((e) => e)).not.toBeInstanceOf(Error);
     await getDashboard(d, hr()).catch((e) => { expect(e).toBeInstanceOf(ForbiddenError); });   // the page treats this as "no dashboard"
     const perms = await permissionsOf(d, hr());
-    expect([...perms].sort()).toEqual(["vreq.read_all", "vreq.request"]);
+    expect([...perms].sort()).toEqual(["vreq.read_all", "vreq.request", "vreq.see_pool"]);     // HR sees the pool read-only (A5)
   });
 });
 

@@ -36,7 +36,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const items = (list: readonly (readonly [string, string])[]): SettingItem[] =>
     list.flatMap(([key, label]) => { const s = settings.find((x) => x.key === key); return s ? [{ key, label, value: s.value, editable: s.editable }] : []; });
   // Company switches: the settings that decide what the company can do (QA-FULLFLOW F-03). Label and explanation come from the setting's own definition.
-  const COMPANY = ["module_trips", "dept_approval_limit", "payment_approval_limit", "invoice_over_quote_pct"] as const;
+  const COMPANY = ["module_trips", "admin_decides_others", "dept_approval_limit", "payment_approval_limit", "invoice_over_quote_pct"] as const;
   const cur = m.currency || "PKR";
   const company = (key: (typeof COMPANY)[number]): SettingItem[] => {
     const s = settings.find((x) => x.key === key);
@@ -83,7 +83,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
             <Panel title="Timing"><SettingFields items={items(TIMING)} /></Panel>
             <Panel title="Company switches" sub="What your company can do, and who may approve what">
               <div className="space-y-4">
-                <SwitchFields items={company("module_trips")} />
+                <SwitchFields items={[...company("module_trips"), ...company("admin_decides_others")]} />
                 <SettingFields items={[...company("dept_approval_limit"), ...company("payment_approval_limit"), ...company("invoice_over_quote_pct")]} />
               </div>
             </Panel>

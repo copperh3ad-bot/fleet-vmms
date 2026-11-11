@@ -14,7 +14,7 @@ const KNOWN = [
   /you need an employee record linked to your login[^"]*/, /requester is not an active employee/, /vehicle not found/, /vehicle is disposed/,
   /only a draft or a returned job card can be edited/, /only the requester can [a-z ]+ this job card/,
   /a comment of at least 5 characters is required/, /choose an active vendor/, /reason code not available/,
-  /segregation of duties: [^"]*/, /this role may not approve job cards/, /job card is already [a-z_]+/,
+  /segregation of duties: [^"]*/, /company rule: the administrator does not [a-z ]+ while [a-z ,]+ is active/, /this role may not approve job cards/, /job card is already [a-z_]+/,
   /illegal job card transition [a-z_]+ -> [a-z_]+/, /job card not found/,
   // vendor flow (migration 0007) and invoice check (verify_invoice)
   /this login is not linked to an active vendor/, /this job is not waiting for a quotation/, /add at least one line/,

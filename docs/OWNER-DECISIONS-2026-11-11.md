@@ -4,6 +4,7 @@ Answers to `docs/QUESTIONNAIRE-BUILD-DECISIONS.md`, written down so the build fo
 not answered or conflict with something already built; they are listed at the bottom.
 
 ## A. Approvals and roles
+Built 2026-11-11 as ADR-088 (migration 0054); not deployed.
 | # | Decision |
 |---|---|
 | A1 | Make it a **company setting**: the administrator may decide other people's job cards, quotations and invoice checks ("open") or not ("strict"). Default **strict**. Strict applies **only while another active person holds the permission**; a company with no other approver is not blocked (answered Q1). |

@@ -64,7 +64,7 @@ export type TripRow = {
   requester_name: string; registration_no: string | null; driver_name: string | null; distance_km: string | null; mine: boolean; dispatchable: boolean;
 };
 /** True for a pick and drop run, and for a trip on (or asking for) a vehicle of the acting department. Only a department user can be true on the second half. */
-const DISPATCHABLE = `(t.kind = 'pick_drop' or (acting_department() is not null and exists (select 1 from vehicles pv where pv.id = coalesce(t.vehicle_id, t.preferred_vehicle_id) and dept_ok(pv.id))))`;
+const DISPATCHABLE = `(t.kind = 'pick_drop' or (acting_department() is not null and (exists (select 1 from vehicles pv where pv.id = coalesce(t.vehicle_id, t.preferred_vehicle_id) and dept_ok(pv.id)) or (not acting_dept_scoped() and coalesce(t.vehicle_id, t.preferred_vehicle_id) is null))))`;
 
 /** A trip that was sent to logistics providers for quotes, or awarded to one. */
 const OUTSOURCED = `(t.outsourced_vendor_id is not null or exists (select 1 from trip_quotes oq where oq.trip_id = t.id))`;

@@ -76,7 +76,7 @@ export function employeesToChoose(driver: Driver, m: Membership) {
     "select id, full_name, employee_no from employees where active order by full_name")).rows);
 }
 export function poolVehicles(driver: Driver, m: Membership) {
-  return authorized(driver, m, "vreq.decide", async (q) => (await q.query<{ id: string; registration_no: string; label: string }>(
+  return authorizedAny(driver, m, ["vreq.assign", "vreq.decide", "vreq.see_pool"], async (q) => (await q.query<{ id: string; registration_no: string; label: string }>(
     `select v.id, v.registration_no, concat_ws(' ', v.make, v.model) as label from vehicles v
       where v.status = 'active' and not exists (select 1 from vehicle_custody c where c.vehicle_id = v.id and c.to_date is null) order by v.registration_no`)).rows);
 }
@@ -101,29 +101,30 @@ export async function requestVehicle(driver: Driver, m: Membership, raw: unknown
         [emp, v.for_employee, v.reason, v.vehicle_class ?? null, v.needed_from])).rows[0];
     } catch (e) { friendly(e); }
     await q.query("insert into vehicle_request_events(request_id, from_status, to_status, actor_id) values ($1, null, 'requested', $2)", [row.id, m.userId]);
-    await notify(q, await usersWithPermission(q, m.tenantId, "vreq.decide"), "vreq.requested", { request_id: row.id, request_no: row.request_no, text: `${row.request_no}: ${v.reason}` }, m.userId);
+    await notify(q, await usersWithPermission(q, m.tenantId, "vreq.assign"), "vreq.requested", { request_id: row.id, request_no: row.request_no, text: `${row.request_no}: ${v.reason}` }, m.userId);
     return row.id;
   });
 }
 
 /** The permission each step needs. Cancelling is also open to the person who asked (checked below). */
-export const VREQ_TRANSITION_PERMISSION: Record<string, string> = { assigned: "vreq.decide", purchase_approved: "vreq.decide", rejected: "vreq.decide", cancelled: "vreq.request" };
+export const VREQ_TRANSITION_PERMISSION: Record<string, string> = { assigned: "vreq.assign", purchase_approved: "vreq.decide", rejected: "vreq.decide", cancelled: "vreq.request" };
 
 /** The one way a vehicle request changes status. */
 export async function transitionVehicleRequest(driver: Driver, m: Membership, id: string, to: string, opts: { note?: string; vehicleId?: string } = {}): Promise<void> {
   const permission = VREQ_TRANSITION_PERMISSION[to];
   if (!permission) throw new UserError("That step is not available.");
-  return authorizedAny(driver, m, ["vreq.decide", "vreq.request"], async (q, held) => {
+  return authorizedAny(driver, m, ["vreq.decide", "vreq.assign", "vreq.request"], async (q, held) => {
     const r = (await q.query<{ request_no: string; reason: string; requester_user: string | null }>(
       "select r.request_no, r.reason, re.user_id as requester_user from vehicle_requests r join employees re on re.id = r.requested_by where r.id = $1", [id])).rows[0];
     if (!r) throw new UserError("Vehicle request not found.");
     const mine = r.requester_user === m.userId;
-    if (!(held.has("vreq.decide") || (to === "cancelled" && mine && held.has("vreq.request")))) throw new ForbiddenError(permission);
+    // giving a pool vehicle needs vreq.assign (Logistics, Fleet Manager, Admin); buying one or rejecting needs vreq.decide (A2); cancelling is also open to the asker
+    if (!(held.has(permission) || (to === "cancelled" && (held.has("vreq.decide") || held.has("vreq.assign") || (mine && held.has("vreq.request")))))) throw new ForbiddenError(permission);
     try {
       await q.query("select vehicle_request_transition($1, $2, $3, $4, $5)", [id, to, m.userId, opts.note ?? null, opts.vehicleId || null]);
     } catch (e) { friendly(e); }
     const payload = { request_id: id, request_no: r.request_no, to, text: `${r.request_no}: ${r.reason}` };
-    if (to === "cancelled") await notify(q, await usersWithPermission(q, m.tenantId, "vreq.decide"), "vreq.cancelled", payload, m.userId);
+    if (to === "cancelled") await notify(q, await usersWithPermission(q, m.tenantId, "vreq.assign"), "vreq.cancelled", payload, m.userId);
     else await notify(q, [r.requester_user], `vreq.${to}`, payload, m.userId);
   });
 }

@@ -68,8 +68,8 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
     { href: to("/job-cards"), label: "Job cards", show: sees, badge: counts.approvals },
     { href: to("/vehicles"), label: "Vehicles", show: has("vehicle.read"), exclude: [to("/vehicles/new"), to("/vehicles/import")] },
     { href: to("/trips"), label: "Trips", show: tripsOn },
-    { href: to("/cargo"), label: "Cargo", show: fleetOps && has("cargo.request", "cargo.handle") },
-    { href: to("/vehicle-requests"), label: "Vehicle requests", show: has("vreq.request", "vreq.decide", "vreq.read_all") },
+    { href: to("/cargo"), label: "Cargo", show: fleetOps && has("cargo.request", "cargo.handle", "cargo.read_all") },
+    { href: to("/vehicle-requests"), label: "Vehicle requests", show: has("vreq.request", "vreq.decide", "vreq.read_all", "vreq.assign", "vreq.see_pool") },
     { href: to("/odometer"), label: "Odometer", show: has("odometer.review"), badge: counts.odometer },
     { href: to("/vendors"), label: "Vendors", show: has("vendor.manage") },
     { href: to("/policy"), label: "Maintenance policy", show: has("policy.read") },
@@ -92,7 +92,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
   ];
   // Someone limited to their own vehicle gets the dashboard and the job cards, nothing else (the pages say no as well).
   const ownOnly = m.vehicleScope === "own";
-  const keep = (i: Item) => i.show && (!ownOnly || i.label === "Dashboard" || i.label === "Job cards" || i.label === "Trips");
+  const keep = (i: Item) => i.show && (!ownOnly || i.label === "Dashboard" || i.label === "Job cards" || i.label === "Trips" || i.label === "Vehicles");
   const groups: { title?: string; items: Item[] }[] = [
     { items: main.filter(keep) },
     { title: "Analysis and money", items: money.filter(keep) },
