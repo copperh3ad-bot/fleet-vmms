@@ -9,6 +9,7 @@ import { canonicalNames, recordNames } from "@/lib/master/vehicle-names";
 import { csvToObjects } from "@/lib/master/csv";
 import { UserError, addVehicle, changeCustody, endCustody, setVehicleDepartment, updateVehicleStatus, previewVehicleImport, commitVehicleImport, type ImportPreview } from "@/lib/master/service";
 import { recordEngineHours, setTracksHours } from "@/lib/hours/service";
+import { handOverPurchasedVehicle } from "@/lib/vehicle-requests/service";
 import { runAction, str, typed, type FormState } from "../actions-util";
 import { MAX_SHEET_BYTES, xlsxToCsv } from "@/lib/master/vehicle-sheet";
 
@@ -77,7 +78,10 @@ export async function createVehicleAction(slug: string, _prev: FormState, origin
   const notes: string[] = [];
   const state = await runAction(slug, async (m) => {
     const driver = getDriver();
-    id = (await addVehicle(driver, m, raw)).id;
+    // E5 (ADR-091): a vehicle bought for an approved purchase is handed over in the same save, so the holder comes from the request, not from this form
+    const purchase = str(form, "purchase_request");
+    if (purchase) raw.employee_id = undefined;
+    id = (await addVehicle(driver, m, raw, purchase ? { afterCreate: (q, vid, plate) => handOverPurchasedVehicle(q, m, purchase, vid, plate) } : {})).id;
     await recordNames(driver, m.tenantId, str(form, "make"), str(form, "model"));          // a name the list lacks goes to review; the vehicle is already saved (ADR-071)
     // The vehicle is saved first; a file that cannot be stored never undoes it.
     for (const [field, kind, label] of [["photo", "photo", "Photo"], ["registration_scan", "registration", "Registration scan"]] as const) {

@@ -10,7 +10,7 @@ export default function VehicleRequestsPage({ params, searchParams }: PageProps<
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} searchParams={searchParams} /></Suspense>;
 }
 
-const TONE: Record<string, Tone> = { requested: "warn", purchase_approved: "info", assigned: "ok", rejected: "bad", cancelled: "neutral" };
+const TONE: Record<string, Tone> = { requested: "warn", budget_confirmed: "warn", purchase_approved: "info", assigned: "ok", rejected: "bad", cancelled: "neutral" };
 
 async function Inner({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug } = await params;
@@ -19,7 +19,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const m = await requireMembership(slug);
   const driver = getDriver();
   const [rows, perms] = await Promise.all([listVehicleRequests(driver, m, { status: status || undefined }), permissionsOf(driver, m)]);
-  const waiting = perms.has("vreq.decide") || perms.has("vreq.assign") ? rows.filter((r) => r.status === "requested") : [];
+  const waiting = perms.has("vreq.decide") || perms.has("vreq.assign") ? rows.filter((r) => r.status === "requested" || r.status === "budget_confirmed") : [];
   const pool = perms.has("vreq.see_pool") && !perms.has("vreq.assign") && !perms.has("vreq.decide") ? await poolVehicles(driver, m) : null;   // HR sees what is free, read-only (A5)
   const control = "h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm";
   const table = (list: typeof rows) => (

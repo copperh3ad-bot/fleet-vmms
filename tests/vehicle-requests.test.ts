@@ -129,6 +129,7 @@ describe("deciding", () => {
 
   it("approves a purchase, then gives the vehicle once it exists", async () => {
     const id = (await vr.listVehicleRequests(d, mgr(), { status: "requested" }))[0].id;
+    await vr.transitionVehicleRequest(d, owner(), id, "budget_confirmed", { amount: 2_500_000 });
     await vr.transitionVehicleRequest(d, owner(), id, "purchase_approved", { note: "Budget approved for a new car" });
     expect(await status(id)).toBe("purchase_approved");
     const fresh = (await master.addVehicle(d, owner(), { registration_no: "VRQ-004", make: "Toyota", model: "Corolla" })).id;
@@ -157,6 +158,8 @@ describe("deciding", () => {
     const id = await vr.requestVehicle(d, hr(), R(32));
     const free = (await master.addVehicle(d, owner(), { registration_no: "VRQ-005", make: "Suzuki", model: "Cultus" })).id;
     await expect(vr.transitionVehicleRequest(d, mgr(), id, "assigned", { vehicleId: free })).rejects.toThrow(/segregation of duties/i);
+    await expect(vr.transitionVehicleRequest(d, mgr(), id, "budget_confirmed", { amount: 100 })).rejects.toBeInstanceOf(ForbiddenError);      // the manager does not confirm budgets
+    await vr.transitionVehicleRequest(d, owner(), id, "budget_confirmed", { amount: 900_000 });
     await expect(vr.transitionVehicleRequest(d, mgr(), id, "purchase_approved", {})).rejects.toThrow(/segregation of duties/i);
     await vr.transitionVehicleRequest(d, owner(), id, "assigned", { vehicleId: free });
     expect(await holder(free)).toBe(emps[32]);

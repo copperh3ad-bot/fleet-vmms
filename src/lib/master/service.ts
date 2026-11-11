@@ -98,7 +98,8 @@ function toDbVehicle(v: VehicleInput) {
 }
 
 /** The "Add a vehicle" save: one transaction through onboard_vehicle(). */
-export async function addVehicle(driver: Driver, m: Membership, raw: unknown): Promise<{ id: string }> {
+/** `afterCreate` runs inside the same transaction once the vehicle exists (the hand-over of a bought vehicle, ADR-091); if it throws, the vehicle is not saved. */
+export async function addVehicle(driver: Driver, m: Membership, raw: unknown, opts: { afterCreate?: (q: Queryable, vehicleId: string, plate: string) => Promise<void> } = {}): Promise<{ id: string }> {
   const parsed = vehicleSchema.safeParse(raw);
   const trialCap = await trialCapFor(driver, m);                    // a free trial allows a small fleet (ADR-038); read before the transaction opens
   // Check the permission before revealing anything about the input.
@@ -108,6 +109,7 @@ export async function addVehicle(driver: Driver, m: Membership, raw: unknown): P
     try {
       const r = await q.query<{ id: string }>("select onboard_vehicle($1::jsonb, $2::uuid) as id", [toDbVehicle(parsed.data), m.userId]);
       if (parsed.data.department) await setDepartmentIn(q, r.rows[0].id, parsed.data.department.replace(/\s+/g, " "));
+      if (opts.afterCreate) await opts.afterCreate(q, r.rows[0].id, parsed.data.registration_no.trim().toUpperCase());
       return { id: r.rows[0].id };
     } catch (e) { friendly(e); }
   });

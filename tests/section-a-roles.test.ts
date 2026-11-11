@@ -119,6 +119,7 @@ describe("A2 and A5: HR requests, Logistics and the pool", () => {
 
   it("the fleet manager and the administrator can still approve a purchase or reject", async () => {
     const a = await vr.requestVehicle(d, hr(), { for_employee: emps[53], reason: "Joins sales", needed_from: "2031-04-01" });
+    await vr.transitionVehicleRequest(d, owner(), a, "budget_confirmed", { amount: 3_000_000 });      // Finance (here the administrator) confirms the budget first (ADR-091)
     await vr.transitionVehicleRequest(d, fm(), a, "purchase_approved", { note: "Buy a car" });
     const b = await vr.requestVehicle(d, hr(), { for_employee: emps[54], reason: "Joins sales", needed_from: "2031-04-01" });
     await vr.transitionVehicleRequest(d, owner(), b, "rejected", { note: "No budget this quarter" });

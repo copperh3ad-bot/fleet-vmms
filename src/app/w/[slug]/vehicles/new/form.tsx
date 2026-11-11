@@ -45,7 +45,7 @@ function checklist(v: Record<string, string>, serviceTypes: { key: string; label
   ];
 }
 
-export function AddVehicleForm({ slug, employees, departments = [], serviceTypes, year, currency = "PKR", extras }: { extras?: CatalogExtras; slug: string; employees: Employee[]; departments?: string[]; serviceTypes: { key: string; label: string }[]; year: number; currency?: string }) {
+export function AddVehicleForm({ purchaseRequest, slug, employees, departments = [], serviceTypes, year, currency = "PKR", extras }: { extras?: CatalogExtras; /** an approved purchase request this vehicle is bought for (ADR-091) */ purchaseRequest?: string; slug: string; employees: Employee[]; departments?: string[]; serviceTypes: { key: string; label: string }[]; year: number; currency?: string }) {
   const [state, action, pending] = useActionState<FormState, FormData>(createVehicleAction.bind(null, slug), {});
   const [snap, setSnap] = useState<Record<string, string>>({});
   const holder = employees.find((e) => e.id === snap.employee_id);
@@ -56,6 +56,7 @@ export function AddVehicleForm({ slug, employees, departments = [], serviceTypes
     <form onSubmit={keepForm(action)} noValidate
       onInput={(e) => setSnap(Object.fromEntries([...new FormData(e.currentTarget)].filter((x): x is [string, string] => typeof x[1] === "string")))}>
       <Notice state={state} />
+      {purchaseRequest && <input type="hidden" name="purchase_request" value={purchaseRequest} />}
       <div className="mt-3 grid gap-5 xl:grid-cols-[1.6fr_1fr]">
         <div className="space-y-5">
           <Panel title="Identity">
