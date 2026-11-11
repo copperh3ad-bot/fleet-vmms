@@ -6,7 +6,7 @@ import { PageHeader, Panel, btn } from "@/components/ui";
 import { getSettings, listServiceRules, rulesImpact } from "@/lib/control/service";
 import { plural } from "@/lib/labels";
 import { ServiceRuleForm } from "./forms";
-import { RuleToggle, RulesFormProvider, SaveRulesButton, SettingFields, type SettingItem } from "./rules-forms";
+import { RuleToggle, RulesFormProvider, SaveRulesButton, SettingFields, SwitchFields, type SettingItem } from "./rules-forms";
 
 export default function ServiceRulesPage({ params, searchParams }: PageProps<"/w/[slug]/settings">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} searchParams={searchParams} /></Suspense>;
@@ -35,7 +35,14 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const edit = typeof sp.edit === "string" ? rules.find((r) => r.key === sp.edit) : undefined;
   const items = (list: readonly (readonly [string, string])[]): SettingItem[] =>
     list.flatMap(([key, label]) => { const s = settings.find((x) => x.key === key); return s ? [{ key, label, value: s.value, editable: s.editable }] : []; });
-  const canSave = settings.some((s) => s.editable && [...TIMING, ...FLAGS].some(([k]) => k === s.key));
+  // Company switches: the settings that decide what the company can do (QA-FULLFLOW F-03). Label and explanation come from the setting's own definition.
+  const COMPANY = ["module_trips", "dept_approval_limit"] as const;
+  const cur = m.currency || "PKR";
+  const company = (key: (typeof COMPANY)[number]): SettingItem[] => {
+    const s = settings.find((x) => x.key === key);
+    return s ? [{ key, label: key === "dept_approval_limit" ? `${s.label} (${cur})` : s.label, value: s.value, editable: s.editable, hint: s.hint }] : [];
+  };
+  const canSave = settings.some((s) => s.editable && ([...TIMING, ...FLAGS].some(([k]) => k === s.key) || (COMPANY as readonly string[]).includes(s.key)));
   const to = (q: string) => `/w/${slug}/settings${q}`;
 
   return (
@@ -74,6 +81,12 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
 
           <div className="space-y-5">
             <Panel title="Timing"><SettingFields items={items(TIMING)} /></Panel>
+            <Panel title="Company switches" sub="What your company can do, and who may approve what">
+              <div className="space-y-4">
+                <SwitchFields items={company("module_trips")} />
+                <SettingFields items={company("dept_approval_limit")} />
+              </div>
+            </Panel>
             <Panel title="What the manager sees">
               {impact ? (
                 <p className="text-sm text-zinc-600">With these rules, {plural(impact.due, "vehicle")} {impact.due === 1 ? "is" : "are"} due or overdue for {impact.label.toLowerCase()} and {impact.noHistory} {impact.noHistory === 1 ? "has" : "have"} no service history. Change a rule and the lists update at once.</p>

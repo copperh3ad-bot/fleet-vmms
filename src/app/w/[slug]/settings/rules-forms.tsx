@@ -19,15 +19,32 @@ export function RulesFormProvider({ slug, children }: { slug: string; children: 
   );
 }
 
-export type SettingItem = { key: string; label: string; value: string; editable: boolean; unit?: string };
+export type SettingItem = { key: string; label: string; value: string; editable: boolean; unit?: string; hint?: string };
 
 export function SettingFields({ items }: { items: SettingItem[] }) {
   const { state } = useContext(Ctx);
   return (
     <div className="space-y-4">
       {items.map((i) => (
-        <Field key={i.key} label={i.label} name={i.key} state={state}>
+        <Field key={i.key} label={i.label} name={i.key} state={state} hint={i.hint}>
           <input id={i.key} name={i.key} form="rules-form" defaultValue={state.values?.[i.key] ?? i.value} disabled={!i.editable} inputMode="decimal" className={inputCls} aria-invalid={!!state.fields?.[i.key]} />
+        </Field>
+      ))}
+    </div>
+  );
+}
+
+/** On or off, saved with "Save rules" like the numbers. The stored value is 1 or 0; an unset switch shows as off. */
+export function SwitchFields({ items }: { items: SettingItem[] }) {
+  const { state } = useContext(Ctx);
+  return (
+    <div className="space-y-4">
+      {items.map((i) => (
+        <Field key={i.key} label={i.label} name={i.key} state={state} hint={i.hint}>
+          <select id={i.key} name={i.key} form="rules-form" defaultValue={state.values?.[i.key] ?? (i.value === "1" ? "1" : "0")} disabled={!i.editable} className={inputCls} aria-invalid={!!state.fields?.[i.key]}>
+            <option value="1">On</option>
+            <option value="0">Off</option>
+          </select>
         </Field>
       ))}
     </div>
