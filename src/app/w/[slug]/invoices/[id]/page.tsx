@@ -7,6 +7,8 @@ import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { Panel, Pill, Plate, btn, money } from "@/components/ui";
 import { dayMonth } from "@/lib/labels";
 import { DecisionForm } from "./form";
+import { getPayments } from "@/lib/payments/service";
+import { PaymentsPanel } from "@/components/payments-panel";
 
 export default function InvoicePage({ params }: PageProps<"/w/[slug]/invoices/[id]">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} /></Suspense>;
@@ -25,6 +27,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
   const inv = await getInvoiceReview(driver, m, id);
   if (!inv) notFound();
   const files = await listCommercialFiles(driver, await supabaseBlobStore(), m, "invoice", id);
+  const payments = await getPayments(driver, m, "workshop", id);
   const to = (p: string) => `/w/${slug}/${p}`;
   const bad = inv.comparison.filter((r) => r.check === "not_approved");
   const changed = inv.comparison.filter((r) => r.check === "qty" || r.check === "price");
@@ -110,6 +113,12 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
               </div>
             )}
           </Panel>
+
+          {inv.status !== "disputed" && (
+            <Panel title="Payment">
+              <PaymentsPanel slug={slug} summary={payments} currency={cur} />
+            </Panel>
+          )}
         </aside>
       </div>
     </main>

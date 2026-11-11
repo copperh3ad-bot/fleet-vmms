@@ -28,6 +28,7 @@ Role keys: **Adm** tenant_admin, **FM** fleet_manager, **Fin** finance, **Req** 
 | workorder.update | | | | | | | | | ✔ |
 | invoice.submit | | | | | | | | | ✔ |
 | invoice.verify | ✔ | | ✔ | | | | | | |
+| invoice.pay (record payment, ADR-086) | ✔ | | ✔ | | | | | | |
 | **Policy, budget and reports** | | | | | | | | | |
 | policy.read | ✔ | ✔ | ✔ | ✔ | ✔ | | | | |
 | policy.manage | ✔ | ✔ | | | | | | | |
@@ -63,8 +64,8 @@ Role keys: **Adm** tenant_admin, **FM** fleet_manager, **Fin** finance, **Req** 
 - Vendors hold no login; they act only through single-use links (ADR-030, ADR-033).
 
 ## Observations (as of 2026-11-10, to confirm with the owner)
-1. Finance holds `invoice.verify` but no payment permission exists in the table. Where "Accounts pays invoices" lives (Billing
-   or a payment screen outside this table) is unconfirmed.
+1. ~~Finance had no payment permission.~~ Fixed 2026-11-11: `invoice.pay` (Finance, Tenant Admin), migration 0052, ADR-086. The person who
+   checked an invoice, or approved or raised its job card, cannot record its payment.
 2. HR holds only `vreq.request` and `vreq.read_all`, and no `vehicle.read`.
 3. Logistics can approve job cards and quotations (within the department limit) and also dispatch and award trips.
 4. The auditor can read job cards, trips, vehicle requests and reports but has no cargo read permission.
