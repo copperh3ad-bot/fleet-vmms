@@ -10,6 +10,7 @@ import { lineSchema } from "@/lib/jobcards/schemas";
 import { friendly, notifyAfter } from "@/lib/jobcards/service";
 import { inboundConfigured, newReplyCode, replyCodeHash } from "./inbound";
 import { notify } from "@/lib/notify";
+import { quotationWarningsIn, scorecardsIn, type Scorecard } from "./scorecard";
 import { waReplyHash } from "./whatsapp-inbound";
 import { normalizePhone } from "@/lib/phone";
 import { hashToken, newToken } from "@/lib/odometer/link";
@@ -48,7 +49,9 @@ async function vendorUserOfJob(q: Queryable, jobId: string): Promise<string | nu
 
 export type QuotationView = {
   id: string; status: string; amount: string; details: string | null; days_needed: number | null; valid_until: string | null;
-  warranty_months: number | null; created_at: string; vendor_name: string;
+  warranty_months: number | null; created_at: string; vendor_name: string; vendor_id: string;
+  /** C2: the workshop's last 12 months; C3: reasons to look twice before approving */
+  score: Scorecard | null; warnings: string[];
   lines: { id: string; kind: string; description: string; qty: string; unit_cost: string }[];
 };
 export type InvoiceView = {
@@ -71,11 +74,16 @@ async function jobVisible(q: import("@/lib/db/types").Queryable, jobId: string):
 export function getJobFlow(driver: Driver, m: Membership, jobId: string): Promise<JobFlow> {
   return authorized(driver, m, "jobcard.read_all", async (q) => {
     if (!(await jobVisible(q, jobId))) return { quotations: [], workOrder: null, invoices: [] };
-    const quotations = (await q.query<Omit<QuotationView, "lines">>(
-      `select q.id, q.status, q.amount::text, q.details, q.days_needed, q.valid_until::text, q.warranty_months, q.created_at::text, vn.name as vendor_name
+    const quotations = (await q.query<Omit<QuotationView, "lines" | "score" | "warnings">>(
+      `select q.id, q.status, q.amount::text, q.details, q.days_needed, q.valid_until::text, q.warranty_months, q.created_at::text, vn.name as vendor_name, q.vendor_id
          from quotations q join vendors vn on vn.id = q.vendor_id where q.job_card_id = $1 order by q.created_at desc`, [jobId])).rows as QuotationView[];
-    for (const x of quotations) x.lines = (await q.query<QuotationView["lines"][number]>(
-      "select id, kind, description, qty::text, unit_cost::text from quotation_lines where quotation_id = $1 order by id", [x.id])).rows;
+    const scores = await scorecardsIn(q, [...new Set(quotations.map((x) => x.vendor_id))]);
+    for (const x of quotations) {
+      x.lines = (await q.query<QuotationView["lines"][number]>(
+        "select id, kind, description, qty::text, unit_cost::text from quotation_lines where quotation_id = $1 order by id", [x.id])).rows;
+      x.score = scores.get(x.vendor_id) ?? null;
+      x.warnings = x.status === "submitted" ? await quotationWarningsIn(q, x.id) : [];
+    }
     const workOrder = (await q.query<NonNullable<JobFlow["workOrder"]>>(
       "select id, wo_no, status, approved_amount::text, issued_at::text, completed_at::text from work_orders where job_card_id = $1", [jobId])).rows[0] ?? null;
     const invoices = workOrder ? (await q.query<Omit<InvoiceView, "lines">>(
@@ -91,6 +99,14 @@ export function decideQuotation(driver: Driver, m: Membership, quotationId: stri
   return authorized(driver, m, "quotation.approve", async (q) => {
     const jobId = (await q.query<{ job_card_id: string }>("select qt.job_card_id from quotations qt join job_cards jc on jc.id = qt.job_card_id where qt.id = $1 and dept_ok(jc.vehicle_id)", [quotationId])).rows[0]?.job_card_id;
     if (!jobId) throw new UserError("Quotation not found.");
+    // C3: warn, never block. Approving a quotation far above the estimate, or one that breaks the vehicle's budget, needs a written reason.
+    if (decision === "approve") {
+      const warnings = await quotationWarningsIn(q, quotationId);
+      if (warnings.length > 0) {
+        if ((note ?? "").trim().length < 5) throw new UserError(`Warning: ${warnings.join("; ")}. Write why you still approve it (at least 5 letters).`, { comment: "Write why you still approve" });
+        note = `Warning accepted (${warnings.join("; ")}): ${note!.trim()}`;
+      }
+    }
     try {
       if (decision === "approve") await q.query("select approve_quotation($1, $2, $3)", [quotationId, m.userId, note?.trim() || null]);
       else await q.query("select reject_quotation($1, $2, $3)", [quotationId, m.userId, note ?? null]);

@@ -16,6 +16,7 @@ import { Panel, Pill, Plate, btn, money } from "@/components/ui";
 import { ClosePanel, DraftPanel, VendorPanel } from "./panel";
 import { DecisionForm } from "./decision";
 import { QuoteDecision } from "./quote-decision";
+import { RateWorkshop, WorkshopScore } from "./workshop-score";
 import { RemoveFile, UploadForm } from "./files";
 import { dayMonth, plural } from "@/lib/labels";
 
@@ -158,7 +159,10 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
                   <p className="font-medium">{qt.vendor_name} <span className="font-normal text-zinc-500">· {qt.status} · <span className="font-mono">{money(Number(qt.amount))}</span>{qt.days_needed ? ` · ${qt.days_needed} days` : ""}{qt.warranty_months ? ` · ${qt.warranty_months} months warranty` : ""}{qt.valid_until ? ` · valid until ${dmy(qt.valid_until)}` : ""}</span></p>
                   {qt.details && <p className="mt-1 whitespace-pre-wrap text-zinc-700">{qt.details}</p>}
                   <ul className="mt-2 text-zinc-700">{qt.lines.map((l) => <li key={l.id}>{l.description} · {Number(l.qty)} × <span className="font-mono">{money(Number(l.unit_cost))}</span></li>)}</ul>
-                  {canDecideQuote && qt.status === "submitted" && <QuoteDecision slug={slug} quotationId={qt.id} />}
+                  <WorkshopScore s={qt.score} />
+                  {perms.has("vendor.rate") && <RateWorkshop slug={slug} vendorId={qt.vendor_id} jobId={id} />}
+                  {qt.warnings.length > 0 && <p role="status" className="mt-3 rounded-md bg-amber-100 p-3 text-amber-800"><strong>Warning.</strong> {qt.warnings.map((w) => w[0].toUpperCase() + w.slice(1)).join(". ")}. You may still approve it, but write why.</p>}
+                  {canDecideQuote && qt.status === "submitted" && <QuoteDecision slug={slug} quotationId={qt.id} mustExplain={qt.warnings.length > 0} />}
                 </div>
               ))}
               {c.status === "quotation_received" && !canDecideQuote && c.requester_is_me && perms.has("quotation.approve") && (

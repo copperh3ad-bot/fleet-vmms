@@ -10,6 +10,7 @@ import { addJobCardAttachment, removeJobCardAttachment } from "@/lib/jobcards/at
 import { UserError } from "@/lib/master/service";
 import { createWorkshopLink, decideQuotation, setWorkshopEmailStatus, workshopContact, type WorkshopLinkKind } from "@/lib/vendorflow/service";
 import { notifyWorkshop } from "@/lib/vendorflow/whatsapp-notify";
+import { rateVendor } from "@/lib/vendorflow/scorecard";
 import { enterForWorkshop } from "@/lib/vendorflow/entry";
 import { readEmailDocument, setAiDocuments } from "@/lib/ai/service";
 import { setWaJobCards } from "@/lib/wa-jobcards/service";
@@ -98,6 +99,16 @@ export async function decideQuotationAction(slug: string, quotationId: string, d
     // the workshop is told on WhatsApp too (ADR-056); a message problem never undoes the decision
     await notifyWorkshop(decision === "approve" ? "estimate_approved" : "estimate_declined", await workshopContact(getDriver(), m, jobId).catch(() => null), m.tenantName || "A Fleet OTG customer", str(form, "comment"));
     return decision === "approve" ? "Quotation approved. Work order issued." : "Quotation rejected. The vendor can send a new one.";
+  });
+  if (state.ok) refresh();
+  return state.error || state.fields ? { ...state, values: typed(form) } : state;
+}
+
+/** The Fleet Manager rates (and may flag) the workshop on a quotation (C4). */
+export async function rateVendorAction(slug: string, vendorId: string, jobId: string, _prev: FormState, form: FormData): Promise<FormState> {
+  const state = await runAction(slug, async (m) => {
+    await rateVendor(getDriver(), m, vendorId, { stars: str(form, "stars"), flagged: form.get("flagged") === "on", note: str(form, "note") || undefined, job_card_id: jobId });
+    return "Rating saved.";
   });
   if (state.ok) refresh();
   return state.error || state.fields ? { ...state, values: typed(form) } : state;

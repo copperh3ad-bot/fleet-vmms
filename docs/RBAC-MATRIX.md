@@ -25,6 +25,7 @@ Role keys: **Adm** tenant_admin, **FM** fleet_manager, **Fin** finance, **Req** 
 | **Quotes, orders and invoices** | | | | | | | | | |
 | quotation.submit | | | | | | | | | ✔ |
 | quotation.approve | ✔ | ✔ | | | | ✔ | | | |
+| vendor.rate (migration 0056) | ✔ | ✔ | | | | | | | |
 | workorder.update | | | | | | | | | ✔ |
 | invoice.submit | | | | | | | | | ✔ |
 | invoice.verify | ✔ | | ✔ | | | | | | |

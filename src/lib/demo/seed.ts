@@ -89,7 +89,7 @@ export async function seedDemo(driver: Driver, tenant: { tenantId: string; schem
     await jc.transitionJobCard(driver, manager, id, "vendor_assigned", { vendorId: vendor });
     await vf.submitQuotation(driver, vm, id, { days_needed: "2", warranty_months: "3", lines: quote.map(([d, q, u]) => ({ kind: "service", description: d, qty: String(q), unit_cost: String(u) })) });
     const qt = (await vf.getJobFlow(driver, manager, id)).quotations[0];
-    await vf.decideQuotation(driver, manager, qt.id, "approve");
+    await vf.decideQuotation(driver, manager, qt.id, "approve", "Approved for the demo");   // a note is needed when a quotation is far above its estimate or over the budget
     const wo = (await vf.getJobFlow(driver, manager, id)).workOrder!.id;
     return { wo, qt };
   };
