@@ -23,6 +23,7 @@ export const HANDLING: Record<string, string> = { fragile: "Fragile", cold: "Kee
 export const cargoSchema = z.object({
   description: z.string().trim().min(3, "Say what is being moved").max(300),
   quantity_text: z.string().trim().min(1, "Say how much, for example 12 cartons or 300 kg").max(120),
+  weight_kg: z.preprocess(blank, z.coerce.number("Enter the weight in kilograms").positive("Enter the weight in kilograms").max(1_000_000).optional()),   // lets the system suggest a vehicle that can carry it (ADR-092)
   pickup_place: z.string().trim().min(2, "Where is it collected?").max(200),
   pickup_at: when,                                     // "Vehicle required: date and time" on the company's Vehicle Request Form
   drop_place: z.string().trim().min(2, "Where is it delivered?").max(200),
@@ -66,10 +67,10 @@ export async function createCargoRequest(driver: Driver, m: Membership, raw: unk
     const emp = await myEmployee(q, m.userId);
     const row = (await q.query<{ id: string; cargo_no: string }>(
       `insert into cargo_requests(requested_by, description, quantity_text, pickup_place, pickup_contact, pickup_phone, pickup_at, drop_place, drop_contact, drop_phone, deliver_by, handling, department, source,
-                                  vehicle_type, poc_details, instructions)
-       values ($1,$2,$3,$4,$5,$6,$7::timestamptz,$8,$9,$10,$11::timestamptz,$12,$13,$14,$15,$16,$17) returning id, cargo_no`,
+                                  vehicle_type, poc_details, instructions, weight_kg)
+       values ($1,$2,$3,$4,$5,$6,$7::timestamptz,$8,$9,$10,$11::timestamptz,$12,$13,$14,$15,$16,$17,$18) returning id, cargo_no`,
       [emp, c.description, c.quantity_text, c.pickup_place, c.pickup_contact ?? null, c.pickup_phone ? e164(c.pickup_phone) : null, c.pickup_at, c.drop_place, c.drop_contact ?? null,
-        c.drop_phone ? e164(c.drop_phone) : null, c.deliver_by ?? null, c.handling ?? null, c.department ?? null, source, c.vehicle_type, c.poc_details ?? null, c.instructions ?? null])).rows[0];
+        c.drop_phone ? e164(c.drop_phone) : null, c.deliver_by ?? null, c.handling ?? null, c.department ?? null, source, c.vehicle_type, c.poc_details ?? null, c.instructions ?? null, c.weight_kg ?? null])).rows[0];
     await q.query("insert into cargo_events(cargo_id, from_status, to_status, actor_id, note) values ($1, null, 'requested', $2, $3)", [row.id, m.userId, source === "whatsapp" ? "Asked on WhatsApp" : null]);
     await notify(q, await usersWithPermission(q, m.tenantId, "cargo.handle"), "cargo.requested", { cargo_id: row.id, cargo_no: row.cargo_no, text: `${row.cargo_no}: ${c.description}, ${c.pickup_place} to ${c.drop_place}` }, m.userId);
     return { ...row, handlers: await usersWithPermission(q, m.tenantId, "cargo.handle"), asker: (await q.query<{ full_name: string }>("select full_name from employees where id = $1", [emp])).rows[0]?.full_name ?? "A colleague" };
@@ -119,7 +120,7 @@ export function listCargo(driver: Driver, m: Membership, opts: { status?: string
 
 export type CargoDetail = CargoRow & {
   pickup_contact: string | null; pickup_phone: string | null; drop_contact: string | null; drop_phone: string | null; handling: string | null; department: string | null; decision_note: string | null;
-  vehicle_type: string | null; poc_details: string | null; instructions: string | null; created_at: string;
+  vehicle_type: string | null; poc_details: string | null; instructions: string | null; created_at: string; weight_kg: string | null;
   trip_no: string | null; events: { to_status: string; note: string | null; created_at: string; actor_name: string | null }[];
 };
 
@@ -127,7 +128,7 @@ export function getCargo(driver: Driver, m: Membership, id: string): Promise<Car
   return authorizedAny(driver, m, ["cargo.request", "cargo.handle", "cargo.read_all"], async (q, held) => {
     const c = (await q.query<Omit<CargoDetail, "events">>(
       `select c.id, c.cargo_no, c.status, c.description, c.quantity_text, c.pickup_place, c.drop_place, c.pickup_at::text, c.deliver_by::text, re.full_name as requester_name, (re.user_id = $2) as mine,
-              c.source, c.trip_id, c.pickup_contact, c.pickup_phone, c.drop_contact, c.drop_phone, c.handling, c.department, c.decision_note, c.vehicle_type, c.poc_details, c.instructions, c.created_at::text, t.trip_no
+              c.source, c.trip_id, c.pickup_contact, c.pickup_phone, c.drop_contact, c.drop_phone, c.handling, c.department, c.decision_note, c.vehicle_type, c.poc_details, c.instructions, c.created_at::text, c.weight_kg::text, t.trip_no
          from cargo_requests c join employees re on re.id = c.requested_by left join trips t on t.id = c.trip_id where c.id = $1`, [id, m.userId])).rows[0];
     if (!c || (!held.has("cargo.handle") && !held.has("cargo.read_all") && !c.mine)) return null;
     const events = (await q.query<CargoDetail["events"][number]>(
@@ -151,18 +152,35 @@ export async function transitionCargo(driver: Driver, m: Membership, id: string,
 }
 
 /** Turns an accepted request into a trip request, prefilled from it, and keeps the link. The trip then follows the usual approval and, in Pro, can be sent to logistics providers for quotes. */
-export async function makeTripFromCargo(driver: Driver, m: Membership, id: string): Promise<string> {
+export async function makeTripFromCargo(driver: Driver, m: Membership, id: string, vehicleId?: string): Promise<string> {
   const c = await authorized(driver, m, "cargo.handle", async (q) =>
-    (await q.query<{ cargo_no: string; description: string; pickup_place: string; drop_place: string; pickup_at: string; deliver_by: string | null; status: string; trip_id: string | null; quantity_text: string }>(
-      "select cargo_no, description, pickup_place, drop_place, pickup_at::text, deliver_by::text, status, trip_id, quantity_text from cargo_requests where id = $1", [id])).rows[0]);
+    (await q.query<{ cargo_no: string; description: string; pickup_place: string; drop_place: string; pickup_at: string; deliver_by: string | null; status: string; trip_id: string | null; quantity_text: string; plate: string | null }>(
+      `select c.cargo_no, c.description, c.pickup_place, c.drop_place, c.pickup_at::text, c.deliver_by::text, c.status, c.trip_id, c.quantity_text,
+              (select v.registration_no from vehicles v where v.id = $2::uuid and v.status = 'active' and dept_ok(v.id)) as plate
+         from cargo_requests c where c.id = $1`, [id, vehicleId ?? null])).rows[0]);
+  if (c && vehicleId && !c.plate) throw new UserError("That vehicle is not available.");
   if (!c) throw new UserError("Cargo request not found.");
   if (c.trip_id) throw new UserError("A trip has already been made from this request.");
   if (!["accepted", "in_transit"].includes(c.status)) throw new UserError("Accept the request first, then make a trip from it.");
-  const tripId = await requestTrip(driver, m, { kind: "trip", purpose: `Cargo ${c.cargo_no}: ${c.description} (${c.quantity_text})`.slice(0, 300), from_place: c.pickup_place, to_place: c.drop_place, start_at: c.pickup_at, end_at: c.deliver_by ?? new Date(Date.parse(c.pickup_at) + 12 * 3600_000).toISOString(), passengers: "0" });
+  const tripId = await requestTrip(driver, m, { kind: "trip", purpose: `Cargo ${c.cargo_no}: ${c.description} (${c.quantity_text})`.slice(0, 300), from_place: c.pickup_place, to_place: c.drop_place, start_at: c.pickup_at, end_at: c.deliver_by ?? new Date(Date.parse(c.pickup_at) + 12 * 3600_000).toISOString(), passengers: "0",
+    // F1: the system only suggests; the vehicle chosen here is the trip's preferred vehicle, and whoever approves the trip still assigns the vehicle and the driver
+    preferred_vehicle_id: vehicleId });
   await authorized(driver, m, "cargo.handle", async (q) => {
     await q.query("update cargo_requests set trip_id = $2, updated_at = now() where id = $1 and trip_id is null", [id, tripId]);
     const no = (await q.query<{ trip_no: string }>("select trip_no from trips where id = $1", [tripId])).rows[0]?.trip_no;
-    await q.query("insert into cargo_events(cargo_id, from_status, to_status, actor_id, note) select id, status, status, $2, $3 from cargo_requests where id = $1", [id, m.userId, `Trip ${no} made from this request`]);
+    await q.query("insert into cargo_events(cargo_id, from_status, to_status, actor_id, note) select id, status, status, $2, $3 from cargo_requests where id = $1",
+      [id, m.userId, `Trip ${no} made from this request${c.plate ? `, vehicle ${c.plate} chosen from the suggestions` : ", no vehicle chosen"}`]);
   });
   return tripId;
+}
+
+/** Logistics (or whoever handles cargo) enters or corrects the weight, in kilograms, for a request that is still open. */
+export async function setCargoWeight(driver: Driver, m: Membership, id: string, raw: unknown): Promise<void> {
+  const p = z.coerce.number("Enter the weight in kilograms").positive("Enter the weight in kilograms").max(1_000_000).safeParse(raw);
+  if (!p.success) throw new UserError(p.error.issues[0].message, { weight_kg: p.error.issues[0].message });
+  await authorized(driver, m, "cargo.handle", async (q) => {
+    const r = await q.query("update cargo_requests set weight_kg = $2, updated_at = now() where id = $1 and status in ('requested','accepted') and trip_id is null returning id", [id, p.data]);
+    if (r.rows.length === 0) throw new UserError("The weight can be changed only while the request is open and has no trip yet.");
+    await q.query("insert into cargo_events(cargo_id, from_status, to_status, actor_id, note) select id, status, status, $2, $3 from cargo_requests where id = $1", [id, m.userId, `Weight set to ${p.data.toLocaleString("en-US")} kg`]);
+  });
 }

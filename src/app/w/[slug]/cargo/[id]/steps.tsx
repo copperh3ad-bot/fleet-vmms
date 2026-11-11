@@ -2,7 +2,7 @@
 import { useActionState } from "react";
 import { Input, Notice, Submit } from "@/components/form";
 import type { FormState } from "../../actions-util";
-import { cargoStepAction, makeTripAction } from "../actions";
+import { cargoStepAction, makeTripAction, setCargoWeightAction } from "../actions";
 
 /** One next step of a cargo request, as its own small form, so the page never offers a step the request is not ready for. */
 export function CargoStep({ slug, id, to, label, needsNote }: { slug: string; id: string; to: string; label: string; needsNote?: boolean }) {
@@ -15,12 +15,23 @@ export function CargoStep({ slug, id, to, label, needsNote }: { slug: string; id
   );
 }
 
-export function MakeTrip({ slug, id }: { slug: string; id: string }) {
-  const [state, action] = useActionState<FormState>(makeTripAction.bind(null, slug, id) as (p: FormState) => Promise<FormState>, {});
+export function MakeTrip({ slug, id, vehicleId = null, label = "Make a trip from this", intro }: { slug: string; id: string; vehicleId?: string | null; label?: string; intro?: string }) {
+  const [state, action] = useActionState<FormState>(makeTripAction.bind(null, slug, id, vehicleId) as (p: FormState) => Promise<FormState>, {});
   return (
     <form action={action} className="space-y-2">
-      <p className="text-sm text-zinc-600">Opens a trip request filled in from this one. A manager then approves it and assigns a vehicle and driver, or, on Pro, sends it to logistics providers for quotes.</p>
-      <Submit>Make a trip from this</Submit><Notice state={state} />
+      {intro !== undefined && intro !== "" && <p className="text-sm text-zinc-600">{intro}</p>}
+      <Submit>{label}</Submit><Notice state={state} />
+    </form>
+  );
+}
+
+/** Logistics enters the weight of the load, in kilograms, so the system can suggest a vehicle (ADR-092). */
+export function WeightForm({ slug, id, current }: { slug: string; id: string; current: string | null }) {
+  const [state, action] = useActionState<FormState, FormData>(setCargoWeightAction.bind(null, slug, id), {});
+  return (
+    <form action={action} className="flex flex-wrap items-end gap-3" noValidate>
+      <div className="w-56 max-w-full"><Input name="weight_kg" label="Weight of the load (kg)" state={state} defaultValue={current ?? ""} inputMode="decimal" required /></div>
+      <Submit>Save weight</Submit><Notice state={state} />
     </form>
   );
 }

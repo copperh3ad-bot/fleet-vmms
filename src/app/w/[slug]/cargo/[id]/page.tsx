@@ -7,7 +7,8 @@ import { getDriver } from "@/lib/db";
 import { CARGO_STATUS_LABEL, getCargo, HANDLING } from "@/lib/cargo/service";
 import { dmyTime } from "@/lib/format/date";
 import { PageHeader, Panel, Pill } from "@/components/ui";
-import { CargoStep, MakeTrip } from "./steps";
+import { suggestVehicles } from "@/lib/cargo/suggest";
+import { CargoStep, MakeTrip, WeightForm } from "./steps";
 
 export default function CargoDetailPage({ params }: { params: Promise<{ slug: string; id: string }> }) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} /></Suspense>;
@@ -22,6 +23,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
   const [c, perms] = await Promise.all([getCargo(driver, m, id), permissionsOf(driver, m)]);
   if (!c) notFound();
   const handler = perms.has("cargo.handle");
+  const suggest = handler && (c.status === "requested" || c.status === "accepted") && !c.trip_id ? await suggestVehicles(driver, m, id) : null;
   const step = { slug, id };
   const dl = (k: string, v: React.ReactNode) => <div><dt className="text-zinc-500">{k}</dt><dd>{v}</dd></div>;
   return (
@@ -33,7 +35,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
           {dl("Requested on", dmyTime(c.created_at))}{c.department && dl("Requesting department", c.department)}
           {dl("Vehicle required", dmyTime(c.pickup_at))}{c.vehicle_type && dl("Vehicle type", c.vehicle_type)}
           {dl("Pick-up location (from)", c.pickup_place)}{dl("Destination (to)", c.drop_place)}
-          {dl("Inventory / material load", c.description)}{dl("Quantity of load", c.quantity_text)}
+          {dl("Inventory / material load", c.description)}{dl("Quantity of load", c.quantity_text)}{c.weight_kg && dl("Weight", `${Number(c.weight_kg).toLocaleString("en-US")} kg`)}
           {c.poc_details && dl("Person to contact", c.poc_details)}
           {c.pickup_contact && dl("Pick-up contact", [c.pickup_contact, c.pickup_phone].filter(Boolean).join(", "))}{c.drop_contact && dl("Delivery contact", [c.drop_contact, c.drop_phone].filter(Boolean).join(", "))}
           {c.deliver_by && dl("Deliver by", dmyTime(c.deliver_by))}
@@ -46,7 +48,30 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
 
       {handler && c.status === "requested" && <Panel title="Accept"><CargoStep {...step} to="accepted" label="Accept the request" needsNote={false} /></Panel>}
       {handler && c.status === "requested" && <Panel title="Reject"><CargoStep {...step} to="rejected" label="Reject the request" needsNote /></Panel>}
-      {handler && (c.status === "accepted" || c.status === "in_transit") && !c.trip_id && <Panel title="Trip"><MakeTrip {...step} /></Panel>}
+      {suggest && (
+        <Panel title="Which vehicle?" sub="Suggested from the load, the time needed and where each vehicle is. Nothing is assigned until you choose; a manager then approves the trip and assigns the driver.">
+          <div className="space-y-4 text-sm">
+            <WeightForm {...step} current={c.weight_kg} />
+            {suggest.message && <p role="status" className="rounded-md bg-amber-50 p-3 text-amber-900">{suggest.message}</p>}
+            {suggest.suggestions.length > 0 && (
+              <ol className="space-y-3">
+                {suggest.suggestions.slice(0, 5).map((s, i) => (
+                  <li key={s.vehicle_id} className="rounded-md border border-zinc-200 p-3">
+                    <p className="font-medium"><span className="font-mono">{s.registration_no}</span> {s.label}{i === 0 && <span className="ml-2 rounded bg-green-100 px-1.5 py-0.5 text-xs font-normal text-green-800">Best fit</span>}</p>
+                    <ul className="mt-1 list-disc pl-5 text-zinc-700">{s.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
+                    <div className="mt-2">{c.status === "accepted" ? <MakeTrip {...step} vehicleId={s.vehicle_id} label={`Make a trip with ${s.registration_no}`} /> : <p className="text-xs text-zinc-500">Accept the request first, then make a trip with this vehicle.</p>}</div>
+                  </li>
+                ))}
+              </ol>
+            )}
+            {suggest.suggestions.length > 5 && <p className="text-xs text-zinc-500">{suggest.suggestions.length - 5} more vehicle{suggest.suggestions.length - 5 === 1 ? "" : "s"} could carry it; the first five are shown.</p>}
+            {suggest.weight_kg !== null && suggest.suggestions.length === 0 && (c.status === "accepted" || c.status === "in_transit") && (
+              <MakeTrip {...step} label="Make a trip and ask logistics providers" intro="Opens a trip request without a vehicle. On the trip page you choose which logistics providers to ask for quotes." />
+            )}
+          </div>
+        </Panel>
+      )}
+      {handler && (c.status === "accepted" || c.status === "in_transit") && !c.trip_id && <Panel title="Trip"><MakeTrip {...step} intro="Opens a trip request filled in from this one, without choosing a vehicle. A manager then approves it and assigns a vehicle and driver, or, on Pro, sends it to logistics providers for quotes." /></Panel>}
       {handler && c.status === "accepted" && <Panel title="On the way"><CargoStep {...step} to="in_transit" label="Mark as on the way" needsNote={false} /></Panel>}
       {handler && c.status === "in_transit" && <Panel title="Delivered"><CargoStep {...step} to="delivered" label="Mark as delivered" needsNote={false} /></Panel>}
       {(handler || c.mine) && (c.status === "requested" || c.status === "accepted") && !(handler && c.status === "requested" && !c.mine) && <Panel title="Cancel"><CargoStep {...step} to="cancelled" label="Cancel the request" needsNote /></Panel>}
