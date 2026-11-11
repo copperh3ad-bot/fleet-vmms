@@ -36,11 +36,11 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const items = (list: readonly (readonly [string, string])[]): SettingItem[] =>
     list.flatMap(([key, label]) => { const s = settings.find((x) => x.key === key); return s ? [{ key, label, value: s.value, editable: s.editable }] : []; });
   // Company switches: the settings that decide what the company can do (QA-FULLFLOW F-03). Label and explanation come from the setting's own definition.
-  const COMPANY = ["module_trips", "admin_decides_others", "dept_approval_limit", "payment_approval_limit", "invoice_over_quote_pct", "quote_over_estimate_pct"] as const;
+  const COMPANY = ["module_trips", "admin_decides_others", "allow_learner_licence", "odometer_whatsapp", "odometer_send_day", "dept_approval_limit", "payment_approval_limit", "invoice_over_quote_pct", "quote_over_estimate_pct"] as const;
   const cur = m.currency || "PKR";
   const company = (key: (typeof COMPANY)[number]): SettingItem[] => {
     const s = settings.find((x) => x.key === key);
-    return s ? [{ key, label: key === "dept_approval_limit" || key === "payment_approval_limit" ? `${s.label} (${cur})` : (key === "invoice_over_quote_pct" || key === "quote_over_estimate_pct") ? `${s.label} (%)` : s.label, value: s.value, editable: s.editable, hint: s.hint }] : [];
+    return s ? [{ key, label: key === "dept_approval_limit" || key === "payment_approval_limit" ? `${s.label} (${cur})` : (key === "invoice_over_quote_pct" || key === "quote_over_estimate_pct") ? `${s.label} (%)` : s.label, value: s.value || (key === "odometer_send_day" ? "1" : ""), editable: s.editable, hint: s.hint }] : [];
   };
   const canSave = settings.some((s) => s.editable && ([...TIMING, ...FLAGS].some(([k]) => k === s.key) || (COMPANY as readonly string[]).includes(s.key)));
   const to = (q: string) => `/w/${slug}/settings${q}`;
@@ -83,8 +83,8 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
             <Panel title="Timing"><SettingFields items={items(TIMING)} /></Panel>
             <Panel title="Company switches" sub="What your company can do, and who may approve what">
               <div className="space-y-4">
-                <SwitchFields items={[...company("module_trips"), ...company("admin_decides_others")]} />
-                <SettingFields items={[...company("dept_approval_limit"), ...company("payment_approval_limit"), ...company("invoice_over_quote_pct"), ...company("quote_over_estimate_pct")]} />
+                <SwitchFields items={[...company("module_trips"), ...company("admin_decides_others"), ...company("allow_learner_licence"), ...company("odometer_whatsapp")]} />
+                <SettingFields items={[...company("odometer_send_day"), ...company("dept_approval_limit"), ...company("payment_approval_limit"), ...company("invoice_over_quote_pct"), ...company("quote_over_estimate_pct")]} />
               </div>
             </Panel>
             <Panel title="What the manager sees">

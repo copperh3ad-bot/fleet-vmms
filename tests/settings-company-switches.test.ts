@@ -42,6 +42,22 @@ describe("the company switches on the Settings page", () => {
     expect((await view("dept_approval_limit")).value).toBe("");            // blank means no limit
   });
 
+  it("H: the page shows the learner licence, odometer WhatsApp and send day settings, and an administrator can save them", async () => {
+    const page = readFileSync("src/app/w/[slug]/settings/page.tsx", "utf8");
+    for (const key of ["allow_learner_licence", "odometer_whatsapp", "odometer_send_day"]) expect(page).toContain(key);
+    expect(page).toMatch(/odometer_send_day" \? "1"/);                      // unset shows the day the scheduler uses, so "Save rules" is never blocked by a blank box
+    const admin = mem("tenant_admin", 1);
+    const view = async (key: string) => (await ctl.getSettings(d, admin)).find((s) => s.key === key)!;
+    expect((await view("allow_learner_licence")).editable).toBe(true);
+    expect(await ctl.saveSettings(d, admin, { allow_learner_licence: "1", odometer_whatsapp: "1", odometer_send_day: "15" })).toBe(3);
+    expect((await view("allow_learner_licence")).value).toBe("1");
+    expect((await view("odometer_whatsapp")).value).toBe("1");
+    expect((await view("odometer_send_day")).value).toBe("15");
+    await expect(ctl.saveSettings(d, admin, { odometer_send_day: "29" })).rejects.toBeInstanceOf(UserError);
+    await expect(ctl.saveSettings(d, admin, { odometer_whatsapp: "2" })).rejects.toBeInstanceOf(UserError);
+    await expect(ctl.saveSettings(d, mem("fleet_manager", 40), { odometer_whatsapp: "0" })).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
   it("rejects values that are not allowed, and anyone without admin.settings can see the settings but not change them", async () => {
     const admin = mem("tenant_admin", 1);
     await expect(ctl.saveSettings(d, admin, { module_trips: "2" })).rejects.toBeInstanceOf(UserError);
