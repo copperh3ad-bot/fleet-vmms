@@ -88,7 +88,7 @@ describe("invoice review", () => {
 
   it("needs invoice.verify, and an unknown invoice gives nothing", async () => {
     const id = await submittedInvoice();
-    for (const role of ["fleet_manager", "auditor", "requester", "vendor"]) await expect(vf.getInvoiceReview(d, mem(role, NOBODY), id)).rejects.toBeInstanceOf(ForbiddenError);
+    for (const role of ["requester", "vendor", "hr", "security"]) await expect(vf.getInvoiceReview(d, mem(role, NOBODY), id)).rejects.toBeInstanceOf(ForbiddenError);
     expect(await vf.getInvoiceReview(d, mem("finance", NOBODY), "00000000-0000-4000-8000-0000000000aa")).toBeNull();
   });
 });

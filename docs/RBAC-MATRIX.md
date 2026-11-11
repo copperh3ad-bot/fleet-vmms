@@ -29,6 +29,8 @@ Role keys: **Adm** tenant_admin, **FM** fleet_manager, **Fin** finance, **Req** 
 | invoice.submit | | | | | | | | | ✔ |
 | invoice.verify | ✔ | | ✔ | | | | | | |
 | invoice.pay (record payment, ADR-086) | ✔ | | ✔ | | | | | | |
+| invoice.read (see invoices and payments, ADR-087) | ✔ | ✔ | ✔ | | ✔ | | | | |
+| invoice.approve_payment (over the limit or over the quote, ADR-087) | ✔ | ✔ | | | | | | | |
 | **Policy, budget and reports** | | | | | | | | | |
 | policy.read | ✔ | ✔ | ✔ | ✔ | ✔ | | | | |
 | policy.manage | ✔ | ✔ | | | | | | | |

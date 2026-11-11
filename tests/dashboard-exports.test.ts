@@ -94,7 +94,7 @@ describe("exports", () => {
     const cases: [string, Membership, boolean][] = [
       ["vehicles", driver(), true], ["vehicles", mem("vendor", 21), false],
       ["job-cards", driver(), true], ["job-cards", mem("vendor", 21), false],
-      ["invoices", finance(), true], ["invoices", mgr(), false], ["invoices", auditor(), false], ["invoices", driver(), false],
+      ["invoices", finance(), true], ["invoices", mgr(), true], ["invoices", auditor(), true], ["invoices", driver(), false],
       ["documents", mgr(), true], ["documents", auditor(), true], ["documents", driver(), false], ["documents", mem("vendor", 21), false],
       ["accidents", auditor(), true], ["accidents", driver(), false], ["challans", finance(), true], ["challans", driver(), false],
       ["budgets", finance(), true], ["budgets", driver(), false],

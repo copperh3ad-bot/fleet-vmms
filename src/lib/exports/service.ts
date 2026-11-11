@@ -55,7 +55,7 @@ const DEFS: Record<string, Def> = {
     },
   },
   invoices: {
-    perms: ["invoice.verify"],
+    perms: ["invoice.verify", "invoice.read"],
     columns: [col("Invoice", "invoice_no"), col("Date", "invoice_date"), col("Job", "job_no"), col("Vehicle", "registration_no"), col("Workshop", "vendor"), col("Invoiced", "amount"), col("Tax", "tax_amount"),
       col("Approved amount", "approved_amount"), col("Difference", "variance"), col("Lines not in quotation", "unapproved_lines"), col("Status", "status"), col("Payable", "payable_amount")],
     async run({ q, f }) {

@@ -169,7 +169,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
                 <p key={i.id} className="mt-1 text-sm">
                   Invoice {i.invoice_no} · <span className="font-mono">{money(Number(i.amount))}</span> · {i.status}
                   {i.payable_amount && <> · payable <span className="font-mono">{money(Number(i.payable_amount))}</span></>}
-                  {perms.has("invoice.verify") && <> · <a className="text-brand underline" href={to(`invoices/${i.id}`)}>{i.status === "submitted" ? "Check it" : "Open"}</a></>}
+                  {(perms.has("invoice.verify") || perms.has("invoice.read")) && <> · <a className="text-brand underline" href={to(`invoices/${i.id}`)}>{i.status === "submitted" ? "Check it" : "Open"}</a></>}
                 </p>
               ))}
             </Panel>

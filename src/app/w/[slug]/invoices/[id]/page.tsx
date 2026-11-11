@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { requireMembership } from "@/lib/auth/session";
+import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { getInvoiceReview, listCommercialFiles, type CompareRow } from "@/lib/vendorflow/service";
 import { supabaseBlobStore } from "@/lib/supabase/blob-store";
@@ -28,6 +29,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
   if (!inv) notFound();
   const files = await listCommercialFiles(driver, await supabaseBlobStore(), m, "invoice", id);
   const payments = await getPayments(driver, m, "workshop", id);
+  const canVerify = (await permissionsOf(driver, m)).has("invoice.verify");
   const to = (p: string) => `/w/${slug}/${p}`;
   const bad = inv.comparison.filter((r) => r.check === "not_approved");
   const changed = inv.comparison.filter((r) => r.check === "qty" || r.check === "price");
@@ -102,7 +104,9 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
           </Panel>
 
           <Panel title="Your decision">
-            {inv.status !== "submitted" ? (
+            {inv.status === "submitted" && !canVerify ? (
+              <p className="text-sm text-zinc-600">Waiting for Finance to check this invoice.</p>
+            ) : inv.status !== "submitted" ? (
               <p className="text-sm">{inv.status === "disputed" ? "Returned to the workshop" : "Checked"}{inv.payable_amount ? `, payable ${money(Number(inv.payable_amount))}` : ""}.{inv.decision_note ? ` Note: ${inv.decision_note}` : ""}</p>
             ) : inv.blocked ? (
               <p role="status" className="rounded-md bg-amber-100 p-3 text-sm text-amber-800">{inv.blocked.by === "approver" ? `You approved this job card, so you cannot check its invoice. Ask someone else in finance.` : `You raised this job card, so you cannot check its invoice. Ask someone else in finance.`}</p>

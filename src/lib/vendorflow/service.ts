@@ -206,7 +206,7 @@ export function listQuotations(driver: Driver, m: Membership, opts: { status?: s
 export type InvoiceRow = { id: string; invoice_no: string; invoice_date: string; amount: string; status: string; job_no: string; job_card_id: string; vendor_name: string; registration_no: string };
 
 export function listInvoices(driver: Driver, m: Membership, opts: { status?: string } = {}): Promise<InvoiceRow[]> {
-  return authorized(driver, m, "invoice.verify", async (q) =>
+  return authorizedAny(driver, m, ["invoice.verify", "invoice.read"], async (q) =>
     (await q.query<InvoiceRow>(
       `select i.id, i.invoice_no, i.invoice_date::text, i.amount::text, i.status, jc.job_no, jc.id as job_card_id, vn.name as vendor_name, v.registration_no
          from invoices i join work_orders wo on wo.id = i.work_order_id join job_cards jc on jc.id = wo.job_card_id
@@ -221,7 +221,7 @@ export type InvoiceCheck = InvoiceRow & {
 };
 
 export function getInvoiceCheck(driver: Driver, m: Membership, id: string): Promise<InvoiceCheck | null> {
-  return authorized(driver, m, "invoice.verify", async (q) => {
+  return authorizedAny(driver, m, ["invoice.verify", "invoice.read"], async (q) => {
     const r = (await q.query<InvoiceCheck>(
       `select i.id, i.invoice_no, i.invoice_date::text, i.amount::text, i.tax_amount::text, i.status, jc.job_no, jc.id as job_card_id, jc.status as job_status,
               vn.name as vendor_name, v.registration_no, c.approved_amount::text, c.variance::text, c.variance_pct::text, c.unapproved_lines::int,
@@ -252,7 +252,7 @@ export type InvoiceReview = InvoiceCheck & {
 /** Everything the invoice check screen shows: lines side by side, the job, who is barred from checking, the next invoice. */
 export async function getInvoiceReview(driver: Driver, m: Membership, id: string): Promise<InvoiceReview | null> {
   const adminAlone = await adminMayDecideOwn(driver, m, "invoice.verify");          // the administrator may check an invoice on a card they raised or approved only while they are the only employee (ADR-077)
-  return authorized(driver, m, "invoice.verify", async (q) => {
+  return authorizedAny(driver, m, ["invoice.verify", "invoice.read"], async (q) => {
     const base = (await q.query<InvoiceCheck>(
       `select i.id, i.invoice_no, i.invoice_date::text, i.amount::text, i.tax_amount::text, i.status, jc.job_no, jc.id as job_card_id, jc.status as job_status,
               vn.name as vendor_name, v.registration_no, c.approved_amount::text, c.variance::text, c.variance_pct::text, c.unapproved_lines::int,

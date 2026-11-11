@@ -42,7 +42,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
   const providers = outsourcing && t.status === "requested" ? await listLogisticsProviders(driver, m) : [];
   const outsourced = !!t.outsourced_vendor;
   // The provider's invoice (ADR-078 B2): seen by those who ask for it and those who check it.
-  const invoices = outsourced && (perms.has("trip.award") || perms.has("invoice.verify")) ? await listTripInvoices(driver, m, id) : [];
+  const invoices = outsourced && (perms.has("trip.award") || perms.has("invoice.verify") || perms.has("invoice.read")) ? await listTripInvoices(driver, m, id) : [];
   const liveInvoice = invoices.some((x) => x.status === "submitted" || x.status === "verified");
   // Payment against each checked provider invoice (ADR-086)
   const paymentsOf = new Map(await Promise.all(invoices.filter((x) => x.status === "verified").map(async (x) => [x.id, await getPayments(driver, m, "trip", x.id)] as const)));

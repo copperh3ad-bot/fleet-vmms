@@ -4,9 +4,9 @@ import { keepForm } from "@/components/keep-form";
 import { Field, Notice, Select, inputCls } from "@/components/form";
 import { Pill } from "@/components/ui";
 import { dmy } from "@/lib/format/date";
-import { PAY_METHODS, type PaymentSummary } from "@/lib/payments/types";
+import { APPROVAL_TEXT, PAY_METHODS, type PaymentSummary } from "@/lib/payments/types";
 import type { FormState } from "@/app/w/[slug]/actions-util";
-import { recordPaymentAction, voidPaymentAction } from "@/app/w/[slug]/invoices/payment-actions";
+import { approvePaymentAction, recordPaymentAction, voidPaymentAction } from "@/app/w/[slug]/invoices/payment-actions";
 
 const amt = (n: number | string) => Number(n).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 const METHOD = Object.fromEntries(PAY_METHODS) as Record<string, string>;
@@ -58,6 +58,20 @@ function VoidForm({ slug, paymentId }: { slug: string; paymentId: string }) {
   );
 }
 
+function ApproveForm({ slug, kind, invoiceId, needsReason }: { slug: string; kind: string; invoiceId: string; needsReason: boolean }) {
+  const [state, action, pending] = useActionState<FormState, FormData>(approvePaymentAction.bind(null, slug, kind, invoiceId), {});
+  return (
+    <form onSubmit={keepForm(action)} className="space-y-2">
+      <label htmlFor="approve-note" className="block text-xs font-medium text-zinc-600">Reason{needsReason ? <span className="text-red-700"> *</span> : " (optional)"}</label>
+      <input id="approve-note" name="note" defaultValue={state.values?.note ?? ""} maxLength={300} className={inputCls} aria-invalid={!!state.fields?.note} />
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" disabled={pending} className="inline-flex h-10 items-center rounded-md bg-brand px-5 text-sm font-medium text-white disabled:opacity-60">{pending ? "Saving" : "Approve this payment"}</button>
+        <Notice state={state} />
+      </div>
+    </form>
+  );
+}
+
 /** The payments recorded against one checked invoice, what is left to pay, and the form to record the next one (ADR-086). */
 export function PaymentsPanel({ slug, summary, currency }: { slug: string; summary: PaymentSummary; currency: string }) {
   const [label, tone] = STATUS[summary.status];
@@ -81,6 +95,13 @@ export function PaymentsPanel({ slug, summary, currency }: { slug: string; summa
                 : summary.canPay && <VoidForm slug={slug} paymentId={p.id} />}
             </li>))}
         </ul>
+      )}
+      {summary.approval.needed && (
+        <div role="status" className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-900">
+          <p className="font-medium">{summary.approval.approvedBy ? `Approved for payment by ${summary.approval.approvedBy}` : "Needs approval before it can be paid"}</p>
+          <p className="text-xs">{APPROVAL_TEXT[summary.approval.needed]}{summary.approval.note ? ` Reason given: ${summary.approval.note}` : ""}</p>
+          {summary.approval.canApprove && <ApproveForm slug={slug} kind={summary.kind} invoiceId={summary.invoiceId} needsReason={summary.approval.needed !== "amount"} />}
+        </div>
       )}
       {summary.blocked && <p role="status" className="rounded-md bg-amber-100 p-3 text-amber-800">{summary.blocked}</p>}
       {summary.canPay && !summary.blocked && summary.remaining ? <PayForm key={live.length} slug={slug} kind={summary.kind} invoiceId={summary.invoiceId} remaining={summary.remaining} currency={currency} /> : null}

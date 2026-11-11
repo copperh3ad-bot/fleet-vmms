@@ -1,6 +1,6 @@
 # ADR-086: Recording payment of invoices
 
-**Status:** Accepted (built, not deployed)  **Date:** 2026-11-11
+**Status:** Accepted (built, not deployed). **Amended by ADR-087 the same day:** the segregation-of-duties rule below (the checker cannot pay) was reversed by the owner; large and over-quote payments now need an approval instead.  **Date:** 2026-11-11
 
 ## Context
 Finance could verify a workshop invoice (ADR-007) or a logistics provider's trip invoice (ADR-078) but there was nowhere to record that it was

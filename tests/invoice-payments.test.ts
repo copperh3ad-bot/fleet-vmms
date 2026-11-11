@@ -30,6 +30,10 @@ const dueOf = (id: string) => raw(async (q) => Number((await q.query<{ due: stri
 const statusOf = (id: string) => raw(async (q) => (await q.query<{ status: string }>("select status from invoices where id = $1", [id])).rows[0].status);
 const input = (over: Record<string, string> = {}) => ({ amount: "100", paid_on: "2026-01-15", method: "bank_transfer", reference: "TRX-1001", note: "", ...over });
 let ids: string[];
+const setSetting = (key: string, value: string) => raw((q) => q.query("update settings set value = $2 where key = $1", [key, value]));
+/** No limit and no over-quote rule: the first tests are about recording a payment, not about approval. */
+const relax = async () => { await setSetting("payment_approval_limit", ""); await setSetting("invoice_over_quote_pct", "1000"); };
+const fm = () => mem("fleet_manager", U(9010));
 
 describe("paying a workshop invoice", () => {
   beforeAll(async () => {
@@ -48,6 +52,7 @@ describe("paying a workshop invoice", () => {
     });
     ids = (await raw(async (q) => (await q.query<{ id: string }>("select id from invoices where invoice_no like 'PAYTEST-%' and status = 'verified' order by invoice_no")).rows.map((r) => r.id)));
     expect(ids.length).toBe(8);
+    await relax();
   });
 
   it("two part payments settle it: the first leaves it open, the second marks it paid", async () => {
@@ -89,23 +94,12 @@ describe("paying a workshop invoice", () => {
     expect(await pay.getPayments(d, admin(), "workshop", open)).toMatchObject({ status: "not_checked", due: null });
   });
 
-  it("the person who checked it cannot record its payment; someone else can", async () => {
+  it("the person who checked the invoice may record its payment (owner decision B1); the approver or requester of the card too", async () => {
     const id = ids[2];
-    const finance = mem("finance", U(9001));
-    expect((await pay.getPayments(d, finance, "workshop", id)).blocked).toMatch(/checked this invoice/);
-    await expect(pay.recordPayment(d, finance, "workshop", id, input())).rejects.toThrow(/segregation of duties/i);
-    const other = mem("finance", U(9002));
-    expect((await pay.getPayments(d, other, "workshop", id)).blocked).toBeNull();
-    await pay.recordPayment(d, other, "workshop", id, input({ amount: "10" }));
-    expect((await pay.getPayments(d, other, "workshop", id)).paid).toBe(10);
-  });
-
-  it("the approver or requester of the job card cannot record it either", async () => {
-    const id = ids[3];
-    const approver = await raw(async (q) => (await q.query<{ user_id: string }>(
-      "select e.user_id from invoices i join work_orders wo on wo.id = i.work_order_id join job_cards jc on jc.id = wo.job_card_id join employees e on e.id = jc.approved_by where i.id = $1", [id])).rows[0]?.user_id);
-    if (!approver) return;                       // the demo card was approved by a person without a login: nothing to test
-    await expect(pay.recordPayment(d, mem("finance", approver), "workshop", id, input())).rejects.toThrow(/segregation of duties/i);
+    const checker = mem("finance", U(9001));
+    expect((await pay.getPayments(d, checker, "workshop", id)).blocked).toBeNull();
+    await pay.recordPayment(d, checker, "workshop", id, input({ amount: "10" }));
+    expect((await pay.getPayments(d, checker, "workshop", id)).paid).toBe(10);
   });
 
   it("only finance and the administrator may record; the auditor may read, others may not even read", async () => {
@@ -115,6 +109,82 @@ describe("paying a workshop invoice", () => {
     expect((await pay.getPayments(d, mem("auditor", U(9003)), "workshop", id)).canPay).toBe(false);
     for (const role of ["requester", "vendor", "hr"]) await expect(pay.getPayments(d, mem(role, U(9003)), "workshop", id)).rejects.toBeInstanceOf(ForbiddenError);
     await expect(pay.voidPayment(d, mem("auditor", U(9003)), "00000000-0000-4000-8000-0000000000aa", "because")).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("the auditor and the fleet manager can read invoices and their payments; requester, HR and vendor cannot (owner decision A4)", async () => {
+    const vf = await import("@/lib/vendorflow/service");
+    const id = ids[6];
+    for (const role of ["auditor", "fleet_manager"]) {
+      const m = mem(role, U(9020));
+      expect((await vf.listInvoices(d, m, { status: "verified" })).length).toBeGreaterThan(0);
+      expect((await vf.getInvoiceReview(d, m, id))!.invoice_no).toMatch(/^PAYTEST-/);
+      expect((await pay.getPayments(d, m, "workshop", id)).canPay).toBe(false);
+    }
+    for (const role of ["requester", "hr", "vendor", "security"]) {
+      await expect(vf.listInvoices(d, mem(role, U(9021)), {})).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(vf.getInvoiceReview(d, mem(role, U(9021)), id)).rejects.toBeInstanceOf(ForbiddenError);
+    }
+    await expect(pay.recordPayment(d, mem("auditor", U(9020)), "workshop", id, input())).rejects.toBeInstanceOf(ForbiddenError);   // reading is not paying
+  });
+
+  it("the defaults are 50,000 and 10 percent, and the settings are changeable by the administrator", async () => {
+    const ctl = await import("@/lib/control/service");
+    const s = await ctl.getSettings(d, admin());
+    expect(s.find((x) => x.key === "payment_approval_limit")).toMatchObject({ editable: true });
+    expect(s.find((x) => x.key === "invoice_over_quote_pct")).toMatchObject({ editable: true });
+    expect(await ctl.saveSettings(d, admin(), { payment_approval_limit: "75000", invoice_over_quote_pct: "12.5" })).toBe(2);
+    await relax();
+  });
+
+  it("an invoice above the limit needs a Fleet Manager or Administrator to approve it first; splitting the payment does not get round it (B2)", async () => {
+    const id = ids[6], due = await dueOf(id);
+    await setSetting("payment_approval_limit", String(Math.floor(due) - 1));
+    try {
+      let s = await pay.getPayments(d, admin(), "workshop", id);
+      expect(s.approval).toMatchObject({ needed: "amount", approvedBy: null, canApprove: true });
+      expect(s.blocked).toMatch(/needs a Fleet Manager or Administrator/);
+      const finance = mem("finance", U(9002));
+      expect((await pay.getPayments(d, finance, "workshop", id)).approval.canApprove).toBe(false);     // Finance cannot approve its own payment
+      await expect(pay.recordPayment(d, finance, "workshop", id, input({ amount: "1" }))).rejects.toThrow(/needs approval before it can be paid/i);   // not even a small part
+      await expect(pay.approvePayment(d, finance, "workshop", id, "ok")).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(pay.approvePayment(d, mem("auditor", U(9003)), "workshop", id, "ok")).rejects.toBeInstanceOf(ForbiddenError);
+      await pay.approvePayment(d, fm(), "workshop", id, "");
+      s = await pay.getPayments(d, finance, "workshop", id);
+      expect(s.approval).toMatchObject({ needed: "amount", canApprove: false });
+      expect(s.approval.approvedBy).toBeTruthy();
+      expect(s.blocked).toBeNull();
+      await expect(pay.approvePayment(d, fm(), "workshop", id, "")).rejects.toThrow(/already approved/i);
+      await pay.recordPayment(d, finance, "workshop", id, input({ amount: "1" }));
+      expect((await pay.getPayments(d, finance, "workshop", id)).paid).toBe(1);
+      await expect(raw((q) => q.query("update payment_approvals set note = 'x'"))).rejects.toThrow(/cannot be changed or deleted/i);
+    } finally { await relax(); }
+  });
+
+  it("an invoice whose payable amount is more than the percentage above the approved quote needs approval with a reason (B3)", async () => {
+    const id = ids[7];
+    await raw((q) => q.query("update invoices set payable_amount = (select approved_amount from work_orders wo where wo.id = invoices.work_order_id) * 1.5, tax_amount = 0 where id = $1", [id]));
+    await setSetting("invoice_over_quote_pct", "10");
+    try {
+      const finance = mem("finance", U(9002));
+      const s = await pay.getPayments(d, finance, "workshop", id);
+      expect(s.approval.needed).toBe("over_quote");
+      await expect(pay.recordPayment(d, finance, "workshop", id, input({ amount: "1" }))).rejects.toThrow(/over the approved quote/i);
+      const short = await pay.approvePayment(d, fm(), "workshop", id, "ok").catch((e) => e);
+      expect(short.message).toMatch(/reason of at least 5 characters/i);
+      await pay.approvePayment(d, admin(), "workshop", id, "Extra parts agreed on the phone with the workshop");
+      await pay.recordPayment(d, finance, "workshop", id, input({ amount: "1" }));
+      // the person who approved cannot also record it, unless nobody else could have approved: a Fleet Manager now holds the permission in this company
+      await withPlatform(d, async (q) => { await q.query("insert into public.tenant_memberships(user_id, tenant_id, role) values ($1, $2, 'fleet_manager') on conflict do nothing", [U(9010), t.tenantId]); });
+      const own = ids[4];
+      await raw((q) => q.query("update invoices set payable_amount = (select approved_amount from work_orders wo where wo.id = invoices.work_order_id) * 2, tax_amount = 0 where id = $1", [own]));
+      await pay.approvePayment(d, admin(), "workshop", own, "Agreed with the workshop after the repair");
+      await expect(pay.recordPayment(d, admin(), "workshop", own, input({ amount: "1" }))).rejects.toThrow(/segregation of duties/i);
+    } finally { await relax(); }
+  });
+
+  it("an invoice that does not need approval cannot be given one", async () => {
+    const id = ids[3];
+    await expect(pay.approvePayment(d, fm(), "workshop", id, "not needed")).rejects.toThrow(/does not need a payment approval/i);
   });
 
   it("a payment is voided with a reason, reopens the invoice, and stays on the record; it cannot be edited or deleted", async () => {
@@ -187,6 +257,8 @@ describe("paying a provider's trip invoice", () => {
     });
     await traw((q) => q.query("insert into settings(key, value) values ('module_trips','1') on conflict (key) do update set value = '1'"));
     provA = (await master.saveVendor(d, owner(), { name: "Alpha Freight", kind: "logistics", phone: "0300 1111111" })).id;
+    await traw((q) => q.query("update settings set value = '' where key = 'payment_approval_limit'"));
+    await traw((q) => q.query("update settings set value = '1000' where key = 'invoice_over_quote_pct'"));
   });
 
   it("is paid in two parts by someone other than the checker, and each step is written to the trip's history", async () => {
@@ -204,13 +276,18 @@ describe("paying a provider's trip invoice", () => {
     expect(notes[1]).toContain("paid in full");
   });
 
-  it("the person who checked the invoice, or awarded or asked for the trip, cannot pay it", async () => {
+  it("the checker may pay a trip invoice; above the limit a Fleet Manager or Administrator approves first", async () => {
     const { invoice } = await checkedTripInvoice();
-    await expect(pay.recordPayment(d, fin(), "trip", invoice, input())).rejects.toThrow(/segregation of duties/i);
-    expect((await pay.getPayments(d, fin(), "trip", invoice)).blocked).toMatch(/checked this invoice/);
-    const finance2 = tm("finance", 31);
-    await traw((q) => q.query("update trips set decided_by = $1 where id = (select trip_id from trip_invoices where id = $2)", [U(31), invoice]));
-    await expect(pay.recordPayment(d, finance2, "trip", invoice, input())).rejects.toThrow(/segregation of duties/i);   // awarded by this person
+    expect((await pay.getPayments(d, fin(), "trip", invoice)).blocked).toBeNull();     // B1: Finance may check and pay
+    await traw((q) => q.query("update settings set value = '10000' where key = 'payment_approval_limit'"));
+    try {
+      expect((await pay.getPayments(d, fin(), "trip", invoice)).approval).toMatchObject({ needed: "amount", canApprove: false });
+      await expect(pay.recordPayment(d, fin(), "trip", invoice, input({ amount: "100" }))).rejects.toThrow(/needs approval before it can be paid/i);
+      expect((await pay.getPayments(d, mgr(), "trip", invoice)).approval.canApprove).toBe(true);
+      await pay.approvePayment(d, mgr(), "trip", invoice, "");
+      await pay.recordPayment(d, fin(), "trip", invoice, input({ amount: "100" }));
+      expect((await pay.getPayments(d, fin(), "trip", invoice)).paid).toBe(100);
+    } finally { await traw((q) => q.query("update settings set value = '' where key = 'payment_approval_limit'")); }
   });
 
   it("an unchecked trip invoice cannot be paid, and a void reopens a settled one", async () => {

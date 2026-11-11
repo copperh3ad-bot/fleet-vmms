@@ -370,7 +370,7 @@ export type TripInvoice = {
 
 /** Invoices on a trip: for the people who award, and for those who check invoices. */
 export function listTripInvoices(driver: Driver, m: Membership, tripId: string): Promise<TripInvoice[]> {
-  return authorizedAny(driver, m, ["trip.award", "invoice.verify"], async (q) => {
+  return authorizedAny(driver, m, ["trip.award", "invoice.verify", "invoice.read"], async (q) => {
     await requireOn(q);
     return (await q.query<TripInvoice>(
       `select i.id, i.invoice_no, i.invoice_date::text, i.amount::text, i.notes, i.status, i.decision_note, i.payable::text, i.submitted_at::text, i.verified_at::text, e.full_name as verifier_name

@@ -81,7 +81,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
     { href: to("/reports/breaking"), label: "Why it keeps breaking", show: has("report.view") },
     { href: to("/reports"), label: "Reports", show: has("report.view"), exact: true },
     { href: to("/quotations"), label: "Quotations", show: has("jobcard.read_all") },
-    { href: to("/invoices"), label: "Invoices", show: has("invoice.verify") },
+    { href: to("/invoices"), label: "Invoices", show: has("invoice.verify", "invoice.read") },
     { href: to("/accidents"), label: "Accidents and challans", show: has("compliance.manage", "report.view"), also: [to("/challans")] },
   ];
   const admin: Item[] = [

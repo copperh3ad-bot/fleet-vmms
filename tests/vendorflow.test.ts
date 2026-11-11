@@ -305,7 +305,8 @@ describe("permissions", () => {
     expect((await vf.listQuotations(d, mgr(), { status: "submitted" })).some((x) => x.job_card_id === job)).toBe(true);   // the quotations list, for those who read all cards
     await forbidden(vf.listQuotations(d, driver()));
     await forbidden(vf.listQuotations(d, vendorA()));
-    await forbidden(vf.listInvoices(d, mgr()));
+    expect(await vf.listInvoices(d, mgr())).toBeDefined();          // the fleet manager reads invoices (ADR-087, invoice.read) but cannot check them
+    await forbidden(vf.verifyInvoice(d, mgr(), "00000000-0000-4000-8000-0000000000aa", "pay_approved"));
     await forbidden(vf.listInvoices(d, vendorA()));
     await forbidden(vf.vendorOverview(d, mgr()));
     await forbidden(jc.listJobCards(d, vendorA()));                        // a vendor reads no job cards

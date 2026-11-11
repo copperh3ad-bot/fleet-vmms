@@ -7,17 +7,18 @@ import { adminMayDecideOwn, authorized, authorizedAny, type Membership } from "@
 import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
 
-import { PAY_METHODS, type InvoiceKind, type PaymentRow, type PaymentSummary } from "./types";
-export { PAY_METHODS, type InvoiceKind, type PaymentRow, type PaymentSummary } from "./types";
+import { PAY_METHODS, type ApprovalReason, type InvoiceKind, type PaymentRow, type PaymentSummary } from "./types";
+export { PAY_METHODS, APPROVAL_TEXT, type ApprovalReason, type InvoiceKind, type PaymentRow, type PaymentSummary } from "./types";
 const METHOD_KEYS = PAY_METHODS.map(([k]) => k) as [string, ...string[]];
 
-const READERS = ["invoice.pay", "invoice.verify", "report.view"];
+const READERS = ["invoice.pay", "invoice.verify", "invoice.read", "invoice.approve_payment", "report.view"];
 
 // The database says these in plain words already; anything else is a real fault and is rethrown.
 const KNOWN = [
   /enter the amount paid/, /enter the date of payment/, /the payment date cannot be in the future/, /choose how it was paid/,
   /enter the payment reference[^"]*/, /invoice not found/, /this invoice is already paid in full/, /only a checked invoice can be paid/,
-  /segregation of duties: [^"]*/, /this payment would take the total above the amount due[^"]*/,
+  /segregation of duties: [^"]*/, /this invoice needs approval before it can be paid[^"]*/, /only a checked invoice can be approved for payment/,
+  /this invoice does not need a payment approval/, /this invoice is already approved for payment/, /this payment would take the total above the amount due[^"]*/,
   /payment not found/, /this payment is already void/, /a reason of at least 5 characters is required/, /unknown invoice kind/,
 ];
 function friendlyPay(e: unknown): never {
@@ -42,9 +43,9 @@ const DUE_SQL: Record<InvoiceKind, string> = {
 };
 const FK: Record<InvoiceKind, string> = { workshop: "invoice_id", trip: "trip_invoice_id" };
 
-/** What has been paid against one invoice, what is left, and whether this person may record the next payment. */
+/** What has been paid against one invoice, what is left, whether it needs a second person's approval, and whether this person may record the next payment. */
 export async function getPayments(driver: Driver, m: Membership, kind: InvoiceKind, invoiceId: string): Promise<PaymentSummary> {
-  const adminAlone = await adminMayDecideOwn(driver, m, "invoice.pay");
+  const approverAlone = await adminMayDecideOwn(driver, m, "invoice.approve_payment");
   return authorizedAny(driver, m, READERS, async (q, held) => {
     const inv = (await q.query<{ due: string | null; settled: boolean; verified_by: string | null }>(DUE_SQL[kind], [invoiceId])).rows[0];
     if (!inv) throw new UserError("Invoice not found.");
@@ -57,11 +58,27 @@ export async function getPayments(driver: Driver, m: Membership, kind: InvoiceKi
     const due = inv.due === null ? null : Number(inv.due);
     const remaining = due === null ? null : Math.max(0, Math.round((due - paid) * 100) / 100);
     const status: PaymentSummary["status"] = due === null ? "not_checked" : remaining === 0 ? "paid" : paid > 0 ? "part_paid" : "unpaid";
+
+    const needed = due === null || (remaining === 0 && paid > 0) ? null
+      : ((await q.query<{ n: ApprovalReason | null }>("select payment_approval_needed($1, $2) as n", [kind, invoiceId])).rows[0].n);
+    const ap = (await q.query<{ approved_by: string; approved_at: string; note: string | null; name: string | null }>(
+      `select a.approved_by, a.approved_at::text, a.note, e.full_name as name from payment_approvals a left join employees e on e.user_id = a.approved_by
+        where a.${FK[kind]} = $1`, [invoiceId])).rows[0];
     let blocked: string | null = null;
-    if (held.has("invoice.pay") && due !== null && remaining !== 0 && !adminAlone && inv.verified_by === m.userId) {
-      blocked = "You checked this invoice, so someone else has to record its payment.";
-    }
-    return { kind, invoiceId, due, paid, remaining, canPay: held.has("invoice.pay"), blocked, status, payments };
+    if (held.has("invoice.pay") && needed && !ap) blocked = "This invoice needs a Fleet Manager or Administrator to approve it before it can be paid.";
+    else if (held.has("invoice.pay") && needed && ap && ap.approved_by === m.userId && !approverAlone) blocked = "You approved this payment, so someone else has to record it.";
+    return {
+      kind, invoiceId, due, paid, remaining, canPay: held.has("invoice.pay"), blocked, status, payments,
+      approval: { needed, approvedBy: ap ? (ap.name ?? "someone") : null, approvedAt: ap?.approved_at ?? null, note: ap?.note ?? null,
+                  canApprove: held.has("invoice.approve_payment") && !!needed && !ap && due !== null },
+    };
+  });
+}
+
+/** A Fleet Manager or Administrator approves a payment that is over the limit or over the approved quote (ADR-087). */
+export function approvePayment(driver: Driver, m: Membership, kind: InvoiceKind, invoiceId: string, note: string): Promise<string> {
+  return authorized(driver, m, "invoice.approve_payment", async (q) => {
+    try { return (await q.query<{ id: string }>("select approve_invoice_payment($1, $2, $3, $4) as id", [kind, invoiceId, m.userId, note || null])).rows[0].id; } catch (e) { return friendlyPay(e); }
   });
 }
 

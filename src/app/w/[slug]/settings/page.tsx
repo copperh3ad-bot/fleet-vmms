@@ -36,11 +36,11 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const items = (list: readonly (readonly [string, string])[]): SettingItem[] =>
     list.flatMap(([key, label]) => { const s = settings.find((x) => x.key === key); return s ? [{ key, label, value: s.value, editable: s.editable }] : []; });
   // Company switches: the settings that decide what the company can do (QA-FULLFLOW F-03). Label and explanation come from the setting's own definition.
-  const COMPANY = ["module_trips", "dept_approval_limit"] as const;
+  const COMPANY = ["module_trips", "dept_approval_limit", "payment_approval_limit", "invoice_over_quote_pct"] as const;
   const cur = m.currency || "PKR";
   const company = (key: (typeof COMPANY)[number]): SettingItem[] => {
     const s = settings.find((x) => x.key === key);
-    return s ? [{ key, label: key === "dept_approval_limit" ? `${s.label} (${cur})` : s.label, value: s.value, editable: s.editable, hint: s.hint }] : [];
+    return s ? [{ key, label: key === "dept_approval_limit" || key === "payment_approval_limit" ? `${s.label} (${cur})` : key === "invoice_over_quote_pct" ? `${s.label} (%)` : s.label, value: s.value, editable: s.editable, hint: s.hint }] : [];
   };
   const canSave = settings.some((s) => s.editable && ([...TIMING, ...FLAGS].some(([k]) => k === s.key) || (COMPANY as readonly string[]).includes(s.key)));
   const to = (q: string) => `/w/${slug}/settings${q}`;
@@ -84,7 +84,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
             <Panel title="Company switches" sub="What your company can do, and who may approve what">
               <div className="space-y-4">
                 <SwitchFields items={company("module_trips")} />
-                <SettingFields items={company("dept_approval_limit")} />
+                <SettingFields items={[...company("dept_approval_limit"), ...company("payment_approval_limit"), ...company("invoice_over_quote_pct")]} />
               </div>
             </Panel>
             <Panel title="What the manager sees">
