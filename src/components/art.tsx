@@ -155,6 +155,40 @@ const SCENES: Record<string, (k: K) => ReactNode> = {
     {[[28, 58, "#3fc58a"], [88, 54, "#ffc20e"], [149, 46, "#e8571a"], [214, 52, "#3fc58a"]].map(([x, y, c], i) => <g key={i}><circle cx={Number(x)} cy={Number(y)} r="11" fill={String(c)} opacity=".2" /><circle cx={Number(x)} cy={Number(y)} r="5.6" fill={String(c)} /></g>)}
     <T x={120} y={30} s={11} c="#fff" a="middle" w={600}>Every vehicle, one record</T>
   </>),
+  policy: (k) => (<>
+    <Paper k={k} x={20} y={14} w={112} h={122}>
+      <T x={32} y={34} s={10} c={INK} w={700}>Company policy</T><rect x="32" y="40" width="30" height="4" rx="2" fill={k.ember} />
+      {[["Replacement due", "#e8571a"], ["Accident cover", "#f5a800"], ["Driver's share", "#1f8a5b"]].map(([l, c], i) => <g key={l}><rect x="32" y={54 + i * 24} width="88" height="19" rx="6" fill="#eef1f3" /><rect x="32" y={54 + i * 24} width="5" height="19" rx="2.5" fill={c} /><T x={44} y={67 + i * 24} s={7.8} c={INK}>{l}</T></g>)}
+      <T x={32} y={128} s={6.8} c="#6b7882">Every version kept</T>
+    </Paper>
+    <Arrow x={138} y={75} w={22} />
+    <g transform="translate(168 30)"><circle cx="30" cy="32" r="38" fill="#ffb300" opacity=".12" /><path d="M30 0 L58 10 V34 Q58 58 30 70 Q2 58 2 34 V10 Z" fill={k.gold} filter={k.shadow} /><path d="M17 34 l9 9 l18 -20" stroke={INK} strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round" /></g>
+    <T x={198} y={118} s={9} c="#fff" a="middle" w={600}>Applied for you</T>
+  </>),
+  cargo: (k) => (<>
+    <rect x="0" y="112" width="240" height="38" fill="#0a0d10" opacity=".6" /><rect x="0" y="112" width="240" height="1.2" fill="#fff" opacity=".16" /><path d="M0 132 H240" stroke="#fff" strokeOpacity=".22" strokeWidth="2" strokeDasharray="12 9" className="art-flow" />
+    <g transform="translate(34 56)"><rect width="84" height="48" rx="5" fill={k.paper} /><rect x="9" y="9" width="28" height="30" rx="3" fill={k.gold} /><rect x="42" y="18" width="26" height="21" rx="3" fill={k.ember} /><path d="M9 20 h28 M23 9 v30" stroke="#b07900" strokeWidth="1.6" /><rect x="84" y="14" width="34" height="34" rx="5" fill={k.mint} /><path d="M92 20 h18 v13 h-18 Z" fill={INK} opacity=".5" /><circle cx="22" cy="52" r="6.6" fill={INK} stroke="#fff" strokeWidth="1.6" /><circle cx="96" cy="52" r="6.6" fill={INK} stroke="#fff" strokeWidth="1.6" /></g>
+    <g transform="translate(166 22)"><Glass x={0} y={0} w={64} h={52} r={12} stroke="#ffc20e" /><T x={32} y={20} s={8} c="#fff" a="middle" w={600}>Pick-up</T><circle cx="32" cy="34" r="6" fill={k.ember} /><path d="M32 40 l-5 7 h10 Z" fill={k.ember} /></g>
+    <g transform="translate(172 84)"><Glass x={0} y={0} w={58} h={20} r={10} stroke="#3fc58a" /><Tick k={k} x={12} y={10} r={5} /><T x={22} y={13.4} s={8} c="#fff">Delivered</T></g>
+  </>),
+  menu: (k) => (<>
+    <g transform="translate(78 8)"><rect width="84" height="134" rx="14" fill="#0b0f13" stroke="#fff" strokeOpacity=".3" strokeWidth="2" /><rect x="6" y="6" width="72" height="122" rx="9" fill="#1d252c" /><rect x="6" y="6" width="72" height="18" rx="9" fill="#1f8a5b" /><circle cx="17" cy="15" r="5" fill="#fff" /><T x={27} y={18} s={7.6} c="#fff" w={700}>Fleet OTG</T>
+      <rect x="12" y="30" width="42" height="14" rx="7" fill="#2b353d" /><T x={19} y={40} s={7.2} c="#fff">Hi</T>
+      {["Job card", "Cargo", "Trip", "Odometer"].map((l, i) => <g key={l}><rect x="12" y={52 + i * 17} width="60" height="13" rx="6.5" fill={i === 0 ? k.gold : "#33404a"} /><T x={42} y={61.6 + i * 17} s={7.4} c={i === 0 ? INK : "#fff"} a="middle" w={600}>{l}</T></g>)}
+      <rect x="30" y="122" width="40" height="3" rx="1.5" fill="#fff" opacity=".35" /></g>
+    <Pill x={8} y={34} w={62} label="Job card" c="#ffc20e" /><Pill x={170} y={34} w={62} label="Cargo" c="#e8571a" /><Pill x={8} y={96} w={62} label="Trip" c="#3fc58a" /><Pill x={170} y={96} w={62} label="Reading" c="#ffc20e" />
+  </>),
+  tender: (k) => (<>
+    {[["Provider A", 18, 0], ["Provider B", 56, 1], ["Provider C", 94, 0]].map(([l, y, win]) => <g key={String(l)}><rect x="20" y={Number(y)} width="124" height="30" rx="9" fill={win ? k.paper : "#fff"} fillOpacity={win ? 1 : 0.08} stroke={win ? "#ffc20e" : LINE} strokeWidth={win ? 2.2 : 1} filter={win ? k.shadow : undefined} /><circle cx="37" cy={Number(y) + 15} r="8" fill={win ? k.gold : "#33404a"} /><T x={52} y={Number(y) + 18} s={8.4} c={win ? INK : "#c9d3d9"} w={600}>{String(l)}</T><rect x="104" y={Number(y) + 11} width="30" height="8" rx="4" fill={win ? k.ember : "#4a5864"} /></g>)}
+    <Arrow x={150} y={73} w={18} />
+    <g transform="translate(176 40)"><circle cx="28" cy="34" r="36" fill="#ffb300" opacity=".14" /><path d="M28 0 l8 18 l20 2 l-15 13 l5 20 l-18 -11 l-18 11 l5 -20 l-15 -13 l20 -2 Z" transform="translate(0 6)" fill={k.gold} filter={k.shadow} /></g>
+    <T x={204} y={118} s={9} c="#fff" a="middle" w={600}>You award one</T>
+  </>),
+  price: (k) => (<>
+    <g transform="translate(70 24)"><circle cx="50" cy="52" r="56" fill="#ffb300" opacity=".14" /><rect x="8" y="22" width="84" height="60" rx="14" fill={k.gold} filter={k.shadow} /><circle cx="22" cy="52" r="5" fill={INK} opacity=".4" /><T x={58} y={50} s={11} c={INK} a="middle" w={700}>One price</T><T x={58} y={65} s={7.6} c="#6b4a00" a="middle" w={600}>whole company</T></g>
+    {[[28, 40], [48, 100], [200, 38], [188, 104], [118, 124]].map(([x, y], i) => <Person key={i} k={k} x={x} y={y} ember={i % 2 === 1} />)}
+    {[[34, 52, 70, 64], [54, 94, 80, 82], [194, 50, 168, 62], [184, 98, 160, 86]].map(([a, b, c, d], i) => <path key={i} d={`M${a} ${b} L${c} ${d}`} stroke="#ffc20e" strokeWidth="1.6" strokeDasharray="3 4" opacity=".6" className="art-flow" />)}
+  </>),
   plans: (k) => (<>
     <g transform="translate(12 20)"><Glass x={0} y={0} w={102} h={112} r={13} /><T x={13} y={24} s={11} c="#fff" w={700}>Basic</T>{["Job cards", "Workshops", "Reminders", "Budgets"].map((l, i) => <g key={l}><Tick k={k} x={21} y={44 + i * 16} r={5} /><T x={31} y={47 + i * 16} s={8} c="#c9d3d9">{l}</T></g>)}</g>
     <g transform="translate(124 10)"><rect width="104" height="130" rx="13" fill={k.paper} filter={k.shadow} /><rect width="104" height="130" rx="13" fill="none" stroke="#e8571a" strokeWidth="2" /><T x={13} y={25} s={11} c={INK} w={700}>Pro</T><rect x="62" y="10" width="30" height="18" rx="9" fill={k.gold} /><T x={77} y={22.6} s={8.6} c={INK} a="middle" w={700}>AI</T>{["All of Basic", "AI reading", "WhatsApp job cards"].map((l, i) => <g key={l}><Tick k={k} x={21} y={47 + i * 19} r={5} /><T x={31} y={50 + i * 19} s={7} c={INK}>{l}</T></g>)}<Btn k={k} x={13} y={104} w={78} h={17}>Try free for 3 days</Btn></g>

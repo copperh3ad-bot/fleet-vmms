@@ -22,16 +22,34 @@ const FEATURES: Feature[] = [
   { title: "Catch money leaks early", text: "See what each vehicle and department costs against its budget, and which faults keep coming back and costing you again.", icon: "budget", art: "budget" },
   { title: "Control who gets a vehicle", text: "HR requests a vehicle for an employee and a manager decides. Departments run their own vehicles under a spending limit.", icon: "users", art: "departments" },
   { title: "Papers, accidents and fines in one place", text: "Insurance, fitness, token tax, accidents and challans, each tied to the vehicle and to who held it. No more hunting through drawers and chats.", icon: "papers", art: "papers" },
-  { title: "Make your policy actually enforced", text: "Keep the policy with every version. The app applies it for you: when a vehicle is due for replacement, which accidents the company covers, the driver's share of a repair.", icon: "papers", art: "papers" },
+  { title: "Make your policy actually enforced", text: "Keep the policy with every version. The app applies it for you: when a vehicle is due for replacement, which accidents the company covers, the driver's share of a repair.", icon: "papers", art: "policy" },
   { title: "Know which workshop deserves your business", text: "Days taken, quotation against the final bill, and how often work comes back, with your agreed rates for each workshop.", icon: "workshop", art: "workshop" },
   { title: "Find out why it keeps breaking", text: "Jobs by reason, driver, vehicle or workshop, days in the workshop, and cost per kilometre, engine hour and driver.", icon: "service", art: "repeat" },
   { title: "Everyone sees only what they should", text: "Administrator, fleet manager, finance, HR and a read-only auditor. A driver sees only their own vehicle and its job cards.", icon: "shield", art: "shield" },
   { title: "End the phone calls for pool cars", text: "Request, approve and schedule a trip with a vehicle and a driver, with the odometer out and back.", icon: "car", art: "trip", pro: true },
-  { title: "Cargo moves without the chasing", text: "Staff ask for a cargo pick-up or delivery. The fleet manager accepts, schedules and follows it to delivery, or turns it into a trip.", icon: "car", art: "trip", pro: true },
+  { title: "Cargo moves without the chasing", text: "Staff ask for a cargo pick-up or delivery. The fleet manager accepts, schedules and follows it to delivery, or turns it into a trip.", icon: "car", art: "cargo", pro: true },
   { title: "Stop typing workshop paperwork", text: "The AI fills in the form from an emailed estimate or invoice. A person always checks and saves.", icon: "spark", art: "ai", pro: true },
   { title: "A fault reported in one WhatsApp message", text: "An employee sends one message, the AI drafts the job card, they confirm, and a manager approves in the app.", icon: "chat", art: "chat", pro: true },
-  { title: "Your team asks for things on WhatsApp", text: "Say Hi and choose: a job card, a cargo pick-up, a trip or an odometer reading. A few short questions each, so the fleet manager gets complete information. Coming soon: one short form with dropdowns for each request.", icon: "chat", art: "phone", pro: true },
-  { title: "Get the best price from outside transport", text: "Send a trip to several providers, compare their quotes with your rate cards (the AI can advise), award one, and check their invoice.", icon: "car", art: "quote", pro: true },
+  { title: "Your team asks for things on WhatsApp", text: "Say Hi and choose: a job card, a cargo pick-up, a trip or an odometer reading. A few short questions each, so the fleet manager gets complete information. Coming soon: one short form with dropdowns for each request.", icon: "chat", art: "menu", pro: true },
+  { title: "Get the best price from outside transport", text: "Send a trip to several providers, compare their quotes with your rate cards (the AI can advise), award one, and check their invoice.", icon: "car", art: "tender", pro: true },
+];
+
+// The contrast section. Each line names a habit the product replaces; no statistic, no claim about a customer.
+const BEFORE = [
+  "Repairs approved by a phone call, with nothing written down",
+  "Workshop invoices paid without checking them against the quotation",
+  "Odometer readings chased one driver at a time",
+  "A licence or insurance paper found expired at a checkpoint",
+  "Repair history split across chats and spreadsheets",
+  "No idea which vehicle or workshop costs the most",
+];
+const AFTER = [
+  "Every repair approved by a named person, with the time",
+  "Each invoice compared with the approved quotation, line by line",
+  "Readings arrive from a link on the driver's phone",
+  "A reminder reaches the right person before the paper lapses",
+  "One job card per repair, with the whole trail on it",
+  "Cost per vehicle, department and workshop, always up to date",
 ];
 
 /** `price` is the price box. It is passed in so the rest of the page can be built ahead of time while the price (read from the
@@ -71,6 +89,27 @@ export function Landing({ price }: { price: ReactNode }) {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 pt-16" aria-labelledby="ba-h">
+        <h2 id="ba-h" className="text-2xl font-semibold">Fleet maintenance today, and with Fleet OTG</h2>
+        <div className="mt-8 grid gap-5 md:grid-cols-2">
+          <div className="reveal relative overflow-hidden rounded-3xl border border-zinc-200 bg-white p-7">
+            <span aria-hidden className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-zinc-200/70" />
+            <p className="relative text-xs font-semibold uppercase tracking-widest text-zinc-500">Today</p>
+            <ul className="relative mt-4 space-y-3">
+              {BEFORE.map((t) => <li key={t} className="flex gap-3 text-zinc-600"><span aria-hidden className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-sm font-bold text-zinc-500">✕</span>{t}</li>)}
+            </ul>
+          </div>
+          <div className="reveal hero-bg relative overflow-hidden rounded-3xl p-7 text-white shadow-[var(--shadow-card)]">
+            <div aria-hidden className="hero-grid pointer-events-none absolute inset-0" />
+            <span aria-hidden className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-badge/20 blur-2xl" />
+            <p className="relative text-xs font-semibold uppercase tracking-widest text-badge">With Fleet OTG</p>
+            <ul className="relative mt-4 space-y-3">
+              {AFTER.map((t) => <li key={t} className="flex gap-3 text-[#E3EAEE]"><span aria-hidden className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-badge text-sm font-bold text-side">✓</span>{t}</li>)}
+            </ul>
+          </div>
+        </div>
       </section>
 
       <section className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-16" aria-labelledby="flow-h">

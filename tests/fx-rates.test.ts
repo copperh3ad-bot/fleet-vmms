@@ -81,7 +81,9 @@ describe("the automatic fetch is off until consent is on record", () => {
     expect(await fetchInterbankRate(h.control, null, async () => page(`${stamp}, 18:00 PST (GMT+5)`, ["281.10", "281.60"]))).toMatchObject({ stored: false });
     expect((await listRates(h.control, OP)).find((x) => x.rate_date === date)).toMatchObject({ source: "manual", buy: "281.5000" });
     // a misread: far from the last rate
-    await expect(fetchInterbankRate(h.control, null, async () => page("Fri, Oct 23 2026, 10:00 PST (GMT+5)", ["390.00", "391.00"]))).rejects.toThrow(/more than 10%/);
+    const jumpDate = daysAgo(1);   // a recent date, so the test does not age out as the calendar moves on
+    const jumpStamp = new Date(`${jumpDate}T00:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).replace(/^(\w+), (\w+) (\d+), (\d+)$/, "$1, $2 $3 $4");
+    await expect(fetchInterbankRate(h.control, null, async () => page(`${jumpStamp}, 10:00 PST (GMT+5)`, ["390.00", "391.00"]))).rejects.toThrow(/more than 10%/);
     // the site is down, or the page changed
     await expect(fetchInterbankRate(h.control, null, async () => { throw new Error("HTTP 503"); })).rejects.toThrow(/could not be read.*HTTP 503/);
     await expect(fetchInterbankRate(h.control, null, async () => "<html>new design</html>")).rejects.toThrow(/could not be read/);
