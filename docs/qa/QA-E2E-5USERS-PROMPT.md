@@ -58,6 +58,12 @@ docs/RBAC-MATRIX.md allows, sign out, sign in again. Also test: wrong password, 
 deactivated while signed in, role changed while signed in, a phone number already in another workspace (ADR-082), and joining with a
 company code plus the 6-digit code.
 
+Invitation delivery in the local stack: `WHATSAPP_INVITE_TEMPLATE` must be UNSET (a copied `.env.local` may carry it). The app then
+shows "Send on WhatsApp / text message" buttons whose text holds the one-time link; take the link from the button's href. Give every
+invitee an email address too, so the link also lands in the `SMTP_URL=file:` outbox. Create the outbox and `WHATSAPP_FILE` folders
+before starting the app (the file writers do not create folders). Use port 3101 if 3100 is taken. Only if all of that fails, seed
+invitations with the repo's `addEmployeeWithInvite` and accept each in the browser, and say so in the report.
+
 ## 3. Block 2: master data (administrator and fleet managers, five different people)
 Each of the 5 fleet managers adds 4 vehicles: 20 in total across every category the form offers (car, SUV, pickup, van, truck,
 bus or coaster, motorbike, loader or forklift on engine hours), varied make, year, odometer, custody, department and paper expiry.
