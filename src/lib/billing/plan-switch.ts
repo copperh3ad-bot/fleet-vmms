@@ -1,5 +1,5 @@
 // Moving between Basic and Pro by paying (ADR-068). The plan a customer pays for is the plan it gets when its current paid period ends (or at once when it has none);
-// a downgrade is a pending switch to Basic that costs nothing and takes effect at the same moment. A Basic customer may take one free 3-day Pro trial. Every figure is a
+// a downgrade is a pending switch to Basic that costs nothing and takes effect at the same moment. A Basic customer may take one free 7-day Pro trial. Every figure is a
 // copy of what the owner entered in the plans tables (rule 7). The daily job applies due switches and closes finished trials; reads never write (`tenantPlan` works the
 // plan in force out from the dates).
 import type { Driver, Queryable } from "@/lib/db/types";

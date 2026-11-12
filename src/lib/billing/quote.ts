@@ -7,7 +7,7 @@ import { withTenant } from "@/lib/db/tenant";
 export const BASIC = "standard";
 export const PRO = "pro";
 /** The free Pro trial a Basic customer may take once (ADR-068). */
-export const PRO_TRIAL_DAYS = 3;
+export const PRO_TRIAL_DAYS = 7;
 
 export type Quote = { planKey: string; priceCents: number; currency: string; aiReadsPerDay: number | null };
 

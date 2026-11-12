@@ -52,9 +52,9 @@ export async function requestBillAction(slug: string, _prev: FormState, _form: F
   return runAction(slug, (m) => requestBill(getDriver(), m, user.email ?? ""), { allowLocked: true });
 }
 
-/** A Basic company takes its free 3-day Pro trial, once (ADR-068). */
+/** A Basic company takes its free 7-day Pro trial, once (ADR-068). */
 export async function startProTrialAction(slug: string, _prev: FormState, _form: FormData): Promise<FormState> {
-  const state = await runAction(slug, async (m) => { await startProTrial(getDriver(), m); return "Your Pro trial has started. It runs for 3 days."; }, { allowLocked: true });
+  const state = await runAction(slug, async (m) => { await startProTrial(getDriver(), m); return "Your Pro trial has started. It runs for 7 days."; }, { allowLocked: true });
   if (state.ok) refresh();
   return state;
 }

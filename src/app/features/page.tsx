@@ -119,7 +119,7 @@ export default function FeaturesPage() {
           <div className="rounded-2xl border-2 border-brand bg-white p-6 shadow-[var(--shadow-card)] md:p-8">
             <p className="inline-block rounded-full bg-badge px-3 py-1 text-xs font-semibold text-side">Pro</p>
             <h2 id="pro-h" className="mt-3 text-2xl font-semibold">Pro: fleet operations, with AI and WhatsApp</h2>
-            <p className="mt-2 max-w-3xl text-zinc-700">For busy fleets that move vehicles, people and cargo as well as repair them. Pro is Basic plus these, and any Basic company can try it free for 3 days. The AI only drafts and advises; a person always checks, saves and decides.</p>
+            <p className="mt-2 max-w-3xl text-zinc-700">For busy fleets that move vehicles, people and cargo as well as repair them. Pro is Basic plus these, and any Basic company can try it free for 7 days. The AI only drafts and advises; a person always checks, saves and decides.</p>
             <div className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {PRO.map((s) => (
                 <div key={s.problem} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">

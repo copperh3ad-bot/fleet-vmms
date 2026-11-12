@@ -74,7 +74,7 @@ async function Inner() {
                 <p className="mt-2 text-lg font-semibold">Coming in the second phase</p>
               )}
               <ul className="mt-4 space-y-2 text-sm text-zinc-700">{pro.points.map((p) => <li key={p} className="flex gap-2"><span aria-hidden className="mt-0.5 shrink-0 text-brand"><Icon name="approve" size={16} /></span>{p}</li>)}</ul>
-              <p className="mt-5 text-sm text-zinc-600">Pro is for busy fleets. {pro.priced ? <>Any Basic company can try it free for 3 days, then pay for it in Billing; it starts when your current period ends. Questions? <a href="/contact" className="font-medium text-brand underline">Contact us</a>.</> : <>Want to hear when it opens? <a href="/contact" className="font-medium text-brand underline">Tell us</a>.</>}</p>
+              <p className="mt-5 text-sm text-zinc-600">Pro is for busy fleets. {pro.priced ? <>Any Basic company can try it free for 7 days, then pay for it in Billing; it starts when your current period ends. Questions? <a href="/contact" className="font-medium text-brand underline">Contact us</a>.</> : <>Want to hear when it opens? <a href="/contact" className="font-medium text-brand underline">Tell us</a>.</>}</p>
             </section>
           )}
           </div>

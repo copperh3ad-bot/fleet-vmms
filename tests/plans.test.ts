@@ -184,7 +184,7 @@ describe("who is offered Pro (Phase 2): organizations that enter many job cards 
     const src = readFileSync("src/app/pricing/page.tsx", "utf8");
     expect(src).toContain("Coming in the second phase");
     expect(src).toContain("Pro is for busy fleets.");
-    expect(src).toContain("try it free for 3 days");
+    expect(src).toContain("try it free for 7 days");
   });
 });
 

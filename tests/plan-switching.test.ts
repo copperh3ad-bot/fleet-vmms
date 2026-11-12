@@ -1,5 +1,5 @@
 // Moving between Basic and Pro by paying (ADR-068): a claim names the plan and quotes its price; confirming it switches the plan when the paid period ends (or at once when
-// there is none); a downgrade is a pending switch to Basic; a Basic company may take one free 3-day Pro trial; reads work the plan in force out from the dates.
+// there is none); a downgrade is a pending switch to Basic; a Basic company may take one free 7-day Pro trial; reads work the plan in force out from the dates.
 import { beforeAll, describe, expect, it } from "vitest";
 import { withPlatform } from "@/lib/db/tenant";
 import { submitClaim, getInvoice, listInvoices } from "@/lib/billing/payments";
@@ -146,7 +146,7 @@ describe("the free Pro trial", () => {
     await startProTrial(h.router, o.admin);
     const a = await accessOf(o.tenantId);
     expect(a.full).toBe(true);
-    expect(a.daysLeft).toBeLessThanOrEqual(3);
+    expect(a.daysLeft).toBeLessThanOrEqual(7);
 
     const s = await h.org("Suspended Trial Co");
     await setCol(s, `trial_ends_at = ${past}, suspended = true`);
@@ -155,7 +155,7 @@ describe("the free Pro trial", () => {
   });
 
 
-  it("gives a Basic company Pro's features for 3 days, once, then shuts them off", async () => {
+  it("gives a Basic company Pro's features for 7 days, once, then shuts them off", async () => {
     const o = await h.org("Trial Taker");
     expect(await tenantPlan(h.control, o.tenantId)).toMatchObject({ aiDocuments: false, proTrialEndsAt: null });
     await expect(startProTrial(h.router, o.requester)).rejects.toThrow();
@@ -163,7 +163,7 @@ describe("the free Pro trial", () => {
     const t = await tenantPlan(h.control, o.tenantId);
     expect(t).toMatchObject({ key: "standard", aiDocuments: true, aiPerDay: 200, aiTrialReads: null });
     const days = (new Date(t.proTrialEndsAt!).getTime() - Date.now()) / 86_400_000;
-    expect(days).toBeGreaterThan(2.9); expect(days).toBeLessThanOrEqual(3);
+    expect(days).toBeGreaterThan(6.9); expect(days).toBeLessThanOrEqual(7);
     expect(await row(o)).toMatchObject({ plan_key: "standard" });
     await expect(startProTrial(h.router, o.admin)).rejects.toThrow(/already had/);
 

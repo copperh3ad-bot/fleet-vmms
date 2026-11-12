@@ -83,7 +83,7 @@ async function Inner() {
           </table>
         </div>
         <p className="mt-6 max-w-3xl text-sm text-zinc-600">
-          Pro is for busy fleets: any Basic company can try it free for 3 days. The AI only ever makes a draft for a person to check, and the messages and files it reads are sent to Anthropic, our AI provider, which does not use them to train its models. For what each plan costs and how paying works, see <a href="/pricing" className="font-medium text-brand underline">Pricing</a>.
+          Pro is for busy fleets: any Basic company can try it free for 7 days. The AI only ever makes a draft for a person to check, and the messages and files it reads are sent to Anthropic, our AI provider, which does not use them to train its models. For what each plan costs and how paying works, see <a href="/pricing" className="font-medium text-brand underline">Pricing</a>.
         </p>
       </div>
       <CtaBand title="Start with Basic. Move to Pro when you are ready.">

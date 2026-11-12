@@ -629,3 +629,8 @@ Two full-flow QA runs (an agent run on a throwaway local database: 392 steps, no
 - **Left, owner:** Pro price bands on the Admin Plans page; test one WhatsApp form from a non-tester phone.
 - **Left, build side:** browser QA of the new pages (activity log, repeat-payer fields, same-workshop trigger, warranty banner, policy panel, reopen). None has been used in a browser yet.
 - **By design:** warranty is a 7-day constant, not a setting; "excluding consumables" is approximated by the existing category exclusions; repeat payer is shown not enforced, and required only on the review-screen approval path.
+
+## 2026-11-12 (later): trial lengths, QA prompt
+- **Basic trial 10 days:** a data change, `plans.trial_days` for `standard` set to 10 on live (owner-entered value, so no migration). It applies to new sign-ups only; every public page reads it from the plans table. The old value was 3.
+- **Pro trial 7 days:** `PRO_TRIAL_DAYS` in `src/lib/billing/quote.ts` is now 7, with the fixed copy updated (landing, features, compare, pricing, billing button and message, FAQ, plans art, ADR-068). NOT deployed yet: until it is, the app still starts Pro trials at 3 days while the live Basic figure already reads 10.
+- **QA prompt for agents:** `docs/qa/QA-ALLROLES-REPORTS-PROMPT.md`: role by permission sweep, use cases by module with unhappy paths, report and export structure and reconciliation, cross-cutting checks. The plans row for `pro` still holds `trial_days` 3 but nothing reads it (the Pro trial length is the constant).

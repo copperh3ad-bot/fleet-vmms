@@ -84,6 +84,6 @@ function PlanButton({ slug, action, children, tone = "primary" }: { slug: string
 function PlainSubmit({ children }: { children: string }) {
   return <button type="submit" className="h-10 rounded-md border border-zinc-300 bg-white px-5 font-medium text-zinc-800 hover:bg-zinc-50">{children}</button>;
 }
-export const TryProButton = ({ slug }: { slug: string }) => <PlanButton slug={slug} action={startProTrialAction}>Try Pro free for 3 days</PlanButton>;
+export const TryProButton = ({ slug }: { slug: string }) => <PlanButton slug={slug} action={startProTrialAction}>Try Pro free for 7 days</PlanButton>;
 export const MoveToBasicButton = ({ slug }: { slug: string }) => <PlanButton slug={slug} action={requestBasicAction} tone="plain">Move to Basic when my period ends</PlanButton>;
 export const KeepProButton = ({ slug }: { slug: string }) => <PlanButton slug={slug} action={cancelBasicAction} tone="plain">Stay on Pro</PlanButton>;

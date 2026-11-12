@@ -140,7 +140,7 @@ export function Landing({ price }: { price: ReactNode }) {
           <Art name="plans" />
           <div>
             <h2 id="plans-h" className="text-2xl font-semibold">Fix the repair bill first. Run the whole fleet when you are ready.</h2>
-            <p className="mt-3 text-zinc-600">Basic gives you control of maintenance, with every core feature. Pro runs the rest of the fleet too: trip scheduling, cargo requests, quotes from logistics providers, the AI that reads workshop paperwork, and the WhatsApp menu. Any Basic company can try Pro free for 3 days.</p>
+            <p className="mt-3 text-zinc-600">Basic gives you control of maintenance, with every core feature. Pro runs the rest of the fleet too: trip scheduling, cargo requests, quotes from logistics providers, the AI that reads workshop paperwork, and the WhatsApp menu. Any Basic company can try Pro free for 7 days.</p>
             <p className="mt-5 flex flex-wrap items-center gap-4"><a href="/pricing" className="shine inline-flex items-center gap-2 rounded-md bg-brand px-5 py-3 font-semibold text-white hover:opacity-90">See pricing <Icon name="arrow" /></a><a href="/compare" className="font-medium text-zinc-900 underline">Compare the plans</a></p>
           </div>
         </div>
