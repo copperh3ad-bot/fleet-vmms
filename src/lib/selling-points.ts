@@ -1,12 +1,13 @@
 // The key selling points shown on the landing and Features pages. One list so the two cannot drift. Every line names something the
 // product does today: no statistics, no customer claims and no prices (the price lives in the plans table, CLAUDE.md rule 7).
+// Written as the owner's pain and the product's answer, in the buyer's words.
 export type Point = { icon: string; art: string; title: string; text: string };
 
 export const SELLING_POINTS: Point[] = [
-  { icon: "shield", art: "approve", title: "Nobody approves their own job", text: "Every approval carries a name and a time. The person who raises a request cannot approve it." },
-  { icon: "workshop", art: "quote", title: "Pay only what was approved", text: "The workshop's invoice is checked against the approved quotation, by someone other than the approver." },
-  { icon: "phone", art: "phone", title: "No app for drivers or workshops", text: "A one-time link on any phone is enough. Your team joins with a WhatsApp code." },
-  { icon: "bell", art: "bell", title: "Reminders before things lapse", text: "Licences, papers and service due dates reach the right people in the app and by email." },
-  { icon: "budget", art: "budget", title: "Cost on the right vehicle", text: "Spend is counted per vehicle, department and period, and follows whoever held the vehicle." },
-  { icon: "users", art: "shield", title: "One price, no per-user charges", text: "Your whole company, any number of users. Your data stays yours and can be exported at any time." },
+  { icon: "shield", art: "approve", title: "Stop paying for repairs nobody approved", text: "Every approval carries a name and a time, and whoever raises a request cannot approve it. When money is questioned, you have the answer." },
+  { icon: "workshop", art: "quote", title: "Never pay more than the quotation", text: "Each invoice is set against the approved quotation, line by line, and checked by someone other than the approver. Extra lines are caught before you pay." },
+  { icon: "phone", art: "phone", title: "Your drivers and workshops start today", text: "No app to install and no password to forget. A one-time link on any phone is enough, and your team joins with a WhatsApp code." },
+  { icon: "bell", art: "bell", title: "Never again a vehicle off the road for an expired paper", text: "Licences, insurance, fitness, token tax and service dates reach the right people in the app and by email before they lapse." },
+  { icon: "budget", art: "budget", title: "See what every vehicle really costs", text: "Spend is counted per vehicle, department and period, and follows whoever held the vehicle. Budgets warn you early, not after the year ends." },
+  { icon: "users", art: "shield", title: "One price for your whole company", text: "No per-user charges, so you never ration who gets access. Your data stays yours and can be exported at any time." },
 ];

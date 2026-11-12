@@ -14,24 +14,24 @@ import { SELLING_POINTS } from "@/lib/selling-points";
 
 type Feature = { title: string; text: string; icon: string; art: string; pro?: boolean };
 const FEATURES: Feature[] = [
-  { title: "Job cards with approval", text: "A driver or fleet officer raises the job. A manager approves it. Nobody approves their own.", icon: "approve", art: "approve" },
-  { title: "Workshops and quotations", text: "Send the job to a workshop, compare the quotation to the invoice, and pay only what was approved.", icon: "workshop", art: "quote" },
-  { title: "Odometer by link", text: "Drivers send their monthly reading from a phone link. No app, no password.", icon: "odometer", art: "phone" },
-  { title: "Reminders that reach people", text: "Licences, insurance, fitness and token tax, and periodic maintenance due, in the app and by email to the vehicle holder and fleet managers.", icon: "bell", art: "bell" },
-  { title: "Servicing that tells you what is due", text: "Set the rules once, by months, kilometres or engine hours. See what is overdue, coming up, or has no history.", icon: "service", art: "service" },
-  { title: "Budgets and repeat-repair flags", text: "See what each vehicle and department costs against its budget, and which faults keep coming back.", icon: "budget", art: "budget" },
-  { title: "Vehicle requests and departments", text: "HR requests a vehicle for an employee and a manager decides. Departments run their own vehicles under a spending limit.", icon: "users", art: "departments" },
-  { title: "Papers, accidents and fines", text: "Insurance, fitness, token tax, accidents and challans in one place, each tied to the vehicle and who held it.", icon: "papers", art: "papers" },
-  { title: "Your maintenance policy, applied", text: "Keep the policy with every version. The app applies it: when a vehicle is due for replacement, which accidents the company covers, the driver's share of a repair.", icon: "papers", art: "papers" },
-  { title: "Workshop scorecards", text: "Days taken, quotation against the final bill, and how often work comes back, with your agreed rates for each workshop.", icon: "workshop", art: "workshop" },
-  { title: "Why it keeps breaking, and for how long", text: "Jobs by reason, driver, vehicle or workshop, days in the workshop, and cost per kilometre, engine hour and driver.", icon: "service", art: "repeat" },
-  { title: "The right access for everyone", text: "Administrator, fleet manager, finance, HR and a read-only auditor. A driver sees only their own vehicle and its job cards.", icon: "shield", art: "shield" },
-  { title: "Trip scheduling", text: "Request, approve and schedule a trip with a vehicle and a driver, with the odometer out and back.", icon: "car", art: "trip", pro: true },
-  { title: "Cargo pick-ups and deliveries", text: "Staff ask for a cargo pick-up or delivery. The fleet manager accepts, schedules and follows it to delivery, or turns it into a trip.", icon: "car", art: "trip", pro: true },
-  { title: "AI that reads workshop paperwork", text: "The AI fills in the form from an emailed estimate or invoice. A person always checks and saves.", icon: "spark", art: "ai", pro: true },
-  { title: "Raise a job card on WhatsApp", text: "An employee sends one message, the AI drafts the job card, they confirm, and a manager approves in the app.", icon: "chat", art: "chat", pro: true },
-  { title: "A WhatsApp menu for everyday requests", text: "Say Hi and choose: a job card, a cargo pick-up, a trip or an odometer reading. A few short questions each, so the fleet manager gets complete information. Coming soon: one short form with dropdowns for each request.", icon: "chat", art: "phone", pro: true },
-  { title: "Quotes from logistics providers", text: "Send a trip to several providers, compare their quotes with your rate cards (the AI can advise), award one, and check their invoice.", icon: "car", art: "quote", pro: true },
+  { title: "Every repair approved, on record", text: "A driver or fleet officer raises the job. A manager approves it. Nobody approves their own, and every step keeps a name and a time.", icon: "approve", art: "approve" },
+  { title: "Pay only what you approved", text: "Send the job to a workshop, compare its quotation with its invoice, and catch the extra lines before you pay them.", icon: "workshop", art: "quote" },
+  { title: "Odometer readings without chasing", text: "Drivers send their monthly reading from a phone link. No app, no password, no reminding them.", icon: "odometer", art: "phone" },
+  { title: "Hear it before it lapses", text: "Licences, insurance, fitness and token tax, and periodic maintenance due, in the app and by email to the vehicle holder and fleet managers.", icon: "bell", art: "bell" },
+  { title: "Know which vehicles are overdue", text: "Set the servicing rules once, by months, kilometres or engine hours. See at a glance what is overdue, what is coming up, and what has no history at all.", icon: "service", art: "service" },
+  { title: "Catch money leaks early", text: "See what each vehicle and department costs against its budget, and which faults keep coming back and costing you again.", icon: "budget", art: "budget" },
+  { title: "Control who gets a vehicle", text: "HR requests a vehicle for an employee and a manager decides. Departments run their own vehicles under a spending limit.", icon: "users", art: "departments" },
+  { title: "Papers, accidents and fines in one place", text: "Insurance, fitness, token tax, accidents and challans, each tied to the vehicle and to who held it. No more hunting through drawers and chats.", icon: "papers", art: "papers" },
+  { title: "Make your policy actually enforced", text: "Keep the policy with every version. The app applies it for you: when a vehicle is due for replacement, which accidents the company covers, the driver's share of a repair.", icon: "papers", art: "papers" },
+  { title: "Know which workshop deserves your business", text: "Days taken, quotation against the final bill, and how often work comes back, with your agreed rates for each workshop.", icon: "workshop", art: "workshop" },
+  { title: "Find out why it keeps breaking", text: "Jobs by reason, driver, vehicle or workshop, days in the workshop, and cost per kilometre, engine hour and driver.", icon: "service", art: "repeat" },
+  { title: "Everyone sees only what they should", text: "Administrator, fleet manager, finance, HR and a read-only auditor. A driver sees only their own vehicle and its job cards.", icon: "shield", art: "shield" },
+  { title: "End the phone calls for pool cars", text: "Request, approve and schedule a trip with a vehicle and a driver, with the odometer out and back.", icon: "car", art: "trip", pro: true },
+  { title: "Cargo moves without the chasing", text: "Staff ask for a cargo pick-up or delivery. The fleet manager accepts, schedules and follows it to delivery, or turns it into a trip.", icon: "car", art: "trip", pro: true },
+  { title: "Stop typing workshop paperwork", text: "The AI fills in the form from an emailed estimate or invoice. A person always checks and saves.", icon: "spark", art: "ai", pro: true },
+  { title: "A fault reported in one WhatsApp message", text: "An employee sends one message, the AI drafts the job card, they confirm, and a manager approves in the app.", icon: "chat", art: "chat", pro: true },
+  { title: "Your team asks for things on WhatsApp", text: "Say Hi and choose: a job card, a cargo pick-up, a trip or an odometer reading. A few short questions each, so the fleet manager gets complete information. Coming soon: one short form with dropdowns for each request.", icon: "chat", art: "phone", pro: true },
+  { title: "Get the best price from outside transport", text: "Send a trip to several providers, compare their quotes with your rate cards (the AI can advise), award one, and check their invoice.", icon: "car", art: "quote", pro: true },
 ];
 
 /** `price` is the price box. It is passed in so the rest of the page can be built ahead of time while the price (read from the
@@ -46,14 +46,15 @@ export function Landing({ price }: { price: ReactNode }) {
         <Hero3D />
         <div className="relative mx-auto grid w-full max-w-6xl 2xl:max-w-[96rem] items-center gap-12 px-5 py-16 md:grid-cols-[1fr_1.05fr] md:py-24 [@media(max-height:640px)]:gap-6 [@media(max-height:640px)]:py-8 md:[@media(max-height:640px)]:py-8">
           <div>
-            <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-[#C9D5DC]"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-badge" /> Maintenance first. Operations when you&apos;re ready.</p>
-            <h1 className="mt-5 text-[40px] font-semibold leading-[1.08] md:text-5xl">Know what you&apos;re spending on your fleet&apos;s maintenance, <span className="text-badge">and why.</span></h1>
-            <p className="mt-5 max-w-xl text-lg text-[#B6C6D0]">Maintenance for company fleets: job cards, approvals, workshops, budgets, servicing and reminders in one place, reached from any phone. On Pro, trips, cargo and logistics too, so it covers fleet operations too.</p>
+            <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-[#C9D5DC]"><span aria-hidden className="h-1.5 w-1.5 rounded-full bg-badge" /> Built for company fleets in Pakistan</p>
+            <h1 className="mt-5 text-[40px] font-semibold leading-[1.08] md:text-5xl">Every rupee your fleet spends on repairs, <span className="text-badge">accounted for.</span></h1>
+            <p className="mt-5 max-w-xl text-lg text-[#B6C6D0]">Stop paying workshop bills nobody checked. Fleet OTG puts every repair on one job card, approved by a named person, compared with the workshop&apos;s quotation, and counted against the right vehicle. Your drivers and workshops need no app. They use a link on their phone.</p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <a href="/signup" className="shine rounded-md bg-badge px-6 py-3 text-base font-semibold text-side hover:opacity-90">Start your free trial</a>
+              <a href="/features" className="inline-block py-2 text-[#C9D5DC] underline">See how it works</a>
               <a href="/login" className="inline-block py-2 text-[#C9D5DC] underline">I already have an account</a>
             </div>
-            <p className="mt-4 text-sm text-[#8EA3B0]">No card needed. Your data stays yours, and you can export it at any time.</p>
+            <p className="mt-4 text-sm text-[#8EA3B0]">No card needed. Set up in about two minutes. Your data stays yours, and you can export it at any time.</p>
           </div>
           <HeroScene />
         </div>
@@ -73,13 +74,13 @@ export function Landing({ price }: { price: ReactNode }) {
       </section>
 
       <section className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-16" aria-labelledby="flow-h">
-        <h2 id="flow-h" className="text-2xl font-semibold">See one repair, start to finish</h2>
-        <p className="mt-2 max-w-2xl text-zinc-600">Pick a step, or let it play. This is the trail every job card leaves behind.</p>
+        <h2 id="flow-h" className="text-2xl font-semibold">One repair. Every step answerable.</h2>
+        <p className="mt-2 max-w-2xl text-zinc-600">When someone asks who approved this, what was quoted and what was paid, the answer is already on the job card. Pick a step, or let it play.</p>
         <div className="mt-8"><FlowDemo /></div>
       </section>
 
       <section className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 pb-16">
-        <h2 className="text-2xl font-semibold">What you get</h2>
+        <h2 className="text-2xl font-semibold">Everything between a breakdown and a paid invoice, under control</h2>
         <p className="mt-2 max-w-2xl text-zinc-600">Everything below except the ones marked Pro is in Basic. <a href="/compare" className="font-medium text-zinc-900 underline">Compare Basic and Pro</a>.</p>
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
@@ -99,8 +100,8 @@ export function Landing({ price }: { price: ReactNode }) {
         <div className="grid items-center gap-8 rounded-3xl border border-zinc-200 bg-white p-6 shadow-[var(--shadow-card)] md:grid-cols-[1fr_1.1fr] md:p-10">
           <Art name="plans" />
           <div>
-            <h2 id="plans-h" className="text-2xl font-semibold">Start with Basic for maintenance. Move to Pro for fleet operations.</h2>
-            <p className="mt-3 text-zinc-600">Basic is maintenance management, with every core feature. Pro is fleet operations: trip scheduling, cargo requests, quotes from logistics providers, the AI that reads workshop paperwork, and the WhatsApp menu. Any Basic company can try Pro free for 3 days.</p>
+            <h2 id="plans-h" className="text-2xl font-semibold">Fix the repair bill first. Run the whole fleet when you are ready.</h2>
+            <p className="mt-3 text-zinc-600">Basic gives you control of maintenance, with every core feature. Pro runs the rest of the fleet too: trip scheduling, cargo requests, quotes from logistics providers, the AI that reads workshop paperwork, and the WhatsApp menu. Any Basic company can try Pro free for 3 days.</p>
             <p className="mt-5 flex flex-wrap items-center gap-4"><a href="/pricing" className="shine inline-flex items-center gap-2 rounded-md bg-brand px-5 py-3 font-semibold text-white hover:opacity-90">See pricing <Icon name="arrow" /></a><a href="/compare" className="font-medium text-zinc-900 underline">Compare the plans</a></p>
           </div>
         </div>
@@ -108,7 +109,7 @@ export function Landing({ price }: { price: ReactNode }) {
 
       <section className="border-y border-zinc-200 bg-white">
         <div className="mx-auto grid max-w-6xl 2xl:max-w-[96rem] gap-8 px-5 py-14 md:grid-cols-3">
-          {[["1", "Sign up", "Tell us your company and confirm your email. It takes about two minutes."], ["2", "We set up your own workspace", "Your company gets its own workspace, kept apart from every other company's, ready in under a minute."], ["3", "Add vehicles and invite your team", `Try everything during the free trial. Subscribe if it works for you; if not, export your data and leave.`]].map(([n, t, d]) => (
+          {[["1", "Sign up in two minutes", "Tell us your company and confirm your email. No card needed."], ["2", "Your own workspace, ready at once", "Your company gets its own workspace, kept apart from every other company's, ready in under a minute."], ["3", "Add your vehicles and see the difference", `Try everything during the free trial. Subscribe if it earns its place; if not, export your data and leave. Nothing to lose.`]].map(([n, t, d]) => (
             <div key={n} className="flex gap-4"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-side font-semibold text-white">{n}</span><div><h3 className="font-semibold">{t}</h3><p className="mt-1 text-sm text-zinc-600">{d}</p></div></div>
           ))}
         </div>
@@ -130,8 +131,8 @@ export function Landing({ price }: { price: ReactNode }) {
         <div aria-hidden className="hero-grid pointer-events-none absolute inset-0" />
         <div className="relative mx-auto flex max-w-6xl 2xl:max-w-[96rem] flex-wrap items-center justify-between gap-6 px-5 py-14">
           <div className="max-w-xl">
-            <h2 className="text-3xl font-semibold uppercase">See where your maintenance money goes</h2>
-            <p className="mt-2 text-[#B6C6D0]">Set up in about two minutes. No card needed to try it.</p>
+            <h2 className="text-3xl font-semibold uppercase">Your next workshop bill is coming. Will you know if it is right?</h2>
+            <p className="mt-2 text-[#B6C6D0]">Try Fleet OTG free. Set up in about two minutes, no card needed.</p>
           </div>
           <a href="/signup" className="shine inline-flex items-center gap-2 rounded-md bg-badge px-6 py-3 text-base font-semibold text-side hover:opacity-90">Start your free trial <Icon name="arrow" /></a>
         </div>

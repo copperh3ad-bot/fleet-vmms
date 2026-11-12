@@ -623,3 +623,9 @@ Two full-flow QA runs (an agent run on a throwaway local database: 392 steps, no
 - **0062 deployed** (both live schemas, no drift; home, login, pricing 200).
 - **G built, tenant 0063 (not deployed):** repeat window 30 days (companies still on the old 60 move to 30; a number a company chose is kept); a workshop that already worked on the vehicle within the window makes the card a repeat once picked on the review form; 7-day warranty note on the invoice page (`WARRANTY_DAYS`); company policy rules read-only on the job card and invoice pages with the amount that applies (`getPolicyForJob`); the requester may reopen a rejected card with a reason. Tests pin the old 60 where they rely on it. 1,397 tests pass, tsc clean.
 - **Deploy:** apply tenant 0063 first, `--check`, then deploy. G is complete; nothing from the owner's list remains except the owner's own items (Pro price bands, test a WhatsApp form from a non-tester phone).
+
+## 2026-11-12: 0063 and G part 2 DEPLOYED
+- **Live:** commit 38ad9c8 at https://www.fleetotg.com. Tenant 0063 applied on both live schemas, `--check` no drift. Home, login, pricing 200. (The first attempt was blocked by the permission classifier; the owner then said "run commands" and the migrate, `--check` and deploy ran as separate commands.)
+- **Left, owner:** Pro price bands on the Admin Plans page; test one WhatsApp form from a non-tester phone.
+- **Left, build side:** browser QA of the new pages (activity log, repeat-payer fields, same-workshop trigger, warranty banner, policy panel, reopen). None has been used in a browser yet.
+- **By design:** warranty is a 7-day constant, not a setting; "excluding consumables" is approximated by the existing category exclusions; repeat payer is shown not enforced, and required only on the review-screen approval path.

@@ -65,12 +65,12 @@ export default function FeaturesPage() {
     <SiteShell active="features">
       <JsonLd data={webPageLd(TITLE, "/features", DESCRIPTION)} />
       <JsonLd data={breadcrumbLd([["Fleet OTG", "/"], ["Features", "/features"]])} />
-      <PageHero eyebrow="Features" title="Fleet maintenance software: maintenance on Basic, operations on Pro" chips={["Approvals on record", "Quote vs invoice", "Reminders by email", "Trips and cargo on Pro", "Per-vehicle cost"]} art={<Art name="fleet" />}>
+      <PageHero eyebrow="Features" title="Fleet maintenance software that stops you paying for repairs nobody checked" chips={["Approvals on record", "Quote vs invoice", "Reminders by email", "Trips and cargo on Pro", "Per-vehicle cost"]} art={<Art name="fleet" />}>
         <p>Fleet OTG is fleet maintenance and operations software for companies that run their own vehicles, and it starts with maintenance. Every repair becomes one job card with a recorded approval trail, so you can see what each vehicle costs, who approved the work, and what is coming due. Basic is maintenance management. Pro adds fleet operations (trip scheduling, cargo requests and logistics providers), the AI and WhatsApp, which makes it a fleet operations solution.</p>
       </PageHero>
       <article className="mx-auto max-w-6xl 2xl:max-w-[96rem] px-5 py-12">
         <section aria-labelledby="why" className="mb-14">
-          <h2 id="why" className="text-2xl font-semibold">Why companies choose it</h2>
+          <h2 id="why" className="text-2xl font-semibold">Why fleet owners switch</h2>
           <ul className="mt-6 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {SELLING_POINTS.map((p) => (
               <li key={p.title} className="group rounded-2xl border border-zinc-200 bg-white p-4 shadow-[var(--shadow-card)]">
@@ -101,7 +101,7 @@ export default function FeaturesPage() {
         </section>
 
         <section className="mt-14" aria-labelledby="solves">
-          <h2 id="solves" className="text-2xl font-semibold">Problems it solves</h2>
+          <h2 id="solves" className="text-2xl font-semibold">The problems that cost you money, and how Fleet OTG ends them</h2>
           <div className="mt-8 space-y-10">
             {SOLVES.map((s, i) => (
               <div key={s.problem} className="reveal grid items-center gap-6 md:grid-cols-2 md:gap-10">
@@ -135,7 +135,7 @@ export default function FeaturesPage() {
 
         <p className="mt-10 max-w-3xl text-zinc-700">Every company gets its own workspace, kept apart from every other company&apos;s. Try everything during the free trial.</p>
       </article>
-      <CtaBand title="See whether it fits your fleet">
+      <CtaBand title="Stop guessing what your fleet costs. Start knowing.">
         <a href="/signup" className="shine inline-flex items-center gap-2 rounded-md bg-badge px-6 py-3 font-semibold text-side hover:opacity-90">Start your free trial <Icon name="arrow" /></a>
         <a href="/pricing" className="font-medium text-white underline">See pricing</a>
         <a href="/about" className="font-medium text-white underline">About us</a>
