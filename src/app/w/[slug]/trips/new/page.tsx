@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { requireMembership } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
 import { assignables, tripsEnabled } from "@/lib/trips/service";
+import { tripsClosedMessage } from "@/lib/billing/fleet-ops";
 import { PageHeader, Panel } from "@/components/ui";
 import { depotNames } from "@/lib/depots/service";
 import { TripRequestForm } from "./form";
@@ -14,7 +15,7 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const m = await requireMembership(slug);
   const driver = getDriver();
-  if (!(await tripsEnabled(driver, m))) return <main className="p-6 text-sm text-zinc-600">Trips are not switched on for this organization.</main>;
+  if (!(await tripsEnabled(driver, m))) return <main className="p-6 text-sm text-zinc-600">{await tripsClosedMessage(driver, m.tenantId, false)}</main>;
   const { vehicles } = await assignables(driver, m);
   return (
     <main className="space-y-5 p-6 text-zinc-900">

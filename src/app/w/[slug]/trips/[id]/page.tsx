@@ -5,6 +5,7 @@ import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { assignables, getTrip, listLogisticsProviders, listTripInvoices, listTripQuotes, outsourcingOn, tripsEnabled, TRIP_STATUS_LABEL } from "@/lib/trips/service";
+import { tripsClosedMessage } from "@/lib/billing/fleet-ops";
 import { PageHeader, Panel, Pill, Plate } from "@/components/ui";
 import { TripStep } from "./steps";
 import { latestQuoteAdvice, quoteAdviceOffered } from "@/lib/trips/advice";
@@ -23,7 +24,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
   const { slug, id } = await params;
   const m = await requireMembership(slug);
   const driver = getDriver();
-  if (!(await tripsEnabled(driver, m))) return <main className="p-6 text-sm text-zinc-600">Trips are not switched on for this organization.</main>;
+  if (!(await tripsEnabled(driver, m))) return <main className="p-6 text-sm text-zinc-600">{await tripsClosedMessage(driver, m.tenantId, false)}</main>;
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const [t, perms] = await Promise.all([getTrip(driver, m, id), permissionsOf(driver, m)]);
   if (!t) notFound();

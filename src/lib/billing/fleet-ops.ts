@@ -24,3 +24,9 @@ export async function fleetAuthorizedAny<T>(driver: Driver, m: Membership, permi
   await requireFleetOps(driver, m);
   return authorizedAny(driver, m, permissions, fn);
 }
+
+/** What a trips page shows when tripsEnabled() is false: the plan is the reason when the plan lacks Pro, otherwise the module switch (QA F-02). */
+export async function tripsClosedMessage(driver: Driver, tenantId: string, withHint = true): Promise<string> {
+  if (!(await fleetOpsOn(driver, tenantId))) return FLEET_OPS_MESSAGE;
+  return withHint ? "Trips are not switched on for this organization. An administrator can switch them on in Settings." : "Trips are not switched on for this organization.";
+}

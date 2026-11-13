@@ -4,6 +4,7 @@ import { requireMembership } from "@/lib/auth/session";
 import { permissionsOf } from "@/lib/auth/can";
 import { getDriver } from "@/lib/db";
 import { listPoolCandidates, listTrips, tripsEnabled, TRIP_STATUS_LABEL } from "@/lib/trips/service";
+import { tripsClosedMessage } from "@/lib/billing/fleet-ops";
 import { PoolSwitch } from "./pool-switch";
 import { PageHeader, Panel, Pill, Plate, btn, btnPrimary, type Tone } from "@/components/ui";
 
@@ -19,7 +20,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const status = typeof sp.status === "string" ? sp.status : "";
   const m = await requireMembership(slug);
   const driver = getDriver();
-  if (!(await tripsEnabled(driver, m))) return <main className="p-6 text-sm text-zinc-600">Trips are not switched on for this organization. An administrator can switch them on in Settings.</main>;
+  if (!(await tripsEnabled(driver, m))) return <main className="p-6 text-sm text-zinc-600">{await tripsClosedMessage(driver, m.tenantId)}</main>;
   const [rows, perms] = await Promise.all([listTrips(driver, m, { status: status || undefined }), permissionsOf(driver, m)]);
   const dispatcher = perms.has("trip.dispatch");
   const waiting = perms.has("trip.approve") ? rows.filter((r) => r.status === "requested") : dispatcher ? rows.filter((r) => r.status === "requested" && r.dispatchable) : [];

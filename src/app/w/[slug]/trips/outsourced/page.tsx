@@ -3,6 +3,7 @@ import { requireMembership } from "@/lib/auth/session";
 import { getDriver } from "@/lib/db";
 import { outsourcedTripReport } from "@/lib/trips/outsourced";
 import { tripsEnabled } from "@/lib/trips/service";
+import { tripsClosedMessage } from "@/lib/billing/fleet-ops";
 import { btn, PageHeader, Panel } from "@/components/ui";
 
 export default function OutsourcedTripsPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ months?: string }> }) {
@@ -17,7 +18,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const { months } = await searchParams;
   const m = await requireMembership(slug);
   const driver = getDriver();
-  if (!(await tripsEnabled(driver, m))) return <main className="p-6 text-sm text-zinc-600">Trips are not switched on for this organization.</main>;
+  if (!(await tripsEnabled(driver, m))) return <main className="p-6 text-sm text-zinc-600">{await tripsClosedMessage(driver, m.tenantId, false)}</main>;
   const { rows, months: n } = await outsourcedTripReport(driver, m, Number(months) || 12);
   const sum = (k: "awarded" | "invoiced" | "payable" | "saved") => rows.reduce((a, r) => a + Number(r[k]), 0).toFixed(2);
   return (
