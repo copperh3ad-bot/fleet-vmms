@@ -35,7 +35,7 @@ async function Inner({ params }: { params: Promise<{ slug: string; id: string }>
           {dl("Requested on", dmyTime(c.created_at))}{c.department && dl("Requesting department", c.department)}
           {dl("Vehicle required", dmyTime(c.pickup_at))}{c.vehicle_type && dl("Vehicle type", c.vehicle_type)}
           {dl("Pick-up location (from)", c.pickup_place)}{dl("Destination (to)", c.drop_place)}
-          {dl("Inventory / material load", c.description)}{dl("Quantity of load", c.quantity_text)}{c.weight_kg && dl("Weight", `${Number(c.weight_kg).toLocaleString("en-US")} kg`)}
+          {dl("Inventory / material load", c.description)}{dl("Quantity of load", c.quantity_text)}{c.weight_kg && dl("Weight", `${Number(c.weight_kg).toLocaleString("en-US")} kg`)}{c.volume_m3 && dl("Volume", `${Number(c.volume_m3).toLocaleString("en-US")} m³`)}
           {c.poc_details && dl("Person to contact", c.poc_details)}
           {c.pickup_contact && dl("Pick-up contact", [c.pickup_contact, c.pickup_phone].filter(Boolean).join(", "))}{c.drop_contact && dl("Delivery contact", [c.drop_contact, c.drop_phone].filter(Boolean).join(", "))}
           {c.deliver_by && dl("Deliver by", dmyTime(c.deliver_by))}

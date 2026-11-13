@@ -24,6 +24,7 @@ export const cargoSchema = z.object({
   description: z.string().trim().min(3, "Say what is being moved").max(300),
   quantity_text: z.string().trim().min(1, "Say how much, for example 12 cartons or 300 kg").max(120),
   weight_kg: z.preprocess(blank, z.coerce.number("Enter the weight in kilograms").positive("Enter the weight in kilograms").max(1_000_000).optional()),   // lets the system suggest a vehicle that can carry it (ADR-092)
+  volume_m3: z.preprocess(blank, z.coerce.number("Enter the volume in cubic metres").positive("Enter the volume in cubic metres").max(100_000).optional()),   // optional: how bulky the load is
   pickup_place: z.string().trim().min(2, "Where is it collected?").max(200),
   pickup_at: when,                                     // "Vehicle required: date and time" on the company's Vehicle Request Form
   drop_place: z.string().trim().min(2, "Where is it delivered?").max(200),
@@ -67,10 +68,10 @@ export async function createCargoRequest(driver: Driver, m: Membership, raw: unk
     const emp = await myEmployee(q, m.userId);
     const row = (await q.query<{ id: string; cargo_no: string }>(
       `insert into cargo_requests(requested_by, description, quantity_text, pickup_place, pickup_contact, pickup_phone, pickup_at, drop_place, drop_contact, drop_phone, deliver_by, handling, department, source,
-                                  vehicle_type, poc_details, instructions, weight_kg)
-       values ($1,$2,$3,$4,$5,$6,$7::timestamptz,$8,$9,$10,$11::timestamptz,$12,$13,$14,$15,$16,$17,$18) returning id, cargo_no`,
+                                  vehicle_type, poc_details, instructions, weight_kg, volume_m3)
+       values ($1,$2,$3,$4,$5,$6,$7::timestamptz,$8,$9,$10,$11::timestamptz,$12,$13,$14,$15,$16,$17,$18,$19) returning id, cargo_no`,
       [emp, c.description, c.quantity_text, c.pickup_place, c.pickup_contact ?? null, c.pickup_phone ? e164(c.pickup_phone) : null, c.pickup_at, c.drop_place, c.drop_contact ?? null,
-        c.drop_phone ? e164(c.drop_phone) : null, c.deliver_by ?? null, c.handling ?? null, c.department ?? null, source, c.vehicle_type, c.poc_details ?? null, c.instructions ?? null, c.weight_kg ?? null])).rows[0];
+        c.drop_phone ? e164(c.drop_phone) : null, c.deliver_by ?? null, c.handling ?? null, c.department ?? null, source, c.vehicle_type, c.poc_details ?? null, c.instructions ?? null, c.weight_kg ?? null, c.volume_m3 ?? null])).rows[0];
     await q.query("insert into cargo_events(cargo_id, from_status, to_status, actor_id, note) values ($1, null, 'requested', $2, $3)", [row.id, m.userId, source === "whatsapp" ? "Asked on WhatsApp" : null]);
     await notify(q, await usersWithPermission(q, m.tenantId, "cargo.handle"), "cargo.requested", { cargo_id: row.id, cargo_no: row.cargo_no, text: `${row.cargo_no}: ${c.description}, ${c.pickup_place} to ${c.drop_place}` }, m.userId);
     return { ...row, handlers: await usersWithPermission(q, m.tenantId, "cargo.handle"), asker: (await q.query<{ full_name: string }>("select full_name from employees where id = $1", [emp])).rows[0]?.full_name ?? "A colleague" };
@@ -120,7 +121,7 @@ export function listCargo(driver: Driver, m: Membership, opts: { status?: string
 
 export type CargoDetail = CargoRow & {
   pickup_contact: string | null; pickup_phone: string | null; drop_contact: string | null; drop_phone: string | null; handling: string | null; department: string | null; decision_note: string | null;
-  vehicle_type: string | null; poc_details: string | null; instructions: string | null; created_at: string; weight_kg: string | null;
+  vehicle_type: string | null; poc_details: string | null; instructions: string | null; created_at: string; weight_kg: string | null; volume_m3: string | null;
   trip_no: string | null; events: { to_status: string; note: string | null; created_at: string; actor_name: string | null }[];
 };
 
@@ -128,7 +129,7 @@ export function getCargo(driver: Driver, m: Membership, id: string): Promise<Car
   return authorizedAny(driver, m, ["cargo.request", "cargo.handle", "cargo.read_all"], async (q, held) => {
     const c = (await q.query<Omit<CargoDetail, "events">>(
       `select c.id, c.cargo_no, c.status, c.description, c.quantity_text, c.pickup_place, c.drop_place, c.pickup_at::text, c.deliver_by::text, re.full_name as requester_name, (re.user_id = $2) as mine,
-              c.source, c.trip_id, c.pickup_contact, c.pickup_phone, c.drop_contact, c.drop_phone, c.handling, c.department, c.decision_note, c.vehicle_type, c.poc_details, c.instructions, c.created_at::text, c.weight_kg::text, t.trip_no
+              c.source, c.trip_id, c.pickup_contact, c.pickup_phone, c.drop_contact, c.drop_phone, c.handling, c.department, c.decision_note, c.vehicle_type, c.poc_details, c.instructions, c.created_at::text, c.weight_kg::text, c.volume_m3::text, t.trip_no
          from cargo_requests c join employees re on re.id = c.requested_by left join trips t on t.id = c.trip_id where c.id = $1`, [id, m.userId])).rows[0];
     if (!c || (!held.has("cargo.handle") && !held.has("cargo.read_all") && !c.mine)) return null;
     const events = (await q.query<CargoDetail["events"][number]>(

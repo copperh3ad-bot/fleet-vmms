@@ -72,7 +72,7 @@ export const cargoFormJson = () => flowJson([
   },
   {
     id: "LOAD", title: "Load and contact", button: "Send request", fields: [
-      text("material", "Material / load", { help: "What is being moved" }), text("quantity", "Quantity", { type: "number" }), pick("unit", "Unit", UNITS), text("weight", "Total weight in kg", { type: "number", required: false, help: "Optional if the unit above is kg, lbs or tonnes" }),
+      text("material", "Material / load", { help: "What is being moved" }), text("quantity", "Quantity", { type: "number" }), pick("unit", "Unit", UNITS), text("weight", "Total weight in kg", { type: "number", required: false, help: "Optional if the unit above is kg, lbs or tonnes" }), text("volume", "Volume in cubic m", { type: "number", required: false, help: "Optional: length x width x height of the load, in metres" }),
       text("contact", "Contact and phone", { help: "Name and phone number, for example Ali 0300 1234567" }), area("instructions", "Instructions", { help: "Optional: anything the driver should know" }),
     ],
   },

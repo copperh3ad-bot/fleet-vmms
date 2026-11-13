@@ -93,6 +93,13 @@ describe("cargo by a form", () => {
     expect((await send({ material: "W bags" })).reply).toMatch(/Done\./);                                     // bags are not a weight
     expect(await weightOf("W bags")).toBeNull();
     expect((await send({ material: "W bad", weight: "heavy" })).reply).toMatch(/weight in kilograms/i);          // a bad weight comes back with a reason
+    // the optional volume in cubic metres is stored when given, empty when not, and a bad one is refused with a reason
+    const volOf = async (material: string) => (await getCargo(d, mgr(), (await listCargo(d, mgr())).find((r) => r.description === material)!.id))!.volume_m3;
+    expect((await send({ material: "V given", volume: "12.5" })).reply).toMatch(/Done\./);
+    expect(await volOf("V given")).toBe("12.50");
+    expect((await send({ material: "V none" })).reply).toMatch(/Done\./);
+    expect(await volOf("V none")).toBeNull();
+    expect((await send({ material: "V bad", volume: "lots" })).reply).toMatch(/volume in cubic metres/i);
     await out("cancel");
   });
 

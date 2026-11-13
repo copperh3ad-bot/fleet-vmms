@@ -353,6 +353,14 @@
               },
               {
                 "type": "TextInput",
+                "name": "volume",
+                "label": "Volume in cubic m",
+                "input-type": "number",
+                "required": false,
+                "helper-text": "Optional: length x width x height of the load, in metres"
+              },
+              {
+                "type": "TextInput",
                 "name": "contact",
                 "label": "Contact and phone",
                 "input-type": "text",
@@ -382,6 +390,7 @@
                     "quantity": "${form.quantity}",
                     "unit": "${form.unit}",
                     "weight": "${form.weight}",
+                    "volume": "${form.volume}",
                     "contact": "${form.contact}",
                     "instructions": "${form.instructions}"
                   }

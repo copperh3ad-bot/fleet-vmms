@@ -17,6 +17,7 @@ export function CargoRequestForm({ slug, places = [] }: { slug: string; places?:
       <Input name="vehicle_type" label="Vehicle type required" state={state} hint="For example: 10-tonne truck, pickup, van" required />
       <Input name="description" label="Inventory / material load details" state={state} required />
       <Input name="quantity_text" label="Quantity of load, with its unit" state={state} hint="For example: 18000 lbs (180 bags)" required />
+      <Input name="volume_m3" label="Volume in cubic metres" state={state} inputMode="decimal" hint="Optional. Length times width times height of the load, in metres." />
       <Input name="weight_kg" label="Total weight in kilograms" state={state} inputMode="decimal" hint="Optional. With it, the fleet office is shown which vehicles can carry the load." />
       <Input name="poc_details" label="Person or persons to contact, with phone numbers" state={state} hint="For example: Ali 0300 1234567 / Sara 0321 7654321" required />
       <div className="sm:col-span-2"><Input name="instructions" label="Any special instructions or requirements (optional)" state={state} /></div>
