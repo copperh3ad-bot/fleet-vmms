@@ -39,6 +39,14 @@ Five separate organizations, each a different business, so tenant isolation and 
 | 3 | Corporate office with staff cars | Basic | 8 | cars and SUVs, HR vehicle requests, policy and accident cover |
 | 4 | School or university transport | Basic | 10 | buses and coasters, paper expiries, gate security |
 | 5 | Sales and distribution company | Pro | 10 | vans, trucks, third-party logistics providers, finance-heavy |
+Plan setup (get this right first, it decides what is open): "Basic" means the real plan row `standard`, "Pro" means `pro`. Put each
+workspace on that row. `scripts/set-plan.mts` only sets vehicle and user limits and creates feature-less plan rows, and a plan row
+that says nothing about `fleet_ops` KEEPS trips and cargo (ADR-085), so a made-up "basic" plan will wrongly show Cargo. Before
+any test, confirm in the QA database that `plans.features->>'fleet_ops'` is `false` for `standard` and `true` for `pro`
+(control migration 0027), and that no Basic workspace is inside a Pro trial (a trial has Pro features). Proof for a Basic
+workspace: its sidebar has no Trips and no Cargo, and `/w/<slug>/cargo` shows "Trip scheduling and cargo requests are part of the
+Pro plan." Depots is not plan-gated and may show on Basic. Probe plan gates by reading that exact sentence, not by searching a page
+for the words "Pro" or "upgrade" (those words appear on every page and give false positives).
 Total: at least 50 vehicles. Vary make, year, odometer, category, custody (a named user, a department, unassigned), department
 and paper expiry dates (some already expired, some inside 7 days, some inside 30 days, some far). Add them by a random mix of the
 form and the Excel import. Randomise with a seed, print the seed in the report, and record every choice so a failure replays.
