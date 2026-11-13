@@ -95,6 +95,13 @@ On **Pro** run the full feature.
 | 27 | Job cards by WhatsApp | Cannot be switched on ("Job cards by WhatsApp are part of the Pro plan.") | Switch on records who and when; message creates a draft the person confirms |
 | 28 | WhatsApp menu (job card, cargo, trip, odometer) | Menu closed; cannot be switched on ("The WhatsApp menu is part of the Pro plan."); inbound message gets no menu | On once switched; each flow through the published form; daily cap. If neither stub nor file exists record SKIPPED, not PASS |
 
+**AI panel visibility (learned from the last run).** The "Reading workshop documents with AI" panel on the Vendors page is shown only
+to an administrator and only when the server has AI configured (`aiConfigured()`). With no AI key or stub on the stack the panel is
+hidden on **both** plans, which is by design and not a defect. Before rows 26 and 27, set an AI key or the stack's AI stub and
+record which. If neither exists, record rows 26 and 27 as SKIPPED with the reason "AI not configured", never PASS or FAIL. The
+WhatsApp menu panel needs only the administrator check, so it shows on both plans. Your classifier must look for the Basic
+sentences quoted in section A, not for a "real screen" marker: the Vendors page has none, and a missing marker is not a FAIL.
+
 ### C3. Moving between plans (this is where money and access change)
 
 Do these in order on a **third** pair of workspaces so the first two keep their baseline:
