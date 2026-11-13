@@ -6,7 +6,9 @@ import { getDriver } from "@/lib/db";
 import { allowShared } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
 import { UserError } from "@/lib/master/service";
-import { parseContact, recordContact } from "@/lib/contact";
+import { buildContactNotice, parseContact, recordContact } from "@/lib/contact";
+import { loadPlatformSettings } from "@/lib/billing/settings";
+import { emailConfigured, mailFailure, sendMail } from "@/lib/email/send";
 import type { FormState } from "@/app/w/[slug]/actions-util";
 import { authEvent } from "@/lib/activity/auth";
 
@@ -30,6 +32,13 @@ async function contactActionImpl(_prev: FormState, form: FormData): Promise<Form
   const [ipOk, mailOk] = await Promise.all([allowShared(driver, `contact-ip:${await clientIp()}`, 5, HOUR), allowShared(driver, `contact-email:${input.email}`, 3, HOUR)]);
   if (!ipOk || !mailOk) return { error: "Too many messages from here. Wait a little and try again.", values: keep(form) };
   await recordContact(driver, input);
+  // A heads-up to the owner. The message is already saved, so a mail problem never loses it or shows the visitor an error.
+  if (emailConfigured()) {
+    try {
+      const mail = buildContactNotice(input, await loadPlatformSettings(driver), process.env.EMAIL_REPLY_TO);
+      if (mail) await sendMail(mail);
+    } catch (e) { console.error(`contact notice failed: ${mailFailure(e)}`); }
+  }
   return { ok: SENT };
 }
 

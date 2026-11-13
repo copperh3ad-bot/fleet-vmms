@@ -6,6 +6,7 @@ import type { Driver } from "@/lib/db/types";
 import { withPlatform } from "@/lib/db/tenant";
 import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
+import type { Mail } from "@/lib/email/templates";
 
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
 
@@ -54,4 +55,18 @@ export function markContactHandled(driver: Driver, operatorId: string, id: strin
   return asOperator(driver, operatorId, async (q) => {
     await q.query("update public.contact_messages set status = 'handled', handled_at = now(), handled_by = $2 where id = $1 and status = 'new'", [id, operatorId]);
   });
+}
+
+const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+/** The heads-up email to the owner (ADR-021, amended). The recipient is only ever an address the owner entered in settings, never one a visitor typed, so the form
+ *  cannot be used to mail other people. A reply goes straight to the visitor. Returns null when the owner has set no address. */
+export function buildContactNotice(input: ContactInput, settings: Record<string, string>, fallback?: string): Mail | null {
+  const pick = (k: string) => settings[k]?.trim() || "";
+  const to = (input.topic === "sales" ? pick("sales_email") || pick("support_email") : input.topic === "billing" ? pick("billing_email") || pick("support_email") : pick("support_email") || pick("sales_email")) || fallback?.trim() || "";
+  if (!to) return null;
+  const head = `New message on the Contact page (${input.topic})`;
+  const text = [head, "", `From: ${input.name} <${input.email}>`, input.company ? `Company: ${input.company}` : null, "", input.message, "", "Reply to this email to answer them. The message is also in Admin, Messages."].filter((l) => l !== null).join("\n");
+  const html = `<p><b>${esc(head)}</b></p><p>From: ${esc(input.name)} &lt;${esc(input.email)}&gt;${input.company ? `<br>Company: ${esc(input.company)}` : ""}</p><p style="white-space:pre-wrap">${esc(input.message)}</p><p>Reply to this email to answer them. The message is also in Admin, Messages.</p>`;
+  return { to, replyTo: input.email, subject: `Contact form (${input.topic}): ${input.name}`.replace(/[\r\n]+/g, " ").slice(0, 150), text, html };
 }

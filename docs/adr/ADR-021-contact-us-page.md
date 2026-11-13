@@ -14,3 +14,7 @@ A form that stores a row needs no new infrastructure and is quick to reason abou
 ## Not done
 - No email to the owner when a message arrives. The Messages count in the operator menu is the signal until email is set up.
 - No attachments, no reply from inside the app, no spam scoring beyond the limits above.
+
+## Amendment (2026-11-13): heads-up email to the owner
+
+Now that outgoing mail is live (ADR-024), each saved message also sends one email to the owner. The recipient is only ever an address the owner entered in operator settings (`sales_email` for sales, `billing_email` for billing, otherwise `support_email`, falling back to `EMAIL_REPLY_TO`), never anything a visitor typed, so the form is still no mail relay. Reply-To is the visitor, so answering is one click. The row is written first; a mail problem is logged and never loses the message or shows the visitor an error. The abuse limits above still apply. If no owner address is set, nothing is sent and the message waits in Admin, Messages as before.

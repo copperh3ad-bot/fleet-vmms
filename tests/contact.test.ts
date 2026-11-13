@@ -1,7 +1,7 @@
 // The public Contact us form (ADR-021): the fields are checked, one row is stored, and only the operator can read or close messages.
 import { beforeAll, describe, expect, it } from "vitest";
 import { UserError } from "@/lib/master/service";
-import { countNewContactMessages, listContactMessages, markContactHandled, parseContact, recordContact } from "@/lib/contact";
+import { buildContactNotice, countNewContactMessages, listContactMessages, markContactHandled, parseContact, recordContact } from "@/lib/contact";
 import { newControl } from "./helpers";
 
 const OP = "00000000-0000-0000-0000-0000000000a1";
@@ -62,5 +62,18 @@ describe("storing and reading", () => {
     await expect(bad(ins, ["Sara", "sara@acme.example", "spam", "a perfectly long message"])).rejects.toThrow();
     await expect(bad(ins, ["Sara", "sara@acme.example", "sales", "short"])).rejects.toThrow();
     await expect(bad(ins, ["Sara", "sara@acme.example", "sales", "x".repeat(2001)])).rejects.toThrow();
+  });
+});
+
+describe("contact notice email", () => {
+  const input = { name: "Ali <b>", email: "ali@x.com", company: undefined, topic: "sales" as const, message: "Hello there, I want a demo." };
+  it("goes to the owner's sales address, replies to the visitor, and escapes the text", () => {
+    const m = buildContactNotice(input, { sales_email: "s@o.com", support_email: "h@o.com" })!;
+    expect(m.to).toBe("s@o.com"); expect(m.replyTo).toBe("ali@x.com"); expect(m.html).toContain("Ali &lt;b&gt;"); expect(m.html).not.toContain("Ali <b>");
+  });
+  it("falls back to support, then the reply-to default, then nothing", () => {
+    expect(buildContactNotice(input, { support_email: "h@o.com" })!.to).toBe("h@o.com");
+    expect(buildContactNotice(input, {}, "r@o.com")!.to).toBe("r@o.com");
+    expect(buildContactNotice(input, {})).toBeNull();
   });
 });
