@@ -94,7 +94,7 @@ export function getVehicle(driver: Driver, m: Membership, id: string): Promise<V
 }
 
 function toDbVehicle(v: VehicleInput) {
-  return JSON.stringify(Object.fromEntries(Object.entries(v).filter(([k, x]) => x !== undefined && k !== "department")));          // the department is set after the vehicle exists
+  return JSON.stringify(Object.fromEntries(Object.entries(v).filter(([k, x]) => x !== undefined && k !== "department" && k !== "load_volume_m3")));          // the department is set after the vehicle exists
 }
 
 /** The "Add a vehicle" save: one transaction through onboard_vehicle(). */
@@ -108,6 +108,7 @@ export async function addVehicle(driver: Driver, m: Membership, raw: unknown, op
     if (trialCap !== null && (await countLiveVehicles(q)) >= trialCap) throw new UserError(trialFullMessage(trialCap));
     try {
       const r = await q.query<{ id: string }>("select onboard_vehicle($1::jsonb, $2::uuid) as id", [toDbVehicle(parsed.data), m.userId]);
+      if (parsed.data.load_volume_m3) await q.query("update vehicles set load_volume_m3 = $2 where id = $1", [r.rows[0].id, parsed.data.load_volume_m3]);
       if (parsed.data.department) await setDepartmentIn(q, r.rows[0].id, parsed.data.department.replace(/\s+/g, " "));
       if (opts.afterCreate) await opts.afterCreate(q, r.rows[0].id, parsed.data.registration_no.trim().toUpperCase());
       return { id: r.rows[0].id };
@@ -334,6 +335,23 @@ export function listDepartments(driver: Driver, m: Membership): Promise<string[]
     (await q.query<{ d: string }>(
       `select distinct on (lower(btrim(d))) btrim(d) as d from (select department as d from vehicles union all select department from role_departments) x
         where d is not null and btrim(d) <> '' order by lower(btrim(d)), btrim(d)`)).rows.map((r) => r.d));
+}
+
+/** What the vehicle can carry: weight in kilograms and space in cubic metres. Either may be left empty to clear it. Needs vehicle.write. */
+export function setVehicleCapacity(driver: Driver, m: Membership, vehicleId: string, raw: { load_capacity_kg?: string; load_volume_m3?: string }): Promise<void> {
+  const one = (v: string | undefined, label: string, max: number) => {
+    const t = (v ?? "").replace(/,/g, "").trim();
+    if (t === "") return null;
+    const n = Number(t);
+    if (!Number.isFinite(n) || n <= 0 || n > max) throw new UserError(`Enter ${label}, above 0.`, { [label.includes("kilo") ? "load_capacity_kg" : "load_volume_m3"]: `Enter ${label}` });
+    return n;
+  };
+  let kg: number | null, m3: number | null;
+  try { kg = one(raw.load_capacity_kg, "the load capacity in kilograms", 1_000_000); m3 = one(raw.load_volume_m3, "the load space in cubic metres", 100_000); } catch (e) { return Promise.reject(e); }
+  return authorized(driver, m, "vehicle.write", async (q) => {
+    const r = await q.query("update vehicles set load_capacity_kg = $2, load_volume_m3 = $3 where id = $1 returning id", [vehicleId, kg, m3]);
+    if (r.rows.length === 0) throw new UserError("Vehicle not found.");
+  });
 }
 
 /** Sets or clears the operating department of one vehicle. Needs vehicle.write, so a department user (who has none) cannot move vehicles. */

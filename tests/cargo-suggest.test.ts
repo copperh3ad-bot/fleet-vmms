@@ -182,3 +182,24 @@ describe("confirming by hand", () => {
     await expect(setCargoWeight(d, logi(), id, "200")).rejects.toThrow(/only while the request is open and has no trip/);
   });
 });
+
+describe("load space (cubic metres)", () => {
+  it("drops a vehicle whose recorded space is too small, keeps one with none recorded, and says so", async () => {
+    await master.setVehicleCapacity(d, owner(), V.mid, { load_capacity_kg: "3000", load_volume_m3: "10" });
+    await master.setVehicleCapacity(d, owner(), V.big, { load_capacity_kg: "10000", load_volume_m3: "40" });
+    const { id } = await createCargoRequest(d, req(), cargo({ weight_kg: "500", volume_m3: "20", pickup_place: "Faisalabad" }));
+    const s = await suggest(id);
+    expect(s.volume_m3).toBe(20);
+    const plates = s.suggestions.map((x) => x.registration_no);
+    expect(plates).not.toContain("SUG-MID");                      // 10 m3 of space for 20 m3
+    expect(plates).toEqual(expect.arrayContaining(["SUG-SML", "SUG-BIG"]));
+    expect(s.suggestions.find((x) => x.registration_no === "SUG-SML")!.reasons.join(" ")).toMatch(/space not recorded/);
+    expect(s.suggestions.find((x) => x.registration_no === "SUG-BIG")!.reasons.join(" ")).toMatch(/40 m3 of space for 20 m3/);
+  });
+  it("refuses a bad capacity, and clears it when left empty", async () => {
+    await expect(master.setVehicleCapacity(d, owner(), V.mid, { load_volume_m3: "abc" })).rejects.toBeInstanceOf(UserError);
+    await master.setVehicleCapacity(d, owner(), V.mid, { load_capacity_kg: "3000", load_volume_m3: "" });
+    const v = await raw((q) => q.query<{ load_volume_m3: string | null }>("select load_volume_m3::text from vehicles where id = $1", [V.mid]));
+    expect(v.rows[0].load_volume_m3).toBeNull();
+  });
+});

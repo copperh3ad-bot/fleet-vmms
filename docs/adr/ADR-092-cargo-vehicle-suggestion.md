@@ -19,3 +19,7 @@ Status: accepted 2026-11-11 (owner decisions F1 to F4, docs/OWNER-DECISIONS-2026
 ## Not built
 F5 (depots and locations added during onboarding) is ADR-093. Suggestions are not
 sent to WhatsApp. The weight on WhatsApp (form and chat) is ADR-093.
+
+## Amendment (2026-11-13): volume
+
+A cargo request may also carry its volume in cubic metres (`cargo_requests.volume_m3`, tenant migration 0064), and a vehicle may record its load space (`vehicles.load_volume_m3`, migration 0065). The suggestion drops a vehicle whose recorded space is smaller than the load's volume; a vehicle with no space recorded is still suggested, with the note "load space not recorded, check it fits", the same way a missing weight capacity is handled by the existing "no capacity recorded" count. The load capacity and space of an existing vehicle are set on the vehicle's page (Manage this vehicle), and at creation on the Add a vehicle form; the Excel import does not carry the space yet. The typed WhatsApp chat asks for the volume as an optional step after the weight, and the published WhatsApp form has the same box.

@@ -557,5 +557,10 @@ export const TENANT_MIGRATIONS: Migration[] = [
     "name": "0064_cargo_volume.sql",
     "sql": "-- Tenant migration 0064: a cargo request may also carry its volume in cubic metres. Idempotent.\n-- Optional and informational (the vehicle suggestion still goes by weight against load capacity, ADR-092): it tells the fleet office how bulky the load is.\nalter table cargo_requests add column if not exists volume_m3 numeric(10,2) check (volume_m3 is null or volume_m3 > 0);\n",
     "checksum": "356551112dba0babc900c2a4938acea0c892ec7b51005f7027fb98bf81809414"
+  },
+  {
+    "name": "0065_vehicle_load_volume.sql",
+    "sql": "-- Tenant migration 0065: how much space a vehicle's load area holds, in cubic metres. Idempotent.\n-- Optional. A cargo request that states its volume is matched against it, together with the weight (ADR-092); a vehicle with no volume recorded is still suggested, with a note.\nalter table vehicles add column if not exists load_volume_m3 numeric(10,2) check (load_volume_m3 is null or load_volume_m3 > 0);\n",
+    "checksum": "860e1fbe5df965d21ef14bc95073956293e4937aa5534edb090fe62f77d0bbd8"
   }
 ];

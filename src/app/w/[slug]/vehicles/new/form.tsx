@@ -82,6 +82,7 @@ export function AddVehicleForm({ places = [], purchaseRequest, slug, employees, 
               <datalist id="places">{places.map((p) => <option key={p} value={p} />)}</datalist>
               {f("seats", "Seats", { inputMode: "numeric" })}
               {f("load_capacity_kg", "Load capacity (kg)", { inputMode: "decimal" })}
+              {f("load_volume_m3", "Load space (cubic metres)", { inputMode: "decimal" })}
             </div>
             <div className={`${three} mt-3`}>
               <Input name="department" label="Operating department" state={state} list="departments" hint="Which department runs this vehicle, for example Logistics or Operations. Empty is the general fleet." />

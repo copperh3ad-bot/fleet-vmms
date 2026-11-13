@@ -25,6 +25,7 @@ export const vehicleSchema = z.object({
   /** D2: seats and the load the vehicle may carry, used to match pool vehicles and cargo */
   seats: z.preprocess(blank, z.coerce.number().int().min(1, "At least 1 seat").max(200).optional()),
   load_capacity_kg: num(),
+  load_volume_m3: z.preprocess(blank, z.coerce.number('Enter the volume in cubic metres').positive('Enter the volume in cubic metres').max(100_000).optional()),   // saved after the vehicle exists
   /** the operating department that runs the vehicle (ADR-048); saved after the vehicle, with one spelling per name */
   department: text(60),
   odometer_km: num(),

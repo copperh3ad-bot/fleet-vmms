@@ -152,7 +152,9 @@ describe("Schedule Cargo Pick-up and Delivery on WhatsApp", () => {
     expect(await say("Grain sacks")).toMatch(/Quantity of the load, with its unit/);
     expect(await say("18000 Lbs (180 Sacks)")).toMatch(/Total weight of the load in kilograms/);
     expect(await say("heavy")).toMatch(/number/i);                                                                           // asked again
-    expect(await say("8,160")).toMatch(/Person or persons to contact, with phone numbers/);
+    expect(await say("8,160")).toMatch(/Volume of the load in cubic metres/);
+    expect(await say("lots")).toMatch(/number/i);                                                                            // asked again
+    expect(await say("22.5")).toMatch(/Person or persons to contact, with phone numbers/);
     expect(await say("Ali Khan")).toMatch(/include a phone number[\s\S]*Person or persons to contact/);                          // asked again
     expect(await say("Ali 0300 1234567 / Sara 0321 7654321")).toMatch(/special instructions/);
     const summary = await say("Unload at gate 2");
@@ -162,7 +164,7 @@ describe("Schedule Cargo Pick-up and Delivery on WhatsApp", () => {
     const rows = await listCargo(d, mgr());
     expect(rows).toHaveLength(before + 1);
     const c = (await getCargo(d, mgr(), rows.find((r) => r.source === "whatsapp")!.id))!;
-    expect(c).toMatchObject({ source: "whatsapp", department: "Sales", vehicle_type: "10-tonne truck", poc_details: "Ali 0300 1234567 / Sara 0321 7654321", instructions: "Unload at gate 2", description: "Grain sacks", quantity_text: "18000 Lbs (180 Sacks)", requester_name: "Requester One", deliver_by: null, pickup_contact: null, weight_kg: "8160.0" });
+    expect(c).toMatchObject({ source: "whatsapp", department: "Sales", vehicle_type: "10-tonne truck", poc_details: "Ali 0300 1234567 / Sara 0321 7654321", instructions: "Unload at gate 2", description: "Grain sacks", quantity_text: "18000 Lbs (180 Sacks)", requester_name: "Requester One", deliver_by: null, pickup_contact: null, weight_kg: "8160.0", volume_m3: "22.50" });
     expect(c.events[0].note).toBe("Asked on WhatsApp");
   });
 
@@ -170,7 +172,7 @@ describe("Schedule Cargo Pick-up and Delivery on WhatsApp", () => {
     await raw((q) => q.query("update employees set department = 'Procurement' where full_name = 'Requester One'"));
     await say("Hi");
     expect(await say("2")).toMatch(/Your record says Procurement\. Reply 1 to use it/);
-    await say("1"); await say("tomorrow 10am"); await say("Godown"); await say("Unit 8"); await say("Truck"); await say("Grain"); await say("180 bags"); await say("skip"); await say("Ali 0300 1234567");
+    await say("1"); await say("tomorrow 10am"); await say("Godown"); await say("Unit 8"); await say("Truck"); await say("Grain"); await say("180 bags"); await say("skip"); await say("skip"); await say("Ali 0300 1234567");
     expect(await say("skip")).toMatch(/Department: Procurement[\s\S]*No special instructions/);
     await say("yes");
     const id = (await listCargo(d, mgr())).find((r) => r.source === "whatsapp" && r.description === "Grain")!.id;
@@ -181,7 +183,7 @@ describe("Schedule Cargo Pick-up and Delivery on WhatsApp", () => {
   });
 
   it("SKIP works for the special instructions, and the person with no cargo permission is not offered it", async () => {
-    await say("Hi"); await say("2"); await say("Sales"); await say("tomorrow 11am"); await say("Shop 4"); await say("Office"); await say("Pickup"); await say("Parcel"); await say("1 box"); await say("skip"); await say("Ali 0300 2222222");
+    await say("Hi"); await say("2"); await say("Sales"); await say("tomorrow 11am"); await say("Shop 4"); await say("Office"); await say("Pickup"); await say("Parcel"); await say("1 box"); await say("skip"); await say("skip"); await say("Ali 0300 2222222");
     expect(await say("skip")).toMatch(/No special instructions/);
     await say("cancel");
     expect(await say("Hi", "+923009444444")).toMatch(/nothing I can do for your role/);                               // an auditor

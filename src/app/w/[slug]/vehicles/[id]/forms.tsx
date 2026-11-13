@@ -2,7 +2,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { Input, Notice, Select, Submit } from "@/components/form";
 import type { FormState } from "../../actions-util";
-import { changeCustodyAction, endCustodyAction, recordHoursAction, setDepartmentAction, setStatusAction, setTracksHoursAction } from "../actions";
+import { changeCustodyAction, setCapacityAction, endCustodyAction, recordHoursAction, setDepartmentAction, setStatusAction, setTracksHoursAction } from "../actions";
 
 export function CustodyForms({ slug, vehicleId, employees, hasHolder }: {
   slug: string; vehicleId: string; employees: { id: string; full_name: string; employee_no: string | null }[]; hasHolder: boolean;
@@ -48,6 +48,19 @@ export function DepartmentForm({ slug, vehicleId, current, known }: { slug: stri
     <form action={action} className="mt-3 flex flex-wrap items-end gap-2">
       <Input name="department" label="Operating department" state={{ ...s, values: { department: s.values?.department ?? current } }} list="departments" hint="For example Logistics or Operations. Empty means the general fleet." />
       <datalist id="departments">{known.map((d) => <option key={d} value={d} />)}</datalist>
+      <Submit>Save</Submit>
+      <Notice state={s} />
+    </form>
+  );
+}
+
+/** What the vehicle can carry, so cargo can be matched to it by weight and by space (ADR-092). */
+export function CapacityForm({ slug, vehicleId, kg, m3 }: { slug: string; vehicleId: string; kg: string | null; m3: string | null }) {
+  const [s, action] = useActionState<FormState, FormData>(setCapacityAction.bind(null, slug, vehicleId), {});
+  return (
+    <form action={action} className="mt-3 flex flex-wrap items-end gap-2">
+      <Input name="load_capacity_kg" label="Load capacity (kg)" state={{ ...s, values: { load_capacity_kg: s.values?.load_capacity_kg ?? (kg ?? ""), load_volume_m3: s.values?.load_volume_m3 ?? (m3 ?? "") } }} inputMode="decimal" />
+      <Input name="load_volume_m3" label="Load space (cubic metres)" state={{ ...s, values: { load_capacity_kg: s.values?.load_capacity_kg ?? (kg ?? ""), load_volume_m3: s.values?.load_volume_m3 ?? (m3 ?? "") } }} inputMode="decimal" hint="Optional. Empty clears it." />
       <Submit>Save</Submit>
       <Notice state={s} />
     </form>

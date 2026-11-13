@@ -46,6 +46,11 @@ export const cargoFlow: Flow = {
       parse: async (raw) => parseNumber(raw, { min: 0.1, max: 1_000_000, what: "the weight in kilograms" }),
     },
     {
+      key: "volume_m3", optional: true,
+      ask: async () => "Volume of the load in cubic metres (length x width x height). For example: 12.5. Or reply SKIP.",
+      parse: async (raw) => parseNumber(raw, { min: 0.01, max: 100_000, what: "the volume in cubic metres" }),
+    },
+    {
       key: "poc_details",
       ask: async () => "Person or persons to contact, with phone numbers. For example: Ali 0300 1234567 / Sara 0321 7654321.",
       parse: async (raw) => {

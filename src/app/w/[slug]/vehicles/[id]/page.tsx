@@ -14,7 +14,7 @@ import { supabaseBlobStore } from "@/lib/supabase/blob-store";
 import { StatusBadge } from "../../job-cards/status";
 import { removeVehicleFileAction, uploadVehicleFileAction } from "../actions";
 import { VehicleFileRemove, VehicleFileUpload } from "./files";
-import { CustodyForms, DepartmentForm, HoursForm, StatusForm } from "./forms";
+import { CapacityForm, CustodyForms, DepartmentForm, HoursForm, StatusForm } from "./forms";
 
 export default function VehiclePage({ params, searchParams }: PageProps<"/w/[slug]/vehicles/[id]">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} searchParams={searchParams} /></Suspense>;
@@ -151,6 +151,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string;
                 <CustodyForms slug={slug} vehicleId={v.id} employees={employees} hasHolder={!!v.holder} />
                 {canWrite && <StatusForm slug={slug} vehicleId={v.id} current={v.status} />}
                 <HoursForm slug={slug} vehicleId={v.id} tracks={v.tracksHours} hours={v.engineHours} />
+                {canWrite && <CapacityForm slug={slug} vehicleId={v.id} kg={(v as { load_capacity_kg?: string | null }).load_capacity_kg ?? null} m3={(v as { load_volume_m3?: string | null }).load_volume_m3 ?? null} />}
                 {canWrite && <DepartmentForm slug={slug} vehicleId={v.id} current={v.department ?? ""} known={departments} />}
               </div>
             </Panel>

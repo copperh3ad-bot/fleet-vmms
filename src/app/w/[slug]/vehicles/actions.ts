@@ -7,7 +7,7 @@ import { addVehicleFile, removeVehicleFile, type VehicleFileKind } from "@/lib/m
 import { resolveChoice } from "@/lib/master/vehicle-catalog";
 import { canonicalNames, recordNames } from "@/lib/master/vehicle-names";
 import { csvToObjects } from "@/lib/master/csv";
-import { UserError, addVehicle, changeCustody, endCustody, setVehicleDepartment, updateVehicleStatus, previewVehicleImport, commitVehicleImport, type ImportPreview } from "@/lib/master/service";
+import { UserError, addVehicle, changeCustody, endCustody, setVehicleDepartment, setVehicleCapacity, updateVehicleStatus, previewVehicleImport, commitVehicleImport, type ImportPreview } from "@/lib/master/service";
 import { recordEngineHours, setTracksHours } from "@/lib/hours/service";
 import { handOverPurchasedVehicle } from "@/lib/vehicle-requests/service";
 import { runAction, str, typed, type FormState } from "../actions-util";
@@ -20,7 +20,7 @@ function vehicleFromForm(f: FormData) {
   const baselineKeys = [...f.keys()].map((k) => k.match(/^baseline_(.+)_date$/)?.[1]).filter((k): k is string => !!k && str(f, `baseline_${k}_date`) !== "");
   const docTypes = DOC_TYPES.filter((t) => str(f, `doc_${t}_expires`) !== "");
   const raw: Record<string, unknown> = {};
-  for (const k of ["registration_no", "make", "model", "year", "vehicle_class", "fuel_type", "vin", "engine_no", "colour", "base_location", "seats", "load_capacity_kg", "department", "odometer_km", "employee_id", "holding_since", "budget_amount", "budget_from", "budget_to"]) raw[k] = str(f, k);
+  for (const k of ["registration_no", "make", "model", "year", "vehicle_class", "fuel_type", "vin", "engine_no", "colour", "base_location", "seats", "load_capacity_kg", "load_volume_m3", "department", "odometer_km", "employee_id", "holding_since", "budget_amount", "budget_from", "budget_to"]) raw[k] = str(f, k);
   raw.baselines = baselineKeys.map((k) => ({ service_type_key: k, last_done_on: str(f, `baseline_${k}_date`), last_odometer_km: str(f, `baseline_${k}_km`) }));
   raw.documents = docTypes.map((t) => ({ doc_type: t, reference: str(f, `doc_${t}_ref`), expires_on: str(f, `doc_${t}_expires`) }));
   // The board asks only for the insurance expiry. A policy needs an insurer and a start, so when they are not given the
@@ -119,6 +119,12 @@ export async function endCustodyAction(slug: string, vehicleId: string, _prev: F
 
 export async function setDepartmentAction(slug: string, vehicleId: string, _prev: FormState, form: FormData): Promise<FormState> {
   const state = await runAction(slug, async (m) => { await setVehicleDepartment(getDriver(), m, vehicleId, str(form, "department")); return "Department saved."; });
+  if (state.ok) refresh();
+  return state.error || state.fields ? { ...state, values: typed(form) } : state;
+}
+
+export async function setCapacityAction(slug: string, vehicleId: string, _prev: FormState, form: FormData): Promise<FormState> {
+  const state = await runAction(slug, async (m) => { await setVehicleCapacity(getDriver(), m, vehicleId, { load_capacity_kg: str(form, "load_capacity_kg"), load_volume_m3: str(form, "load_volume_m3") }); return "Load capacity saved."; });
   if (state.ok) refresh();
   return state.error || state.fields ? { ...state, values: typed(form) } : state;
 }
