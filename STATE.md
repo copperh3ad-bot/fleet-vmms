@@ -634,3 +634,14 @@ Two full-flow QA runs (an agent run on a throwaway local database: 392 steps, no
 - **Basic trial 10 days:** a data change, `plans.trial_days` for `standard` set to 10 on live (owner-entered value, so no migration). It applies to new sign-ups only; every public page reads it from the plans table. The old value was 3.
 - **Pro trial 7 days:** `PRO_TRIAL_DAYS` in `src/lib/billing/quote.ts` is now 7, with the fixed copy updated (landing, features, compare, pricing, billing button and message, FAQ, plans art, ADR-068). NOT deployed yet: until it is, the app still starts Pro trials at 3 days while the live Basic figure already reads 10.
 - **QA prompt for agents:** `docs/qa/QA-ALLROLES-REPORTS-PROMPT.md`: role by permission sweep, use cases by module with unhappy paths, report and export structure and reconciliation, cross-cutting checks. The plans row for `pro` still holds `trial_days` 3 but nothing reads it (the Pro trial length is the constant).
+
+
+## 2026-11-13: contact email, plan fix, cargo volume (live)
+
+- Contact form now emails the owner (ADR-021 amendment); tested working.
+- Pro trial 7 days deployed; Basic trial 10 days (plans table).
+- QA F-01 fixed: `create-workspace --plan` and `set-plan --tenant` now also set `org_billing.plan_key` (7b90975). Real sign-ups were never affected.
+- Invitation email failure now shown on every invite outcome (91a0f5a).
+- Cargo volume (m3, optional): tenant migration 0064 applied to live, app form, card, export, WhatsApp form. New cargo Flow ID set as `WHATSAPP_FORM_CARGO` on Netlify (old ID not recorded; the old flow is to be deprecated by the owner). Owner tested the flow: works.
+- QA prompts in `docs/qa/`: E2E 5 users, pre-deployment 50 users (5 orgs). A QA agent run is in progress on the owner's side; plan-gating block to be re-run after pulling master.
+- Open: Pro price bands (owner), CSV export date format, gate security export scope, optional Invoices empty-state line, volume in the typed-chat cargo fallback, vehicle suggestion by volume.
