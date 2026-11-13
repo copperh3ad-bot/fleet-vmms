@@ -36,6 +36,8 @@ try {
         `insert into public.tenant_subscriptions(tenant_id, plan_id) select t.id, p.id from public.tenants t, public.plans p where t.slug = $1 and p.key = $2
          on conflict (tenant_id) do update set plan_id = excluded.plan_id, status = 'active' returning tenant_id`, [a.tenant, a.plan]);
       if (r.rows.length === 0) throw new Error(`No workspace with slug "${a.tenant}"`);
+      // The app reads the plan from org_billing (tenantPlan), so keep it in step; otherwise the feature gates still see the old plan.
+      await q.query("update public.org_billing set plan_key = $2, updated_at = now() where tenant_id = $1 and exists (select 1 from public.plans where key = $2)", [r.rows[0].tenant_id, a.plan]);
       console.log(`Workspace ${a.tenant} is now on plan ${a.plan}.`);
     }
   });

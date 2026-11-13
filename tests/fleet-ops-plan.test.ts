@@ -66,3 +66,12 @@ describe("a company on Pro, or with no plan row", () => {
     }
   });
 });
+
+describe("a workspace made with a plan (QA F-01)", () => {
+  it("has org_billing in step with its plan, so Basic loses Cargo", async () => {
+    const b = await provisionTenant(d, { name: "Basic Co", slug: "basicco", ownerUserId: U(7), ownerName: "O", planKey: "standard" }, tenantMigrations(), { transform: stripExt });
+    const key = await withPlatform(d, async (q) => (await q.query<{ plan_key: string }>("select plan_key from public.org_billing where tenant_id = $1", [b.tenantId])).rows[0].plan_key);
+    expect(key).toBe("standard");
+    expect(await fleetOpsOn(d, b.tenantId)).toBe(false);
+  });
+});

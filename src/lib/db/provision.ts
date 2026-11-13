@@ -27,6 +27,8 @@ export async function provisionTenant(driver: Driver, input: ProvisionInput, mig
     if (input.planKey) {
       await q.query(`insert into public.tenant_subscriptions(tenant_id, plan_id, status)
                      select $1, id, 'active' from public.plans where key = $2`, [t.id, input.planKey]);
+      // The app reads the plan from org_billing, not from tenant_subscriptions, so the two must agree or the feature gates (ADR-085) see 'legacy' and open everything.
+      await q.query("update public.org_billing set plan_key = $2, updated_at = now() where tenant_id = $1 and exists (select 1 from public.plans where key = $2)", [t.id, input.planKey]);
     }
     if (input.ownerUserId) {
       await q.query(`set local search_path = "${t.schema_name}", public`);
