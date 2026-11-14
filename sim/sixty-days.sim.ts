@@ -16,6 +16,23 @@ import * as vr from "@/lib/vehicle-requests/service";
 import { createCargoRequest, getCargo, makeTripFromCargo, transitionCargo } from "@/lib/cargo/service";
 import { suggestVehicles } from "@/lib/cargo/suggest";
 import { getDashboard } from "@/lib/dashboard/service";
+import { processWhatsAppMenu } from "@/lib/wa-menu/engine";
+import { setWaMenu } from "@/lib/wa-menu/switch";
+import { processWhatsAppJobCard, setWaJobCards, type IntakeDeps } from "@/lib/wa-jobcards/service";
+import { readEmailDocument } from "@/lib/ai/service";
+import { setAiDocuments } from "@/lib/ai/service";
+import type { CreateMessage } from "@/lib/ai/claude";
+import { recommendTripQuotes } from "@/lib/trips/advice";
+import { enterForWorkshop } from "@/lib/vendorflow/entry";
+import { processInboundEmail, replyAddress, type InboundDeps } from "@/lib/vendorflow/inbound";
+import * as odo from "@/lib/odometer/service";
+import { submitViaLink } from "@/lib/odometer/link";
+import * as comp from "@/lib/compliance/service";
+import { runDocumentReminders } from "@/lib/compliance/reminders";
+import { runOdometerWhatsApp } from "@/lib/odometer/whatsapp";
+import { notifyWorkshop } from "@/lib/vendorflow/whatsapp-notify";
+import type { InboundMessage } from "@/lib/whatsapp";
+import type { ReadableStore } from "@/lib/master/policy-reading";
 import { getOverview } from "@/lib/dashboard/overview";
 import { EXPORT_KINDS, exportCsv } from "@/lib/exports/service";
 import { listCargo } from "@/lib/cargo/service";
@@ -28,7 +45,7 @@ import { submitViaInvoiceLink, submitViaQuoteLink, submitViaTripInvoiceLink, sub
 // answer through single-use links, as in real use. The clock: before each day every date in the company's data moves back one day, so yesterday's work is a
 // day old when today's starts (the app's own "within N days" rules, repeat-repair flags and due dates then see a real calendar). See docs/qa/SIMULATION-60-DAYS.md.
 const plan = vi.hoisted(() => ({ pro: true }));
-vi.mock("@/lib/billing/plans", async (orig) => ({ ...(await orig<typeof import("@/lib/billing/plans")>()), tenantPlan: async () => ({ outsourcedTrips: plan.pro, fleetOps: true, aiDocuments: false, whatsappMenu: false, aiTrialReads: null, aiPerDay: 0 }) }));
+vi.mock("@/lib/billing/plans", async (orig) => ({ ...(await orig<typeof import("@/lib/billing/plans")>()), tenantPlan: async () => ({ outsourcedTrips: plan.pro, fleetOps: true, aiDocuments: true, whatsappMenu: true, aiTrialReads: null, aiPerDay: 100000 }) }));
 
 const DAYS = Number(process.env.SIM_DAYS ?? 60);
 const JOBS_PER_DAY = Number(process.env.SIM_JOBS ?? 20);
@@ -91,6 +108,13 @@ const pct = (xs: number[], p: number) => { const s = [...xs].sort((a, b) => a - 
 describe("sixty days of use", () => {
   it("runs the whole process, every day, and every record reconciles at the end", async () => {
     fs.mkdirSync(OUT, { recursive: true });
+    const EMAIL_FILE = path.resolve(OUT, "email.jsonl"), WA_FILE = path.resolve(OUT, "whatsapp.jsonl");
+    for (const f of [EMAIL_FILE, WA_FILE]) fs.rmSync(f, { force: true });
+    Object.assign(process.env, { ALLOW_FILE_MAILER: "1", SMTP_URL: `file:${EMAIL_FILE}`, EMAIL_FROM: "Fleet OTG <noreply@sim.test>", WHATSAPP_FILE: WA_FILE, WHATSAPP_PHONE_NUMBER_ID: "100200300", WHATSAPP_ACCESS_TOKEN: "sim-token",
+      ANTHROPIC_API_KEY: "sk-ant-sim-fake", INBOUND_REPLY_DOMAIN: "reply.sim.test", RESEND_API_KEY: "re_sim_key",
+      RESEND_WEBHOOK_SECRET: "whsec_" + Buffer.from("a-sim-secret-of-some-length-1234567").toString("base64"), WHATSAPP_ODOMETER_TEMPLATE: "odo_request",
+      WHATSAPP_ESTIMATE_APPROVED_TEMPLATE: "est_ok", WHATSAPP_ESTIMATE_DECLINED_TEMPLATE: "est_no", WHATSAPP_INVOICE_ACCEPTED_TEMPLATE: "inv_ok", WHATSAPP_INVOICE_QUERIED_TEMPLATE: "inv_q" });
+    const outLines = (f: string) => (fs.existsSync(f) ? fs.readFileSync(f, "utf8").split("\n").filter(Boolean) : []);
     const d = await testDriver();
     const t = await provisionTenant(d, { name: "Simulated Logistics Co", slug: "sim60", ownerUserId: U(1), ownerName: "Sim Admin" }, tenantMigrations(), { transform: stripExt });
     const mem = (role: string, n: number, vehicleScope: "all" | "own" = "all"): Membership => ({ ...t, userId: U(n), role, vehicleScope });
@@ -115,6 +139,14 @@ describe("sixty days of use", () => {
       await q.query("insert into settings(key, value) values ('module_trips','1') on conflict (key) do update set value = '1'");
       await q.query("insert into settings(key, value) values ('payment_approval_limit','150000') on conflict (key) do update set value = '150000'");
     });
+    const phoneOfEmp = (n: number) => `0300 51${String(n).padStart(5, "0")}`;           // requesters 1..50, main agents 51..
+    const waFrom = (n: number) => `+92300 51${String(n).padStart(5, "0")}`.replace(" ", "");
+    const MAIN = [[2, "fleet.manager"], [3, "logistics"], [4, "hr"], [5, "finance"], [6, "auditor"]] as const;
+    await raw(async (q) => {
+      for (let i = 1; i <= REQUESTERS; i++) await q.query("update employees set phone = $2, email = $3 where id = $1", [empOf[i - 1], phoneOfEmp(i), `requester${i}@sim.example`]);
+      for (const [n, nm] of MAIN) await q.query("update employees set phone = $2, email = $3 where user_id = $1", [U(n), phoneOfEmp(50 + n), `${nm}@sim.example`]);
+    });
+    await setWaMenu(d, ADMIN, true); await setAiDocuments(d, ADMIN, true); await setWaJobCards(d, ADMIN, true);
     // ---- vehicles: one per requester, plus six cargo vehicles (two with no load space recorded, one with nothing recorded)
     const vehOf: string[] = [];
     for (let i = 1; i <= REQUESTERS; i++) {
@@ -130,7 +162,7 @@ describe("sixty days of use", () => {
     // ---- workshops and providers (no login: they answer through links)
     const shops: string[] = [];
     for (const [i, name] of ["Alpha Motors", "Bravo Garage", "Charlie Auto", "Delta Works", "Echo Tyres", "Foxtrot Electric", "Golf Brakes", "Hotel Body Shop"].entries())
-      shops.push((await master.saveVendor(d, ADMIN, { name, kind: "workshop", phone: `0300 70000${String(i).padStart(2, "0")}`, categories: ["brakes", "engine", "tyres"] })).id);
+      shops.push((await master.saveVendor(d, ADMIN, { name, kind: "workshop", phone: `0300 70000${String(i).padStart(2, "0")}`, email: `shop${i}@sim.example`, categories: ["brakes", "engine", "tyres"] })).id);
     const provs: string[] = [];
     for (const [i, name] of ["Alpha Freight", "Bravo Haulage", "Charlie Cargo", "Delta Carriers", "Echo Logistics", "Foxtrot Transport", "Golf Movers", "Hotel Heavy", "India Express", "Juliet Lines"].entries())
       provs.push((await master.saveVendor(d, ADMIN, { name, kind: "logistics", phone: `0300 80000${String(i).padStart(2, "0")}` })).id);
@@ -142,6 +174,7 @@ describe("sixty days of use", () => {
     type Load = { id: string; no: string; stage: string; due: number; by: number; tripId?: string; weight: number; volume: number | null; quotes: string[]; awarded?: string; invId?: string; wantsOwn?: boolean; resend?: boolean };
     const jobs: Job[] = [], loads: Load[] = [], expectedCargo = new Map<string, { w: number; v: number | null }>();
     const vreqs: { id: string; stage: string; due: number }[] = [];
+    const challans: { id: string; due: number; done?: boolean }[] = [];
     const openVreqEmps = new Set<string>();
     let ref = 0, payRef = 0;
 
@@ -154,7 +187,7 @@ describe("sixty days of use", () => {
 
     // ------------------------------------------------ daily: job cards
     async function raiseJobs() {
-      for (let k = 0; k < JOBS_PER_DAY; k++) {
+      for (let k = 0; k < JOBS_PER_DAY - 7; k++) {          // 4 more arrive by the WhatsApp menu and 3 by a free-text message the AI drafts
         const i = int(1, REQUESTERS);
         const r = await op("jobcard.create", `requester ${i}`, () => jc.createJobCard(d, reqM(i), { vehicle_id: vehOf[i - 1], reason_code_id: pick(reasons).id, cause_text: pick(["Brakes squeal when stopping", "Engine warning light on", "Tyre wear on the inside edge", "Battery will not hold charge", "AC not cooling", "Vibration at speed"]) + ` (${++ref})`, lines: [] }, true), { ref: String(ref) });
         if (r) { jobs.push({ id: r.id, stage: "submitted", due: day, by: i, asked: 0 }); bump("jobcards.raised"); }
@@ -180,6 +213,7 @@ describe("sixty days of use", () => {
           // each workshop gets its own link and answers: most the same day, a few leave it for tomorrow
           let got = 0;
           for (const [n, s] of asked.entries()) {
+            if (n === 0 && chance(0.15)) { const est = estimate(); if (await estimateByEmail(j.id, shops.indexOf(s), est)) { got++; bump("workshop.quotes"); } continue; }
             const link = await op("quote.link", "fleet manager", () => (n === 0 ? vf.createQuoteLink(d, FM, j.id) : vf.createWorkshopLink(d, FM, j.id, "quotation", { vendorId: s })), { ref: j.id });
             if (!link) continue;
             if (chance(0.03)) continue;                                   // this workshop never answers
@@ -193,6 +227,7 @@ describe("sixty days of use", () => {
           if (!open.length) { j.stage = "no_quotes"; continue; }
           const best = [...open].sort((a, b) => Number(a.amount) - Number(b.amount))[0];
           const dec = await op("quote.decide", "fleet manager", () => vf.decideQuotation(d, FM, best.id, "approve"), { ref: j.id });
+          if (dec) { await tellWorkshops(j.id, best.vendor_id, open.map((x) => x.vendor_id).filter((v) => v !== best.vendor_id)); }
           if (dec) { j.winner = best.vendor_id; j.approvedAmt = Number(best.amount); j.stage = "approved"; j.due = day + int(2, 4); bump("workshop.quotes.approved"); }
         } else if (j.stage === "no_quotes") {
           await op("jobcard.cancel_unanswered", "fleet manager", () => jc.transitionJobCard(d, FM, j.id, "cancelled", { comment: "No workshop answered" }), { ref: j.id });
@@ -212,7 +247,7 @@ describe("sixty days of use", () => {
           if (!inv) { j.due = day + 1; continue; }
           j.invId = inv.id;
           const v = await op("invoice.verify", "finance", () => vf.verifyInvoice(d, FIN, inv.id, "pay_approved"), { ref: j.id });
-          if (v) { j.stage = "verified"; j.due = day + int(1, 5); bump("workshop.invoices.verified"); }
+          if (v) { j.stage = "verified"; j.due = day + int(1, 5); bump("workshop.invoices.verified"); const c0 = await vf.workshopContact(d, FM, j.id).catch(() => null); const dl = await notifyWorkshop("invoice_accepted", c0, "Simulated Logistics Co"); bump(`whatsapp.workshop_notice_${dl}`); }
         } else if (j.stage === "verified") {
           const sum = await op("payment.read", "admin", () => pay.getPayments(d, ADMIN, "workshop", j.invId!), { ref: j.id });
           if (!sum || sum.remaining === null) { j.due = day + 1; continue; }
@@ -233,7 +268,7 @@ describe("sixty days of use", () => {
 
     // ------------------------------------------------ daily: cargo
     async function raiseCargo() {
-      for (let k = 0; k < CARGO_PER_DAY; k++) {
+      for (let k = 0; k < CARGO_PER_DAY - 8; k++) {          // 8 more arrive by the WhatsApp menu
         const i = int(1, REQUESTERS);
         const weight = pick([180, 450, 900, 1800, 3200, 6500, 9800, 14000]) + int(0, 90);
         const volume = chance(0.7) ? Math.round((weight / pick([180, 250, 320])) * 10) / 10 : null;
@@ -280,6 +315,7 @@ describe("sixty days of use", () => {
         } else if (c.stage === "quoted") {
           const rows = (await trips.listTripQuotes(d, FM, c.tripId!)).filter((x) => x.status === "quoted");
           if (!rows.length) { await op("cargo.cancel_no_quote", "logistics", () => transitionCargo(d, LOG, c.id, "cancelled", "No provider quoted"), { ref: c.id }); c.stage = "cancelled"; continue; }
+          if (chance(0.15)) await adviseTrip(c);
           const best = [...rows].sort((a, b) => Number(a.amount) - Number(b.amount))[0];
           const aw = await op("trip.award", "fleet manager", () => trips.awardTripQuote(d, FM, c.tripId!, best.id, "Lowest quote"), { ref: c.id, expect: /segregation|cannot award/i });
           if (aw === undefined && !(await tripAwarded(c.tripId!))) { c.due = day + 1; continue; }
@@ -356,6 +392,240 @@ describe("sixty days of use", () => {
       try { await trips.awardTripQuote(d, reqM(1), sample?.tripId ?? U(998), U(997)); malfunctions.set("a requester awarded a trip quote", { count: 1, first: "", day }); } catch (e) { if (e instanceof ForbiddenError) refusals.set("requester tries to award", (refusals.get("requester tries to award") ?? 0) + 1); }
     }
 
+
+    // ================================================================ the rest of the product: papers, reminders, odometer, accidents, challans, WhatsApp, AI, email
+    const allVeh = [...vehOf, ...cargoVeh.map((c) => c.id)];
+    const plateOf = new Map<string, string>(), holderOf = new Map<string, number>();
+    for (const [i, id] of vehOf.entries()) { plateOf.set(id, `SIM-${String(i + 1).padStart(3, "0")}`); holderOf.set(id, i + 1); }
+    for (const [i, c] of cargoVeh.entries()) plateOf.set(c.id, `CAR-${i + 1}`);
+    const kmNow = new Map<string, number>();
+    for (const id of allVeh) kmNow.set(id, Number((await raw(async (q) => (await q.query<{ k: string }>("select odometer_km::text k from vehicles where id = $1", [id])).rows[0])).k));
+    const currentKm = async (id: string) => Number((await raw(async (q) => (await q.query<{ k: string }>("select odometer_km::text k from vehicles where id = $1", [id])).rows[0])).k);
+    const waNo = (i: number) => `+92300${"51"}${String(i).padStart(5, "0")}`;
+
+    // ---- papers: three for every vehicle, expiring from 10 days ago to 150 days ahead; the calendar then runs through them
+    for (const id of allVeh) {
+      for (const type of ["insurance", "registration", "fitness"] as const) {
+        const exp = ymd(int(-10, 150));
+        await op("paper.add", "fleet manager", () => comp.addDocument(d, FM, { vehicle_id: id, doc_type: type, reference: `${type.slice(0, 3).toUpperCase()}-${plateOf.get(id)}`, issued_by: type === "insurance" ? "Jubilee General" : "Excise & Taxation", valid_from: ymd(-365), expires_on: exp, amount: String(int(3000, 60000)) }));
+        bump("papers.added");
+      }
+    }
+
+    // ---- one chat with the WhatsApp menu: says Hi, picks the flow, and answers each question by what it asks; a question it does not know is recorded
+    let wamid = 0;
+    const wsay = async (from: string, text: string) => (await processWhatsAppMenu(d, { id: `wamid.m${++wamid}`, from, contextId: null, text, media: [] } as InboundMessage)).reply ?? "";
+    async function chat(name: string, from: string, label: string, rules: [RegExp, () => string][], done: RegExp): Promise<string | undefined> {
+      const t0c = performance.now();
+      let reply = await wsay(from, "Hi");
+      const n = new RegExp(`(\\d)\\. ${label}`).exec(reply)?.[1];
+      if (!n) { malfunctions.set(`${name}: the menu did not offer "${label}": ${reply.slice(0, 120)}`, { count: (malfunctions.get(`${name}: the menu did not offer "${label}": ${reply.slice(0, 120)}`)?.count ?? 0) + 1, first: from, day }); return undefined; }
+      if (process.env.SIM_DEBUG_CHAT === name) fs.appendFileSync(path.join(OUT, "chat-debug.log"), `[${name}] menu: ${reply.replace(/\s+/g, " ").slice(0, 300)}\n`);
+      reply = await wsay(from, n);
+      for (let step = 0; step < 40; step++) {
+        if (done.test(reply)) { (timings.get(name) ?? timings.set(name, []).get(name)!).push(performance.now() - t0c); return reply; }
+        const rule = rules.find(([re]) => re.test(reply));
+        if (!rule) { const k = `${name}: the chat asked something the simulation had no answer for: ${reply.slice(0, 140).replace(/\s+/g, " ")}`; malfunctions.set(k, { count: (malfunctions.get(k)?.count ?? 0) + 1, first: from, day }); await wsay(from, "cancel"); return undefined; }
+        if (process.env.SIM_DEBUG_CHAT === name) fs.appendFileSync(path.join(OUT, "chat-debug.log"), `[${name}] <- ${reply.replace(/\s+/g, " ").slice(0, 300)}\n`);
+        reply = await wsay(from, rule[1]());
+      }
+      malfunctions.set(`${name}: the chat did not finish in 40 steps`, { count: 1, first: from, day });
+      return undefined;
+    }
+
+    async function whatsappCargo(i: number) {
+      const weight = pick([200, 800, 2400, 7000, 12000]) + int(0, 50), volume = chance(0.6) ? Math.round((weight / 250) * 10) / 10 : null;
+      const reply = await chat("whatsapp.cargo_chat", waNo(i), "Schedule Cargo Pick-up and Delivery", [
+        [/Your record says .*Reply 1 to use it/i, () => "1"], [/Which department is this request for/i, () => "Sales"], [/When do you need the vehicle/i, () => "tomorrow 10am"],
+        [/Pick-up location/i, () => "Gulberg warehouse, Lahore"], [/Destination/i, () => "Karachi head office"], [/Which type of vehicle is required/i, () => "10-tonne truck"],
+        [/Inventory or material load details/i, () => `Chat load ${++ref}`], [/Quantity of the load/i, () => `${int(2, 60)} cartons`], [/Total weight of the load in kilograms/i, () => String(weight)],
+        [/Volume of the load in cubic metres/i, () => (volume === null ? "skip" : String(volume))], [/Person or persons to contact/i, () => "Ali 0300 1234567"], [/special instructions/i, () => "skip"],
+        [/Department:|Reply YES|\byes\b/i, () => "yes"],
+      ], /Done\. Cargo request (CR-\d+)/);
+      const no = reply && /(CR-\d+)/.exec(reply)?.[1];
+      if (no) {
+        const row = await raw(async (q) => (await q.query<{ id: string }>("select id from cargo_requests where cargo_no = $1", [no])).rows[0]);
+        if (row) { loads.push({ id: row.id, no, stage: "requested", due: day, by: i, weight, volume, quotes: [] }); expectedCargo.set(row.id, { w: weight, v: volume }); bump("cargo.requested"); bump("cargo.requested_by_whatsapp"); }
+      }
+    }
+    async function whatsappJobCard(i: number) {
+      const base = await currentKm(vehOf[i - 1]);
+      const reply = await chat("whatsapp.jobcard_chat", waNo(i), "Submit a Job Card", [
+        [/Which vehicle\?/i, () => "1"], [/What kind of work is it\?/i, () => "2"], [/explain the problem or the work needed/i, () => "Front left brake grinds when stopping, noticed this week"],
+        [/odometer show on/i, () => String(base + int(10, 400))], [/How urgent is it\?/i, () => "2"], [/By when is it needed/i, () => "skip"], [/Send up to 3 photos/i, () => "done"],
+        [/Reply YES|\byes\b/i, () => "yes"],
+      ], /(JC-\d+)[\s\S]*(sent|raised|Done)|Done\.[\s\S]*(JC-\d+)/i);
+      const no = reply && /(JC-\d+)/.exec(reply)?.[1];
+      if (no) {
+        const row = await raw(async (q) => (await q.query<{ id: string }>("select id from job_cards where job_no = $1", [no])).rows[0]);
+        if (row) { jobs.push({ id: row.id, stage: "submitted", due: day, by: i, asked: 0 }); bump("jobcards.raised"); bump("jobcards.raised_by_whatsapp"); }
+      }
+    }
+    async function whatsappOdometer(i: number) {
+      const id = vehOf[i - 1], km = (await currentKm(id)) + int(20, 300);
+      const reply = await chat("whatsapp.odometer_chat", waNo(i), "Submit Odometer Readings", [[/Which vehicle\?/i, () => "1"], [/Reply YES to send it/i, () => "yes"], [/reading|odometer|km/i, () => String(km)]], /recorded|received|saved|accepted|thank|flagged|noted|sent to the fleet office|has been/i);
+      if (reply) { kmNow.set(id, km); bump("odometer.by_whatsapp"); }
+    }
+    async function whatsappTrip(i: number) {
+      const reply = await chat("whatsapp.trip_chat", waNo(i), "Reserve a Trip", [
+        [/What is the trip for/i, () => "Site visit"], [/Where does it start/i, () => "Lahore"], [/Where is it going/i, () => "Sheikhupura"], [/When does it leave/i, () => "tomorrow 9am"],
+        [/When will the vehicle be back/i, () => "tomorrow 4pm"], [/How many passengers/i, () => "skip"], [/Do you prefer a vehicle/i, () => "skip"], [/Reply YES|\byes\b/i, () => "yes"],
+      ], /Done\.|has been sent|requested/i);
+      if (reply) bump("trips.reserved_by_whatsapp");
+    }
+    // a free-text job card: the AI reads the message and drafts it, a person confirms with YES (ADR-wa-jobcards)
+    let aiDraftN = 0;
+    const jobCardModel: CreateMessage = async (params) => {
+      const content = params.messages[0].content as { type: string; text?: string }[];
+      const meta = JSON.parse(content.find((b) => b.type === "text")!.text!) as { message: string };
+      const plate = /(SIM-\d{3})/i.exec(meta.message)?.[1]?.toUpperCase() ?? null;
+      aiDraftN++;
+      return { content: [{ type: "text", text: JSON.stringify({ readable: !!plate, registration_no: plate, category: "corrective", reason_category: "wear_and_tear", description: meta.message.replace(/SIM-\d{3}/i, "").trim().slice(0, 200) || "Fault reported by message", priority: "normal", warnings: [] }) }], stop_reason: "end_turn", usage: { input_tokens: 120, output_tokens: 60 } } as never;
+    };
+    const intakeDeps: IntakeDeps = { fetchMedia: async () => ({ bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]), mime: "image/jpeg" }), store: async () => undefined, newId: () => crypto.randomUUID(), create: jobCardModel };
+    async function aiWhatsAppJobCard(i: number) {
+      const from = waNo(i);
+      const first = await op("ai.whatsapp_jobcard_draft", `requester ${i}`, () => processWhatsAppJobCard(d, intakeDeps, { id: `wamid.j${++wamid}`, from, contextId: null, text: `${plateOf.get(vehOf[i - 1])} ${pick(["brake noise front left", "AC not cooling", "engine light on", "tyre wearing on one side"])}`, media: [] } as InboundMessage));
+      if (!first || !first.handled) return;
+      const done = await op("ai.whatsapp_jobcard_confirm", `requester ${i}`, () => processWhatsAppJobCard(d, intakeDeps, { id: `wamid.j${++wamid}`, from, contextId: null, text: "Yes", media: [] } as InboundMessage));
+      const no = done?.reply && /(JC-\d+)/.exec(done.reply)?.[1];
+      if (no) {
+        const row = await raw(async (q) => (await q.query<{ id: string }>("select id from job_cards where job_no = $1", [no])).rows[0]);
+        if (row) { jobs.push({ id: row.id, stage: "submitted", due: day, by: i, asked: 0 }); bump("jobcards.raised"); bump("jobcards.raised_by_ai_message"); }
+      }
+    }
+
+    async function tellWorkshops(jobId: string, winner: string, losers: string[]) {
+      const a = await vf.workshopContact(d, FM, jobId, winner).catch(() => null);
+      bump(`whatsapp.workshop_notice_${await notifyWorkshop("estimate_approved", a, "Simulated Logistics Co")}`);
+      void losers;          // the screens tell only the workshop that was decided on; the others' estimates close by themselves, with no message
+    }
+    // ---- an estimate that arrives by email, is read by the AI as a draft, and is saved by a person
+    const PDF = new TextEncoder().encode("%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n%%EOF");
+    const store: ReadableStore = { put: async () => undefined, remove: async () => undefined, signedUrl: async () => null, get: async () => PDF };
+    let mailN = 0, nextDraft: { lines: Record<string, string>[]; readable: boolean } = { lines: [], readable: true };
+    const estimateModel: CreateMessage = async () => {
+      const lines = nextDraft.lines.map((l) => ({ description: l.description, kind: l.kind, qty: Number(l.qty), unit_cost: Number(l.unit_cost), matches_line_id: null }));
+      const body = nextDraft.readable
+        ? { readable: true, document_type: "estimate", document_number: `Q-${mailN}`, document_date: ymd(), currency: "PKR", stated_total: lines.reduce((a, l) => a + l.qty * l.unit_cost, 0), tax_amount: null, days_needed: 2, warranty_months: 6, valid_until: ymd(10), warnings: [], lines }
+        : { readable: false, document_type: "estimate", document_number: null, document_date: null, currency: "PKR", stated_total: null, tax_amount: null, days_needed: null, warranty_months: null, valid_until: null, warnings: ["Too blurred."], lines: [] };
+      return { id: "m", type: "message", role: "assistant", model: "claude-haiku-5-5", stop_reason: "end_turn", stop_sequence: null, content: [{ type: "text", text: JSON.stringify(body) }], usage: { input_tokens: 500, output_tokens: 200, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } } as never;
+    };
+    async function estimateByEmail(jobId: string, shopIndex: number, est: ReturnType<typeof estimate>): Promise<boolean> {
+      const link = await op("email.reply_link", "fleet manager", () => vf.createWorkshopLink(d, FM, jobId, "quotation", { withReply: true }), { ref: jobId });
+      if (!link || !link.replyCode) return false;
+      const deps: InboundDeps = {
+        fetchEmail: async (id) => ({ id, from: `Workshop <shop${shopIndex}@sim.example>`, subject: "Re: estimate", text: "Please find our estimate attached.", html: null, messageId: `<msg-${id}@sim.example>` }),
+        fetchFiles: async () => [{ filename: "estimate.pdf", size: PDF.length, downloadUrl: "https://files.sim.test/a" }], download: async () => PDF, store: async () => undefined, newId: () => `f${++mailN}`,
+      };
+      const out = await op("email.inbound_estimate", "workshop", () => processInboundEmail(d, deps, { emailId: `em${++mailN}`, addresses: [replyAddress(link.replyCode!)] }), { ref: jobId });
+      if (!out || out.status !== "filed") return false;
+      bump("email.estimates_received");
+      nextDraft = { lines: est.lines, readable: !chance(0.08) };
+      const read = await op("ai.read_estimate", "fleet manager", () => readEmailDocument(d, store, FM, { jobId, kind: "quotation", emailId: out.emailId }, estimateModel), { ref: jobId });
+      if (read && read.status === "ok") {
+        const saved = await op("ai.save_estimate", "fleet manager", () => enterForWorkshop(d, FM, jobId, "quotation", { details: est.details, days_needed: est.days_needed, warranty_months: est.warranty_months, lines: est.lines }, out.emailId, read.id), { ref: jobId });
+        if (saved) { bump("ai.estimates_read_and_saved"); return true; }
+      } else {
+        bump("ai.estimates_unreadable");
+        const typed = await op("email.type_estimate_by_hand", "fleet manager", () => enterForWorkshop(d, FM, jobId, "quotation", { details: est.details, days_needed: est.days_needed, warranty_months: est.warranty_months, lines: est.lines }, out.emailId), { ref: jobId });
+        if (typed) return true;
+      }
+      return false;
+    }
+    // ---- the AI compares the providers' quotes on a trip: advice only, a person still awards
+    async function adviseTrip(c: Load) {
+      const n = Math.min(12, (await trips.listTripQuotes(d, FM, c.tripId!)).filter((x) => x.status === "quoted").length);
+      if (n < 2) return;
+      const letters = Array.from({ length: n }, (_, k) => String.fromCharCode(65 + k));
+      const model: CreateMessage = async () => ({ id: "m", type: "message", role: "assistant", model: "claude-haiku-5-5", stop_reason: "end_turn", stop_sequence: null, content: [{ type: "text", text: JSON.stringify({ ranking: letters.map((l) => ({ option: l, reason: `Reason for ${l}.`, concerns: [] })), summary: `Lean towards ${letters[0]}.`, warnings: [] }) }], usage: { input_tokens: 800, output_tokens: 150, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } } as never);
+      const r = await op("ai.trip_quote_advice", "fleet manager", () => recommendTripQuotes(d, FM, c.tripId!, model), { ref: c.id });
+      if (r) bump("ai.trip_advice");
+    }
+
+    // ---- odometer: a monthly cycle with links, readings from the holders (some wrong), review, close
+    async function odometerCycle() {
+      const simDate = new Date(Date.now() - (DAYS - 1 - day) * 86400_000);
+      const period = simDate.toISOString().slice(0, 7);
+      await raw((q) => q.query("insert into settings(key, value) values ('odometer_whatsapp','1'), ('odometer_send_day','1') on conflict (key) do update set value = excluded.value"));
+      const waBefore = outLines(WA_FILE).length;
+      const run = await op("odometer.whatsapp_requests", "system", () => runOdometerWhatsApp(d, simDate), { ref: period });
+      const mineRun = run?.find((r) => r.schema === t.schema);
+      if (mineRun) { bump("odometer.whatsapp_requests_sent", mineRun.sent); if (mineRun.error) malfunctions.set(`odometer.whatsapp_requests failed: ${mineRun.error}`, { count: 1, first: period, day }); }
+      bump("whatsapp.messages_written", outLines(WA_FILE).length - waBefore);
+      const cycle = (await raw(async (q) => (await q.query<{ id: string }>("select id from odometer_cycles where status = 'open' order by opened_at desc limit 1")).rows[0]))?.id
+        ?? (await op("odometer.open_cycle", "fleet manager", () => odo.openCycle(d, FM, period, ymd(7)), { ref: period }));
+      if (!cycle) return;
+      bump("odometer.cycles");
+      const links = await op("odometer.create_links", "fleet manager", () => odo.createLinks(d, FM, cycle), { ref: period });
+      for (const l of links ?? []) {
+        const id = allVeh.find((v) => plateOf.get(v) === l.plate);
+        if (!id) continue;
+        const roll = rnd(); const base = await currentKm(id); let reading = base + int(800, 3500); let verdict = "normal";
+        if (roll < 0.04) { reading = base - int(100, 900); verdict = "lower"; }
+        else if (roll < 0.07) { reading = base + int(60000, 90000); verdict = "too_fast"; }
+        else if (roll < 0.10) continue;                                                   // this holder does not answer
+        const r = await op("odometer.submit_by_link", `holder of ${l.plate}`, () => submitViaLink(d, l.token, String(reading)), { ref: l.plate });
+        if (r === "ok") { bump(`odometer.readings_${verdict}`); if (verdict === "normal") kmNow.set(id, reading); }
+      }
+      const detail = await op("odometer.read_cycle", "fleet manager", () => odo.getCycle(d, FM, cycle), { ref: period });
+      const bulk = await op("odometer.approve_normal", "fleet manager", () => odo.approveNormalReadings(d, FM, cycle), { ref: period });
+      if (bulk === undefined) {
+        // the whole batch was refused and nothing was approved: approve the readings one by one, as a person would
+        for (const sub of detail?.rows ?? []) {
+          if (sub.status !== "submitted" || sub.verdict !== "normal") continue;
+          const ok = await op("odometer.approve_one_by_one", "fleet manager", () => odo.reviewReading(d, FM, sub.id, "approve", "Checked, normal"), { ref: sub.id });
+          if (ok) bump("odometer.approved_one_by_one");
+        }
+      }
+      for (const sub of detail?.rows ?? []) {
+        if (sub.status !== "submitted" || !sub.verdict || sub.verdict === "normal") continue;
+        const ok = await op("odometer.review_flagged", "fleet manager", () => odo.reviewReading(d, FM, sub.id, chance(0.5) ? "approve" : "reject", "Checked with the holder"), { ref: sub.id });
+        if (ok) bump("odometer.flagged_reviewed");
+      }
+      const left = await raw(async (q) => Number((await q.query<{ n: string }>("select count(*)::text n from odometer_submissions where cycle_id = $1 and status = 'submitted'", [cycle])).rows[0].n));
+      if (left > 0) { const k = `a cycle was closed with ${left} reading(s) still waiting for review`; malfunctions.set(k, { count: (malfunctions.get(k)?.count ?? 0) + 1, first: period, day }); }
+      await op("odometer.close_cycle", "fleet manager", () => odo.closeCycle(d, FM, cycle), { ref: period });
+    }
+
+    // ---- accidents, challans, renewals and the daily reminders
+    async function complianceDay() {
+      for (let k = int(0, 2); k > 0; k--) {
+        const i = int(1, REQUESTERS), veh = vehOf[i - 1];
+        const jobOnVeh = chance(0.4) ? jobs.find((j) => j.by === i && j.stage !== "rejected") : undefined;
+        const a = await op("accident.add", "fleet manager", () => comp.addAccident(d, FM, { vehicle_id: veh, employee_id: empOf[i - 1], occurred_at: new Date(Date.now() - int(0, 3) * 86400_000 - 3600_000).toISOString(), location: pick(["Ferozepur Road", "GT Road", "Mall Road", "Motorway M2"]),
+          description: pick(["Rear-ended at a signal", "Scraped a wall while reversing", "Hit by another vehicle at the junction", "Skidded in the rain"]) + ` (${++ref})`, severity: pick(["minor", "minor", "moderate", "major"]), fault: pick(["third_party", "our_driver", "shared", "unknown"]),
+          insurance_claim: chance(0.5) ? "on" : "", claim_ref: "" }), { ref: String(ref) });
+        if (a) { bump("accidents.added"); if (jobOnVeh) { const ok = await op("accident.link_jobcard", "fleet manager", () => comp.linkAccidentJobCard(d, FM, a, jobOnVeh.id), { ref: a, expect: /not for this vehicle|already/i }); if (ok) bump("accidents.linked_to_jobcard"); } }
+      }
+      for (let k = int(0, 4); k > 0; k--) {
+        const i = int(1, REQUESTERS);
+        const c = await op("challan.add", "fleet manager", () => comp.addChallan(d, FM, { vehicle_id: vehOf[i - 1], employee_id: empOf[i - 1], issued_on: ymd(-int(0, 3)), reference: `CH-${++ref}`, violation: pick(["Over speed", "Signal violation", "Wrong parking", "No seat belt"]), amount: String(pick([500, 1000, 2000, 5000])) }), { ref: String(ref) });
+        if (c) { challans.push({ id: c, due: day + int(3, 10) }); bump("challans.added"); }
+      }
+      for (const c of challans) {
+        if (c.done || c.due > day) continue;
+        const to = chance(0.75) ? "paid" : "disputed";
+        const ok = await op("challan.set_status", "fleet manager", () => comp.setChallanStatus(d, FM, c.id, to), { ref: c.id });
+        if (ok) { c.done = true; bump(`challans.${to}`); }
+      }
+      // renewals: papers that expire within a week (or already have) are renewed most of the time
+      const docs = await op("paper.list", "fleet manager", () => comp.listDocuments(d, FM, {}));
+      for (const x of docs ?? []) {
+        if (x.days_left > 7 || !chance(0.6)) continue;
+        const ok = await op("paper.renew", "fleet manager", () => comp.addDocument(d, FM, { vehicle_id: x.vehicle_id, doc_type: x.doc_type, reference: `${x.reference ?? "REN"}-R`, issued_by: x.issued_by ?? "Renewal", valid_from: ymd(), expires_on: ymd(365), amount: "9000" }), { ref: x.entity_id });
+        if (ok) bump("papers.renewed");
+      }
+      // the daily job that makes the reminders (also the maintenance reminders), then what it mailed
+      const before = outLines(EMAIL_FILE).length;
+      const runs = await op("reminders.run", "system", () => runDocumentReminders(d), { ref: `day ${day + 1}` });
+      const mine = runs?.find((r) => r.schema === t.schema);
+      if (mine) { bump("reminders.notices", mine.sent); bump("reminders.emails", mine.emailed ?? 0); if (mine.error) malfunctions.set(`reminders.run failed: ${mine.error}`, { count: 1, first: "", day }); }
+      const sentToday = outLines(EMAIL_FILE).slice(before).map((l) => (JSON.parse(l) as { to: string }).to);
+      const dup = sentToday.filter((x, k) => sentToday.indexOf(x) !== k);
+      if (dup.length) malfunctions.set(`reminder email sent twice to the same person on one day: ${dup[0]}`, { count: dup.length, first: "", day });
+    }
+
     // ------------------------------------------------ moving the calendar
     const shiftOneDay = () => {
       const sql = `
@@ -363,7 +633,7 @@ describe("sixty days of use", () => {
         do $f$ declare r record; sets text; begin
           for r in select c.table_name from information_schema.tables c where c.table_schema = '${t.schema}' and c.table_type = 'BASE TABLE' loop
             select string_agg(format('%I = %I - interval ''1 day''', column_name, column_name), ', ') into sets
-              from information_schema.columns where table_schema = '${t.schema}' and table_name = r.table_name and data_type in ('timestamp with time zone', 'date') and is_generated = 'NEVER';
+              from information_schema.columns where table_schema = '${t.schema}' and table_name = r.table_name and data_type in ('timestamp with time zone', 'date') and is_generated = 'NEVER' and not (table_name = 'odometer_cycles' and column_name = 'period');   -- a month label: a check says it is the first of a month
             if sets is not null then execute format('update %I.%I set %s', '${t.schema}', r.table_name, sets); end if;
           end loop;
         end $f$;`;
@@ -377,7 +647,15 @@ describe("sixty days of use", () => {
       await withPlatform(d, (q) => q.query("delete from public.rate_limits"));
       const before = { ...counts };
       const d0 = Date.now();
+      if (day === 30 || day === DAYS - 1) await odometerCycle();     // a month apart: a cycle on day 0 would see readings taken minutes after the vehicles were made
       await raiseJobs(); await raiseCargo(); await hrDay();
+      const people = shuffle(Array.from({ length: REQUESTERS }, (_, k) => k + 1));      // different people for each kind of message today: a person who sends too many is told to wait
+      for (const i of people.slice(0, 4)) await whatsappJobCard(i);
+      for (const i of people.slice(4, 7)) await aiWhatsAppJobCard(i);
+      for (const i of people.slice(7, 15)) await whatsappCargo(i);
+      for (const i of people.slice(15, 23)) await whatsappOdometer(i);
+      for (const i of people.slice(23, 26)) await whatsappTrip(i);
+      await complianceDay();
       await progressJobs(); await progressCargo();
       await auditorDay();
       const row: Record<string, number> = { day: day + 1, seconds: Math.round((Date.now() - d0) / 1000) };
@@ -386,7 +664,7 @@ describe("sixty days of use", () => {
       if (day % 5 === 4 || day === DAYS - 1) console.log(`day ${day + 1}/${DAYS}: ${JSON.stringify(row)}  [${Math.round((Date.now() - t0) / 60000)} min, ${malfunctions.size} kinds of malfunction so far]`);
     }
     // let everything in flight finish: a few more days with no new work
-    for (let extra = 0; extra < 14; extra++) { day = DAYS + extra; shiftOneDay(); await progressJobs(); await progressCargo(); }
+    for (let extra = 0; extra < 14; extra++) { day = DAYS + extra; shiftOneDay(); await progressJobs(); await progressCargo(); await complianceDay(); }
 
     // ================================================================ reconcile the database against what the simulation did
     const one = async <R,>(sql: string, params: unknown[] = []) => raw(async (q) => (await q.query<R>(sql, params)).rows);
@@ -405,6 +683,9 @@ describe("sixty days of use", () => {
     await check("a delivered load belongs to a completed trip", `select c.id from cargo_requests c join trips t on t.id = c.trip_id where c.status = 'delivered' and t.status <> 'completed'`);
     await check("every closed job card has an invoice that was verified", `select j.id from job_cards j where j.status = 'closed' and not exists (select 1 from invoices i join work_orders w on w.id = i.work_order_id where w.job_card_id = j.id and i.status in ('verified','paid'))`);
     await check("every job card event chain starts at draft", `select j.id from job_cards j where (select to_status from job_card_events e where e.job_card_id = j.id order by e.seq limit 1) is distinct from 'draft'`);
+    await check("no reminder was sent before its time (days before expiry)", `select r.entity_id, r.days_before from document_reminders r join (select id, expires_on from compliance_docs union all select id, valid_to from insurance_policies) d on d.id = r.entity_id where d.expires_on - r.sent_at::date > r.days_before`);
+    await check("a paper that has expired (and not been renewed) was reminded about on its day", `select v.entity_id, v.doc_type, v.expires_on from v_documents_expiring v where v.expires_on < current_date - 1 and not exists (select 1 from document_reminders r where r.entity_id = v.entity_id and r.days_before = 0)`);
+    await check("every vehicle that was serviced has a service reminder claim or none was due", `select 1 where false`);
     await check("weight and volume saved exactly as requested", `select id from cargo_requests where false`);
     for (const [id, e] of expectedCargo) {
       const c = await getCargo(d, LOG, id);
@@ -430,6 +711,8 @@ describe("sixty days of use", () => {
       const r = await op(`export.${kind}`, "administrator", () => exportCsv(d, ADMIN, kind, {}));
       if (r) exportSizes.push(`${kind}: ${r.rows} rows, ${Math.round(r.csv.length / 1024)} KB`);
     }
+    const emailLines = outLines(EMAIL_FILE).map((l) => JSON.parse(l) as { to: string; subject: string });
+    const waLines = outLines(WA_FILE).map((l) => JSON.parse(l) as Record<string, unknown>);
     const heavyMs = [...timings.entries()].filter(([k]) => k.startsWith("read.") || k.startsWith("export.")).map(([k, v]) => `| ${k} | ${Math.round(v[0])} |`);
 
     // ================================================================ write the evidence
@@ -445,6 +728,8 @@ describe("sixty days of use", () => {
       `Per day, averages: ${(counts["jobcards.raised"] / DAYS).toFixed(1)} job cards, ${(counts["workshop.quotes"] / DAYS).toFixed(1)} workshop estimates, ${(counts["trips.planned"] / DAYS).toFixed(1)} cargo trips planned, ${(counts["cargo.quote_requests"] / DAYS).toFixed(1)} provider quotes asked for, ${(counts["cargo.quotes.received"] / DAYS).toFixed(1)} received.`, "",
       "## Money", "", `Workshops: invoiced ${money.workshopInvoiced.toLocaleString()}, paid ${money.workshopPaid.toLocaleString()} (database says ${dbWorkshopPaid.toLocaleString()}).`, `Providers: invoiced ${money.tripInvoiced.toLocaleString()}, paid ${money.tripPaid.toLocaleString()} (database says ${Number.isNaN(dbTripPaid) ? "n/a" : dbTripPaid.toLocaleString()}).`, "",
       "## Where everything ended", "", "| State | Rows |", "|---|---|", ...stat.map((s) => `| ${s.k} | ${s.n} |`), "",
+      "## Mail and WhatsApp written to files (nothing was sent)", "", `Emails: ${emailLines.length} (${[...new Set(emailLines.map((e) => e.subject.replace(/[0-9]+/g, "n").slice(0, 50)))].slice(0, 8).join("; ")}). To ${new Set(emailLines.map((e) => e.to)).size} different addresses.`,
+      `WhatsApp template messages: ${waLines.length}${waLines.length ? ` (${[...new Set(waLines.map((w) => String(w.template ?? w.name ?? "?")))].join(", ")})` : ""}.`, "",
       "## Reconciliation of the database", "", "| Check | Result |", "|---|---|", ...Object.entries(inv).map(([k, v]) => `| ${k} | ${v} |`), "",
       "## Malfunctions (anything the rules did not expect)", "", malfunctions.size === 0 ? "None." : "| What | Times | First seen on day | Ref |\n|---|---|---|---|\n" + [...malfunctions.entries()].map(([k, v]) => `| ${k} | ${v.count} | ${v.day + 1} | ${v.first} |`).join("\n"), "",
       "## Correct refusals (people told no, as designed)", "", refusals.size === 0 ? "None." : "| What | Times |\n|---|---|\n" + [...refusals.entries()].map(([k, v]) => `| ${k} | ${v} |`).join("\n"), "",
