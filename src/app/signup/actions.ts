@@ -16,6 +16,7 @@ import type { FormState } from "@/app/w/[slug]/actions-util";
 import { authEvent } from "@/lib/activity/auth";
 
 const HOUR = 3600;
+const isHookTimeout = (e: { code?: string; message?: string }) => e.code === "hook_timeout" || /Failed to reach hook|hook.*(time|reach)/i.test(e.message ?? "");
 const MIN_PASSWORD = 10;
 
 /** The text fields as typed, sent back after an error. Passwords are never sent back. */
@@ -45,10 +46,21 @@ async function signUpActionImpl(_prev: FormState, form: FormData): Promise<FormS
 
   await recordSignup(driver, input);
   const supabase = await supabaseServer();
-  const { data, error } = await supabase.auth.signUp({
+  const attempt = async () => supabase.auth.signUp({
     email: input.email, password,
     options: { emailRedirectTo: `${await origin()}/auth/callback`, data: { full_name: input.contact_name } },
   });
+  let { data, error } = await attempt();
+  // Supabase gives the email hook 5 seconds (ADR-024). The first email after a quiet spell can take longer (the function and the
+  // mail connection are cold) and Supabase then fails the whole sign-up with hook_timeout. The second try is warm, so try once more.
+  const timedOut = !!error && isHookTimeout(error);
+  if (timedOut) ({ data, error } = await attempt());
+  // The first try may have left the account waiting for confirmation: then the second says it exists. Ask for the email again instead of telling the person to sign in.
+  if (timedOut && error && /registered|exists/i.test(error.message)) {
+    const again = await supabase.auth.resend({ type: "signup", email: input.email, options: { emailRedirectTo: `${await origin()}/auth/callback` } });
+    if (!again.error) redirect("/signup/check-email");
+  }
+  if (error && isHookTimeout(error)) return { error: "The confirmation email service was slow and your account was not created. Please press Create again in a minute.", values: keep(form) };
   if (error) {
     if (/registered|exists/i.test(error.message)) return { error: "An account with this email already exists. Sign in instead.", values: keep(form) };
     if (/password/i.test(error.message)) return { error: "Fix the highlighted fields.", fields: { password: "Choose a stronger password" }, values: keep(form) };
