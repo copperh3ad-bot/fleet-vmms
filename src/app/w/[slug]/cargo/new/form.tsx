@@ -12,6 +12,7 @@ export function CargoRequestForm({ slug, places = [] }: { slug: string; places?:
       <datalist id="places">{places.map((p) => <option key={p} value={p} />)}</datalist>
       <Input name="department" label="Requesting department" state={state} required />
       <Input name="pickup_at" label="Vehicle required: date and time" state={state} type="datetime-local" required />
+      <Input name="deliver_by" label="Deliver by: date and time" state={state} type="datetime-local" hint="Optional. Must be after the pick-up time." />
       <div className="sm:col-span-2"><Input name="pickup_place" label="Pick-up location (from)" state={state} list="places" required /></div>
       <div className="sm:col-span-2"><Input name="drop_place" label="Destination (to)" state={state} list="places" required /></div>
       <Input name="vehicle_type" label="Vehicle type required" state={state} hint="For example: 10-tonne truck, pickup, van" required />

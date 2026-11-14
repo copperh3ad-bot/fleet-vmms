@@ -92,9 +92,9 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
     { href: to("/depots"), label: "Depots and places", show: has("depot.manage") },
     { href: to("/vehicles/new"), label: "Add a vehicle", show: has("vehicle.write") },
   ];
-  // Someone limited to their own vehicle gets the dashboard and the job cards, nothing else (the pages say no as well).
+  // Someone limited to their own vehicle gets the dashboard, job cards, trips, vehicles and cargo requests, nothing else (the pages say no as well). Cargo is about a load, not a vehicle, so the scope does not apply to it.
   const ownOnly = m.vehicleScope === "own";
-  const keep = (i: Item) => i.show && (!ownOnly || i.label === "Dashboard" || i.label === "Job cards" || i.label === "Trips" || i.label === "Vehicles");
+  const keep = (i: Item) => i.show && (!ownOnly || i.label === "Dashboard" || i.label === "Job cards" || i.label === "Trips" || i.label === "Vehicles" || i.label === "Cargo");
   const groups: { title?: string; items: Item[] }[] = [
     { items: main.filter(keep) },
     { title: "Analysis and money", items: money.filter(keep) },
