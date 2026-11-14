@@ -1,10 +1,10 @@
 import { body, check, confirmEmail, confirmJoinOnWhatsApp, fill, finding, go, has, persona, phoneFor, press, scenario, signInAs, sql, step, uniq, userId, waitSql, waitText } from "./lib.mjs";
 
-const PW = ["a", "long", "test", "password", "1"].join("-");
+export const PW = ["a", "long", "test", "password", "1"].join("-");
 const schemaOf = (slug) => sql(`select schema_name from public.tenants where slug = '${slug}'`);
 
 /** Asks to join with the code: the WhatsApp number and driving licence the form now needs, then, if it was accepted, the confirmation from the person's own phone (ADR-055). */
-async function askToJoin(p, { path, code, name, email, shop, noCode, phone }) {
+export async function askToJoin(p, { path, code, name, email, shop, noCode, phone }) {
   await go(p, `${path}?code=${code}`);
   if (shop) await fill(p, "#workshop_name", shop);
   await fill(p, "#full_name", name); await fill(p, "#email", email); await fill(p, "#note", "Please add me.");
@@ -79,7 +79,7 @@ export async function people(S) {
     check(has(t, "Job cards"), `no "Job cards"`);
     check(has(t, "What your vehicle has cost"), "the dashboard has no costs for the person's own vehicle");
     const nav = (await S.staff.page.locator('nav[aria-label="Workspace"]').allInnerTexts()).join(" ");
-    for (const w of ["Vehicles", "Maintenance policy", "Budgets", "Compliance", "Reports", "Odometer"]) check(!has(nav, w), `a person limited to their own vehicle sees "${w}" in the navigation`);
+    for (const w of ["Maintenance policy", "Budgets", "Compliance", "Reports", "Odometer"]) check(!has(nav, w), `a person limited to their own vehicle sees "${w}" in the navigation`);
     for (const w of ["Users and roles", "Service rules", "Billing"]) if (has(t, w)) finding("access", `a requester sees "${w}" in the navigation`);
     await go(S.staff, `${base}/users`);
     check(has(await body(S.staff), "do not have access") || !new URL(S.staff.page.url()).pathname.endsWith("/users"), "a requester opened the Users page");
@@ -88,8 +88,8 @@ export async function people(S) {
     await go(S.staff, `/admin`);
     check(!new URL(S.staff.page.url()).pathname.startsWith("/admin"), "a requester reached the operator pages");
   });
-  await step("a person limited to their own vehicle cannot open the vehicle list or the policy by typing the address", async () => {
-    for (const p of ["/vehicles", "/policy", "/reports", "/budgets", "/compliance", "/odometer"]) {
+  await step("a person limited to their own vehicle cannot open the policy, reports or budgets by typing the address (the Vehicles list is allowed, read-only and own vehicle only: owner decision A6, ADR-088)", async () => {
+    for (const p of ["/policy", "/reports", "/budgets", "/compliance", "/odometer"]) {
       await go(S.staff, `${base}${p}`);
       const t = await body(S.staff);
       check(has(t, "do not have access") || has(t, "not allowed") || !new URL(S.staff.page.url()).pathname.endsWith(p), `${p} opened for a person limited to their own vehicle`);

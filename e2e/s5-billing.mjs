@@ -4,12 +4,14 @@ import { APP, body, check, fill, fixture, go, has, press, scenario, sql, step, w
 const iso = () => new Date().toISOString().slice(0, 10);
 
 /** Saves one operator setting through its own form. */
+const SETTING_LABEL = { bank_details: "Bank account for payments", seller_legal_name: "Seller: name on tax invoices", seller_ntn: "Seller: NTN", seller_tax_reg: "Seller: sales tax registration number", pkr_per_usd: "PKR per USD (fallback)" };
 async function setSetting(op, key, value) {
   await go(op, "/admin/settings");
-  const field = op.page.locator(`[aria-label="${key}"]`).first();
-  await field.fill(value);
-  await press(op, field.locator("xpath=ancestor::form").getByRole("button", { name: "Save" }), { wait: 700 });
-  await waitText(op, "Saved", 5000);
+  await op.page.getByLabel("Search settings").fill(SETTING_LABEL[key] ?? key);   // the groups are folded; searching opens the matches
+  const form = op.page.locator("form").filter({ has: op.page.getByText(SETTING_LABEL[key] ?? key, { exact: true }) }).first();
+  await form.locator("[name=value]").fill(value);
+  await press(op, form.getByRole("button", { name: "Save" }), { wait: 700 });
+  await waitText(op, "saved", 5000);
 }
 const claimNow = async (p, slug, { amount, currency, ref, proof = true }) => {
   await go(p, `/w/${slug}/billing`);

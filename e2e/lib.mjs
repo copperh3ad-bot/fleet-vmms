@@ -138,7 +138,8 @@ export async function signUpCompany(p, { name, person, email, password, country 
 }
 
 /** Adds an employee the only way there is (ADR-041): the invite form on the Users page, every box filled in. Leaves the person on that page with the link box showing. */
-export async function addEmployee(p, slug, { name, code, email, department = "Operations", phone = "0300 1234567", role = "requester" }) {
+export async function addEmployee(p, slug, { name, code, email, department = "Operations", phone = `03${Math.floor(1e8 + Math.random() * 9e8)}`, role = "requester" }) {   // a number belongs to one organization at a time (ADR-082), so each call gets its own
+
   await go(p, `/w/${slug}/users`);
   const f = p.page.locator("form:has(#employee_no)").first();
   await f.locator("#employee_no").fill(code); await f.locator("#full_name").fill(name); await f.locator("#department").fill(department);

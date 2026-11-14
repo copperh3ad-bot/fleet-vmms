@@ -17,6 +17,7 @@ const all = [
   ["workshopflow", () => import("./s11-workshop-flow.mjs").then((m) => m.workshopFlow(S))],
   ["outsourcedtrip", () => import("./s12-outsourced-trip.mjs").then((m) => m.outsourcedTrip(S))],
   ["cargo", () => import("./s13-cargo.mjs").then((m) => m.cargo(S))],
+  ["roles", () => import("./s14-roles.mjs").then((m) => m.roles(S))],
   ["decisionforms", () => import("./s10-decision-forms.mjs").then((m) => m.decisionForms(S))],
 ];
 
