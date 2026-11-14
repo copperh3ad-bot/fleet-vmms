@@ -15,6 +15,7 @@ export const VEHICLE_TYPES: Option[] = [
 export const UNITS: Option[] = [
   { id: "kg", title: "kg" }, { id: "lbs", title: "lbs" }, { id: "tonnes", title: "tonnes" }, { id: "cartons", title: "cartons" }, { id: "bags", title: "bags" },
   { id: "pieces", title: "pieces" }, { id: "pallets", title: "pallets" }, { id: "litres", title: "litres" },
+  { id: "metres", title: "metres" }, { id: "feet", title: "feet" }, { id: "yards", title: "yards" },
 ];
 /** Units that are a weight, with how many kilograms one is: a quantity in these gives the cargo weight without asking again (ADR-092). */
 export const WEIGHT_UNIT_KG: Record<string, number> = { kg: 1, lbs: 0.45359237, tonnes: 1000 };

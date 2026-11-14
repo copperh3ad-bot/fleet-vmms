@@ -92,6 +92,12 @@ describe("cargo by a form", () => {
     expect(await weightOf("W lbs")).toBe("8164.7");
     expect((await send({ material: "W bags" })).reply).toMatch(/Done\./);                                     // bags are not a weight
     expect(await weightOf("W bags")).toBeNull();
+    // a length is not a weight: metres, feet and yards are offered, kept in the quantity text, and give no weight
+    for (const [unit, n] of [["metres", "500"], ["feet", "1200"], ["yards", "300"]] as const) {
+      expect((await send({ material: `L ${unit}`, quantity: n, unit })).reply).toMatch(/Done\./);
+      expect(await weightOf(`L ${unit}`)).toBeNull();
+      expect((await getCargo(d, mgr(), (await listCargo(d, mgr())).find((r) => r.description === `L ${unit}`)!.id))!.quantity_text).toBe(`${n} ${unit}`);
+    }
     expect((await send({ material: "W bad", weight: "heavy" })).reply).toMatch(/weight in kilograms/i);          // a bad weight comes back with a reason
     // the optional volume in cubic metres is stored when given, empty when not, and a bad one is refused with a reason
     const volOf = async (material: string) => (await getCargo(d, mgr(), (await listCargo(d, mgr())).find((r) => r.description === material)!.id))!.volume_m3;

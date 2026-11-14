@@ -340,6 +340,18 @@
                   {
                     "id": "litres",
                     "title": "litres"
+                  },
+                  {
+                    "id": "metres",
+                    "title": "metres"
+                  },
+                  {
+                    "id": "feet",
+                    "title": "feet"
+                  },
+                  {
+                    "id": "yards",
+                    "title": "yards"
                   }
                 ]
               },
