@@ -17,9 +17,13 @@ export function ImportForm({ slug }: { slug: string }) {
         <form action={action} className="space-y-3">
           <Notice state={state} />
           <Card title="1. Choose a file">
-            <input type="file" name="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="block w-full text-sm" aria-label="Excel or CSV file" />
-            <p className="my-2 text-xs text-zinc-500">or paste the rows:</p>
-            <textarea name="text" rows={5} defaultValue={state.text ?? ""} className="w-full rounded-md border border-zinc-300 bg-white p-2 font-mono text-xs text-zinc-900" aria-label="CSV text" />
+            <label htmlFor="vehicle-file" className="block text-sm font-medium text-zinc-800">Excel sheet (.xlsx) or CSV file</label>
+            <input id="vehicle-file" type="file" name="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              className="mt-2 block w-full cursor-pointer rounded-md border border-dashed border-zinc-400 bg-zinc-50 p-3 text-sm text-zinc-800 file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-sky-800 file:px-4 file:py-2 file:font-medium file:text-white" />
+            <details className="mt-3" open={Boolean(state.text)}>
+              <summary className="cursor-pointer text-sm text-sky-800 underline">Or paste the rows instead</summary>
+              <textarea name="text" rows={5} defaultValue={state.text ?? ""} className="mt-2 w-full rounded-md border border-zinc-300 bg-white p-2 font-mono text-xs text-zinc-900" aria-label="CSV text" />
+            </details>
             <div className="mt-3"><Submit pendingText="Checking">Check file</Submit></div>
           </Card>
           {p && (

@@ -147,6 +147,21 @@ export async function workspace(S) {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
+  await step("vehicle import: a CSV file is chosen with the file button, checked, and imported", async () => {
+    const schema = sql(`select schema_name from public.tenants where slug = '${slug}'`);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "otg-vimp-"));
+    const csv = path.join(dir, "vehicles.csv");
+    fs.writeFileSync(csv, "registration_no,make,model,year,vehicle_class\nIMPF-101,Isuzu,NPR,2021,truck\n");
+    await go(o, `${base}/vehicles/import`);
+    check(await o.page.locator("input[type=file][name=file]").isVisible(), "the vehicle import page shows no file button");
+    await o.page.locator("input[type=file][name=file]").setInputFiles(csv);
+    await press(o, "Check file", { wait: 2000 });
+    check(has(await body(o), "1 ready"), `the file was not read: ${(await body(o)).slice(0, 300)}`);
+    await press(o, /Import 1 vehicle/, { wait: 2500 });
+    check(sql(`select count(*) from "${schema}".vehicles where registration_no = 'IMPF-101'`) === "1", "the vehicle from the file was not imported");
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
   // ---------- the policy
   await step("the policy file is uploaded and shows as the current policy", async () => {
     await go(o, `${base}/policy`);
