@@ -80,7 +80,7 @@ describe("department in the vehicle import", () => {
     const pre = await master.previewVehicleImport(d, owner(), text);
     expect(pre.failed).toBe(0);
     expect(pre.unknownColumns).toEqual([]);
-    expect(await master.commitVehicleImport(d, owner(), text)).toEqual({ imported: 4 });
+    expect(await master.commitVehicleImport(d, owner(), text)).toMatchObject({ imported: 4 });
     const dept = async (plate: string) => (await withTenant(d, owner(), (q) => q.query<{ department: string | null }>("select department from vehicles where registration_no = $1", [plate]))).rows[0].department;
     expect(await dept("IMP-1")).toBe("Logistics");           // an existing spelling wins
     expect(await dept("IMP-2")).toBe("Cold Chain");          // extra spaces folded
@@ -96,7 +96,7 @@ describe("department in the vehicle import", () => {
   });
 
   it("a file without the column still imports as before", async () => {
-    expect(await master.commitVehicleImport(d, owner(), "registration_no\nIMP-20")).toEqual({ imported: 1 });
+    expect(await master.commitVehicleImport(d, owner(), "registration_no\nIMP-20")).toMatchObject({ imported: 1 });
   });
 });
 

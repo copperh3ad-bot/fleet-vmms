@@ -28,7 +28,7 @@ async function Inner({ params }: { params: Promise<{ token: string }> }) {
             <h1 className="text-2xl font-semibold">{invite.workspace}</h1>
             <p className="mt-1 text-sm text-zinc-600">Hello {invite.full_name}. {invite.reset ? "Choose a new password to sign in again." : invite.email ? "Create your account to join." : "Choose a password to join."}</p>
           </div>
-          <CreateAccountForm token={token} email={invite.email} username={invite.username} reset={invite.reset} codeHint={invite.codeRequired ? invite.codeHint : null} />
+          <CreateAccountForm token={token} email={invite.email} username={invite.username} reset={invite.reset} codeHint={invite.codeRequired ? invite.codeHint : null} needsLicence={invite.needsLicence} />
           <p className="text-sm text-zinc-600">{invite.email ? "Already have an account with this email? " : "Already have an account? "}<Link className="text-sky-800 underline" href="/login">Sign in</Link>{invite.email ? ", and the invitation will be waiting on your home page." : "."}</p>
         </>
       ) : (

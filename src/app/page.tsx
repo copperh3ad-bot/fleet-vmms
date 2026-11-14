@@ -44,7 +44,7 @@ async function HomeInner() {
             {invites.map((i) => (
               <li key={i.id} className="flex flex-wrap items-center gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-zinc-900">
                 <span className="min-w-0 flex-1">Join <span className="font-medium">{i.workspace}</span></span>
-                <AcceptButton invitationId={i.id} />
+                <AcceptButton invitationId={i.id} needsLicence={i.needsLicence} />
               </li>
             ))}
           </ul>

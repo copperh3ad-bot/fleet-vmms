@@ -11,6 +11,21 @@ export function ImportForm({ slug }: { slug: string }) {
       {state.imported ? (
         <div className="space-y-3">
           <Notice state={state} />
+          {state.invited && state.invited.length > 0 && (
+            <Card title="Invitations">
+              <ul className="space-y-2 text-sm">
+                {state.invited.map((i) => (
+                  <li key={i.employee_no ?? i.full_name}>
+                    <span className="font-medium">{i.full_name}</span> <span className="text-zinc-500">{i.email}</span>:{" "}
+                    {i.emailed ? "invitation emailed" : i.whatsapp === "sent" ? "invitation sent on WhatsApp" : "could not be sent. Send this link yourself (it is shown once):"}
+                    {i.emailed && i.whatsapp === "sent" ? " and sent on WhatsApp" : ""}
+                    {i.link && <code className="mt-1 block break-all rounded bg-zinc-100 p-2 text-xs">{i.link}</code>}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs text-zinc-500">Each person must enter a valid driving licence to join, if the sheet did not give it. Their accounts are limited to the vehicle they hold.</p>
+            </Card>
+          )}
           <a className="inline-block rounded-md bg-sky-800 px-4 py-2 text-white" href={`/w/${slug}/vehicles`}>See the vehicles</a>
         </div>
       ) : (
@@ -43,6 +58,21 @@ export function ImportForm({ slug }: { slug: string }) {
                   </tbody>
                 </table>
               </div>
+              {p.people.list.length > 0 && (
+                <div className="mt-3 rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-950">
+                  <p className="font-medium">{p.people.list.length} new {p.people.list.length === 1 ? "person" : "people"} will be added as employees, limited to the vehicle they hold</p>
+                  <ul className="mt-1 list-disc pl-5 text-xs">
+                    {p.people.list.slice(0, 12).map((x) => <li key={x.employee_no}>{x.full_name} ({x.employee_no}) {x.email ? x.email : "no email, so not invited"}</li>)}
+                    {p.people.list.length > 12 && <li>and {p.people.list.length - 12} more</li>}
+                  </ul>
+                  {p.canInvite && p.people.invitable > 0 && p.failed === 0 && (
+                    <label className="mt-2 flex items-center gap-2 text-sm font-medium">
+                      <input type="checkbox" name="invite" defaultChecked /> Invite {p.people.invitable} {p.people.invitable === 1 ? "person" : "people"} by email{p.people.list.length > p.people.invitable ? ` (${p.people.list.length - p.people.invitable} with no email are added but not invited)` : ""}
+                    </label>
+                  )}
+                  {!p.canInvite && <p className="mt-2 text-xs">Only an administrator can send the invitations. The people are added; invite them from Users afterwards.</p>}
+                </div>
+              )}
               {p.failed === 0 ? (
                 <div className="mt-3 flex items-center gap-3">
                   <input type="hidden" name="checked_text" value={state.text ?? ""} />

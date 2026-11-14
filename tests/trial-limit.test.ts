@@ -69,14 +69,14 @@ describe("importing a sheet during a trial", () => {
   });
 
   it("goes through when it fits", async () => {
-    expect(await commitVehicleImport(h.router, trial, csv(3))).toEqual({ imported: 3 });
+    expect(await commitVehicleImport(h.router, trial, csv(3))).toMatchObject({ imported: 3 });
     await expect(commitVehicleImport(h.router, trial, csv(1))).rejects.toThrow(/free trial includes up to 8/);
   });
 
   it("a subscribed organization sees no trial note and may import past the trial number", async () => {
     const p = await previewVehicleImport(h.router, subscribed, csv(2));
     expect(p.trial).toBeUndefined();
-    expect(await commitVehicleImport(h.router, subscribed, csv(12))).toEqual({ imported: 12 });
+    expect(await commitVehicleImport(h.router, subscribed, csv(12))).toMatchObject({ imported: 12 });
   });
 });
 

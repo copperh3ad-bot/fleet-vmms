@@ -7,7 +7,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { allowShared } from "@/lib/rate-limit";
 import { clientIp } from "@/lib/client-ip";
 import { UserError } from "@/lib/master/service";
-import { acceptInvitation, acceptWithUsername, hashInviteToken, previewInvitation } from "@/lib/admin/service";
+import { acceptInvitation, acceptWithUsername, hashInviteToken, joinLicenceProblem, previewInvitation, type LicenceInput } from "@/lib/admin/service";
 import { checkInviteCode, sendInviteCode } from "@/lib/admin/invite-otp";
 import { authEvent } from "@/lib/activity/auth";
 
@@ -26,6 +26,9 @@ async function createAccountActionImpl(token: string, _prev: InviteFormState, fo
   if (!ipOk || !tokenOk) return { error: "Too many tries. Wait a few minutes and try again." };
   const invite = await previewInvitation(driver, token);
   if (!invite) return { error: "This invitation is not working. Ask for a new one." };
+  const licence: LicenceInput = { licence_no: String(form.get("licence_no") ?? ""), licence_class: String(form.get("licence_class") ?? ""), licence_expires_on: String(form.get("licence_expires_on") ?? "") };
+  // No valid licence on file: it is asked for here, and joining is refused without it, before any login is made.
+  if (invite.needsLicence) { const bad = joinLicenceProblem(licence); if (bad) return { error: bad }; }
   const password = String(form.get("password") ?? "");
   if (password.length < MIN_PASSWORD) return { error: `Choose a password of at least ${MIN_PASSWORD} characters.` };
   if (password !== String(form.get("confirm") ?? "")) return { error: "The two passwords do not match." };
@@ -44,7 +47,7 @@ async function createAccountActionImpl(token: string, _prev: InviteFormState, fo
       const recovery = String(form.get("recovery") ?? "");
       // On a first set-up the code is typed twice; on a reset it is the code they already chose.
       if (!invite.reset && recovery.replace(/\s+/g, "") !== String(form.get("recovery_confirm") ?? "").replace(/\s+/g, "")) return { error: "The two recovery codes do not match." };
-      const done = await acceptWithUsername(driver, token, password, recovery);
+      const done = await acceptWithUsername(driver, token, password, recovery, licence);
       const { error: signInError } = await supabase.auth.signInWithPassword({ email: done.loginEmail, password });
       if (signInError) return { notice: `Your password is set. Sign in with the sign-in name ${invite.username}.` };
       return { go: `/w/${done.slug}` };
@@ -65,7 +68,7 @@ async function createAccountActionImpl(token: string, _prev: InviteFormState, fo
   }
   let slug: string;
   try {
-    slug = (await acceptInvitation(driver, { token }, { id: data.user.id, email: data.user.email, emailConfirmed: !!data.user.email_confirmed_at })).slug;
+    slug = (await acceptInvitation(driver, { token }, { id: data.user.id, email: data.user.email, emailConfirmed: !!data.user.email_confirmed_at }, licence)).slug;
   } catch (e) {
     if (e instanceof UserError) return { notice: `Your account is ready, but the invitation could not be accepted yet: ${e.message} Sign in and try again from your home page.` };
     throw e;

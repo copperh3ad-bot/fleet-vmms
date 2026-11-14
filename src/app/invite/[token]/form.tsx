@@ -4,7 +4,7 @@ import { createAccountAction, sendCodeAction, type InviteFormState } from "./act
 
 const box = "h-12 w-full rounded-md border border-zinc-300 bg-white px-3 text-zinc-900";
 
-export function CreateAccountForm({ token, email, username, reset, codeHint }: { token: string; email: string | null; username: string | null; reset: boolean; codeHint: string | null }) {
+export function CreateAccountForm({ token, email, username, reset, codeHint, needsLicence }: { token: string; email: string | null; username: string | null; reset: boolean; codeHint: string | null; needsLicence: boolean }) {
   const [state, setState] = useState<InviteFormState>({});
   const [pending, setPending] = useState(false);
   const [sending, setSending] = useState(false);
@@ -67,6 +67,24 @@ export function CreateAccountForm({ token, email, username, reset, codeHint }: {
             </div>
           )}
         </>
+      )}
+      {needsLicence && (
+        <fieldset className="space-y-3 rounded-md border border-zinc-200 p-3">
+          <legend className="px-1 text-sm font-medium">Your driving licence</legend>
+          <p className="text-xs text-zinc-600">A valid driving licence is needed to join. It is kept on your employee record and you get a reminder before it expires.</p>
+          <div>
+            <label htmlFor="licence_no" className="mb-1 block text-sm font-medium">Licence number</label>
+            <input id="licence_no" name="licence_no" autoComplete="off" className={box} />
+          </div>
+          <div>
+            <label htmlFor="licence_expires_on" className="mb-1 block text-sm font-medium">Expiry date</label>
+            <input id="licence_expires_on" name="licence_expires_on" type="date" className={box} />
+          </div>
+          <div>
+            <label htmlFor="licence_class" className="mb-1 block text-sm font-medium">Class (optional)</label>
+            <input id="licence_class" name="licence_class" autoComplete="off" className={box} />
+          </div>
+        </fieldset>
       )}
       {codeHint && (
         <div className="space-y-2 rounded-md border border-zinc-200 bg-zinc-50 p-3">

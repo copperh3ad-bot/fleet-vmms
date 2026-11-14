@@ -13,6 +13,8 @@ import * as master from "@/lib/master/service";
 import * as od from "@/lib/odometer/service";
 import { lookupLink, submitViaLink } from "@/lib/odometer/link";
 import { platformMigrations, tenantMigrations, testDriver } from "./helpers";
+import { vi } from "vitest";
+vi.mock("@/lib/admin/service", async (orig) => (await import("./licence-mock")).withLicence(await orig<typeof import("@/lib/admin/service")>()));
 
 const U = (n: number) => `00000000-0000-0000-0000-00000000${String(n).padStart(4, "0")}`;
 const url = process.env.TEST_DATABASE_URL;

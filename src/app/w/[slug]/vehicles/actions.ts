@@ -11,6 +11,9 @@ import { UserError, addVehicle, changeCustody, endCustody, setVehicleDepartment,
 import { recordEngineHours, setTracksHours } from "@/lib/hours/service";
 import { handOverPurchasedVehicle } from "@/lib/vehicle-requests/service";
 import { runAction, str, typed, type FormState } from "../actions-util";
+import { origin } from "@/lib/origin";
+import { importInviter } from "@/lib/admin/service";
+import { deliverInvite } from "@/lib/admin/deliver-invite";
 import { MAX_SHEET_BYTES, xlsxToCsv } from "@/lib/master/vehicle-sheet";
 
 const DOC_TYPES = ["registration", "fitness", "token_tax", "route_permit"] as const;
@@ -147,7 +150,9 @@ export async function setStatusAction(slug: string, vehicleId: string, _prev: Fo
   return state.error || state.fields ? { ...state, values: typed(form) } : state;
 }
 
-export type ImportState = FormState & { preview?: ImportPreview; text?: string; imported?: number };
+/** One person the import made and invited: how the invitation went. The link is included only when nothing else delivered it, so it can be sent by hand. */
+export type ImportedPerson = { full_name: string; email: string | null; employee_no: string | null; emailed?: boolean; whatsapp?: "sent" | "failed"; link?: string };
+export type ImportState = FormState & { preview?: ImportPreview; text?: string; imported?: number; people?: number; invited?: ImportedPerson[] };
 
 async function readCsv(form: FormData): Promise<string> {
   const file = form.get("file");
@@ -169,19 +174,30 @@ export async function importVehiclesAction(slug: string, _prev: ImportState, for
   let text: string;
   // Import saves exactly the text that was checked, not whatever the file box holds now.
   try { text = commit ? str(form, "checked_text") : await readCsv(form); } catch (e) { return { error: e instanceof Error && e.message !== "big" ? e.message : "The file is too large. Split it into smaller files." }; }
-  let preview: ImportPreview | undefined, imported: number | undefined;
+  let preview: ImportPreview | undefined, imported: number | undefined, peopleMade = 0;
+  const invited: ImportedPerson[] = [];
+  const base = origin();
   const state = await runAction(slug, async (m) => {
     if (commit) {
-      imported = (await commitVehicleImport(getDriver(), m, text)).imported;
+      // The tick box on the check screen. Only a person who may manage users can invite; the service checks that again inside the import.
+      const inviter = str(form, "invite") === "on" ? importInviter(m) : null;
+      const done = await commitVehicleImport(getDriver(), m, text, inviter ? { invite: inviter.invite } : {});
+      imported = done.imported; peopleMade = done.people;
+      if (inviter) {
+        for (const i of await inviter.finish(getDriver())) {
+          const r = await deliverInvite(base, i, m.tenantName);
+          invited.push({ full_name: i.full_name, email: i.email, employee_no: i.employee_no, emailed: r.emailed, whatsapp: r.whatsapp, link: r.emailed || r.whatsapp === "sent" ? undefined : r.url });
+        }
+      }
       // names the list lacks go to review, once each; the vehicles are already saved (ADR-071)
       const pairs = new Map<string, [string, string]>();
       for (const r of csvToObjects(text).rows) { const mk = (r.values.make ?? "").trim(), md = (r.values.model ?? "").trim(); if (mk) pairs.set(mk.toLowerCase() + "|" + md.toLowerCase(), [mk, md]); }
       for (const [mk, md] of [...pairs.values()].slice(0, 200)) await recordNames(getDriver(), m.tenantId, mk, md);
-      return `Imported ${imported} vehicle${imported === 1 ? "" : "s"}.`; }
+      return `Imported ${imported} vehicle${imported === 1 ? "" : "s"}${peopleMade ? `, added ${peopleMade} ${peopleMade === 1 ? "person" : "people"}${invited.length ? ` and invited ${invited.length}` : ""}` : ""}.`; }
     preview = await previewVehicleImport(getDriver(), m, text);
     return "";
   });
-  return { ...state, ok: commit ? state.ok : undefined, preview, text: imported ? undefined : text, imported };
+  return { ...state, ok: commit ? state.ok : undefined, preview, text: imported ? undefined : text, imported, people: peopleMade || undefined, invited: invited.length ? invited : undefined };
 }
 
 export async function uploadVehicleFileAction(slug: string, vehicleId: string, kind: VehicleFileKind, _prev: FormState, form: FormData): Promise<FormState> {

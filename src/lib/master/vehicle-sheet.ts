@@ -21,14 +21,20 @@ const NOTES: Record<(typeof VEHICLE_CSV_COLUMNS)[number], string> = {
   colour: "Optional.",
   base_location: "Where the vehicle is usually kept: a city, depot or site.",
   odometer_km: "The reading today, in kilometres.",
-  employee_no: "The employee code of the person who holds it. Add your employees first (Employees page), or leave this empty and assign later.",
+  employee_no: "The employee code of the person who holds it. Use one that already exists, or make up a new code (like E-001) and fill the person's name and phone in the next columns: they are added and invited for you. Leave empty to assign later.",
   holding_since: "When that person started holding it, as a date like 2026-01-31.",
   last_oil_change: "Date of the last oil change, like 2026-01-31. It starts the oil change reminder.",
   last_oil_change_km: "Odometer reading at that oil change.",
   department: "Optional. The operating department that runs the vehicle, for example Logistics. Leave empty for the general fleet.",
+  employee_name: "Only for a person who is not in your workspace yet: their full name. Fill it on one row, or the same on every row of theirs.",
+  employee_phone: "Their mobile number, like 0300 1234567. Needed for a new person. It receives the invitation on WhatsApp.",
+  employee_email: "Their email, if they have one. A person with an email is invited by email when you confirm the import.",
+  licence_no: "Their driving licence number, if you have it. If you leave it empty they enter it when they join, and cannot join without a valid licence.",
+  licence_class: "Optional. The licence class, for example LTV or HTV.",
+  licence_expires_on: "The licence expiry date, like 2028-05-31. Needed if you fill the licence number.",
 };
 
-const EXAMPLE = ["BKL-245", "Isuzu", "NPR", 2021, "truck", "diesel", "", "", "White", "Lahore depot", 48200, "E-001", "2026-01-01", "2026-09-01", 47000, ""];
+const EXAMPLE = ["BKL-245", "Isuzu", "NPR", 2021, "truck", "diesel", "", "", "White", "Lahore depot", 48200, "E-001", "2026-01-01", "2026-09-01", 47000, "", "Ali Raza", "0300 1234567", "ali@example.com", "LHR-123456", "LTV", "2028-05-31"];
 const WIDTH: Record<string, number> = { registration_no: 16, make: 14, model: 14, year: 8, vehicle_class: 14, fuel_type: 12, vin: 22, engine_no: 16, colour: 12, base_location: 18, odometer_km: 14, employee_no: 14, holding_since: 15, last_oil_change: 16, last_oil_change_km: 18, department: 16 };
 
 export async function buildVehicleSheet(trialLimit?: number): Promise<Buffer> {
@@ -52,7 +58,8 @@ export async function buildVehicleSheet(trialLimit?: number): Promise<Buffer> {
     validations.add(`${col(k)}2:${col(k)}${MAX_SHEET_ROWS + 1}`, { type: "list", allowBlank: true, formulae: [`"${values.join(",")}"`], showErrorMessage: true, errorTitle: "Choose from the list", error: `Use one of: ${values.join(", ")}` });
   list("vehicle_class", VEHICLE_CLASSES);
   list("fuel_type", FUEL_TYPES);
-  for (const k of ["holding_since", "last_oil_change"] as const) ws.getColumn(VEHICLE_CSV_COLUMNS.indexOf(k) + 1).numFmt = "yyyy-mm-dd";
+  for (const k of ["holding_since", "last_oil_change", "licence_expires_on"] as const) ws.getColumn(VEHICLE_CSV_COLUMNS.indexOf(k) + 1).numFmt = "yyyy-mm-dd";
+  for (const k of ["employee_phone", "licence_no"] as const) ws.getColumn(VEHICLE_CSV_COLUMNS.indexOf(k) + 1).numFmt = "@";          // a phone like 0300 or a licence like 0123 stays text
   ws.getColumn(1).numFmt = "@";                              // plates are text, so a plate like 0123 is not turned into a number
 
   const ex = wb.addWorksheet("Example");
@@ -66,10 +73,11 @@ export async function buildVehicleSheet(trialLimit?: number): Promise<Buffer> {
     "Fleet OTG: vehicle sheet",
     "",
     "1. Fill in the sheet called Vehicles, one vehicle per row, starting on row 2. Do not change or remove the column names in row 1.",
-    "2. Only registration_no (the number plate) is needed. Everything else is optional, so start with just the plates if that is quicker, and add details later.",
+    "2. Only registration_no (the number plate) is needed. Everything else is optional (a new person needs employee_no, employee_name and employee_phone), so start with just the plates if that is quicker, and add details later.",
     `3. Up to 500 vehicles in one upload. For more, upload in batches.${trialLimit ? ` A free trial includes up to ${trialLimit} vehicles, so put the ones you most want to try first; you can add the rest once you subscribe.` : ""}`,
     "4. vehicle_class and fuel_type have a drop-down list. Dates are written like 2026-01-31.",
-    "5. employee_no must match an employee code already in your workspace. Add your employees first, or leave it empty and assign vehicles later.",
+    "5. employee_no: use the code of an employee already in your workspace, or make up a new one and fill employee_name and employee_phone (and employee_email). New people are added as employees, limited to the vehicle they hold, and invited when you confirm the import. Leave all of them empty to assign vehicles later.",
+    "5a. A driving licence is needed to join. Fill licence_no and licence_expires_on if you have them; if not, the person is asked for them when they accept the invitation.",
     "6. When your workspace is ready, open Vehicles, then Import, and upload this file as it is. You do not need to save it as CSV. You will see what will be saved, and any problems, before anything is added.",
     "7. The sheet called Example shows one filled-in row. It is not uploaded.",
     "",

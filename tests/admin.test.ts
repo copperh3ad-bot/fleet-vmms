@@ -6,6 +6,8 @@ import { ForbiddenError, resolveMembership, type Membership } from "@/lib/auth/c
 import * as master from "@/lib/master/service";
 import { UserError } from "@/lib/master/service";
 import * as ad from "@/lib/admin/service";
+import { vi } from "vitest";
+vi.mock("@/lib/admin/service", async (orig) => (await import("./licence-mock")).withLicence(await orig<typeof import("@/lib/admin/service")>()));
 
 const U = (n: number) => `00000000-0000-0000-0000-00000000${String(n).padStart(4, "0")}`;
 let d: Awaited<ReturnType<typeof testDriver>>;

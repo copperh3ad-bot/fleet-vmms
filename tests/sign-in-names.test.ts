@@ -13,6 +13,7 @@ import { withTenant } from "@/lib/db/tenant";
 import { checkRecoveryCode, checkUsername, hashRecoveryCode, isLoginEmail, loginEmailFor, loginNameByUserId, looksLikeEmail, suggestUsername, usernameTaken, verifyRecoveryCode } from "@/lib/auth/login-names";
 import { normalizePhone, smsLink, whatsappLink } from "@/lib/phone";
 import { farm, newControl, platformMigrations, stripExt, tenantMigrations } from "./helpers";
+vi.mock("@/lib/admin/service", async (orig) => (await import("./licence-mock")).withLicence(await orig<typeof import("@/lib/admin/service")>()));
 
 const U = (n: number) => `00000000-0000-0000-0000-00000000${String(n).padStart(4, "0")}`;
 const box = secretBox(randomBytes(32));
@@ -106,7 +107,7 @@ describe("inviting someone with no email", () => {
     const row = await raw(async (q) => (await q.query<{ email: string | null; username: string; employee_no: string; phone: string; role_key: string; vehicle_scope: string }>(
       "select email, username, employee_no, phone, role_key, vehicle_scope from public.invitations where id = $1", [inv.id])).rows[0]);
     expect(row).toEqual({ email: null, username: "acme.d-101", employee_no: "D-101", phone: "+923001111111", role_key: "requester", vehicle_scope: "own" });
-    expect(await ad.previewInvitation(router, inv.token)).toEqual({ workspace: "Acme Transport", full_name: "Driver One", email: null, username: "acme.d-101", reset: false, codeRequired: false, codeChannel: null, codeHint: null });
+    expect(await ad.previewInvitation(router, inv.token)).toEqual({ workspace: "Acme Transport", full_name: "Driver One", email: null, username: "acme.d-101", reset: false, needsLicence: true, codeRequired: false, codeChannel: null, codeHint: null });
     const listed = (await ad.listInvitations(router, admin)).find((i) => i.id === inv.id);
     expect(listed).toMatchObject({ username: "acme.d-101", employee_no: "D-101", email: null, reset: false });
   });

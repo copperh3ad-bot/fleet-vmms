@@ -12,6 +12,8 @@ import * as od from "@/lib/odometer/service";
 import { lookupLink, submitViaLink } from "@/lib/odometer/link";
 import { withTenant } from "@/lib/db/tenant";
 import { farm, newControl, platformMigrations, stripExt, tenantMigrations } from "./helpers";
+import { vi } from "vitest";
+vi.mock("@/lib/admin/service", async (orig) => (await import("./licence-mock")).withLicence(await orig<typeof import("@/lib/admin/service")>()));
 
 const U = (n: number) => `00000000-0000-0000-0000-00000000${String(n).padStart(4, "0")}`;
 const box = secretBox(randomBytes(32));
@@ -76,11 +78,11 @@ describe("inviting and accepting across the two databases", () => {
     expect(routes).toContainEqual({ kind: "invite", tenant_id: admin.tenantId });
     expect(JSON.stringify(await control.transaction(async (q) => (await q.query("select * from public.link_routes")).rows))).not.toContain(inv.token);
 
-    expect(await ad.previewInvitation(router, inv.token)).toEqual({ workspace: "Acme Transport", full_name: "Sana Khan", email: "sana@example.com", username: null, reset: false, codeRequired: false, codeChannel: null, codeHint: null });
+    expect(await ad.previewInvitation(router, inv.token)).toEqual({ workspace: "Acme Transport", full_name: "Sana Khan", email: "sana@example.com", username: null, reset: false, needsLicence: true, codeRequired: false, codeChannel: null, codeHint: null });
     expect(await ad.previewInvitation(router, inv.token.slice(0, 42) + "x")).toBeNull();           // wrong token: nothing
 
     // she signs up elsewhere and sees the waiting invitation on the first page
-    expect(await ad.pendingInvitationsFor(router, person(10, "SANA@example.com"))).toEqual([{ id: inv.id, workspace: "Acme Transport", role_name: "fleet_manager" }]);
+    expect(await ad.pendingInvitationsFor(router, person(10, "SANA@example.com"))).toEqual([{ id: inv.id, workspace: "Acme Transport", role_name: "fleet_manager", needsLicence: true }]);
     expect(await ad.pendingInvitationsFor(router, person(10, "sana@example.com", false))).toEqual([]);
     expect(await ad.pendingInvitationsFor(router, person(11, "someone.else@example.com"))).toEqual([]);
 

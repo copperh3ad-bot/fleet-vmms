@@ -10,6 +10,8 @@ import { advanceProvisioning, abandonProvisioning, startOrganization, type Provi
 import { claimSignup, parseSignup, recordSignup } from "@/lib/orgs/signup";
 import { newControl, platformMigrations, stripExt, tenantMigrations, testDriver } from "./helpers";
 import type { Driver } from "@/lib/db/types";
+import { vi } from "vitest";
+vi.mock("@/lib/admin/service", async (orig) => (await import("./licence-mock")).withLicence(await orig<typeof import("@/lib/admin/service")>()));
 
 const U = (n: number) => `00000000-0000-0000-0000-00000000${String(n).padStart(4, "0")}`;
 const unavailable = () => { throw new Error("not used for shared organizations"); };

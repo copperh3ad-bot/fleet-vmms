@@ -2,13 +2,14 @@
 // (CLAUDE.md rule 3) and reaches tenant data only through authorized() -> withTenant().
 import { trialCapFor, trialFullMessage, trialRoomMessage } from "@/lib/billing/trial";
 import type { Driver, Queryable } from "@/lib/db/types";
-import { authorized, authorizedAny, type Membership } from "@/lib/auth/can";
+import { assertCan, authorized, authorizedAny, can, type Membership } from "@/lib/auth/can";
 import {
   vehicleSchema, employeeSchema, vendorSchema, custodySchema, plateKey, fieldErrors,
   type VehicleInput, type EmployeeInput, type VendorInput,
 } from "./schemas";
 import { csvToObjects } from "./csv";
-import { assertPhoneFree } from "@/lib/phone-owner";
+import { assertPhoneFree, phoneInOtherOrganization } from "@/lib/phone-owner";
+import { normalizePhone } from "@/lib/phone";
 
 /** A problem the user can fix. Its message is safe to show. */
 export class UserError extends Error {
@@ -235,17 +236,22 @@ export function setVendorStatus(driver: Driver, m: Membership, id: string, statu
 export const VEHICLE_CSV_COLUMNS = [
   "registration_no", "make", "model", "year", "vehicle_class", "fuel_type", "vin", "engine_no", "colour", "base_location",
   "odometer_km", "employee_no", "holding_since", "last_oil_change", "last_oil_change_km", "department",
+  // a person who does not exist yet: made, and invited, together with the vehicle they hold (the licence is asked for at joining if it is not given here)
+  "employee_name", "employee_phone", "employee_email", "licence_no", "licence_class", "licence_expires_on",
 ] as const;
+const NOT_VEHICLE_COLUMNS = ["employee_no", "last_oil_change", "last_oil_change_km", "department", "employee_name", "employee_phone", "employee_email", "licence_no", "licence_class", "licence_expires_on"];
 
-export type ImportRowResult = { row: number; plate: string; errors: string[]; input?: VehicleInput; /** the operating department to set once the vehicle exists (ADR-048) */ department?: string };
-export type ImportPreview = { total: number; ok: number; failed: number; unknownColumns: string[]; rows: ImportRowResult[]; /** set while a free trial limits the fleet: what is allowed and what is already there */ trial?: { cap: number; existing: number; room: number; note: string | null } };
+/** A person the sheet creates: the holder of one or more vehicles who is not an employee yet. */
+export type ImportPerson = { key: string; employee_no: string; full_name: string; phone: string; email: string | null; department: string | null; licence: { no: string; class: string | null; expires_on: string } | null; firstRow: number };
+export type ImportRowResult = { row: number; plate: string; errors: string[]; input?: VehicleInput; /** the new person who holds this vehicle (key into the people list) */ personKey?: string; /** the operating department to set once the vehicle exists (ADR-048) */ department?: string };
+export type ImportPreview = { /** the people the sheet creates, and how many of them can be invited (they have an email) */ people: { list: Pick<ImportPerson, "employee_no" | "full_name" | "email" | "phone">[]; invitable: number; linked: number }; /** the importer may invite people (user management) */ canInvite: boolean; total: number; ok: number; failed: number; unknownColumns: string[]; rows: ImportRowResult[]; /** set while a free trial limits the fleet: what is allowed and what is already there */ trial?: { cap: number; existing: number; room: number; note: string | null } };
 
 /** Vehicles that count towards a limit: everything except those disposed of. */
 async function countLiveVehicles(q: Queryable): Promise<number> {
   return (await q.query<{ c: number }>("select count(*)::int c from vehicles where status <> 'disposed'")).rows[0].c;
 }
 
-async function validateImport(q: Queryable, text: string): Promise<ImportPreview> {
+async function validateImport(q: Queryable, text: string, phoneTaken: (e164: string) => Promise<boolean> = async () => false): Promise<ImportPreview & { newPeople: ImportPerson[] }> {
   if (text.length > MAX_IMPORT_BYTES) throw new UserError("The file is larger than 1 MB. Split it into smaller files.");
   let parsed;
   try { parsed = csvToObjects(text); } catch (e) { throw new UserError((e as Error).message); }
@@ -257,21 +263,72 @@ async function validateImport(q: Queryable, text: string): Promise<ImportPreview
   const existing = new Set((await q.query<{ registration_no: string }>("select registration_no from vehicles")).rows.map((r) => plateKey(r.registration_no)));
   const emps = new Map((await q.query<{ id: string; employee_no: string; active: boolean }>(
     "select id, employee_no, active from employees where employee_no is not null")).rows.map((e) => [e.employee_no.toLowerCase(), e]));
+  const takenEmails = new Set((await q.query<{ email: string }>("select lower(email) as email from employees where email is not null")).rows.map((r) => r.email));
+  const takenPhones = new Set((await q.query<{ phone: string }>("select phone from employees where phone is not null")).rows.map((r) => r.phone));
+  const people = new Map<string, ImportPerson>();
+  const emailOwner = new Map<string, string>(), phoneOwner = new Map<string, string>();
+  const phoneCache = new Map<string, boolean>();
+  let linked = 0;
   const oil = (await q.query("select 1 from service_types where key = 'oil_change'")).rows.length > 0;
 
   const seen = new Map<string, number>();
-  const rows: ImportRowResult[] = parsed.rows.map(({ line, values }) => {
+    const today = new Date().toISOString().slice(0, 10);
+  /** Checks the person columns of one row; the first row of a person defines them, later rows must say the same. Returns the person's key. */
+  const newPerson = async (values: Record<string, string>, line: number, errors: string[]): Promise<string | undefined> => {
+    const no = values.employee_no.trim(), key = no.toLowerCase(), name = (values.employee_name ?? "").trim().replace(/\s+/g, " ");
+    const email = (values.employee_email ?? "").trim().toLowerCase();
+    const bad = (m: string) => errors.push(m);
+    if (!/^[A-Za-z0-9][A-Za-z0-9._/ -]{0,29}$/.test(no)) bad("employee_no: use letters, numbers and - . / only (up to 30)");
+    if (name.length < 2 || name.length > 120) bad("employee_name: enter the full name");
+    const ph = normalizePhone(values.employee_phone ?? "");
+    if (!ph.ok) bad(`employee_phone: ${ph.message}`);
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) bad("employee_email: not a valid email");
+    const lno = (values.licence_no ?? "").trim(), lexp = (values.licence_expires_on ?? "").trim();
+    if (lno || lexp) {
+      if (lno.length < 3) bad("licence_no: enter the licence number, or leave both licence columns empty (the person enters it when joining)");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(lexp)) bad("licence_expires_on: use the date as YYYY-MM-DD");
+      else if (lexp < today) bad("licence_expires_on: that driving licence has expired. A valid licence is needed");
+    }
+    const first = people.get(key);
+    if (first) {
+      if (first.full_name.toLowerCase() !== name.toLowerCase() || (ph.ok && first.phone !== ph.e164)) bad(`employee_no "${no}": row ${first.firstRow} has other details for this number`);
+      return errors.length ? undefined : key;
+    }
+    if (email) {
+      if (takenEmails.has(email)) bad(`employee_email: another employee already has ${email}`);
+      else if (emailOwner.has(email)) bad(`employee_email: ${email} is also on the person at row ${emailOwner.get(email)}`);
+    }
+    if (ph.ok) {
+      if (takenPhones.has(ph.e164)) bad("employee_phone: another employee already has this number");
+      else if (phoneOwner.has(ph.e164)) bad(`employee_phone: this number is also on the person at row ${phoneOwner.get(ph.e164)}`);
+      else {
+        if (!phoneCache.has(ph.e164)) phoneCache.set(ph.e164, await phoneTaken(ph.e164));
+        if (phoneCache.get(ph.e164)) bad("employee_phone: this number is registered with another organization");
+      }
+    }
+    if (errors.length) return undefined;
+    const dep = (values.department ?? "").trim().replace(/\s+/g, " ");
+    people.set(key, { key, employee_no: no, full_name: name, phone: ph.ok ? ph.e164 : "", email: email || null, department: dep || null, licence: lno ? { no: lno, class: (values.licence_class ?? "").trim() || null, expires_on: lexp } : null, firstRow: line });
+    if (email) emailOwner.set(email, String(line));
+    if (ph.ok) phoneOwner.set(ph.e164, String(line));
+    return key;
+  };
+  const rows: ImportRowResult[] = [];
+  for (const { line, values } of parsed.rows) {
     const errors: string[] = [];
     const plate = values.registration_no ?? "";
     const raw: Record<string, unknown> = {};
-    for (const k of VEHICLE_CSV_COLUMNS) if (values[k] !== undefined && !["employee_no", "last_oil_change", "last_oil_change_km", "department"].includes(k)) raw[k] = values[k];
+    for (const k of VEHICLE_CSV_COLUMNS) if (values[k] !== undefined && !NOT_VEHICLE_COLUMNS.includes(k)) raw[k] = values[k];
+    let personKey: string | undefined;
 
     if (values.employee_no) {
       const e = emps.get(values.employee_no.toLowerCase());
-      if (!e) errors.push(`employee_no "${values.employee_no}": no employee has this number`);
+      const name = (values.employee_name ?? "").trim();
+      if (!e && !name) errors.push(`employee_no "${values.employee_no}": no employee has this number. To add the person, fill employee_name and employee_phone on this row`);
+      else if (!e) personKey = await newPerson(values, line, errors);
       else if (!e.active) errors.push(`employee_no "${values.employee_no}": employee is not active`);
-      else raw.employee_id = e.id;
-    }
+      else { raw.employee_id = e.id; linked++; }
+    } else if ((values.employee_name ?? "").trim() || (values.employee_phone ?? "").trim()) errors.push("employee_no: fill the employee number of the person who holds this vehicle");
     if (values.last_oil_change) {
       if (!oil) errors.push("last_oil_change: this workspace has no oil change service type");
       else raw.baselines = [{ service_type_key: "oil_change", last_done_on: values.last_oil_change, last_odometer_km: values.last_oil_change_km || undefined }];
@@ -288,17 +345,22 @@ async function validateImport(q: Queryable, text: string): Promise<ImportPreview
       if (first !== undefined) errors.push(`registration_no: same plate as row ${first} in this file`);
       else seen.set(key, line);
     }
-    return { row: line, plate, errors, input: errors.length === 0 && p.success ? p.data : undefined, department: department || undefined };
-  });
+    rows.push({ row: line, plate, errors, input: errors.length === 0 && p.success ? p.data : undefined, department: department || undefined, personKey: errors.length === 0 ? personKey : undefined });
+  }
   const failed = rows.filter((r) => r.errors.length).length;
-  return { total: rows.length, ok: rows.length - failed, failed, unknownColumns: parsed.headers.filter((h) => h && !known.has(h)), rows };
+  const list = [...people.values()];
+  return {
+    total: rows.length, ok: rows.length - failed, failed, unknownColumns: parsed.headers.filter((h) => h && !known.has(h)), rows, newPeople: list,
+    people: { list: list.map((x) => ({ employee_no: x.employee_no, full_name: x.full_name, email: x.email, phone: x.phone })), invitable: list.filter((x) => x.email).length, linked }, canInvite: false,
+  };
 }
 
 /** Dry run: nothing is saved. Every row gets either "ok" or the reasons it would fail. */
 export async function previewVehicleImport(driver: Driver, m: Membership, text: string): Promise<ImportPreview> {
   const trialCap = await trialCapFor(driver, m);
   return authorized(driver, m, "vehicle.write", async (q) => {
-    const pre = await validateImport(q, text);
+    const { newPeople: _people, ...pre } = await validateImport(q, text, (e164) => phoneInOtherOrganization(driver, m.tenantId, e164));
+    pre.canInvite = await can(q, m.role, "admin.users");
     if (trialCap !== null) {
       const existing = await countLiveVehicles(q), room = Math.max(0, trialCap - existing);
       pre.trial = { cap: trialCap, existing, room, note: pre.ok > room ? trialRoomMessage(trialCap, existing, pre.ok) : null };
@@ -307,23 +369,41 @@ export async function previewVehicleImport(driver: Driver, m: Membership, text: 
   });
 }
 
-/** All or nothing: if any row has an error, nothing is saved, so a half-loaded fleet never happens. */
-export async function commitVehicleImport(driver: Driver, m: Membership, text: string): Promise<{ imported: number }> {
+/** A person the import has just made, for whoever invites them. */
+export type CreatedPerson = { id: string; employee_no: string; full_name: string; email: string | null; phone: string };
+export type ImportCommitOptions = {
+  /** Called inside the same transaction once the people and vehicles exist, so a problem (a plan limit, say) undoes the whole import. Only given when the importer chose to invite. */
+  invite?: (q: Queryable, people: CreatedPerson[]) => Promise<void>;
+};
+
+/** All or nothing: if any row has an error, nothing is saved, so a half-loaded fleet never happens. People named on the sheet are made first, then the vehicles they hold. */
+export async function commitVehicleImport(driver: Driver, m: Membership, text: string, opts: ImportCommitOptions = {}): Promise<{ imported: number; people: number }> {
   const trialCap = await trialCapFor(driver, m);
   return authorized(driver, m, "vehicle.write", async (q) => {
-    const pre = await validateImport(q, text);
+    const pre = await validateImport(q, text, (e164) => phoneInOtherOrganization(driver, m.tenantId, e164));
     if (trialCap !== null) {
       const existing = await countLiveVehicles(q);
       if (existing + pre.ok > trialCap) throw new UserError(trialRoomMessage(trialCap, existing, pre.ok));        // nothing is saved
     }
     if (pre.failed) throw new UserError(`${pre.failed} row(s) have errors. Fix them and upload again; nothing was imported.`);
+    const made = new Map<string, CreatedPerson>();
+    if (pre.newPeople.length) await assertCan(q, m.role, "employee.manage");
+    for (const p of pre.newPeople) {
+      try {
+        const id = (await q.query<{ id: string }>("insert into employees(full_name, employee_no, department, email, phone) values ($1,$2,$3,$4,$5) returning id", [p.full_name, p.employee_no, p.department, p.email, p.phone])).rows[0].id;
+        if (p.licence) await q.query("insert into driver_licences(employee_id, licence_no, licence_class, expires_on, licence_type) values ($1,$2,$3,$4,'full')", [id, p.licence.no, p.licence.class, p.licence.expires_on]);
+        made.set(p.key, { id, employee_no: p.employee_no, full_name: p.full_name, email: p.email, phone: p.phone });
+      } catch (e) { friendly(e); }
+    }
     for (const r of pre.rows) {
       try {
-        const id = (await q.query<{ id: string }>("select onboard_vehicle($1::jsonb, $2::uuid) as id", [toDbVehicle(r.input!), m.userId])).rows[0].id;
+        const input = r.personKey ? { ...r.input!, employee_id: made.get(r.personKey)!.id } : r.input!;
+        const id = (await q.query<{ id: string }>("select onboard_vehicle($1::jsonb, $2::uuid) as id", [toDbVehicle(input), m.userId])).rows[0].id;
         if (r.department) await setDepartmentIn(q, id, r.department);
       } catch (e) { friendly(e); }
     }
-    return { imported: pre.rows.length };
+    if (opts.invite && made.size) await opts.invite(q, [...made.values()]);
+    return { imported: pre.rows.length, people: made.size };
   });
 }
 

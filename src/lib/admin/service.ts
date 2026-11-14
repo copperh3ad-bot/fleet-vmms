@@ -4,7 +4,7 @@
 import { otpChecksOn } from "@/lib/otp-switch";
 import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
-import type { Driver } from "@/lib/db/types";
+import type { Driver, Queryable } from "@/lib/db/types";
 import { assertCan, authorized, authorizedAny, type Membership } from "@/lib/auth/can";
 import { withOrgPlatform, withTenant } from "@/lib/db/tenant";
 import { findTenantByInvitation, findTenantByToken, forgetMember, indexInvitation, rememberMember, routeToken, tenantsInvitingEmail, unindexInvitation, unrouteToken } from "@/lib/orgs";
@@ -298,6 +298,29 @@ export async function inviteUser(driver: Driver, m: Membership, input: Record<st
   return publicInvite(inv);
 }
 
+/**
+ * The vehicle import (see master/service commitVehicleImport) makes new people and, when the importer chooses, invites the ones with an email. This gives it the
+ * inviter to run inside its own transaction (a plan limit then undoes the whole import) and, once that has committed, the step that makes the links work.
+ * People are invited as Requesters limited to their own vehicle. A person without an email is made an employee only: there is no address to send to.
+ */
+export function importInviter(m: Membership) {
+  const made: CreatedInvite[] = [];
+  return {
+    invite: async (q: Parameters<Parameters<typeof authorized>[3]>[0], people: { employee_no: string; full_name: string; email: string | null; phone: string }[]) => {
+      await assertCan(q, m.role, "admin.users");
+      for (const p of people) {
+        if (!p.email) continue;
+        made.push(await createInvite(q, m, { full_name: p.full_name, employee_no: p.employee_no, email: p.email, phone: p.phone, role: "requester", vehicle_scope: "own" }));
+      }
+    },
+    /** After the import has committed: lets the links be opened. Returns each invitation with its one-time link. */
+    finish: async (driver: Driver): Promise<NewInvite[]> => {
+      for (const inv of made) await track(driver, m, inv);
+      return made.map(publicInvite);
+    },
+  };
+}
+
 /** Every box is needed to add an employee: there is no half-filled record (ADR-041). The one choice is how they sign in: an email, or a sign-in name for someone with no email. */
 export const newEmployeeSchema = z.object({
   full_name: z.string().trim().min(2, "Enter the full name").max(120, "That name is too long"),
@@ -420,7 +443,7 @@ export async function issueResetLink(driver: Driver, m: Membership, userId: stri
 // ============================ The invited person ============================
 
 /** `codeRequired`: a one-time code is sent by `codeChannel` to the place `codeHint` describes, and must be typed before the account is made (ADR-041, ADR-046). */
-export type InvitePreview = { workspace: string; full_name: string; email: string | null; username: string | null; reset: boolean; codeRequired: boolean; codeChannel: CodeChannel | null; codeHint: string | null };
+export type InvitePreview = { workspace: string; full_name: string; email: string | null; username: string | null; reset: boolean; /** no valid driving licence on file: the person is asked for it, and cannot join without it */ needsLicence: boolean; codeRequired: boolean; codeChannel: CodeChannel | null; codeHint: string | null };
 
 /** What the invitation page may show: nothing for an unknown, used, revoked or expired link. */
 export async function previewInvitation(driver: Driver, token: string): Promise<InvitePreview | null> {
@@ -429,7 +452,7 @@ export async function previewInvitation(driver: Driver, token: string): Promise<
   const t = await findTenantByToken(driver, "invite", hash);
   if (!t) return null;
   const r = (await withOrgPlatform(driver, t.schema, (q) => q.query<Omit<InvitePreview, "codeRequired" | "codeChannel" | "codeHint"> & { phone: string | null }>(
-    `select t.name as workspace, i.full_name, i.email, i.username, (i.reset_user_id is not null) as reset, i.phone from public.invitations i join public.tenants t on t.id = i.tenant_id
+    `select t.name as workspace, i.full_name, i.email, i.username, (i.reset_user_id is not null) as reset, ${needsLicenceSql(t.schema)} as "needsLicence", i.phone from public.invitations i join public.tenants t on t.id = i.tenant_id
       where i.token_hash = $1 and i.accepted_at is null and i.revoked_at is null and i.expires_at > now() and t.status = 'active' and (i.email is not null or i.username is not null)`, [hash]))).rows[0];
   if (!r) return null;
   const { phone, ...rest } = r;                                  // the full number never leaves the server
@@ -437,7 +460,7 @@ export async function previewInvitation(driver: Driver, token: string): Promise<
   return { ...rest, codeRequired: channel !== null, codeChannel: channel, codeHint: channel ? codeHint(channel, { email: r.email, phone }) : null };
 }
 
-export type PendingInvite = { id: string; workspace: string; role_name: string };
+export type PendingInvite = { id: string; workspace: string; role_name: string; needsLicence: boolean };
 
 /** Invitations waiting for a signed-in person whose email is confirmed. */
 export async function pendingInvitationsFor(driver: Driver, user: { email?: string | null; emailConfirmed: boolean }): Promise<PendingInvite[]> {
@@ -446,14 +469,53 @@ export async function pendingInvitationsFor(driver: Driver, user: { email?: stri
   const listed = await tenantsInvitingEmail(driver, email);
   const found = await Promise.all(listed.map((t) => withOrgPlatform(driver, t.schema, async (q) =>
     (await q.query<PendingInvite & { created_at: string }>(
-      `select i.id, t.name as workspace, i.role_key as role_name, i.created_at::text from public.invitations i join public.tenants t on t.id = i.tenant_id
+      `select i.id, t.name as workspace, i.role_key as role_name, ${needsLicenceSql(t.schema)} as "needsLicence", i.created_at::text from public.invitations i join public.tenants t on t.id = i.tenant_id
         where i.id = $1 and lower(i.email) = lower($2) and i.accepted_at is null and i.revoked_at is null and i.expires_at > now() and t.status = 'active'`, [t.invitation_id, email])).rows[0])));
-  return found.filter((x): x is PendingInvite & { created_at: string } => !!x).sort((a, b) => a.created_at.localeCompare(b.created_at)).map(({ id, workspace, role_name }) => ({ id, workspace, role_name }));
+  return found.filter((x): x is PendingInvite & { created_at: string } => !!x).sort((a, b) => a.created_at.localeCompare(b.created_at)).map(({ id, workspace, role_name, needsLicence }) => ({ id, workspace, role_name, needsLicence }));
 }
 
 export type Acceptor = { id: string; email?: string | null; emailConfirmed: boolean; username?: string };
 
 type InviteRow = { id: string; tenant_id: string; full_name: string; email: string | null; username: string | null; employee_no: string | null; phone: string | null; role_key: string; vehicle_scope: string; vendor_id: string | null; token_hash: string; reset_user_id: string | null; ok: boolean; accepted: boolean };
+
+/** What a person types on joining when no valid driving licence is on file for them (ADR-054: a valid licence is needed to join). */
+export type LicenceInput = { licence_no?: string; licence_class?: string; licence_type?: string; licence_expires_on?: string };
+export const LICENCE_NEEDED = "A valid driving licence is needed to join. Enter the licence number and its expiry date.";
+/** The condition "this invitation is for someone with no valid licence on file". These queries run from the shared schema, so the company's own schema is named (it comes from the control plane and is checked). */
+const needsLicenceSql = (schema: string) => {
+  if (!/^[a-z0-9_]+$/.test(schema)) throw new Error("unexpected schema name");
+  return `(i.role_key <> 'vendor' and i.reset_user_id is null and not exists (
+    select 1 from "${schema}".employees e join "${schema}".driver_licences l on l.employee_id = e.id where lower(e.employee_no) = lower(i.employee_no) and l.expires_on >= current_date))`;
+};
+
+/** Checks what was typed against the company's rules, without saving anything. Returns the message to show, or null. */
+async function licenceInputProblem(q: Queryable, input: LicenceInput | undefined): Promise<string | null> {
+  const no = (input?.licence_no ?? "").trim(), exp = (input?.licence_expires_on ?? "").trim();
+  if (no.length < 3 || !/^\d{4}-\d{2}-\d{2}$/.test(exp)) return LICENCE_NEEDED;
+  return licenceProblem({ type: input?.licence_type || "full", expires_on: exp }, await learnerAllowed(q))?.message ?? null;
+}
+
+/** The same check without the database, so the join page can refuse before it makes a login. The full rules (learner permits) are applied again when the joining is saved. */
+export function joinLicenceProblem(input: LicenceInput | undefined, today = new Date().toISOString().slice(0, 10)): string | null {
+  const no = (input?.licence_no ?? "").trim(), exp = (input?.licence_expires_on ?? "").trim();
+  if (no.length < 3 || !/^\d{4}-\d{2}-\d{2}$/.test(exp)) return LICENCE_NEEDED;
+  if (exp < today) return "That driving licence has expired. A valid licence is needed.";
+  return null;
+}
+
+/** On joining: a person with no valid licence on file must give one now, or the joining is refused and nothing is saved. The licence goes on their employee record (and the audit log). */
+async function requireLicenceToJoin(q: Parameters<Parameters<typeof withTenant>[2]>[0], inv: InviteRow, userId: string, input: LicenceInput | undefined): Promise<void> {
+  if (inv.role_key === "vendor" || inv.reset_user_id) return;
+  const emp = (await q.query<{ id: string; ok: boolean }>(
+    `select e.id, exists (select 1 from driver_licences l where l.employee_id = e.id and l.expires_on >= current_date) as ok from employees e where e.user_id = $1`, [userId])).rows[0];
+  if (!emp || emp.ok) return;
+  const problem = await licenceInputProblem(q, input);
+  if (problem) throw new UserError(problem, { licence_no: problem });
+  await q.query(
+    `insert into driver_licences(employee_id, licence_no, licence_class, expires_on, licence_type) values ($1, $2, $3, $4, $5)
+     on conflict (employee_id) do update set licence_no = excluded.licence_no, licence_class = excluded.licence_class, expires_on = excluded.expires_on, licence_type = excluded.licence_type, updated_at = now()`,
+    [emp.id, input!.licence_no!.trim(), (input!.licence_class ?? "").trim() || null, input!.licence_expires_on!.trim(), input!.licence_type || "full"]);
+}
 
 /** Links the new login to the employee the invitation names: the existing record with that code, or a new one with that code and name. */
 async function linkEmployee(q: Parameters<Parameters<typeof withTenant>[2]>[0], inv: InviteRow, userId: string): Promise<void> {
@@ -481,7 +543,7 @@ async function linkEmployee(q: Parameters<Parameters<typeof withTenant>[2]>[0], 
  * all in one transaction in the organization's own database. Then the control plane is told. Repeating a finished acceptance for the
  * same person is safe and only repeats that last step. Returns the workspace slug.
  */
-export async function acceptInvitation(driver: Driver, by: { id: string } | { token: string }, user: Acceptor): Promise<{ slug: string }> {
+export async function acceptInvitation(driver: Driver, by: { id: string } | { token: string }, user: Acceptor, licence?: LicenceInput): Promise<{ slug: string }> {
   const refused = () => new UserError("This invitation is not valid for your account.");
   if (!user.username && (!user.email || !user.emailConfirmed)) throw new UserError("Confirm your email address first, then accept the invitation.");
   if (user.username && !("token" in by)) throw refused();
@@ -512,7 +574,7 @@ export async function acceptInvitation(driver: Driver, by: { id: string } | { to
     if (inv.role_key === "vendor") {
       const linked = await q.query("update vendors set user_id = $1 where id = $2 and user_id is null returning id", [user.id, inv.vendor_id]);
       if (linked.rows.length === 0) throw new UserError("That workshop already has a login. Ask for a new invitation.");
-    } else await linkEmployee(q, inv, user.id);
+    } else { await linkEmployee(q, inv, user.id); await requireLicenceToJoin(q, inv, user.id, licence); }
     await q.query("update public.invitations set accepted_at = now() where id = $1", [inv.id]);
     return { invitationId: inv.id, hash: inv.token_hash, tenantId: inv.tenant_id };
   });
@@ -532,7 +594,7 @@ export async function acceptInvitation(driver: Driver, by: { id: string } | { to
  * across every link, and stop after five in an hour. If the set-up stops half way, opening the same link again finishes it: the
  * half-made login is recognised by the invitation that made it. Returns what the page needs to sign them in.
  */
-export async function acceptWithUsername(driver: Driver, token: string, password: string, recoveryCode: string): Promise<{ slug: string; loginEmail: string; reset: boolean }> {
+export async function acceptWithUsername(driver: Driver, token: string, password: string, recoveryCode: string, licence?: LicenceInput): Promise<{ slug: string; loginEmail: string; reset: boolean }> {
   const refused = () => new UserError("This invitation is not working. Ask your administrator for a new one.");
   if (!TOKEN_RE.test(token)) throw refused();
   const hash = hashInviteToken(token);
@@ -577,7 +639,7 @@ export async function acceptWithUsername(driver: Driver, token: string, password
     try { await recordLoginName(driver, { username: inv.username, userId, loginEmail, invitationId: inv.id, recoveryHash }); }
     catch (e) { await deleteLoginUser(userId); throw e; }
   }
-  const { slug } = await acceptInvitation(driver, { token }, { id: userId, username: inv.username, emailConfirmed: true });
+  const { slug } = await acceptInvitation(driver, { token }, { id: userId, username: inv.username, emailConfirmed: true }, licence);
   return { slug, loginEmail, reset: false };
 }
 
