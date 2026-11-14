@@ -645,3 +645,8 @@ Two full-flow QA runs (an agent run on a throwaway local database: 392 steps, no
 - Cargo volume (m3, optional): tenant migration 0064 applied to live, app form, card, export, WhatsApp form. New cargo Flow ID set as `WHATSAPP_FORM_CARGO` on Netlify (old ID not recorded; the old flow is to be deprecated by the owner). Owner tested the flow: works.
 - QA prompts in `docs/qa/`: E2E 5 users, pre-deployment 50 users (5 orgs). A QA agent run is in progress on the owner's side; plan-gating block to be re-run after pulling master.
 - Open: Pro price bands (owner), CSV export date format, gate security export scope, optional Invoices empty-state line, volume in the typed-chat cargo fallback, vehicle suggestion by volume.
+
+## 2026-11-15: cargo visibility fix, delivery time, editable and custom roles (ADR-097)
+- Fix 5cd219c (deployed): Cargo link no longer hidden for "own vehicle only" people; web cargo form gains optional "Deliver by". Cause of Loop Farms report: the own-vehicle sidebar filter.
+- ADR-097 (not deployed, not committed at the time of writing): the administrator edits each role's permissions and makes roles of their own. Tenant migration 0066 (needs `scripts/migrate-tenants.mts` on live), `src/lib/admin/roles.ts`, `permission-catalog.ts`, Users page "Edit what each role can do", `tests/custom-roles.test.ts`. Unit tests 1427 pass.
+- Added `scripts/wa-why-no-menu.mts` (read-only): says which WhatsApp menu check fails for one phone number. The Loop Farms "Hi" problem was fixed on the owner side; cause not confirmed (the menu switch is on the Vendors page).

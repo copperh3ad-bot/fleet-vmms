@@ -108,7 +108,7 @@ const notReady = (role: string) => { if (ROLES_NOT_READY.includes(role)) throw n
 
 export function listRoles(driver: Driver, m: Membership): Promise<RoleOption[]> {
   return authorized(driver, m, "admin.users", async (q) =>
-    (await q.query<RoleOption>("select key, name from roles where key <> all($1) order by case key when 'tenant_admin' then 0 when 'fleet_manager' then 1 when 'finance' then 2 when 'requester' then 3 when 'auditor' then 4 else 5 end", [ROLES_NOT_READY])).rows);
+    (await q.query<RoleOption>("select key, name from roles where key <> all($1) order by case key when 'tenant_admin' then 0 when 'fleet_manager' then 1 when 'finance' then 2 when 'requester' then 3 when 'auditor' then 4 else 5 end, name", [ROLES_NOT_READY])).rows);
 }
 
 /** Change a member's role, vehicle scope or status. Never your own, and never the last administrator. */

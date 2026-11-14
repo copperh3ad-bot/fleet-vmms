@@ -5,6 +5,8 @@ import { getDriver } from "@/lib/db";
 import { PageHeader, Panel, Pill, btnPrimary, type Tone } from "@/components/ui";
 import { getRoleMatrix, listInvitations, listMembers, listRoleDepartments, listRoles, planUsage } from "@/lib/admin/service";
 import { listVendors } from "@/lib/master/service";
+import { listEditableRoles, MAX_CUSTOM_ROLES } from "@/lib/admin/roles";
+import { RolesPanel } from "./roles-panel";
 import { plural } from "@/lib/labels";
 import { getJoinCode, listJoinRequests } from "@/lib/orgs/join";
 import { getLearnerAllowed } from "@/lib/compliance/licences";
@@ -40,9 +42,9 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const sp = await searchParams;
   const m = await requireMembership(slug, { fullScope: true });
   const driver = getDriver();
-  const [members, invites, roles, use, vendors, matrix, joinCode, requests, base, allowLearner, roleDepts] = await Promise.all([
+  const [members, invites, roles, use, vendors, matrix, joinCode, requests, base, allowLearner, roleDepts, editable] = await Promise.all([
     listMembers(driver, m), listInvitations(driver, m), listRoles(driver, m), planUsage(driver, m), listVendors(driver, m).catch(() => []), getRoleMatrix(driver, m),
-    getJoinCode(driver, m), listJoinRequests(driver, m), origin(), getLearnerAllowed(driver, m).catch(() => false), listRoleDepartments(driver, m).catch(() => ({} as Record<string, string>)),
+    getJoinCode(driver, m), listJoinRequests(driver, m), origin(), getLearnerAllowed(driver, m).catch(() => false), listRoleDepartments(driver, m).catch(() => ({} as Record<string, string>)), listEditableRoles(driver, m),
   ]);
   // Workshops never sign up and are not given logins (ADR-033), so the role is not offered. People already holding it keep it until removed.
   const roleOpts = roles.filter((r) => r.key !== "vendor").map((r) => [r.key, r.name] as [string, string]);
@@ -110,7 +112,11 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
             </table></div>
           </Panel>
 
-          <Panel title="What each role can do" sub="Read-only here" flush>
+          <Panel title="Edit what each role can do" sub="Tick what a role may do and save. You can also make roles of your own, then give them to people from the list above.">
+            <RolesPanel slug={slug} roles={editable} canAdd={editable.filter((r) => !r.builtin).length < MAX_CUSTOM_ROLES} />
+          </Panel>
+
+          <Panel title="What each role can do" sub="A summary of the roles as they are now" flush>
             <div className="overflow-x-auto" role="region" aria-label="What each role can do" tabIndex={0}><table className="w-full text-left text-sm">
               <thead className="text-[11px] uppercase tracking-wide text-zinc-500">
                 <tr><th className="px-5 py-3" />{matrix.roles.map((r) => <th key={r.key} className="px-2">{r.name}<span className="block font-normal normal-case text-zinc-600">{plural(r.people, "person", "people")}</span></th>)}</tr>
