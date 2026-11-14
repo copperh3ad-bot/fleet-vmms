@@ -97,10 +97,11 @@ export function getCycle(driver: Driver, m: Membership, cycleId: string): Promis
     const rows: SubmissionRow[] = raw.map((r) => {
       if (r.status !== "submitted" || r.reading_km === null) return { ...r, change_km: null, km_per_day: null, days_between: null, verdict: null };
       const change = Number(r.reading_km) - Number(r.last_km);
-      const days = r.last_read_at ? Math.max(1, Math.ceil((Date.now() - new Date(r.last_read_at).getTime()) / 864e5)) : 1;
+      const days = r.last_read_at ? Math.max(1, (Date.now() - new Date(r.last_read_at).getTime()) / 864e5) : 1;
       const perDay = change > 0 ? Math.round((change / days) * 10) / 10 : 0;
+      const shownDays = Math.ceil(days);
       const verdict: Verdict = change < 0 ? "lower" : perDay > maxKmPerDay ? "too_fast" : "normal";
-      return { ...r, change_km: change, km_per_day: perDay, days_between: days, verdict };
+      return { ...r, change_km: change, km_per_day: perDay, days_between: shownDays, verdict };
     });
     const counts = {
       approved: rows.filter((r) => r.status === "approved").length,
@@ -122,12 +123,19 @@ export function approveNormalReadings(driver: Driver, m: Membership, cycleId: st
     const ok = (await q.query<{ id: string }>(
       `select s.id from odometer_submissions s join vehicles v on v.id = s.vehicle_id
         where s.cycle_id = $1 and s.status = 'submitted' and s.reading_km >= v.odometer_km and s.reading_hours is null
-          and (s.reading_km - v.odometer_km) / greatest(1, ceil(extract(epoch from (now() - coalesce(v.odometer_updated_at, now() - interval '1 day'))) / 86400.0)) <= $2
+          and (s.reading_km - v.odometer_km) / greatest(1, extract(epoch from (now() - coalesce(v.odometer_updated_at, now() - interval '1 day'))) / 86400.0) <= $2
         order by s.id`, [cycleId, maxKmPerDay])).rows;
+    // The database check is the final word. A reading it flags stays waiting for a person; it must not undo the others.
+    let approved = 0;
     for (const r of ok) {
-      try { await q.query("select approve_odometer_submission($1, $2, null)", [r.id, m.userId]); } catch (e) { friendly(e); }
+      await q.query("savepoint approve_one");
+      try { await q.query("select approve_odometer_submission($1, $2, null)", [r.id, m.userId]); await q.query("release savepoint approve_one"); approved++; }
+      catch (e) {
+        await q.query("rollback to savepoint approve_one");
+        if (!/reading is flagged \([a-z_]+\): a review note is required/.test(e instanceof Error ? e.message : String(e))) friendly(e);
+      }
     }
-    return ok.length;
+    return approved;
   });
 }
 
