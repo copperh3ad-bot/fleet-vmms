@@ -1,6 +1,6 @@
 // The AI compares the quotes on one trip (ADR-080). A Pro feature on top of outsourced trips: it ranks the quoted options with reasons, from the quote, the company's
 // own rate cards for that provider and the provider's history with this company. It is advice only. Awarding is still the person's click through awardTripQuote, which
-// runs the same permission and segregation-of-duties checks. The provider names never leave the server: the model sees options A, B, C.
+// runs the same permission and segregation-of-duties checks. The model sees options A, B, C, each with the provider's business name (owner decision 2026-11-14, amends ADR-080). No people's names are sent.
 import type { Driver } from "@/lib/db/types";
 import type { Membership } from "@/lib/auth/can";
 import { fleetAuthorized as authorized } from "@/lib/billing/fleet-ops";
@@ -23,7 +23,7 @@ export async function quoteAdviceOffered(driver: Driver, m: Membership): Promise
 }
 
 type Option = {
-  label: string; quote_id: string; amount: number; over_lowest_pct: number; vehicle: string | null; notes: string | null; valid_until: string | null; hours_to_answer: number | null;
+  label: string; quote_id: string; provider: string; amount: number; over_lowest_pct: number; vehicle: string | null; notes: string | null; valid_until: string | null; hours_to_answer: number | null;
   rate_cards: { label: string; basis: string; amount: number }[];
   history: { trips_completed: number; invoices: number; invoices_returned: number; invoices_above_award: number; quotes_given: number; quotes_declined: number; avg_hours_to_answer: number | null };
 };
@@ -43,8 +43,8 @@ export async function recommendTripQuotes(driver: Driver, m: Membership, tripId:
          from trips t left join vehicles pv on pv.id = t.preferred_vehicle_id where t.id = $1`, [tripId])).rows[0];
     if (!t) throw new UserError("Trip not found.");
     if (t.status !== "requested") throw new UserError("Quotes can only be compared while the trip is waiting for approval.");
-    const quotes = (await q.query<{ id: string; vendor_id: string; amount: string; vehicle_text: string | null; notes: string | null; valid_until: string | null; hours: string | null }>(
-      `select id, vendor_id, amount::text, vehicle_text, notes, valid_until::text, round((extract(epoch from quoted_at - requested_at) / 3600)::numeric, 1)::text as hours
+    const quotes = (await q.query<{ id: string; vendor_id: string; provider: string; amount: string; vehicle_text: string | null; notes: string | null; valid_until: string | null; hours: string | null }>(
+      `select id, vendor_id, (select name from vendors where id = vendor_id) as provider, amount::text, vehicle_text, notes, valid_until::text, round((extract(epoch from quoted_at - requested_at) / 3600)::numeric, 1)::text as hours
          from trip_quotes where trip_id = $1 and status = 'quoted' order by id limit ${MAX_ADVISED_QUOTES}`, [tripId])).rows;
     if (quotes.length < 2) throw new UserError("There is nothing to compare yet. At least two providers need to have quoted.");
     const options: Option[] = [];
@@ -61,7 +61,7 @@ export async function recommendTripQuotes(driver: Driver, m: Membership, tripId:
                 (select round(avg(extract(epoch from quoted_at - requested_at) / 3600)::numeric, 1) from trip_quotes where vendor_id = $1 and trip_id <> $2 and quoted_at is not null)::text as avg_hours`,
         [x.vendor_id, tripId])).rows[0];
       options.push({
-        label: LABELS[i], quote_id: x.id, amount: Number(x.amount), over_lowest_pct: lowest > 0 ? Math.round(((Number(x.amount) - lowest) / lowest) * 1000) / 10 : 0,
+        label: LABELS[i], quote_id: x.id, provider: x.provider.slice(0, 80), amount: Number(x.amount), over_lowest_pct: lowest > 0 ? Math.round(((Number(x.amount) - lowest) / lowest) * 1000) / 10 : 0,
         vehicle: x.vehicle_text, notes: x.notes ? x.notes.slice(0, 300) : null, valid_until: x.valid_until, hours_to_answer: x.hours === null ? null : Number(x.hours),
         rate_cards: rates.map((r) => ({ label: r.label, basis: r.basis, amount: Number(r.amount) })),
         history: {

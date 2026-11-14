@@ -102,9 +102,13 @@ export function listRoleDepartments(driver: Driver, m: Membership): Promise<Reco
     Object.fromEntries((await q.query<{ role_key: string; department: string }>("select role_key, department from role_departments where not sees_all_vehicles")).rows.map((r) => [r.role_key, r.department])));
 }
 
+/** Roles that exist in the database but have no screen yet, so nobody can be given them (gate passes are planned, ADR-067). */
+export const ROLES_NOT_READY = ["security"];
+const notReady = (role: string) => { if (ROLES_NOT_READY.includes(role)) throw new UserError("That role has no screen yet, so it cannot be given to anyone.", { role: "Choose another role" }); };
+
 export function listRoles(driver: Driver, m: Membership): Promise<RoleOption[]> {
   return authorized(driver, m, "admin.users", async (q) =>
-    (await q.query<RoleOption>("select key, name from roles order by case key when 'tenant_admin' then 0 when 'fleet_manager' then 1 when 'finance' then 2 when 'requester' then 3 when 'auditor' then 4 else 5 end")).rows);
+    (await q.query<RoleOption>("select key, name from roles where key <> all($1) order by case key when 'tenant_admin' then 0 when 'fleet_manager' then 1 when 'finance' then 2 when 'requester' then 3 when 'auditor' then 4 else 5 end", [ROLES_NOT_READY])).rows);
 }
 
 /** Change a member's role, vehicle scope or status. Never your own, and never the last administrator. */
@@ -122,6 +126,7 @@ export function changeMember(driver: Driver, m: Membership, userId: string, chan
     const cur = (await q.query<{ role: string; status: string }>("select role, status from public.tenant_memberships where tenant_id = $1 and user_id = $2", [m.tenantId, userId])).rows[0];
     if (!cur) throw new UserError("That person is not in this workspace.");
     if (c.role) {
+      if (c.role !== cur.role) notReady(c.role);
       if (c.role === "vendor" && cur.role !== "vendor") throw new UserError("Workshop logins are made by inviting the workshop.");
       if (cur.role === "vendor" && c.role !== "vendor") throw new UserError("A workshop login cannot become an employee login. Invite the person instead.");
       if ((await q.query("select 1 from roles where key = $1", [c.role])).rows.length === 0) throw new UserError("Unknown role.", { role: "Choose a role" });
@@ -183,6 +188,7 @@ type InviteOptions = { phoneOptional?: boolean };
 
 async function createInvite(q: Parameters<Parameters<typeof authorized>[3]>[0], m: Membership, d: InviteData, opts: InviteOptions = {}): Promise<NewInvite & { hash: string }> {
   await q.query("select 1 from public.tenants where id = $1 for update", [m.tenantId]);
+  notReady(d.role);
   if ((await q.query("select 1 from roles where key = $1", [d.role])).rows.length === 0) throw new UserError("Unknown role.", { role: "Choose a role" });
   if (d.role === "vendor") {
     if (d.employee_no) throw new UserError("A workshop has no employee code.", { employee_no: "Leave this empty for a workshop" });

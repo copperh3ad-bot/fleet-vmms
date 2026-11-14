@@ -82,7 +82,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
           )}
 
           <Panel title="People" flush>
-            <div className="overflow-x-auto"><table className="w-full text-left text-sm">
+            <div className="overflow-x-auto" role="region" aria-label="People" tabIndex={0}><table className="w-full text-left text-sm">
               <thead className="text-[11px] uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-3">Name</th><th>Employee code</th><th>Sign-in</th><th>Role</th><th>Status</th><th>Since</th><th /></tr></thead>
               <tbody>
                 {members.map((p) => (
@@ -111,7 +111,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
           </Panel>
 
           <Panel title="What each role can do" sub="Read-only here" flush>
-            <div className="overflow-x-auto"><table className="w-full text-left text-sm">
+            <div className="overflow-x-auto" role="region" aria-label="What each role can do" tabIndex={0}><table className="w-full text-left text-sm">
               <thead className="text-[11px] uppercase tracking-wide text-zinc-500">
                 <tr><th className="px-5 py-3" />{matrix.roles.map((r) => <th key={r.key} className="px-2">{r.name}<span className="block font-normal normal-case text-zinc-600">{plural(r.people, "person", "people")}</span></th>)}</tr>
               </thead>

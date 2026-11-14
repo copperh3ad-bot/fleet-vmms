@@ -101,7 +101,7 @@ describe("comparing quotes with the AI", () => {
     expect(calls).toBe(0);
   });
 
-  it("sends options with no provider names, stores the advice, and changes nothing about the quotes or the trip", async () => {
+  it("sends options with the provider business names but no people, stores the advice, and changes nothing about the quotes or the trip", async () => {
     const id = await newTrip();
     const a = await quoted(id, provA, 100000, { vehicle_text: "10-tonne truck" });
     const b = await quoted(id, provB, 95000, { notes: "Can start at 6am" });
@@ -112,7 +112,9 @@ describe("comparing quotes with the AI", () => {
     expect(calls).toBe(1);
     expect(r.advice.ranking.map((x) => x.label)).toEqual(["B", "A"]);
     const sent = JSON.stringify(seen[0]);
-    for (const name of ["Alpha", "Bravo", "Charlie", "Requester One", "Manager One"]) expect(sent).not.toContain(name);
+    for (const name of ["Alpha Freight", "Bravo Haulage"]) expect(sent).toContain(name);
+    expect(sent).not.toContain("Charlie Cargo");   // it did not quote
+    for (const name of ["Requester One", "Manager One"]) expect(sent).not.toContain(name);
     const msg = JSON.parse(((seen[0].messages as { content: { text: string }[] }[])[0].content[0].text));
     expect(msg.options.map((o: { label: string }) => o.label)).toEqual(["A", "B"]);
     expect(msg.options.flatMap((o: { rate_cards: unknown[] }) => o.rate_cards)).toEqual([{ label: "Lahore to Faisalabad, 10-tonne truck", basis: "per_trip", amount: 90000 }]);   // Alpha's card, on whichever letter Alpha got

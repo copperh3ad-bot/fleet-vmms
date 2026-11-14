@@ -210,8 +210,8 @@ export async function adviseSettings(request: string, defs: SettingDef[], curren
 export type AdviceResult = ({ status: "ok"; advice: QuoteAdvice } & Usage) | ({ status: "unreadable" | "refused" | "failed"; reason: string } & Usage);
 
 /**
- * The one model call for comparing a trip's quotes (ADR-080). It gets the trip's route and needs and each option's quote, rate cards and history under a letter: no
- * provider names, no people. It has no tools and cannot act; the answer is checked by checkAdvice and shown as advice. `create` is passed in so tests need no network.
+ * The one model call for comparing a trip's quotes (ADR-080). It gets the trip's route and needs and each option's quote, rate cards and history under a letter:
+ * the provider business name, and no people. It has no tools and cannot act; the answer is checked by checkAdvice and shown as advice. `create` is passed in so tests need no network.
  */
 export async function adviseQuotes(input: unknown, labels: string[], create: CreateMessage = realCreate): Promise<AdviceResult> {
   const model = aiModel();

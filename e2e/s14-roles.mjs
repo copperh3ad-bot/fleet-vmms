@@ -4,7 +4,7 @@ import { body, check, confirmEmail, fill, finding, go, has, persona, press, scen
 // Every role in one company, front end and back end: each role joins with the company code and is approved with its own role, then the pages each role may and may
 // not open are compared with docs/RBAC-MATRIX.md, the auditor's read-only rule is tried, a cargo request with weight and volume goes to logistics providers who quote
 // by link, and the database is read directly for what the screens claimed. Needs scenarios 2 to 4 (the company, its code and its manager).
-const ROLES = [["finance", "Finance"], ["auditor", "Auditor"], ["logistics", "Logistics"], ["hr", "HR"], ["security", "Gate security"]];
+const ROLES = [["finance", "Finance"], ["auditor", "Auditor"], ["logistics", "Logistics"], ["hr", "HR"]];   // Gate security has no screen yet (ADR-067), so the role cannot be given to anyone
 
 // path -> roles that may open it (RBAC-MATRIX.md). Admin and manager are the existing S.pk and S.mgr.
 const PAGES = {
@@ -72,7 +72,7 @@ export async function roles(S) {
     const url = new URL(p.page.url()).pathname;
     return url.endsWith(path) && !has(t, "do not have access") && !has(t, "not allowed") && !has(t, "could not be found") && !has(t, "part of the Pro plan");
   };
-  for (const role of ["tenant_admin", "fleet_manager", "finance", "auditor", "logistics", "hr", "security"]) {
+  for (const role of ["tenant_admin", "fleet_manager", "finance", "auditor", "logistics", "hr"]) {
     await step(`${role}: opens exactly the pages the role matrix allows, and no others`, async () => {
       const wrong = [];
       for (const [path, allowed] of Object.entries(PAGES)) {
@@ -182,16 +182,10 @@ export async function roles(S) {
     check(last(`select count(*) from trip_invoices where trip_id = '${tripId}'`) === "0", "an invoice appeared before the provider sent one");
   });
 
-  await step("gate security: what the role can reach (the menu must not lead to a refusal)", async () => {
-    const g = who.security;
-    await go(g, `${base}`);
-    const nav = (await g.page.locator('nav[aria-label="Workspace"]').allInnerTexts()).join(" ");
-    const links = [];
-    for (const w of ["Trips", "Cargo", "Invoices", "Reports", "Job cards", "Vehicles"]) if (has(nav, w)) links.push(w);
-    for (const w of links) {
-      const path = { Trips: "/trips", Cargo: "/cargo", Invoices: "/invoices", Reports: "/reports", "Job cards": "/job-cards", Vehicles: "/vehicles" }[w];
-      if (!(await opens(g, path))) finding("role", `Gate security sees "${w}" in the menu but ${path} refuses them: a dead end (the role holds gate.use, but no gate screen exists yet, ADR-067)`);
-    }
+  await step("gate security: the role has no screen yet, so it is not offered when people are invited or approved", async () => {
+    await go(o, `${base}/users`);
+    const offered = (await o.page.locator("select[name=role] option, select#role option").allInnerTexts()).join(" | ");
+    check(!has(offered, "Gate security"), `Gate security is offered in a role list: ${offered}`);
   });
 
   // ---------- back end: the activity log and the counts agree with what was done

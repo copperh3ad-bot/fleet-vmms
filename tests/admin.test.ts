@@ -242,6 +242,12 @@ describe("changing people's access", () => {
     expect((await ad.listRoles(d, admin())).map((r) => r.key)).toContain("tenant_admin");
   });
 
+  it("the gate security role has no screen yet, so it is not offered and cannot be given", async () => {
+    expect((await ad.listRoles(d, admin())).map((r) => r.key)).not.toContain("security");
+    await expect(invite("gate.guard@example.com", { role: "security" })).rejects.toThrow(/no screen yet/);
+    await expect(ad.changeMember(d, admin(), U(71), { role: "security" })).rejects.toThrow(/no screen yet/);
+  });
+
   it("every invitation and access change is written to the platform audit log, without the link's hash", async () => {
     const inv = await invite("audit.me@example.com");
     await ad.acceptInvitation(d, { token: inv.token }, person(80, "audit.me@example.com"));
