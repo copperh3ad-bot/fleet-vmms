@@ -5,6 +5,14 @@ import { getDriver } from "@/lib/db";
 import { PageHeader, Panel, btn } from "@/components/ui";
 import { getSettings, listServiceRules, rulesImpact } from "@/lib/control/service";
 import { plural } from "@/lib/labels";
+import { aiConfigured } from "@/lib/ai/claude";
+import { aiDocumentsEnabled } from "@/lib/ai/service";
+import { tenantPlan } from "@/lib/billing/plans";
+import { waMenuState } from "@/lib/wa-menu/switch";
+import { waJobCardsState } from "@/lib/wa-jobcards/service";
+import { AiDocumentsPanel } from "../vendors/ai-panel";
+import { WaJobCardsPanel } from "../vendors/wa-jobcards-panel";
+import { WaMenuPanel } from "../vendors/wa-menu-panel";
 import { ServiceRuleForm } from "./forms";
 import { RuleToggle, RulesFormProvider, SaveRulesButton, SettingFields, SwitchFields, type SettingItem } from "./rules-forms";
 
@@ -31,6 +39,13 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   const driver = getDriver();
   const [settings, rules, perms, impact] = await Promise.all([getSettings(driver, m), listServiceRules(driver, m), permissionsOf(driver, m), rulesImpact(driver, m)]);
   const manageRules = perms.has("service.manage");
+  // The Pro switches (AI, WhatsApp) sit here with the other company switches, so nobody has to hunt for them. Only an administrator sees them (ADR-034, ADR-079).
+  const isAdmin = perms.has("admin.users");
+  const showAi = aiConfigured() && isAdmin;
+  const plan = isAdmin ? await tenantPlan(driver, m.tenantId).catch(() => null) : null;
+  const aiOn = showAi && plan?.aiDocuments ? await aiDocumentsEnabled(driver, m.tenantId).catch(() => false) : false;
+  const wa = showAi ? await waJobCardsState(driver, m).catch(() => null) : null;
+  const menu = isAdmin ? await waMenuState(driver, m).catch(() => null) : null;
   const adding = sp.add === "1";
   const edit = typeof sp.edit === "string" ? rules.find((r) => r.key === sp.edit) : undefined;
   const items = (list: readonly (readonly [string, string])[]): SettingItem[] =>
@@ -48,7 +63,7 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
   return (
     <RulesFormProvider slug={slug}>
       <main className="space-y-5 p-6 text-zinc-900">
-        <PageHeader title="Service rules" sub="What counts as due, and what gets flagged" actions={canSave ? <SaveRulesButton /> : undefined} />
+        <PageHeader title="Settings" sub="Service rules, and what your company can do" actions={canSave ? <SaveRulesButton /> : undefined} />
         <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
           <div className="space-y-5">
             <Panel title="Preventive servicing" sub="Switches save at once. Numbers below save with “Save rules”." flush>
@@ -87,6 +102,11 @@ async function Inner({ params, searchParams }: { params: Promise<{ slug: string 
                 <SettingFields items={[...company("odometer_send_day"), ...company("dept_approval_limit"), ...company("payment_approval_limit"), ...company("invoice_over_quote_pct"), ...company("quote_over_estimate_pct")]} />
               </div>
             </Panel>
+            {(showAi || menu) && <div className="space-y-5">
+          {showAi && <Panel title="Reading workshop documents with AI">{plan?.aiDocuments ? <AiDocumentsPanel slug={slug} on={aiOn} trialReads={plan.aiTrialReads} /> : <p className="text-sm">This is part of the <strong>Pro</strong> plan: the AI reads the estimates and invoices your workshops email and fills in the form for your staff to check. Your plan is {plan?.name ?? "Basic"}. <a className="underline" href={`/w/${slug}/billing`}>See Billing</a> to change plan.</p>}</Panel>}
+          {menu && <Panel title="WhatsApp menu">{menu.pro ? <WaMenuPanel slug={slug} on={menu.on} /> : <p className="text-sm">This is part of the <strong>Pro</strong> plan: employees say Hi on WhatsApp and choose what to do, answering a few questions each time.</p>}</Panel>}
+          {showAi && wa && <Panel title="Job cards by WhatsApp">{wa.pro ? <WaJobCardsPanel slug={slug} on={wa.on} /> : <p className="text-sm">This is part of the <strong>Pro</strong> plan: employees raise a job card by sending one WhatsApp message, and the AI makes the draft for them to confirm. Your plan is {plan?.name ?? "Basic"}. <a className="underline" href={`/w/${slug}/billing`}>See Billing</a> to change plan.</p>}</Panel>}
+            </div>}
             <Panel title="What the manager sees">
               {impact ? (
                 <p className="text-sm text-zinc-600">With these rules, {plural(impact.due, "vehicle")} {impact.due === 1 ? "is" : "are"} due or overdue for {impact.label.toLowerCase()} and {impact.noHistory} {impact.noHistory === 1 ? "has" : "have"} no service history. Change a rule and the lists update at once.</p>

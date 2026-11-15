@@ -80,7 +80,7 @@ export async function people(S) {
     check(has(t, "What your vehicle has cost"), "the dashboard has no costs for the person's own vehicle");
     const nav = (await S.staff.page.locator('nav[aria-label="Workspace"]').allInnerTexts()).join(" ");
     for (const w of ["Maintenance policy", "Budgets", "Compliance", "Reports", "Odometer"]) check(!has(nav, w), `a person limited to their own vehicle sees "${w}" in the navigation`);
-    for (const w of ["Users and roles", "Service rules", "Billing"]) if (has(t, w)) finding("access", `a requester sees "${w}" in the navigation`);
+    for (const w of ["Users and roles", "Settings", "Billing"]) if (has(t, w)) finding("access", `a requester sees "${w}" in the navigation`);
     await go(S.staff, `${base}/users`);
     check(has(await body(S.staff), "do not have access") || !new URL(S.staff.page.url()).pathname.endsWith("/users"), "a requester opened the Users page");
     await go(S.staff, `${base}/billing`);

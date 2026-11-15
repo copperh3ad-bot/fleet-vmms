@@ -7,15 +7,6 @@ import { VendorForm, VendorStatusButton } from "./form";
 import { RateForm, RemoveRate } from "./rates";
 import { listProviderRates, RATE_BASIS } from "@/lib/trips/outsourced";
 import { outsourcingOn } from "@/lib/trips/service";
-import { permissionsOf } from "@/lib/auth/can";
-import { aiConfigured } from "@/lib/ai/claude";
-import { aiDocumentsEnabled } from "@/lib/ai/service";
-import { AiDocumentsPanel } from "./ai-panel";
-import { WaJobCardsPanel } from "./wa-jobcards-panel";
-import { WaMenuPanel } from "./wa-menu-panel";
-import { waMenuState } from "@/lib/wa-menu/switch";
-import { waJobCardsState } from "@/lib/wa-jobcards/service";
-import { tenantPlan } from "@/lib/billing/plans";
 
 export default function VendorsPage({ params }: PageProps<"/w/[slug]/vendors">) {
   return <Suspense fallback={<p className="p-6 text-sm text-zinc-500">Loading</p>}><Inner params={params} /></Suspense>;
@@ -28,13 +19,6 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
   // Each organization's own reference rates for its logistics providers (ADR-078, a Pro feature).
   const pro = await outsourcingOn(getDriver(), m).catch(() => false);
   const rates = pro ? await listProviderRates(getDriver(), m).catch(() => []) : [];
-  // Only an administrator sees the switch, and only where the service has AI set up (ADR-034).
-  const showAi = aiConfigured() && (await permissionsOf(getDriver(), m)).has("admin.users");
-  const plan = showAi ? await tenantPlan(getDriver(), m.tenantId) : null;
-  const aiOn = showAi && plan?.aiDocuments ? await aiDocumentsEnabled(getDriver(), m.tenantId) : false;
-  const wa = showAi ? await waJobCardsState(getDriver(), m) : null;
-  const isAdmin = (await permissionsOf(getDriver(), m)).has("admin.users");
-  const menu = isAdmin ? await waMenuState(getDriver(), m).catch(() => null) : null;
   return (
     <main className="space-y-5 p-6 text-zinc-900">
       <PageHeader title="Vendors" sub={`${rows.length} workshops and logistics providers`} />
@@ -73,9 +57,6 @@ async function Inner({ params }: { params: Promise<{ slug: string }> }) {
         </Panel>
         <div className="space-y-5">
           <Panel title="Add a vendor"><VendorForm slug={slug} /></Panel>
-          {showAi && <Panel title="Reading workshop documents with AI">{plan?.aiDocuments ? <AiDocumentsPanel slug={slug} on={aiOn} trialReads={plan.aiTrialReads} /> : <p className="text-sm">This is part of the <strong>Pro</strong> plan: the AI reads the estimates and invoices your workshops email and fills in the form for your staff to check. Your plan is {plan?.name ?? "Basic"}. <a className="underline" href={`/w/${slug}/billing`}>See Billing</a> to change plan.</p>}</Panel>}
-          {menu && <Panel title="WhatsApp menu">{menu.pro ? <WaMenuPanel slug={slug} on={menu.on} /> : <p className="text-sm">This is part of the <strong>Pro</strong> plan: employees say Hi on WhatsApp and choose what to do, answering a few questions each time.</p>}</Panel>}
-          {showAi && wa && <Panel title="Job cards by WhatsApp">{wa.pro ? <WaJobCardsPanel slug={slug} on={wa.on} /> : <p className="text-sm">This is part of the <strong>Pro</strong> plan: employees raise a job card by sending one WhatsApp message, and the AI makes the draft for them to confirm. Your plan is {plan?.name ?? "Basic"}. <a className="underline" href={`/w/${slug}/billing`}>See Billing</a> to change plan.</p>}</Panel>}
         </div>
       </div>
     </main>

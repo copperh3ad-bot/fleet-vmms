@@ -86,7 +86,7 @@ async function Shell({ params, children }: { params: Promise<{ slug: string }>; 
   ];
   const admin: Item[] = [
     { href: to("/users"), label: "Users and roles", show: has("admin.users"), badge: counts.joins },
-    { href: to("/settings"), label: "Service rules", show: has("service.manage", "budget.manage", "admin.settings") },
+    { href: to("/settings"), label: "Settings", show: has("service.manage", "budget.manage", "admin.settings") },
     { href: to("/activity"), label: "Activity log", show: has("activity.read") },
     { href: to("/employees"), label: "Employees", show: has("employee.manage") },
     { href: to("/depots"), label: "Depots and places", show: has("depot.manage") },

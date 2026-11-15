@@ -7,7 +7,7 @@ import { UserError } from "@/lib/master/service";
 import * as ctl from "@/lib/control/service";
 
 // QA-FULLFLOW F-03: the trips switch and the department approval limit were defined as settings an administrator may change, but no screen showed them.
-// They now sit on the Service rules page ("Company switches").
+// They now sit on the Settings page ("Company switches").
 const U = (n: number) => `00000000-0000-0000-0000-00000000${String(n).padStart(4, "0")}`;
 let d: Awaited<ReturnType<typeof testDriver>>;
 let t: { tenantId: string; schema: string };
