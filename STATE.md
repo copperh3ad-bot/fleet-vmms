@@ -650,3 +650,9 @@ Two full-flow QA runs (an agent run on a throwaway local database: 392 steps, no
 - Fix 5cd219c (deployed): Cargo link no longer hidden for "own vehicle only" people; web cargo form gains optional "Deliver by". Cause of Loop Farms report: the own-vehicle sidebar filter.
 - ADR-097 (not deployed, not committed at the time of writing): the administrator edits each role's permissions and makes roles of their own. Tenant migration 0066 (needs `scripts/migrate-tenants.mts` on live), `src/lib/admin/roles.ts`, `permission-catalog.ts`, Users page "Edit what each role can do", `tests/custom-roles.test.ts`. Unit tests 1427 pass.
 - Added `scripts/wa-why-no-menu.mts` (read-only): says which WhatsApp menu check fails for one phone number. The Loop Farms "Hi" problem was fixed on the owner side; cause not confirmed (the menu switch is on the Vendors page).
+
+## 2026-11-15 (later): ADR-097 live, settings consolidated
+- Corrects the entry above: ADR-097 is committed (4d91a33), tenant migration 0066 applied to live (both organizations, no drift), deployed 6af8c3f2. Editable roles and custom roles are live on the Users page.
+- 8813579 (deployed 6af94c6d): the AI documents, WhatsApp menu and WhatsApp job card switches moved from the Vendors page to the Settings page, beside the other company switches. Sidebar link and page title renamed from "Service rules" to "Settings". No migration.
+- Live = 8813579. Unit tests 1,427 pass. Not browser-tested: the roles editor and the moved switches.
+- Open: Loop Farms "Hi" on WhatsApp reported working, cause not confirmed; `scripts/wa-why-no-menu.mts` is there if it recurs. WhatsApp flow does not ask for a delivery time (the web form does). Live attachments bucket still has 4 orphan files (see session-resume-2026-11-15).
