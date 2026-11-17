@@ -19,14 +19,14 @@
       linear-gradient(180deg, var(--ink) 0%, var(--ink2) 100%); }
   .hazard { height: 5mm; margin: 0 -15mm; background: repeating-linear-gradient(-45deg, var(--gold) 0 4mm, var(--ink) 4mm 8mm); }
   .logo { height: 13mm; display: block; margin-top: 5mm; }
-  .hero { position: relative; height: 44mm; }
+  .hero { position: relative; height: 42mm; }
   .hero-text { position: absolute; left: 0; top: 0; width: 96mm; }
   .hero-art { position: absolute; right: 0; top: -8mm; width: 86mm; height: 54mm; }
   .kicker { margin-top: 4mm; font-size: 10pt; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
   h1 { margin-top: 2mm; font-size: 22pt; line-height: 1.02; font-weight: 700; letter-spacing: .005em; text-transform: uppercase; }
   h1 em { font-style: normal; color: var(--gold); }
 
-  .journey { margin-top: 3.5mm; }
+  .journey { margin-top: 2.6mm; }
   .journey .cap { font-size: 7.5pt; letter-spacing: .16em; text-transform: uppercase; color: var(--mist); margin-bottom: 1.4mm; }
   .steps { display: flex; }
   .step { flex: 1; height: 9mm; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 7.4pt; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink); background: var(--gold);
@@ -36,11 +36,17 @@
   .legend { margin-top: 1.2mm; font-size: 7.2pt; color: var(--mist); }
   .legend i { display: inline-block; width: 2.6mm; height: 2.6mm; background: var(--rust); vertical-align: -.5mm; margin-right: 1mm; }
 
-  .grid { margin-top: 4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 2.2mm; }
-  .card { background: rgba(255,255,255,.06); border: .3mm solid rgba(255,255,255,.16); border-left: 1.2mm solid var(--gold); border-radius: .8mm; padding: 1.8mm 3.5mm; display: grid; grid-template-columns: 10mm 1fr; column-gap: 3mm; align-content: start; }
+  .usps { margin-top: 3mm; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2mm; }
+  .usp { background: var(--gold); color: var(--ink); padding: 1.8mm 2.6mm; clip-path: polygon(0 0, 100% 0, 100% calc(100% - 2mm), calc(100% - 2mm) 100%, 0 100%); }
+  .usp b { display: block; font-size: 9.6pt; font-weight: 800; text-transform: uppercase; letter-spacing: .01em; line-height: 1.05; }
+  .usp span { display: block; margin-top: .8mm; font-size: 7.2pt; line-height: 1.22; font-weight: 500; }
+  .pro-pain { margin-top: 1mm; font-size: 8.6pt; line-height: 1.34; color: #e9b8a4; }
+  .pro-pain b { display: inline-block; font-size: 6.8pt; letter-spacing: .12em; text-transform: uppercase; padding: .2mm 1.4mm; margin-right: 1.4mm; vertical-align: 1px; background: var(--rust); color: #fff; }
+  .grid { margin-top: 2.4mm; display: grid; grid-template-columns: 1fr 1fr; gap: 1.8mm; }
+  .card { background: rgba(255,255,255,.06); border: .3mm solid rgba(255,255,255,.16); border-left: 1.2mm solid var(--gold); border-radius: .8mm; padding: 1.4mm 3.5mm; display: grid; grid-template-columns: 10mm 1fr; column-gap: 3mm; align-content: start; }
   .card h3, .card p { grid-column: 2; }
   .card h3 { font-size: 12pt; font-weight: 700; color: #fff; margin-bottom: 1mm; text-transform: uppercase; letter-spacing: .02em; }
-  .card p { font-size: 8.2pt; line-height: 1.28; color: var(--mist); }
+  .card p { font-size: 8pt; line-height: 1.24; color: var(--mist); }
   .card p.pain { color: #e9b8a4; margin-bottom: 1mm; }
   .card p.fix { color: #d3d9dd; }
   .card p b { display: inline-block; font-size: 6.8pt; letter-spacing: .12em; text-transform: uppercase; padding: .2mm 1.4mm; margin-right: 1.4mm; vertical-align: 1px; }
@@ -50,14 +56,14 @@
   .ico svg { width: 6.4mm; height: 6.4mm; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .ico::after { content: attr(data-n); position: absolute; right: -1.6mm; top: -1.6mm; width: 4mm; height: 4mm; line-height: 4mm; text-align: center; background: var(--gold); color: var(--ink); font-size: 6.6pt; font-weight: 800; }
 
-  .soon { margin-top: 4mm; border: .5mm dashed var(--gold); padding: 5mm 6mm 4mm; margin-bottom: 2mm; background: rgba(255,194,14,.08); position: relative; display: grid; grid-template-columns: 1fr 15mm; column-gap: 5mm; align-items: center; }
+  .soon { margin-top: 3.4mm; border: .5mm dashed var(--gold); padding: 4.2mm 6mm 2.6mm; margin-bottom: 0; background: rgba(255,194,14,.08); position: relative; display: grid; grid-template-columns: 1fr 15mm; column-gap: 5mm; align-items: center; }
   .tag { position: absolute; top: -3.2mm; left: 6mm; background: var(--gold); color: var(--ink); font-size: 8.5pt; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; padding: 1mm 3mm; }
   .soon h2 { font-size: 13.5pt; line-height: 1.15; text-transform: uppercase; letter-spacing: .01em; }
   .soon h2 em { font-style: normal; color: var(--gold); }
-  .soon p { margin-top: 1.2mm; font-size: 9pt; line-height: 1.36; color: #d3d9dd; }
+  .soon p { margin-top: .6mm; font-size: 9pt; line-height: 1.36; color: #d3d9dd; }
   .pro-list { list-style: none; margin-top: 1.6mm; display: grid; grid-template-columns: 1fr 1fr; gap: .8mm 5mm; font-size: 8.8pt; color: #fff; }
   .pro-list li::before { content: ""; display: inline-block; width: 1.8mm; height: 1.8mm; background: var(--gold); margin-right: 2mm; vertical-align: .1mm; }
-  .basic-label { margin-top: 4mm; font-size: 9pt; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+  .basic-label { margin-top: 3mm; font-size: 9pt; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
   .basic-label span { color: var(--mist); font-weight: 400; letter-spacing: .08em; }
   .soon svg { width: 15mm; height: 15mm; }
 
@@ -141,6 +147,13 @@
     </div>
   </div>
 
+  <div class="usps">
+    <div class="usp"><b class="cond">No per-user fee</b><span>Add every driver, manager and workshop contact. The bill does not grow.</span></div>
+    <div class="usp"><b class="cond">No training for workshops</b><span>They reply from their own phone, by link or email.</span></div>
+    <div class="usp"><b class="cond">Your own roles</b><span>The administrator sets what each role may do.</span></div>
+    <div class="usp"><b class="cond">Live in days</b><span>3-day free trial, no card. Import vehicles from one sheet.</span></div>
+  </div>
+
   <div class="basic-label cond">Basic <span>&middot; maintenance management, where every company starts</span></div>
   <div class="grid">
     <div class="card"><span class="ico" data-n="1"><svg><use href="#i-stamp"/></svg></span><h3 class="cond">Every approval on record</h3><p class="pain"><b>Problem</b>Repairs get approved by chat or phone call, and nobody can say later who said yes.</p><p class="fix"><b>Fix</b>Approvals carry the person's name and the time. Only the administrator may decide on their own request, and it is recorded.</p></div>
@@ -149,8 +162,8 @@
     <div class="card"><span class="ico" data-n="4"><svg><use href="#i-invoice"/></svg></span><h3 class="cond">Invoices checked first</h3><p class="pain"><b>Problem</b>A workshop's invoice comes in higher than the price you agreed.</p><p class="fix"><b>Fix</b>Every invoice is checked against the approved quotation, and not by whoever approved the card.</p></div>
     <div class="card"><span class="ico" data-n="5"><svg><use href="#i-vehicle"/></svg></span><h3 class="cond">Cost lands on the right vehicle</h3><p class="pain"><b>Problem</b>Nobody knows what each vehicle really costs, or who had it at the time.</p><p class="fix"><b>Fix</b>Spend is counted per vehicle, department and period, and follows who held it.</p></div>
     <div class="card"><span class="ico" data-n="6"><svg><use href="#i-repeat"/></svg></span><h3 class="cond">Repeat repairs are flagged</h3><p class="pain"><b>Problem</b>The same fault is paid for again and again.</p><p class="fix"><b>Fix</b>A fault coming back on the same vehicle is shown, so you see what keeps failing.</p></div>
-    <div class="card"><span class="ico" data-n="7"><svg><use href="#i-wheel"/></svg></span><h3 class="cond">Drivers see their own vehicle</h3><p class="pain"><b>Problem</b>Drivers ask the office what their vehicle cost, and odometer readings come late.</p><p class="fix"><b>Fix</b>A driver sees only the job cards of the vehicle they hold, and sends odometer or hours by a phone link. Licence and service-due reminders arrive on time.</p></div>
-    <div class="card"><span class="ico" data-n="8"><svg><use href="#i-badge"/></svg></span><h3 class="cond">Every action has a name</h3><p class="pain"><b>Problem</b>Shared logins mean no action can be traced to anyone.</p><p class="fix"><b>Fix</b>People join by invitation with a WhatsApp code and a valid licence, so each action traces to a person.</p></div>
+    <div class="card"><span class="ico" data-n="7"><svg><use href="#i-wheel"/></svg></span><h3 class="cond">Drivers see their own vehicle</h3><p class="pain"><b>Problem</b>Drivers ask the office what their vehicle cost, and odometer readings come late.</p><p class="fix"><b>Fix</b>A driver sees only the vehicle they hold and sends odometer or hours by a phone link. Licence and service-due reminders arrive on time.</p></div>
+    <div class="card"><span class="ico" data-n="8"><svg><use href="#i-badge"/></svg></span><h3 class="cond">Roles that fit your company</h3><p class="pain"><b>Problem</b>Software forces its own job titles, and shared logins hide who did what.</p><p class="fix"><b>Fix</b>The administrator ticks what each role may do and makes new roles. Everyone joins by invitation, so every action names a person.</p></div>
   </div>
 
   <div class="soon">
@@ -159,7 +172,7 @@
       <h2 class="cond">Pro: <em>fleet operations</em>, Basic plus:</h2>
       <ul class="pro-list">
         <li>Trip scheduling with vehicle and driver</li>
-        <li>Cargo pick-up and delivery requests</li>
+        <li>Cargo requests with pick-up and delivery times</li>
         <li>Quotes from several logistics providers</li>
         <li>AI compares the quotes and advises</li>
         <li>AI reads workshop estimates and invoices</li>
@@ -167,7 +180,8 @@
         <li>WhatsApp menu: job card, cargo, trip</li>
         <li>Provider invoices checked before payment</li>
       </ul>
-      <p>One price for every fleet size. A person always decides. WhatsApp forms coming soon.</p>
+      <p class="pro-pain"><b>Problem</b>Trips and cargo run on phone calls, and nobody compares what logistics providers charge.</p>
+      <p>One price for every fleet size. A person always decides.</p>
     </div>
     <svg viewBox="0 0 24 24" fill="none" stroke="#ffc20e" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-phone2"/></svg>
   </div>
