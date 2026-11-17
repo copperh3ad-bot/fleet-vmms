@@ -656,3 +656,8 @@ Two full-flow QA runs (an agent run on a throwaway local database: 392 steps, no
 - 8813579 (deployed 6af94c6d): the AI documents, WhatsApp menu and WhatsApp job card switches moved from the Vendors page to the Settings page, beside the other company switches. Sidebar link and page title renamed from "Service rules" to "Settings". No migration.
 - Live = 8813579. Unit tests 1,427 pass. Not browser-tested: the roles editor and the moved switches.
 - Open: Loop Farms "Hi" on WhatsApp reported working, cause not confirmed; `scripts/wa-why-no-menu.mts` is there if it recurs. WhatsApp flow does not ask for a delivery time (the web form does). Live attachments bucket still has 4 orphan files (see session-resume-2026-11-15).
+
+## 2026-11-17: main branch baseline fixed (version 1.0)
+- Owner: all systems checked and working. `master` at this commit is the main branch and the baseline of record. Tag `fleet-otg-main-v1.0` marks it. Live = 8813579 (docs-only commits since).
+- Rule from now on: new development happens on forks / branches as version upgrades (v1.1, v1.2, ...), never directly on `master`. `master` changes only for a correction the owner names, and each correction is its own commit.
+- Rollback point: `git checkout fleet-otg-main-v1.0`. Tenant migrations through 0066 are applied on live.
