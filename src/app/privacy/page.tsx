@@ -22,7 +22,7 @@ async function Privacy() {
   const f = legalFacts(await loadPlatformSettings(getDriver()).catch(() => ({} as Record<string, string>)));
   return (
     <LegalPage title="Privacy policy">
-      <p>Version {TERMS_VERSION}. Last updated 7 November 2026. {f.name}, of {f.address} (&ldquo;we&rdquo;, &ldquo;us&rdquo;), runs Fleet OTG. This page says what personal information we handle, why, who else handles it, how long we keep it, and what you can do about it. It goes with our <a href="/terms" className="underline">Terms of service</a>.</p>
+      <p>Version {TERMS_VERSION}. Last updated 23 November 2026. {f.name}, of {f.address} (&ldquo;we&rdquo;, &ldquo;us&rdquo;), runs Fleet OTG. This page says what personal information we handle, why, who else handles it, how long we keep it, and what you can do about it. It goes with our <a href="/terms" className="underline">Terms of service</a>.</p>
 
       <h2>1. Two roles</h2>
       <ul>
@@ -43,7 +43,7 @@ async function Privacy() {
         <li><strong>Messages to us:</strong> what you write in the Contact form (name, email, company, topic, message), in emails to our support addresses and in the live chat.</li>
         <li><strong>Technical data:</strong> your internet address and the pages you ask for are seen by our hosting provider when you use the site, and may appear in its security and error logs. To slow down abuse we count attempts per address; the counter is kept in scrambled (hashed) form and for a short time only.</li>
       </ul>
-      <p>We do not collect payment card details, do not use advertising or analytics trackers, and do not track your location, apart from what the live chat works out from your internet address when it is switched on (see Zoho SalesIQ below).</p>
+      <p>We do not collect payment card details, do not use advertising trackers, use analytics only on our public pages (see Google Analytics below), and do not track your location, apart from what the live chat works out from your internet address when it is switched on (see Zoho SalesIQ below).</p>
 
       <h2>3. Why we use it, and on what basis</h2>
       <ul>
@@ -64,6 +64,7 @@ async function Privacy() {
         <li><strong>Anthropic</strong> (the Claude AI service): only if your organization&apos;s administrator switches on AI reading of workshop documents. A person then chooses to have a file a workshop emailed read by the AI, and that file, the job card number, the currency and, for an invoice, the lines of the approved estimate are sent to Anthropic to be read. No names, vehicles or other records are sent. Anthropic does not use this data to train its models. The AI only makes a draft; a person checks and saves it, and each use is recorded on the job card.</li>
         <li><strong>Zoho SalesIQ</strong> (live chat): when the chat button is switched on, it appears on our public pages and inside your workspace, and Zoho&apos;s chat service loads on those pages. It may record the page you are on, your browser, and your internet address with the country or city that implies, so our team can see who is chatting, and it keeps the messages you send us in the chat. From inside a workspace it is told your company&apos;s name, workspace, plan and status, never your name or email unless you type them. It sets its own cookies to keep a conversation going. It is not used for advertising.</li>
         <li><strong>WhatsApp Business Platform, provided by Meta Platforms</strong> (&ldquo;Meta&rdquo;): sends and receives the WhatsApp messages described in section 9. Meta sees the phone number a message is sent to or comes from, the message and its attachments, and the delivery status, and handles them under its own terms and privacy policy (<a href="https://www.whatsapp.com/legal/privacy-policy" className="underline">WhatsApp Privacy Policy</a>, <a href="https://www.whatsapp.com/legal/business-terms" className="underline">WhatsApp Business Terms</a>). We do not use social-media sign-in, and we receive no profile, contacts or other information from anyone&apos;s WhatsApp account beyond the phone number and the messages they send to us.</li>
+        <li><strong>Google Analytics</strong>, loaded through Google Tag Manager (website statistics): on our public pages only (home, pricing, features, sign-up, sign-in, contact and similar), never inside a workspace, the operator area or a one-time link. Google sees the page you visit, your browser and device type, your approximate location from your internet address, and how you arrived, and sets cookies to tell visits apart. We use it to count visits and see which pages help, not to identify you or for advertising, and we do not send it any of your organization&apos;s records. Google handles it under its own <a href="https://policies.google.com/privacy" className="underline">privacy policy</a>; you can opt out with Google&apos;s <a href="https://tools.google.com/dlpage/gaoptout" className="underline">browser add-on</a>.</li>
         <li><strong>Zoho Mail</strong>: our mailboxes. It handles the emails you send to our support, sales and billing addresses and our replies.</li>
       </ul>
       <p>We also share information when the law requires it, with a court or authority acting lawfully, or to protect our rights or others&apos; safety, and with a successor if the business is sold, on terms that keep this policy. Within your organization, only the people your administrator has given access can see your records. Our staff do not open an organization&apos;s records except to fix a problem you report, and then only as much as is needed.</p>
@@ -110,7 +111,7 @@ async function Privacy() {
       <p>For records that belong to an organization (for example a job card that mentions a driver), the organization decides what is kept, so we pass your request to its administrator and tell you we have done so. We keep what the law requires us to keep, such as payment records, and will tell you what and why. An organization&apos;s administrator can also remove its own people and export its data in the service itself.</p>
 
       <h2>11. Cookies</h2>
-      <p>We use only the cookies needed to keep you signed in and to keep the service secure, plus, when the live chat is switched on, the cookies Zoho&apos;s chat sets to keep a conversation going. We do not use advertising or tracking cookies.</p>
+      <p>We use only the cookies needed to keep you signed in and to keep the service secure, plus the cookies Google Analytics sets on our public pages to count visits (section 4), and, when the live chat is switched on, the cookies Zoho&apos;s chat sets to keep a conversation going. We do not use advertising cookies.</p>
 
       <h2>12. Children</h2>
       <p>Fleet OTG is for organizations and the working adults in them. It is not meant for anyone under 18, and we do not knowingly collect information from children.</p>

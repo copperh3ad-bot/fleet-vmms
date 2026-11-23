@@ -35,8 +35,8 @@ describe("who we are comes from Settings", () => {
 
 describe("what the pages say matches what the service does", () => {
   it("names every provider that handles personal data, and no payment-card or tracking provider", () => {
-    for (const p of ["Supabase", "Netlify", "Resend", "Zoho", "Anthropic", "Zoho SalesIQ", "WhatsApp Business Platform", "Meta Platforms"]) expect(privacy).toContain(p);
-    expect(privacy).not.toMatch(/Stripe|Google Analytics|Facebook|Meta Pixel/i);
+    for (const p of ["Supabase", "Netlify", "Resend", "Zoho", "Anthropic", "Zoho SalesIQ", "WhatsApp Business Platform", "Meta Platforms", "Google Analytics"]) expect(privacy).toContain(p);
+    expect(privacy).not.toMatch(/Stripe|Facebook|Meta Pixel/i);
     expect(read("package.json")).not.toMatch(/stripe|posthog|segment|mixpanel|@sentry|gtag/i);
   });
   it("states the same 30-day keep-after-lock period as the home page", () => {
