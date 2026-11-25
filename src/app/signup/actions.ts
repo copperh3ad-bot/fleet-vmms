@@ -10,7 +10,9 @@ import { clientIp } from "@/lib/client-ip";
 import { origin } from "@/lib/origin";
 import { supabaseServer } from "@/lib/supabase/server";
 import { UserError } from "@/lib/master/service";
-import { parseSignup, recordSignup } from "@/lib/orgs/signup";
+import { buildSignupNotice, parseSignup, recordSignup } from "@/lib/orgs/signup";
+import { loadPlatformSettings } from "@/lib/billing/settings";
+import { emailConfigured, mailFailure, sendMail } from "@/lib/email/send";
 import { signupsOpen } from "@/lib/orgs/runtime";
 import type { FormState } from "@/app/w/[slug]/actions-util";
 import { authEvent } from "@/lib/activity/auth";
@@ -70,6 +72,13 @@ async function signUpActionImpl(_prev: FormState, form: FormData): Promise<FormS
   // identities list (and sends no email) instead of an error. Say so, or the person waits for an email that never comes.
   if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
     return { error: "An account with this email already exists. Sign in instead, or use Forgot your password.", values: keep(form) };
+  }
+  // A heads-up to the owner. The sign-up is already saved, so a mail problem never shows the visitor an error.
+  if (emailConfigured()) {
+    try {
+      const mail = buildSignupNotice(input, await loadPlatformSettings(driver), process.env.EMAIL_REPLY_TO);
+      if (mail) await sendMail(mail);
+    } catch (e) { console.error(`signup notice failed: ${mailFailure(e)}`); }
   }
   // With email confirmation switched off there is already a session: go straight on. Otherwise the person confirms first.
   redirect(data.session ? "/setup" : "/signup/check-email");

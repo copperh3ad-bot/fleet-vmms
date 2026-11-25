@@ -9,6 +9,7 @@ import { UserError } from "@/lib/master/service";
 import { fieldErrors } from "@/lib/master/schemas";
 import { insertOrganization, type NewOrganization, type OrgKind } from "./provision";
 import { isCountryCode } from "./countries";
+import type { Mail } from "@/lib/email/templates";
 
 /** Shown with the terms the person accepted. Change it when the terms change. */
 export const TERMS_VERSION = "2026-10-28-draft";
@@ -111,4 +112,20 @@ function claimOnce(driver: Driver, user: Claimer, opts: { kind?: OrgKind }, suff
     if (s.country) await q.query("insert into public.org_tax(tenant_id, country) values ($1, $2) on conflict (tenant_id) do update set country = excluded.country", [t.tenantId, s.country]);
     return t;
   });
+}
+
+const escHtml = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+/** Heads-up email to the owner when someone signs up. The recipient is only ever an address the owner entered in settings (or the site reply
+ *  address), never one the visitor typed. Returns null when no address is set. */
+export function buildSignupNotice(input: SignupInput, settings: Record<string, string>, fallback?: string): Mail | null {
+  const pick = (k: string) => settings[k]?.trim() || "";
+  const to = pick("sales_email") || pick("support_email") || fallback?.trim() || "";
+  if (!to) return null;
+  const rows: [string, string][] = [["Organization", input.org_name], ["Contact", input.contact_name], ["Email", input.email], ["Phone", input.phone ?? "-"], ["Fleet size", input.fleet_size ?? "-"], ["Country", input.country ?? "-"]];
+  const head = "New organization sign-up";
+  const tail = "They still need to confirm their email before the workspace is built.";
+  const text = [head, "", ...rows.map(([k, v]) => `${k}: ${v}`), "", tail].join("\n");
+  const html = `<p><b>${head}</b></p><p>${rows.map(([k, v]) => `${k}: ${escHtml(v)}`).join("<br>")}</p><p>${tail}</p>`;
+  return { to, replyTo: input.email, subject: `New sign-up: ${input.org_name}`.replace(/[\r\n]+/g, " ").slice(0, 150), text, html };
 }
